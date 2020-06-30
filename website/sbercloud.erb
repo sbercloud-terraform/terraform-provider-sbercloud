@@ -1,0 +1,51 @@
+<% wrap_layout :inner do %>
+  <% content_for :sidebar do %>
+    <div class="docs-sidebar hidden-print affix-top" role="complementary">
+      <ul class="nav docs-sidenav">
+        <li<%= sidebar_current("docs-home") %>>
+          <a href="/docs/providers/index.html">All Providers</a>
+        </li>
+
+        <li>
+          <a href="/docs/providers/sbercloud/index.html">SberCloud Provider</a>
+        </li>
+
+        <li>
+          <a href="#">Identity and Access Management (IAM)</a>
+          <ul class="nav">
+            <li>
+              <a href="#">Data Sources</a>
+              <ul class="nav nav-auto-expand">
+                <li>
+                  <a href="/docs/providers/sbercloud/d/identity_role_v3.html">sbercloud_identity_role_v3</a>
+                </li>
+              </ul>
+            </li>
+            <li>
+              <a href="#">Resources</a>
+              <ul class="nav nav-auto-expand">
+                <li>
+                  <a href="/docs/providers/sbercloud/r/identity_group_v3.html">sbercloud_identity_group_v3</a>
+                </li>
+                <li>
+                  <a href="/docs/providers/sbercloud/r/identity_group_membership_v3.html">sbercloud_identity_group_membership_v3</a>
+                </li>
+                <li>
+                  <a href="/docs/providers/sbercloud/r/identity_project_v3.html">sbercloud_identity_project_v3</a>
+                </li>
+                <li>
+                  <a href="/docs/providers/sbercloud/r/identity_role_assignment_v3.html">sbercloud_identity_role_assignment_v3</a>
+                </li>
+                <li>
+                  <a href="/docs/providers/sbercloud/r/identity_user_v3.html">sbercloud_identity_user_v3</a>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  <% end %>
+
+  <%= yield %>
+  <% end %>
