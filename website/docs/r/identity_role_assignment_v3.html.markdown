@@ -16,10 +16,6 @@ this resource.
 ## Example Usage: Assign Role On Project Level
 
 ```hcl
-resource "sbercloud_identity_project_v3" "project_1" {
-  name = "eu-de_project_1"
-}
-
 resource "sbercloud_identity_group_v3" "group_1" {
   name = "group_1"
 }
@@ -30,7 +26,7 @@ data "sbercloud_identity_role_v3" "role_1" {
 
 resource "sbercloud_identity_role_assignment_v3" "role_assignment_1" {
   group_id   = "${sbercloud_identity_group_v3.group_1.id}"
-  project_id = "${sbercloud_identity_project_v3.project_1.id}"
+  project_id = "${var.project_id}"
   role_id    = "${data.sbercloud_identity_role_v3.role_1.id}"
 }
 ```

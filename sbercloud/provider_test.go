@@ -12,12 +12,9 @@ import (
 )
 
 var (
-	SBC_REGION_NAME = os.Getenv("OS_REGION_NAME")
-	SBC_ACCESS_KEY  = os.Getenv("OS_ACCESS_KEY")
-	SBC_SECRET_KEY  = os.Getenv("OS_SECRET_KEY")
-	SBC_VPC_ID      = os.Getenv("OS_VPC_ID")
-	SBC_TENANT_ID   = os.Getenv("OS_TENANT_ID")
-	SBC_DOMAIN_ID   = os.Getenv("OS_DOMAIN_ID")
+	SBC_REGION_NAME  = os.Getenv("SBC_REGION_NAME")
+	SBC_ACCOUNT_NAME = os.Getenv("SBC_ACCOUNT_NAME")
+	SBC_ADMIN        = os.Getenv("SBC_ADMIN")
 )
 
 var testAccProviders map[string]terraform.ResourceProvider
@@ -31,46 +28,18 @@ func init() {
 }
 
 func testAccPreCheckRequiredEnvVars(t *testing.T) {
-	if OS_IMAGE_ID == "" && OS_IMAGE_NAME == "" {
-		t.Fatal("OS_IMAGE_ID or OS_IMAGE_NAME must be set for acceptance tests")
-	}
-
-	if OS_POOL_NAME == "" {
-		t.Fatal("OS_POOL_NAME must be set for acceptance tests")
-	}
-
-	if OS_AVAILABILITY_ZONE == "" {
-		t.Fatal("OS_AVAILABILITY_ZONE must be set for acceptance tests")
-	}
-	if OS_FLAVOR_ID == "" && OS_FLAVOR_NAME == "" {
-		t.Fatal("OS_FLAVOR_ID or OS_FLAVOR_NAME must be set for acceptance tests")
-	}
-
-	if OS_NETWORK_ID == "" {
-		t.Fatal("OS_NETWORK_ID must be set for acceptance tests")
-	}
-
-	if OS_EXTGW_ID == "" {
-		t.Fatal("OS_EXTGW_ID must be set for acceptance tests")
-	}
-	if OS_VPC_ID == "" {
-		t.Fatal("OS_VPC_ID must be set for acceptance tests")
+	if SBC_REGION_NAME == "" {
+		t.Fatal("SBC_REGION_NAME must be set for acceptance tests")
 	}
 }
 
 func testAccPreCheck(t *testing.T) {
 	testAccPreCheckRequiredEnvVars(t)
-
-	// Do not run the test if this is a deprecated testing environment.
-	if OS_DEPRECATED_ENVIRONMENT != "" {
-		t.Skip("This environment only runs deprecated tests")
-	}
 }
 
 func testAccPreCheckAdminOnly(t *testing.T) {
-	v := os.Getenv("OS_USERNAME")
-	if v != "admin" {
-		t.Skip("Skipping test because it requires the admin user")
+	if SBC_ADMIN == "" {
+		t.Fatal("SBC_ADMIN must be set for acceptance tests")
 	}
 }
 

@@ -66,7 +66,7 @@ func Provider() terraform.ResourceProvider {
 				Type:         schema.TypeString,
 				Optional:     true,
 				Sensitive:    true,
-				DefaultFunc:  schema.EnvDefaultFunc("OS_PASSWORD", ""),
+				DefaultFunc:  schema.EnvDefaultFunc("SBC_PASSWORD", ""),
 				Description:  descriptions["password"],
 				RequiredWith: []string{"user_name", "account_name"},
 			},
@@ -94,7 +94,6 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
-			"sbercloud_identity_project_v3":          resourceIdentityProjectV3(),
 			"sbercloud_identity_role_assignment_v3":  resourceIdentityRoleAssignmentV3(),
 			"sbercloud_identity_user_v3":             resourceIdentityUserV3(),
 			"sbercloud_identity_group_v3":            resourceIdentityGroupV3(),

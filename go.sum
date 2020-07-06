@@ -116,8 +116,8 @@ github.com/hashicorp/terraform-svchost v0.0.0-20191011084731-65d371908596/go.mod
 github.com/hashicorp/yamux v0.0.0-20180604194846-3520598351bb/go.mod h1:+NfK9FKeTrX5uv1uIXGdwYDTeHna2qgaIlx54MXqjAM=
 github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d h1:kJCB4vdITiW1eC1vq2e6IsrXKrZit1bv/TDYFGMp4BQ=
 github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d/go.mod h1:+NfK9FKeTrX5uv1uIXGdwYDTeHna2qgaIlx54MXqjAM=
-github.com/huaweicloud/golangsdk v0.0.0-20200702084954-ca27a42508d4 h1:Bs2d8TxenKhKL2K9rJYdBTxE+UDQc5qEe1g72abDt10=
-github.com/huaweicloud/golangsdk v0.0.0-20200702084954-ca27a42508d4/go.mod h1:WQBcHRNX9shz3928lWEvstQJtAtYI7ks6XlgtRT9Tcw=
+github.com/huaweicloud/golangsdk v0.0.0-20200706004409-7c59bd7d2a11 h1:Ck2mSqqpEn9M+wNJ28OlFfhTrtHMuwClk/aP8XCtm6o=
+github.com/huaweicloud/golangsdk v0.0.0-20200706004409-7c59bd7d2a11/go.mod h1:WQBcHRNX9shz3928lWEvstQJtAtYI7ks6XlgtRT9Tcw=
 github.com/jhump/protoreflect v1.6.0 h1:h5jfMVslIg6l29nsMs0D8Wj17RDVdNYti0vDN/PZZoE=
 github.com/jhump/protoreflect v1.6.0/go.mod h1:eaTn3RZAmMBcV0fifFvlm6VHNz3wSkYyXYWUh7ymB74=
 github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8/go.mod h1:Nht3zPeWKUH0NzdCt2Blrr5ys8VGpn0CEB0cQHVjt7k=

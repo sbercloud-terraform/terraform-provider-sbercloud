@@ -45,7 +45,7 @@ func TestAccIdentityV3RoleAssignment_basic(t *testing.T) {
 
 func testAccCheckIdentityV3RoleAssignmentDestroy(s *terraform.State) error {
 	config := testAccProvider.Meta().(*Config)
-	identityClient, err := config.identityV3Client(OS_REGION_NAME)
+	identityClient, err := config.identityV3Client(SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating SberCloud identity client: %s", err)
 	}
@@ -76,7 +76,7 @@ func testAccCheckIdentityV3RoleAssignmentExists(n string, role *roles.Role, grou
 		}
 
 		config := testAccProvider.Meta().(*Config)
-		identityClient, err := config.identityV3Client(OS_REGION_NAME)
+		identityClient, err := config.identityV3Client(SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud identity client: %s", err)
 		}
@@ -134,21 +134,18 @@ func testAccCheckIdentityV3RoleAssignmentExists(n string, role *roles.Role, grou
 }
 
 const testAccIdentityV3RoleAssignment_basic = `
-resource "sbercloud_identity_project_v3" "project_1" {
-  name = "project_1"
-}
-
 resource "sbercloud_identity_group_v3" "group_1" {
-  name = "user_1"
+  name = "group_1"
 }
 
 data "sbercloud_identity_role_v3" "role_1" {
-  name = "secu_admin"
+  name = "ims_adm"
 }
 
 resource "sbercloud_identity_role_assignment_v3" "role_assignment_1" {
   group_id = "${sbercloud_identity_group_v3.group_1.id}"
-  project_id = "${sbercloud_identity_project_v3.project_1.id}"
+  #project_id = "09338f629380276a2f95c0180c2bdb72"
+  project_id = "0910fc31530026f82fd0c018a303517e"
   role_id = "${data.sbercloud_identity_role_v3.role_1.id}"
 }
 `

@@ -166,8 +166,8 @@ func (c *Config) getHwEndpointType() golangsdk.Availability {
 }
 
 func (c *Config) identityV3Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewIdentityV3(c.DomainClient, golangsdk.EndpointOpts{
-		//Region:       c.determineRegion(region),
+	return huaweisdk.NewSberIamV3(c.DomainClient, golangsdk.EndpointOpts{
+		Region:       c.determineRegion(region),
 		Availability: c.getHwEndpointType(),
 	})
 }
