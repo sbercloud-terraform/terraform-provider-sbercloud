@@ -10,7 +10,7 @@ Terraform SberCloud Provider
 Requirements
 ------------
 
--	[Terraform](https://www.terraform.io/downloads.html) 0.10+
+-	[Terraform](https://www.terraform.io/downloads.html) 0.12.x
 -	[Go](https://golang.org/doc/install) 1.11 (to build the provider plugin)
 
 Building The Provider
@@ -28,53 +28,6 @@ Enter the provider directory and build the provider
 ```sh
 $ cd $GOPATH/src/github.com/huaweicloud/terraform-provider-sbercloud
 $ make build
-```
-
-## Exact steps on clean Ubuntu 16.04
-
-```sh
-# prerequisites are sudo privileges, unzip, make, wget and git.  Use apt install if missing.
-$ wget https://storage.googleapis.com/golang/go1.11.1.linux-amd64.tar.gz
-$ sudo tar -C /usr/local -xzf go1.11.1.linux-amd64.tar.gz
-$ export PATH=$PATH:/usr/local/go/bin # You should put in your .profile or .bashrc
-$ go version # to verify it runs and version #
-$ go get github.com/huaweicloud/terraform-provider-sbercloud
-$ cd ~/go/src/github.com/huaweicloud/terraform-provider-sbercloud
-$ make build
-$ export PATH=$PATH:~/go/bin # You should put in your .profile or .bashrc
-# compatible with terraform 0.12
-$ wget https://releases.hashicorp.com/terraform/0.12.0/terraform_0.12.0_linux_amd64.zip
-$ unzip terraform_0.12.0_linux_amd64.zip
-$ mv terraform ~/go/bin/
-$ terraform version # to verify it runs and version #
-$ vi test.tf # paste in Quick Start contents, fix authentication information
-$ terraform init
-$ terraform plan
-$ terraform apply # Should all work if everything is correct.
-
-```
-
-## Quick Start
-
-
-```hcl
-# Configure the SberCloud Provider with Username/Password
-# This will work with a single defined/default network, otherwise you need to specify network
-# to fix errors about multiple networks found.
-provider "sbercloud" {
-  user_name   = "user"
-  region      = "cn-north-1"
-  domain_name = "domain"
-  password    = "pwd"
-}
-
-# Create a web server
-resource "huaweicloud_compute_instance_v2" "test-server" {
-  name		        = "test-server"
-  image_name        = "Standard_CentOS_7_latest"
-  flavor_name       = "s1.medium"
-  availability_zone = "cn-north-1a"
-}
 ```
 
 Using the provider
@@ -113,5 +66,5 @@ $ make testacc
 
 ## License
 
-Terraform-Provider-Huaweicloud is under the Mozilla Public License 2.0. See the [LICENSE](LICENSE) file for details.
+Terraform-Provider-Sbercloud is under the Mozilla Public License 2.0. See the [LICENSE](LICENSE) file for details.
 
