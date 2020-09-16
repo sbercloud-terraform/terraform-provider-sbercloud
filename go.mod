@@ -1,4 +1,4 @@
-module github.com/huaweicloud/terraform-provider-sbercloud
+module github.com/sbercloud-terraform/terraform-provider-sbercloud
 
 go 1.12
 

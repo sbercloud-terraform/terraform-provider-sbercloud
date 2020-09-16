@@ -16,17 +16,17 @@ Requirements
 Building The Provider
 ---------------------
 
-Clone repository to: `$GOPATH/src/github.com/huaweicloud/terraform-provider-sbercloud`
+Clone repository to: `$GOPATH/src/github.com/sbercloud-terraform/terraform-provider-sbercloud`
 
 ```sh
-$ mkdir -p $GOPATH/src/github.com/huaweicloud; cd $GOPATH/src/github.com/huaweicloud
-$ git clone https://github.com/huaweicloud/terraform-provider-sbercloud
+$ mkdir -p $GOPATH/src/github.com/sbercloud-terraform; cd $GOPATH/src/github.com/sbercloud-terraform
+$ git clone https://github.com/sbercloud-terraform/terraform-provider-sbercloud
 ```
 
 Enter the provider directory and build the provider
 
 ```sh
-$ cd $GOPATH/src/github.com/huaweicloud/terraform-provider-sbercloud
+$ cd $GOPATH/src/github.com/sbercloud-terraform/terraform-provider-sbercloud
 $ make build
 ```
 
@@ -34,7 +34,7 @@ Using the provider
 ----------------------
 Please see the documentation at [provider usage](website/docs/index.html.markdown).
 
-Or you can browse the documentation within this repo [here](https://github.com/huaweicloud/terraform-provider-sbercloud/tree/master/website/docs).
+Or you can browse the documentation within this repo [here](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/tree/master/website/docs).
 
 Developing the Provider
 ---------------------------
