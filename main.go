@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/hashicorp/terraform-plugin-sdk/plugin"
-	"github.com/huaweicloud/terraform-provider-sbercloud/sbercloud"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud"
 )
 
 func main() {
