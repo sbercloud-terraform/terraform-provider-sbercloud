@@ -1,11 +1,3 @@
----
-layout: "sbercloud"
-page_title: "Provider: SberCloud"
-sidebar_current: "docs-sbercloud-index"
-description: |-
-  The SberCloud provider is used to interact with the many resources supported by SberCloud. The provider needs to be configured with the proper credentials before it can be used.
----
-
 # SberCloud Provider
 
 The SberCloud provider is used to interact with the
