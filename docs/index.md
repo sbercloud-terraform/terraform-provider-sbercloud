@@ -113,13 +113,18 @@ The following arguments are supported:
 In order to run the Acceptance Tests for development, the following environment
 variables must also be set:
 
-* `SBC_REGION_NAME` - The region in which to create resources.
+* `SBC_REGION_NAME` - (Required) The region in which to create resources.
 
-* `SBC_USERNAME` - The username to login with.
+* `SBC_ACCOUNT_NAME` - (Required) The IAM account name.
 
-* `SBC_PASSWORD` - The password to login with.
+* `SBC_ACCESS_KEY` - (Required) The access key to login with.
 
-* `SBC_ACCOUNT_NAME` - The IAM account name.
+* `SBC_SECRET_KEY` - (Required) The secret key to login with.
+
+* `TEST_SBC_AVAILABILITY_ZONE` - (Required) The test availability zone to create network resources.
+
+* `TEST_SBC_PROJECT_ID` - (Required) The test project ID to create project-related resources.
+
 
 You should be able to use any SberCloud environment to develop on as long as the
 above environment variables are set.

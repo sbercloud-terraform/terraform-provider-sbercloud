@@ -90,7 +90,11 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{
-			"sbercloud_identity_role_v3": dataSourceIdentityRoleV3(),
+			"sbercloud_identity_role_v3":  dataSourceIdentityRoleV3(),
+			"sbercloud_vpc_v1":            dataSourceVirtualPrivateCloudVpcV1(),
+			"sbercloud_vpc_subnet_v1":     dataSourceVpcSubnetV1(),
+			"sbercloud_vpc_subnet_ids_v1": dataSourceVpcSubnetIdsV1(),
+			"sbercloud_vpc_route_v2":      dataSourceVPCRouteV2(),
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
@@ -100,6 +104,13 @@ func Provider() terraform.ResourceProvider {
 			"sbercloud_identity_user_v3":             resourceIdentityUserV3(),
 			"sbercloud_identity_group_v3":            resourceIdentityGroupV3(),
 			"sbercloud_identity_group_membership_v3": resourceIdentityGroupMembershipV3(),
+			"sbercloud_vpc_v1":                       resourceVirtualPrivateCloudV1(),
+			"sbercloud_vpc_eip_v1":                   resourceVpcEIPV1(),
+			"sbercloud_vpc_route_v2":                 resourceVPCRouteV2(),
+			"sbercloud_vpc_peering_connection_v2":    resourceVpcPeeringConnectionV2(),
+			"sbercloud_vpc_subnet_v1":                resourceVpcSubnetV1(),
+			"sbercloud_networking_secgroup_v2":       resourceNetworkingSecGroupV2(),
+			"sbercloud_networking_secgroup_rule_v2":  resourceNetworkingSecGroupRuleV2(),
 		},
 	}
 

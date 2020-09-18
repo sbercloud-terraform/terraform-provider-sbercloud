@@ -136,6 +136,8 @@ github.com/hashicorp/terraform-plugin-sdk/helper/mutexkv
 github.com/hashicorp/terraform-plugin-sdk/helper/pathorcontents
 github.com/hashicorp/terraform-plugin-sdk/helper/resource
 github.com/hashicorp/terraform-plugin-sdk/helper/schema
+github.com/hashicorp/terraform-plugin-sdk/helper/structure
+github.com/hashicorp/terraform-plugin-sdk/helper/validation
 github.com/hashicorp/terraform-plugin-sdk/httpclient
 github.com/hashicorp/terraform-plugin-sdk/internal/addrs
 github.com/hashicorp/terraform-plugin-sdk/internal/command/format
@@ -185,6 +187,7 @@ github.com/hashicorp/yamux
 github.com/huaweicloud/golangsdk
 github.com/huaweicloud/golangsdk/internal
 github.com/huaweicloud/golangsdk/openstack
+github.com/huaweicloud/golangsdk/openstack/common/tags
 github.com/huaweicloud/golangsdk/openstack/dns/v2/recordsets
 github.com/huaweicloud/golangsdk/openstack/dns/v2/zones
 github.com/huaweicloud/golangsdk/openstack/identity/v2/tenants
@@ -196,6 +199,14 @@ github.com/huaweicloud/golangsdk/openstack/identity/v3/projects
 github.com/huaweicloud/golangsdk/openstack/identity/v3/roles
 github.com/huaweicloud/golangsdk/openstack/identity/v3/tokens
 github.com/huaweicloud/golangsdk/openstack/identity/v3/users
+github.com/huaweicloud/golangsdk/openstack/networking/v1/bandwidths
+github.com/huaweicloud/golangsdk/openstack/networking/v1/eips
+github.com/huaweicloud/golangsdk/openstack/networking/v1/subnets
+github.com/huaweicloud/golangsdk/openstack/networking/v1/vpcs
+github.com/huaweicloud/golangsdk/openstack/networking/v2/extensions/security/groups
+github.com/huaweicloud/golangsdk/openstack/networking/v2/extensions/security/rules
+github.com/huaweicloud/golangsdk/openstack/networking/v2/peerings
+github.com/huaweicloud/golangsdk/openstack/networking/v2/routes
 github.com/huaweicloud/golangsdk/openstack/utils
 github.com/huaweicloud/golangsdk/pagination
 # github.com/jmespath/go-jmespath v0.0.0-20180206201540-c2b33e8439af
@@ -286,7 +297,7 @@ golang.org/x/crypto/openpgp/s2k
 golang.org/x/crypto/poly1305
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
-# golang.org/x/net v0.0.0-20200301022130-244492dfa37a
+# golang.org/x/net v0.0.0-20200822124328-c89045814202
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
 golang.org/x/net/http/httpguts
@@ -301,7 +312,7 @@ golang.org/x/oauth2/google
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
-# golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527
+# golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
 # golang.org/x/text v0.3.2
