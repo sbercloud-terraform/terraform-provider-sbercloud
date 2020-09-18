@@ -143,7 +143,6 @@ func (lrt *LogRoundTripper) formatJSON(raw []byte) string {
 	return string(pretty)
 }
 
-<<<<<<< HEAD
 // ZoneCreateOpts represents the attributes used when creating a new DNS zone.
 type ZoneCreateOpts struct {
 	zones.CreateOpts
@@ -189,10 +188,9 @@ func (opts RecordSetCreateOpts) ToRecordSetCreateMap() (map[string]interface{}, 
 
 	return nil, fmt.Errorf("Expected map but got %T", b[""])
 }
-=======
+
 // EIPCreateOpts represents the attributes used when creating a new eip.
 type EIPCreateOpts struct {
 	eips.ApplyOpts
 	ValueSpecs map[string]string `json:"value_specs,omitempty"`
 }
->>>>>>> add-resources-first-part

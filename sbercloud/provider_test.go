@@ -17,6 +17,7 @@ var (
 	SBC_ACCOUNT_NAME = os.Getenv("SBC_ACCOUNT_NAME")
 	SBC_ACCESS_KEY   = os.Getenv("SBC_ACCESS_KEY")
 	SBC_SECRET_KEY   = os.Getenv("SBC_SECRET_KEY")
+	SBC_ADMIN        = os.Getenv("SBC_ADMIN")
 	// Test data
 	TEST_SBC_AVAILABILITY_ZONE = os.Getenv("TEST_SBC_AVAILABILITY_ZONE")
 	TEST_SBC_PROJECT_ID        = os.Getenv("TEST_SBC_PROJECT_ID")
