@@ -133,9 +133,9 @@ func testAccCheckIdentityV3RoleAssignmentExists(n string, role *roles.Role, grou
 	}
 }
 
-const testAccIdentityV3RoleAssignment_basic = `
+var testAccIdentityV3RoleAssignment_basic = fmt.Sprintf(`
 resource "sbercloud_identity_group_v3" "group_1" {
-  name = "group_1"
+  name = "terraform_test_group_1"
 }
 
 data "sbercloud_identity_role_v3" "role_1" {
@@ -144,8 +144,7 @@ data "sbercloud_identity_role_v3" "role_1" {
 
 resource "sbercloud_identity_role_assignment_v3" "role_assignment_1" {
   group_id = "${sbercloud_identity_group_v3.group_1.id}"
-  #project_id = "09338f629380276a2f95c0180c2bdb72"
-  project_id = "0910fc31530026f82fd0c018a303517e"
+  project_id = "%s"
   role_id = "${data.sbercloud_identity_role_v3.role_1.id}"
 }
-`
+`, TEST_SBC_PROJECT_ID)

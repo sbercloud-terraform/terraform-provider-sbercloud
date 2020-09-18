@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/huaweicloud/golangsdk/openstack/networking/v1/eips"
 )
 
 // LogRoundTripper satisfies the http.RoundTripper interface and is used to
@@ -136,4 +138,10 @@ func (lrt *LogRoundTripper) formatJSON(raw []byte) string {
 	}
 
 	return string(pretty)
+}
+
+// EIPCreateOpts represents the attributes used when creating a new eip.
+type EIPCreateOpts struct {
+	eips.ApplyOpts
+	ValueSpecs map[string]string `json:"value_specs,omitempty"`
 }
