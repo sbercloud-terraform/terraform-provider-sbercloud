@@ -94,6 +94,8 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
+			"sbercloud_dns_recordset":                resourceDNSRecordSetV2(),
+			"sbercloud_dns_zone":                     resourceDNSZoneV2(),
 			"sbercloud_identity_role_assignment_v3":  resourceIdentityRoleAssignmentV3(),
 			"sbercloud_identity_user_v3":             resourceIdentityUserV3(),
 			"sbercloud_identity_group_v3":            resourceIdentityGroupV3(),

@@ -171,3 +171,10 @@ func (c *Config) identityV3Client(region string) (*golangsdk.ServiceClient, erro
 		Availability: c.getHwEndpointType(),
 	})
 }
+
+func (c *Config) dnsV2Client(region string) (*golangsdk.ServiceClient, error) {
+	return huaweisdk.NewSberDNSV2(c.HwClient, golangsdk.EndpointOpts{
+		Region:       c.determineRegion(region),
+		Availability: c.getHwEndpointType(),
+	})
+}
