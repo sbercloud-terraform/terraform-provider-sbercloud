@@ -1,4 +1,5 @@
 ---
+subcategory: "Identity and Access Management (IAM)"
 layout: "sbercloud"
 page_title: "SberCloud: sbercloud_identity_group_membership_v3"
 sidebar_current: "docs-sbercloud-resource-identity-group-membership-v3"

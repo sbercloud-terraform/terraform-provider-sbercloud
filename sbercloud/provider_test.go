@@ -39,7 +39,7 @@ func testAccPreCheck(t *testing.T) {
 
 func testAccPreCheckAdminOnly(t *testing.T) {
 	if SBC_ADMIN == "" {
-		t.Fatal("SBC_ADMIN must be set for acceptance tests")
+		t.Skip("SBC_ADMIN must be set for acceptance tests")
 	}
 }
 

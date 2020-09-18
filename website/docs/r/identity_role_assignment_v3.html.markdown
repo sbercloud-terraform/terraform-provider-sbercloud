@@ -1,4 +1,5 @@
 ---
+subcategory: "Identity and Access Management (IAM)"
 layout: "sbercloud"
 page_title: "SberCloud: sbercloud_identity_role_assignment_v3"
 sidebar_current: "docs-sbercloud-resource-identity-role-assignment-v3"

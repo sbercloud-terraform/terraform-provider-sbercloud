@@ -3,11 +3,15 @@ package sbercloud
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/huaweicloud/golangsdk/openstack/dns/v2/recordsets"
+	"github.com/huaweicloud/golangsdk/openstack/dns/v2/zones"
 )
 
 // LogRoundTripper satisfies the http.RoundTripper interface and is used to
@@ -136,4 +140,50 @@ func (lrt *LogRoundTripper) formatJSON(raw []byte) string {
 	}
 
 	return string(pretty)
+}
+
+// ZoneCreateOpts represents the attributes used when creating a new DNS zone.
+type ZoneCreateOpts struct {
+	zones.CreateOpts
+	ValueSpecs map[string]interface{} `json:"value_specs,omitempty"`
+}
+
+// ToZoneCreateMap casts a CreateOpts struct to a map.
+// It overrides zones.ToZoneCreateMap to add the ValueSpecs field.
+func (opts ZoneCreateOpts) ToZoneCreateMap() (map[string]interface{}, error) {
+	b, err := BuildRequest(opts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	if m, ok := b[""].(map[string]interface{}); ok {
+		if opts.TTL > 0 {
+			m["ttl"] = opts.TTL
+		}
+
+		return m, nil
+	}
+
+	return nil, fmt.Errorf("Expected map but got %T", b[""])
+}
+
+// RecordSetCreateOpts represents the attributes used when creating a new DNS record set.
+type RecordSetCreateOpts struct {
+	recordsets.CreateOpts
+	ValueSpecs map[string]string `json:"value_specs,omitempty"`
+}
+
+// ToRecordSetCreateMap casts a CreateOpts struct to a map.
+// It overrides recordsets.ToRecordSetCreateMap to add the ValueSpecs field.
+func (opts RecordSetCreateOpts) ToRecordSetCreateMap() (map[string]interface{}, error) {
+	b, err := BuildRequest(opts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	if m, ok := b[""].(map[string]interface{}); ok {
+		return m, nil
+	}
+
+	return nil, fmt.Errorf("Expected map but got %T", b[""])
 }
