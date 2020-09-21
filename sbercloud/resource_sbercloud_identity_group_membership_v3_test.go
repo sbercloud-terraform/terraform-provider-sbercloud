@@ -13,9 +13,9 @@ import (
 )
 
 func TestAccIdentityV3GroupMembership_basic(t *testing.T) {
-	var groupName = fmt.Sprintf("terraform_test_group_%s", acctest.RandString(5))
-	var userName = fmt.Sprintf("terraform_test_user_1_%s", acctest.RandString(5))
-	var userName2 = fmt.Sprintf("terraform_test_user_2_%s", acctest.RandString(5))
+	var groupName = fmt.Sprintf("ACCPTTEST-%s", acctest.RandString(5))
+	var userName = fmt.Sprintf("ACCPTTEST-%s", acctest.RandString(5))
+	var userName2 = fmt.Sprintf("ACCPTTEST-%s", acctest.RandString(5))
 
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
@@ -128,7 +128,7 @@ func testAccIdentityV3GroupMembership_basic(groupName, userName string) string {
       password = "password123@#"
       enabled = true
     }
-
+   
     resource "sbercloud_identity_group_membership_v3" "membership_1" {
         group = "${sbercloud_identity_group_v3.group_1.id}"
         users = ["${sbercloud_identity_user_v3.user_1.id}"]
@@ -154,6 +154,7 @@ func testAccIdentityV3GroupMembership_update(groupName, userName string, userNam
       enabled = true
     }
 
+   
     resource "sbercloud_identity_group_membership_v3" "membership_1" {
         group = "${sbercloud_identity_group_v3.group_1.id}"
         users = ["${sbercloud_identity_user_v3.user_1.id}",
@@ -174,6 +175,7 @@ func testAccIdentityV3GroupMembership_updatedown(groupName, userName string) str
       enabled = true
     }
 
+   
     resource "sbercloud_identity_group_membership_v3" "membership_1" {
         group = "${sbercloud_identity_group_v3.group_1.id}"
         users = ["${sbercloud_identity_user_v3.user_2.id}"]

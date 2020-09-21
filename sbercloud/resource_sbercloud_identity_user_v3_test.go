@@ -14,7 +14,7 @@ import (
 
 func TestAccIdentityV3User_basic(t *testing.T) {
 	var user users.User
-	var userName = fmt.Sprintf("terraform_test_user_%s", acctest.RandString(5))
+	var userName = fmt.Sprintf("ACCPTTEST-%s", acctest.RandString(5))
 
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
@@ -108,7 +108,7 @@ func testAccIdentityV3User_basic(userName string) string {
       password = "password123@!"
       enabled = true
       description = "tested by terraform"
-    }
+    }  
   `, userName)
 }
 

@@ -14,7 +14,7 @@ import (
 
 func TestAccIdentityV3Group_basic(t *testing.T) {
 	var group groups.Group
-	var groupName = fmt.Sprintf("terraform_test_group_%s", acctest.RandString(5))
+	var groupName = fmt.Sprintf("ACCPTTEST-%s", acctest.RandString(5))
 
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
