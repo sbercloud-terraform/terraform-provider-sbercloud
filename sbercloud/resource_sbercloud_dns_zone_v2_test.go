@@ -10,11 +10,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 
 	"github.com/huaweicloud/golangsdk/openstack/dns/v2/zones"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
 )
 
 func TestAccDNSV2Zone_basic(t *testing.T) {
 	var zone zones.Zone
-	// TODO: why does back-end convert name to lowercase?
 	var zoneName = fmt.Sprintf("acpttest%s.com.", acctest.RandString(5))
 
 	resource.Test(t, resource.TestCase{
@@ -60,28 +60,9 @@ func TestAccDNSV2Zone_readTTL(t *testing.T) {
 	})
 }
 
-func TestAccDNSV2Zone_timeout(t *testing.T) {
-	var zone zones.Zone
-	var zoneName = fmt.Sprintf("acpttest%s.com.", acctest.RandString(5))
-
-	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckDNSV2ZoneDestroy,
-		Steps: []resource.TestStep{
-			{
-				Config: testAccDNSV2Zone_timeout(zoneName),
-				Check: resource.ComposeTestCheckFunc(
-					testAccCheckDNSV2ZoneExists("sbercloud_dns_zone.zone_1", &zone),
-				),
-			},
-		},
-	})
-}
-
 func testAccCheckDNSV2ZoneDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*Config)
-	dnsClient, err := config.dnsV2Client(SBC_REGION_NAME)
+	config := testAccProvider.Meta().(*huaweicloud.Config)
+	dnsClient, err := config.DnsV2Client(SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating SberCloud DNS client: %s", err)
 	}
@@ -111,8 +92,8 @@ func testAccCheckDNSV2ZoneExists(n string, zone *zones.Zone) resource.TestCheckF
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*Config)
-		dnsClient, err := config.dnsV2Client(SBC_REGION_NAME)
+		config := testAccProvider.Meta().(*huaweicloud.Config)
+		dnsClient, err := config.DnsV2Client(SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud DNS client: %s", err)
 		}
@@ -161,22 +142,6 @@ func testAccDNSV2Zone_readTTL(zoneName string) string {
 		resource "sbercloud_dns_zone" "zone_1" {
 			name = "%s"
 			email = "email1@example.com"
-		}
-	`, zoneName)
-}
-
-func testAccDNSV2Zone_timeout(zoneName string) string {
-	return fmt.Sprintf(`
-		resource "sbercloud_dns_zone" "zone_1" {
-			name = "%s"
-			email = "email@example.com"
-			ttl = 3000
-
-			timeouts {
-				create = "5m"
-				update = "5m"
-				delete = "5m"
-			}
 		}
 	`, zoneName)
 }
