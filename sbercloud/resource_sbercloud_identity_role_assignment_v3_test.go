@@ -2,18 +2,23 @@ package sbercloud
 
 import (
 	"fmt"
+	"strings"
 	"testing"
-
-	"github.com/huaweicloud/golangsdk/openstack/identity/v3/projects"
-
-	"github.com/huaweicloud/golangsdk/pagination"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 
 	"github.com/huaweicloud/golangsdk/openstack/identity/v3/groups"
+	"github.com/huaweicloud/golangsdk/openstack/identity/v3/projects"
 	"github.com/huaweicloud/golangsdk/openstack/identity/v3/roles"
+	"github.com/huaweicloud/golangsdk/pagination"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
 )
+
+func extractRoleAssignmentID(roleAssignmentID string) (string, string, string, string) {
+	split := strings.Split(roleAssignmentID, "/")
+	return split[0], split[1], split[2], split[3]
+}
 
 func TestAccIdentityV3RoleAssignment_basic(t *testing.T) {
 	var role roles.Role
@@ -44,8 +49,8 @@ func TestAccIdentityV3RoleAssignment_basic(t *testing.T) {
 }
 
 func testAccCheckIdentityV3RoleAssignmentDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*Config)
-	identityClient, err := config.identityV3Client(SBC_REGION_NAME)
+	config := testAccProvider.Meta().(*huaweicloud.Config)
+	identityClient, err := config.IdentityV3Client(SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating SberCloud identity client: %s", err)
 	}
@@ -75,20 +80,19 @@ func testAccCheckIdentityV3RoleAssignmentExists(n string, role *roles.Role, grou
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*Config)
-		identityClient, err := config.identityV3Client(SBC_REGION_NAME)
+		config := testAccProvider.Meta().(*huaweicloud.Config)
+		identityClient, err := config.IdentityV3Client(SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud identity client: %s", err)
 		}
 
-		domainID, projectID, groupID, userID, roleID := extractRoleAssignmentID(rs.Primary.ID)
+		domainID, projectID, groupID, roleID := extractRoleAssignmentID(rs.Primary.ID)
 
 		var opts roles.ListAssignmentsOpts
 		opts = roles.ListAssignmentsOpts{
 			GroupID:        groupID,
 			ScopeDomainID:  domainID,
 			ScopeProjectID: projectID,
-			UserID:         userID,
 		}
 
 		pager := roles.ListAssignments(identityClient, opts)
