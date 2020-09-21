@@ -4,6 +4,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/mutexkv"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+        "github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
 )
 
 // This is a global MutexKV for use within this plugin.
@@ -91,10 +92,10 @@ func Provider() terraform.ResourceProvider {
 
 		DataSourcesMap: map[string]*schema.Resource{
 			"sbercloud_identity_role_v3":  dataSourceIdentityRoleV3(),
-			"sbercloud_vpc_v1":            dataSourceVirtualPrivateCloudVpcV1(),
-			"sbercloud_vpc_subnet_v1":     dataSourceVpcSubnetV1(),
-			"sbercloud_vpc_subnet_ids_v1": dataSourceVpcSubnetIdsV1(),
-			"sbercloud_vpc_route_v2":      dataSourceVPCRouteV2(),
+			"sbercloud_vpc_v1":            huaweicloud.dataSourceVirtualPrivateCloudVpcV1(),
+			"sbercloud_vpc_subnet_v1":     huaweicloud.dataSourceVpcSubnetV1(),
+			"sbercloud_vpc_subnet_ids_v1": huaweicloud.dataSourceVpcSubnetIdsV1(),
+			"sbercloud_vpc_route_v2":      huaweicloud.dataSourceVPCRouteV2(),
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
@@ -104,13 +105,13 @@ func Provider() terraform.ResourceProvider {
 			"sbercloud_identity_user_v3":             resourceIdentityUserV3(),
 			"sbercloud_identity_group_v3":            resourceIdentityGroupV3(),
 			"sbercloud_identity_group_membership_v3": resourceIdentityGroupMembershipV3(),
-			"sbercloud_vpc_v1":                       resourceVirtualPrivateCloudV1(),
-			"sbercloud_vpc_eip_v1":                   resourceVpcEIPV1(),
-			"sbercloud_vpc_route_v2":                 resourceVPCRouteV2(),
-			"sbercloud_vpc_peering_connection_v2":    resourceVpcPeeringConnectionV2(),
-			"sbercloud_vpc_subnet_v1":                resourceVpcSubnetV1(),
-			"sbercloud_networking_secgroup_v2":       resourceNetworkingSecGroupV2(),
-			"sbercloud_networking_secgroup_rule_v2":  resourceNetworkingSecGroupRuleV2(),
+			"sbercloud_vpc_v1":                       huaweicloud.resourceVirtualPrivateCloudV1(),
+			"sbercloud_vpc_eip_v1":                   huaweicloud.resourceVpcEIPV1(),
+			"sbercloud_vpc_route_v2":                 huaweicloud.resourceVPCRouteV2(),
+			"sbercloud_vpc_peering_connection_v2":    huaweicloud.resourceVpcPeeringConnectionV2(),
+			"sbercloud_vpc_subnet_v1":                huaweicloud.resourceVpcSubnetV1(),
+			"sbercloud_networking_secgroup_v2":       huaweicloud.resourceNetworkingSecGroupV2(),
+			"sbercloud_networking_secgroup_rule_v2":  huaweicloud.resourceNetworkingSecGroupRuleV2(),
 		},
 	}
 
