@@ -12,15 +12,11 @@ import (
 )
 
 var (
-	// Auth data
 	SBC_REGION_NAME  = os.Getenv("SBC_REGION_NAME")
 	SBC_ACCOUNT_NAME = os.Getenv("SBC_ACCOUNT_NAME")
-	SBC_ACCESS_KEY   = os.Getenv("SBC_ACCESS_KEY")
-	SBC_SECRET_KEY   = os.Getenv("SBC_SECRET_KEY")
 	SBC_ADMIN        = os.Getenv("SBC_ADMIN")
 	// Test data
-	TEST_SBC_AVAILABILITY_ZONE = os.Getenv("TEST_SBC_AVAILABILITY_ZONE")
-	TEST_SBC_PROJECT_ID        = os.Getenv("TEST_SBC_PROJECT_ID")
+	TEST_SBC_PROJECT_ID = os.Getenv("TEST_SBC_PROJECT_ID")
 )
 
 var testAccProviders map[string]terraform.ResourceProvider
@@ -36,18 +32,6 @@ func init() {
 func testAccPreCheckRequiredEnvVars(t *testing.T) {
 	if SBC_REGION_NAME == "" {
 		t.Fatal("SBC_REGION_NAME must be set for acceptance tests")
-	}
-	if SBC_ACCOUNT_NAME == "" {
-		t.Fatal("SBC_ACCOUNT_NAME must be set for acceptance tests")
-	}
-	if SBC_ACCESS_KEY == "" {
-		t.Fatal("SBC_ACCESS_KEY must be set for acceptance tests")
-	}
-	if SBC_SECRET_KEY == "" {
-		t.Fatal("SBC_SECRET_KEY must be set for acceptance tests")
-	}
-	if TEST_SBC_AVAILABILITY_ZONE == "" {
-		t.Fatal("TEST_SBC_AVAILABILITY_ZONE must be set for acceptance tests")
 	}
 	if TEST_SBC_PROJECT_ID == "" {
 		t.Fatal("TEST_SBC_PROJECT_ID must be set for acceptance tests")

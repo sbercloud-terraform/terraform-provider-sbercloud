@@ -1,14 +1,14 @@
 ---
 layout: "sbercloud"
-page_title: "SberCloud: sbercloud_vpc_v1"
+page_title: "SberCloud: sbercloud_vpc"
 sidebar_current: "docs-sbercloud-datasource-vpc-v1"
 description: |-
   Get information on an sbercloud VPC.
 ---
 
-# sbercloud_vpc_v1
+# sbercloud_vpc
 
-sbercloud_vpc_v1 provides details about a specific VPC.
+sbercloud_vpc provides details about a specific VPC.
 
 This resource can prove useful when a module accepts a vpc id as an input variable and needs to, for example, determine the CIDR block of that VPC.
 
@@ -20,7 +20,7 @@ The following example shows how one might accept a VPC id as a variable and use 
 
 variable "vpc_name" {}
 
-data "sbercloud_vpc_v1" "vpc" {
+data "sbercloud_vpc" "vpc" {
   name = "${var.vpc_name}"
 }
 

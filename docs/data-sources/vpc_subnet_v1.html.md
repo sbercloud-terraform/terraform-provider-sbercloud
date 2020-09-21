@@ -1,14 +1,14 @@
 ---
 layout: "sbercloud"
-page_title: "SberCloud: sbercloud_vpc_subnet_v1"
+page_title: "SberCloud: sbercloud_vpc_subnet"
 sidebar_current: "docs-sbercloud-datasource-vpc-subnet-v1"
 description: |-
   Provides details about a specific VPC subnet
 ---
 
-# Data Source: sbercloud_vpc_subnet_v1
+# Data Source: sbercloud_vpc_subnet
 
-`sbercloud_vpc_subnet_v1` provides details about a specific VPC subnet.
+`sbercloud_vpc_subnet` provides details about a specific VPC subnet.
 
 This resource can prove useful when a module accepts a subnet id as
 an input variable and needs to, for example, determine the id of the
@@ -17,12 +17,12 @@ VPC that the subnet belongs to.
 ## Example Usage
 
 ```hcl
-data "sbercloud_vpc_subnet_v1" "subnet_v1" {
+data "sbercloud_vpc_subnet" "subnet_v1" {
   id   = "${var.subnet_id}"
  }
 
 output "subnet_vpc_id" {
-  value = "${data.sbercloud_vpc_subnet_v1.subnet_v1.vpc_id}"
+  value = "${data.sbercloud_vpc_subnet.subnet_v1.vpc_id}"
 }
 ```
 

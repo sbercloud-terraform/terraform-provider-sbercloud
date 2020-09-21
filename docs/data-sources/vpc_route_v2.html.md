@@ -1,29 +1,29 @@
 ---
 layout: "sbercloud"
-page_title: "SberCloud: sbercloud_vpc_route_v2"
+page_title: "SberCloud: sbercloud_vpc_route"
 sidebar_current: "docs-sbercloud-datasource-vpc-route-v2"
 description: |-
   Provides details about a specific VPC Route.
 ---
 
-# Data Source: sbercloud_vpc_route_v2
+# Data Source: sbercloud_vpc_route
 
-`sbercloud_vpc_route_v2` provides details about a specific VPC route.
+`sbercloud_vpc_route` provides details about a specific VPC route.
 
 ## Example Usage
 
  ```hcl
  variable "route_id" { }
 
-data "sbercloud_vpc_route_v2" "vpc_route" {
+data "sbercloud_vpc_route" "vpc_route" {
   id = "${var.route_id}"
 }
 
-resource "sbercloud_vpc_subnet_v1" "subnet_v1" {
+resource "sbercloud_vpc_subnet" "subnet_v1" {
   name = "test-subnet"
   cidr = "192.168.0.0/24"
   gateway_ip = "192.168.0.1"
-  vpc_id = "${data.sbercloud_vpc_route_v2.vpc_route.vpc_id}"
+  vpc_id = "${data.sbercloud_vpc_route.vpc_route.vpc_id}"
 }
 
  ```

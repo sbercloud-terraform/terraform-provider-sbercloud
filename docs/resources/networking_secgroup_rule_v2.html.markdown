@@ -1,6 +1,6 @@
 ---
 layout: "sbercloud"
-page_title: "SberCloud: sbercloud_networking_secgroup_rule_v2"
+page_title: "SberCloud: sbercloud_networking_secgroup_rule"
 sidebar_current: "docs-sbercloud-resource-networking-secgroup-rule-v2"
 description: |-
   Manages a V2 Neutron security group rule resource within SberCloud.
@@ -15,19 +15,19 @@ and also allows an admin to target a specific tenant_id.
 ## Example Usage
 
 ```hcl
-resource "sbercloud_networking_secgroup_v2" "secgroup_1" {
+resource "sbercloud_networking_secgroup" "secgroup_1" {
   name        = "secgroup_1"
   description = "My neutron security group"
 }
 
-resource "sbercloud_networking_secgroup_rule_v2" "secgroup_rule_1" {
+resource "sbercloud_networking_secgroup_rule" "secgroup_rule_1" {
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "tcp"
   port_range_min    = 22
   port_range_max    = 22
   remote_ip_prefix  = "0.0.0.0/0"
-  security_group_id = "${sbercloud_networking_secgroup_v2.secgroup_1.id}"
+  security_group_id = "${sbercloud_networking_secgroup.secgroup_1.id}"
 }
 ```
 
@@ -112,5 +112,5 @@ The following attributes are exported:
 Security Group Rules can be imported using the `id`, e.g.
 
 ```
-$ terraform import sbercloud_networking_secgroup_rule_v2.secgroup_rule_1 aeb68ee3-6e9d-4256-955c-9584a6212745
+$ terraform import sbercloud_networking_secgroup_rule.secgroup_rule_1 aeb68ee3-6e9d-4256-955c-9584a6212745
 ```

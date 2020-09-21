@@ -1,19 +1,19 @@
 ---
 layout: "sbercloud"
-page_title: "SberCloud: sbercloud_vpc_route_v2"
+page_title: "SberCloud: sbercloud_vpc_route"
 sidebar_current: "docs-sbercloud-resource-vpc-route-v2"
 description: |-
   Provides an VPC route resource.
 ---
 
-# sbercloud_vpc_route_v2
+# sbercloud_vpc_route
 
 Provides a resource to create a route.
 
 ## Example Usage
 
  ```hcl
-resource "sbercloud_vpc_route_v2" "vpc_route" {
+resource "sbercloud_vpc_route" "vpc_route" {
   type  = "peering"
   nexthop  = "${var.nexthop}"
   destination = "192.168.0.0/16"

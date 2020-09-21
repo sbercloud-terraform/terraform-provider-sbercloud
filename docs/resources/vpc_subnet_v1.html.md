@@ -1,36 +1,36 @@
 ---
 layout: "sbercloud"
-page_title: "SberCloud: sbercloud_vpc_subnet_v1"
+page_title: "SberCloud: sbercloud_vpc_subnet"
 sidebar_current: "docs-sbercloud-resource-vpc-subnet-v1"
 description: |-
   Provides an VPC subnet resource.
 ---
 
-# sbercloud_vpc_subnet_v1
+# sbercloud_vpc_subnet
 
 Provides an VPC subnet resource.
 
 # Example Usage
 
  ```hcl
-resource "sbercloud_vpc_v1" "vpc_v1" {
+resource "sbercloud_vpc" "vpc_v1" {
   name = "${var.vpc_name}"
   cidr = "${var.vpc_cidr}"
 }
 
 
-resource "sbercloud_vpc_subnet_v1" "subnet_v1" {
+resource "sbercloud_vpc_subnet" "subnet_v1" {
   name = "${var.subnet_name}"
   cidr = "${var.subnet_cidr}"
   gateway_ip = "${var.subnet_gateway_ip}"
-  vpc_id = "${sbercloud_vpc_v1.vpc_v1.id}"
+  vpc_id = "${sbercloud_vpc.vpc_v1.id}"
 }
 
-resource "sbercloud_vpc_subnet_v1" "subnet_with_tags" {
+resource "sbercloud_vpc_subnet" "subnet_with_tags" {
   name = "${var.subnet_name}"
   cidr = "${var.subnet_cidr}"
   gateway_ip = "${var.subnet_gateway_ip}"
-  vpc_id = "${sbercloud_vpc_v1.vpc_v1.id}"
+  vpc_id = "${sbercloud_vpc.vpc_v1.id}"
 
   tags = {
     foo = "bar"
@@ -80,5 +80,5 @@ result attributes:
 Subnets can be imported using the `subnet id`, e.g.
 
 ```
-$ terraform import sbercloud_vpc_subnet_v1 4779ab1c-7c1a-44b1-a02e-93dfc361b32d
+$ terraform import sbercloud_vpc_subnet 4779ab1c-7c1a-44b1-a02e-93dfc361b32d
 ```

@@ -1,12 +1,12 @@
 ---
 layout: "sbercloud"
-page_title: "SberCloud: sbercloud_vpc_v1"
+page_title: "SberCloud: sbercloud_vpc"
 sidebar_current: "docs-sbercloud-resource-vpc-v1"
 description: |-
   Manages a V1 VPC resource within SberCloud.
 ---
 
-# sbercloud_vpc_v1
+# sbercloud_vpc
 
 Manages a VPC resource within SberCloud.
 
@@ -22,12 +22,12 @@ variable "vpc_cidr" {
   default = "192.168.0.0/16"
 }
 
-resource "sbercloud_vpc_v1" "vpc_v1" {
+resource "sbercloud_vpc" "vpc_v1" {
   name = "${var.vpc_name}"
   cidr = "${var.vpc_cidr}"
 }
 
-resource "sbercloud_vpc_v1" "vpc_with_tags" {
+resource "sbercloud_vpc" "vpc_with_tags" {
   name = "${var.vpc_name}"
   cidr = "${var.vpc_cidr}"
 
@@ -82,5 +82,5 @@ The `routes` block contains:
 VPCs can be imported using the `id`, e.g.
 
 ```
-$ terraform import sbercloud_vpc_v1.vpc_v1 7117d38e-4c8f-4624-a505-bd96b97d024c
+$ terraform import sbercloud_vpc.vpc_v1 7117d38e-4c8f-4624-a505-bd96b97d024c
 ```

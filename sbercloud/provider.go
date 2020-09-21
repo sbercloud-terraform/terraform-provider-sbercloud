@@ -91,11 +91,11 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{
-			"sbercloud_identity_role_v3":  huaweicloud.DataSourceIdentityRoleV3(),
-			"sbercloud_vpc_v1":            huaweicloud.DataSourceVirtualPrivateCloudVpcV1(),
-			"sbercloud_vpc_subnet_v1":     huaweicloud.DataSourceVpcSubnetV1(),
-			"sbercloud_vpc_subnet_ids_v1": huaweicloud.DataSourceVpcSubnetIdsV1(),
-			"sbercloud_vpc_route_v2":      huaweicloud.DataSourceVPCRouteV2(),
+			"sbercloud_identity_role_v3": huaweicloud.DataSourceIdentityRoleV3(),
+			"sbercloud_vpc":              huaweicloud.DataSourceVirtualPrivateCloudVpcV1(),
+			"sbercloud_vpc_subnet":       huaweicloud.DataSourceVpcSubnetV1(),
+			"sbercloud_vpc_subnet_ids":   huaweicloud.DataSourceVpcSubnetIdsV1(),
+			"sbercloud_vpc_route":        huaweicloud.DataSourceVPCRouteV2(),
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
@@ -105,13 +105,13 @@ func Provider() terraform.ResourceProvider {
 			"sbercloud_identity_user_v3":             huaweicloud.ResourceIdentityUserV3(),
 			"sbercloud_identity_group_v3":            huaweicloud.ResourceIdentityGroupV3(),
 			"sbercloud_identity_group_membership_v3": huaweicloud.ResourceIdentityGroupMembershipV3(),
-			"sbercloud_vpc_v1":                       huaweicloud.ResourceVirtualPrivateCloudV1(),
-			"sbercloud_vpc_eip_v1":                   huaweicloud.ResourceVpcEIPV1(),
-			"sbercloud_vpc_route_v2":                 huaweicloud.ResourceVPCRouteV2(),
+			"sbercloud_vpc":                          huaweicloud.ResourceVirtualPrivateCloudV1(),
+			"sbercloud_vpc_eip":                      huaweicloud.ResourceVpcEIPV1(),
+			"sbercloud_vpc_route":                    huaweicloud.ResourceVPCRouteV2(),
 			"sbercloud_vpc_peering_connection_v2":    huaweicloud.ResourceVpcPeeringConnectionV2(),
-			"sbercloud_vpc_subnet_v1":                huaweicloud.ResourceVpcSubnetV1(),
-			"sbercloud_networking_secgroup_v2":       huaweicloud.ResourceNetworkingSecGroupV2(),
-			"sbercloud_networking_secgroup_rule_v2":  huaweicloud.ResourceNetworkingSecGroupRuleV2(),
+			"sbercloud_vpc_subnet":                   huaweicloud.ResourceVpcSubnetV1(),
+			"sbercloud_networking_secgroup":          huaweicloud.ResourceNetworkingSecGroupV2(),
+			"sbercloud_networking_secgroup_rule":     huaweicloud.ResourceNetworkingSecGroupRuleV2(),
 		},
 	}
 

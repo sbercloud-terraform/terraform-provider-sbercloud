@@ -1,6 +1,6 @@
 ---
 layout: "sbercloud"
-page_title: "SberCloud: sbercloud_vpc_eip_v1"
+page_title: "SberCloud: sbercloud_vpc_eip"
 sidebar_current: "docs-sbercloud-resource-vpc-eip-v1"
 description: |-
   Manages a V1 EIP resource within SberCloud VPC.
@@ -13,7 +13,7 @@ Manages a V1 EIP resource within SberCloud VPC.
 ## Example Usage
 
 ```hcl
-resource "sbercloud_vpc_eip_v1" "eip_1" {
+resource "sbercloud_vpc_eip" "eip_1" {
   publicip {
     type = "5_bgp"
   }
@@ -34,7 +34,7 @@ resource "sbercloud_vpc_bandwidth_v2" "bandwidth_1" {
 	size = 5
 }
 
-resource "sbercloud_vpc_eip_v1" "eip_1" {
+resource "sbercloud_vpc_eip" "eip_1" {
   publicip {
     type = "5_bgp"
   }
@@ -104,5 +104,5 @@ The following attributes are exported:
 EIPs can be imported using the `id`, e.g.
 
 ```
-$ terraform import sbercloud_vpc_eip_v1.eip_1 2c7f39f3-702b-48d1-940c-b50384177ee1
+$ terraform import sbercloud_vpc_eip.eip_1 2c7f39f3-702b-48d1-940c-b50384177ee1
 ```

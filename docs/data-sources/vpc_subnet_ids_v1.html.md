@@ -6,9 +6,9 @@ description: |-
   Provides a list of subnet Ids for a VPC
 ---
 
-# Data Source: sbercloud_vpc_subnet_ids_v1
+# Data Source: sbercloud_vpc_subnet_ids
 
-`sbercloud_vpc_subnet_ids_v1` provides a list of subnet ids for a vpc_id
+`sbercloud_vpc_subnet_ids` provides a list of subnet ids for a vpc_id
 
 This resource can be useful for getting back a list of subnet ids for a vpc.
 
@@ -17,17 +17,17 @@ This resource can be useful for getting back a list of subnet ids for a vpc.
 The following example shows outputing all cidr blocks for every subnet id in a vpc.
 
  ```hcl
-data "sbercloud_vpc_subnet_ids_v1" "subnet_ids" {
+data "sbercloud_vpc_subnet_ids" "subnet_ids" {
   vpc_id = var.vpc_id
 }
 
-data "sbercloud_vpc_subnet_v1" "subnet" {
-  count = length(data.sbercloud_vpc_subnet_ids_v1.subnet_ids.ids)
-  id    = tolist(data.sbercloud_vpc_subnet_ids_v1.subnet_ids.ids)[count.index]
+data "sbercloud_vpc_subnet" "subnet" {
+  count = length(data.sbercloud_vpc_subnet_ids.subnet_ids.ids)
+  id    = tolist(data.sbercloud_vpc_subnet_ids.subnet_ids.ids)[count.index]
  }
 
 output "subnet_cidr_blocks" {
-  value = [for s in data.sbercloud_vpc_subnet_v1.subnet: "${s.name}: ${s.id}: ${s.cidr}"]
+  value = [for s in data.sbercloud_vpc_subnet.subnet: "${s.name}: ${s.id}: ${s.cidr}"]
 }
  ```
 
