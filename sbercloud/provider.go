@@ -4,7 +4,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/mutexkv"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
-        "github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
 )
 
 // This is a global MutexKV for use within this plugin.
@@ -91,27 +91,27 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{
-			"sbercloud_identity_role_v3":  dataSourceIdentityRoleV3(),
-			"sbercloud_vpc_v1":            huaweicloud.dataSourceVirtualPrivateCloudVpcV1(),
-			"sbercloud_vpc_subnet_v1":     huaweicloud.dataSourceVpcSubnetV1(),
-			"sbercloud_vpc_subnet_ids_v1": huaweicloud.dataSourceVpcSubnetIdsV1(),
-			"sbercloud_vpc_route_v2":      huaweicloud.dataSourceVPCRouteV2(),
+			"sbercloud_identity_role_v3":  huaweicloud.DataSourceIdentityRoleV3(),
+			"sbercloud_vpc_v1":            huaweicloud.DataSourceVirtualPrivateCloudVpcV1(),
+			"sbercloud_vpc_subnet_v1":     huaweicloud.DataSourceVpcSubnetV1(),
+			"sbercloud_vpc_subnet_ids_v1": huaweicloud.DataSourceVpcSubnetIdsV1(),
+			"sbercloud_vpc_route_v2":      huaweicloud.DataSourceVPCRouteV2(),
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
-			"sbercloud_dns_recordset":                resourceDNSRecordSetV2(),
-			"sbercloud_dns_zone":                     resourceDNSZoneV2(),
-			"sbercloud_identity_role_assignment_v3":  resourceIdentityRoleAssignmentV3(),
-			"sbercloud_identity_user_v3":             resourceIdentityUserV3(),
-			"sbercloud_identity_group_v3":            resourceIdentityGroupV3(),
-			"sbercloud_identity_group_membership_v3": resourceIdentityGroupMembershipV3(),
-			"sbercloud_vpc_v1":                       huaweicloud.resourceVirtualPrivateCloudV1(),
-			"sbercloud_vpc_eip_v1":                   huaweicloud.resourceVpcEIPV1(),
-			"sbercloud_vpc_route_v2":                 huaweicloud.resourceVPCRouteV2(),
-			"sbercloud_vpc_peering_connection_v2":    huaweicloud.resourceVpcPeeringConnectionV2(),
-			"sbercloud_vpc_subnet_v1":                huaweicloud.resourceVpcSubnetV1(),
-			"sbercloud_networking_secgroup_v2":       huaweicloud.resourceNetworkingSecGroupV2(),
-			"sbercloud_networking_secgroup_rule_v2":  huaweicloud.resourceNetworkingSecGroupRuleV2(),
+			"sbercloud_dns_recordset":                huaweicloud.ResourceDNSRecordSetV2(),
+			"sbercloud_dns_zone":                     huaweicloud.ResourceDNSZoneV2(),
+			"sbercloud_identity_role_assignment_v3":  huaweicloud.ResourceIdentityRoleAssignmentV3(),
+			"sbercloud_identity_user_v3":             huaweicloud.ResourceIdentityUserV3(),
+			"sbercloud_identity_group_v3":            huaweicloud.ResourceIdentityGroupV3(),
+			"sbercloud_identity_group_membership_v3": huaweicloud.ResourceIdentityGroupMembershipV3(),
+			"sbercloud_vpc_v1":                       huaweicloud.ResourceVirtualPrivateCloudV1(),
+			"sbercloud_vpc_eip_v1":                   huaweicloud.ResourceVpcEIPV1(),
+			"sbercloud_vpc_route_v2":                 huaweicloud.ResourceVPCRouteV2(),
+			"sbercloud_vpc_peering_connection_v2":    huaweicloud.ResourceVpcPeeringConnectionV2(),
+			"sbercloud_vpc_subnet_v1":                huaweicloud.ResourceVpcSubnetV1(),
+			"sbercloud_networking_secgroup_v2":       huaweicloud.ResourceNetworkingSecGroupV2(),
+			"sbercloud_networking_secgroup_rule_v2":  huaweicloud.ResourceNetworkingSecGroupRuleV2(),
 		},
 	}
 
@@ -158,17 +158,19 @@ func configureProvider(d *schema.ResourceData, terraformVersion string) (interfa
 		project_name = d.Get("region").(string)
 	}
 
-	config := Config{
+	config := huaweicloud.Config{
 		AccessKey:        d.Get("access_key").(string),
 		SecretKey:        d.Get("secret_key").(string),
-		AccountName:      d.Get("account_name").(string),
+		DomainName:       d.Get("account_name").(string),
 		IdentityEndpoint: d.Get("auth_url").(string),
 		Insecure:         d.Get("insecure").(bool),
 		Password:         d.Get("password").(string),
 		Region:           d.Get("region").(string),
-		ProjectName:      project_name,
+		TenantName:       project_name,
 		Username:         d.Get("user_name").(string),
-		terraformVersion: terraformVersion,
+		TerraformVersion: terraformVersion,
+		Cloud:            "hc.sbercloud.ru",
+		RegionClient:     true,
 	}
 
 	if err := config.LoadAndValidate(); err != nil {

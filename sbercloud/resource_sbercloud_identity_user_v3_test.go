@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 
 	"github.com/huaweicloud/golangsdk/openstack/identity/v3/users"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
 )
 
 func TestAccIdentityV3User_basic(t *testing.T) {
@@ -48,8 +49,8 @@ func TestAccIdentityV3User_basic(t *testing.T) {
 }
 
 func testAccCheckIdentityV3UserDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*Config)
-	identityClient, err := config.identityV3Client(SBC_REGION_NAME)
+	config := testAccProvider.Meta().(*huaweicloud.Config)
+	identityClient, err := config.IdentityV3Client(SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating SberCloud identity client: %s", err)
 	}
@@ -79,8 +80,8 @@ func testAccCheckIdentityV3UserExists(n string, user *users.User) resource.TestC
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*Config)
-		identityClient, err := config.identityV3Client(SBC_REGION_NAME)
+		config := testAccProvider.Meta().(*huaweicloud.Config)
+		identityClient, err := config.IdentityV3Client(SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud identity client: %s", err)
 		}

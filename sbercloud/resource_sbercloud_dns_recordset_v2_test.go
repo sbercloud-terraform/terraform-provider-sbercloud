@@ -3,6 +3,7 @@ package sbercloud
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/acctest"
@@ -10,11 +11,24 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 
 	"github.com/huaweicloud/golangsdk/openstack/dns/v2/recordsets"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
 )
 
 func randomZoneName() string {
 	// TODO: why does back-end convert name to lowercase?
 	return fmt.Sprintf("acpttest-zone-%s.com.", acctest.RandString(5))
+}
+
+func parseDNSV2RecordSetID(id string) (string, string, error) {
+	idParts := strings.Split(id, "/")
+	if len(idParts) != 2 {
+		return "", "", fmt.Errorf("Unable to determine DNS record set ID from raw ID: %s", id)
+	}
+
+	zoneID := idParts[0]
+	recordsetID := idParts[1]
+
+	return zoneID, recordsetID, nil
 }
 
 func TestAccDNSV2RecordSet_basic(t *testing.T) {
@@ -78,28 +92,9 @@ func TestAccDNSV2RecordSet_readTTL(t *testing.T) {
 	})
 }
 
-func TestAccDNSV2RecordSet_timeout(t *testing.T) {
-	var recordset recordsets.RecordSet
-	zoneName := randomZoneName()
-
-	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckDNSV2RecordSetDestroy,
-		Steps: []resource.TestStep{
-			{
-				Config: testAccDNSV2RecordSet_timeout(zoneName),
-				Check: resource.ComposeTestCheckFunc(
-					testAccCheckDNSV2RecordSetExists("sbercloud_dns_recordset.recordset_1", &recordset),
-				),
-			},
-		},
-	})
-}
-
 func testAccCheckDNSV2RecordSetDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*Config)
-	dnsClient, err := config.dnsV2Client(SBC_REGION_NAME)
+	config := testAccProvider.Meta().(*huaweicloud.Config)
+	dnsClient, err := config.DnsV2Client(SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud DNS client: %s", err)
 	}
@@ -134,8 +129,8 @@ func testAccCheckDNSV2RecordSetExists(n string, recordset *recordsets.RecordSet)
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*Config)
-		dnsClient, err := config.dnsV2Client(SBC_REGION_NAME)
+		config := testAccProvider.Meta().(*huaweicloud.Config)
+		dnsClient, err := config.DnsV2Client(SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating HuaweiCloud DNS client: %s", err)
 		}
