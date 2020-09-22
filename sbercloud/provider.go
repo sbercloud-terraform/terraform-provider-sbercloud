@@ -108,7 +108,7 @@ func Provider() terraform.ResourceProvider {
 			"sbercloud_vpc":                          huaweicloud.ResourceVirtualPrivateCloudV1(),
 			"sbercloud_vpc_eip":                      huaweicloud.ResourceVpcEIPV1(),
 			"sbercloud_vpc_route":                    huaweicloud.ResourceVPCRouteV2(),
-			"sbercloud_vpc_peering_connection_v2":    huaweicloud.ResourceVpcPeeringConnectionV2(),
+			"sbercloud_vpc_peering_connection":       huaweicloud.ResourceVpcPeeringConnectionV2(),
 			"sbercloud_vpc_subnet":                   huaweicloud.ResourceVpcSubnetV1(),
 			"sbercloud_networking_secgroup":          huaweicloud.ResourceNetworkingSecGroupV2(),
 			"sbercloud_networking_secgroup_rule":     huaweicloud.ResourceNetworkingSecGroupRuleV2(),

@@ -55,7 +55,7 @@ func testAccCheckVpcPeeringConnectionV2Destroy(s *terraform.State) error {
 	}
 
 	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "sbercloud_vpc_peering_connection_v2" {
+		if rs.Type != "sbercloud_vpc_peering_connection" {
 			continue
 		}
 

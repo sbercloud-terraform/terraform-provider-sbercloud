@@ -1,22 +1,22 @@
 ---
 subcategory: "Virtual Private Cloud (VPC)"
 layout: "sbercloud"
-page_title: "SberCloud: sbercloud_vpc_peering_connection_v2"
-sidebar_current: "docs-sbercloud-resource-vpc-peering-v2"
+page_title: "SberCloud: sbercloud_vpc_peering_connection"
+sidebar_current: "docs-sbercloud-resource-vpc-peering-connection"
 description: |-
   Manage a VPC Peering Connection resource.
 ---
 
-# sbercloud_vpc_peering_connection_v2
+# sbercloud\_vpc\_peering\_connection
 
 Provides a resource to manage a VPC Peering Connection resource.
 
--> **Note:** For cross-tenant (requester's tenant differs from the accepter's tenant) VPC Peering Connections, use the `sbercloud_vpc_peering_connection_v2` resource to manage the requester's side of the connection and use the `sbercloud_vpc_peering_connection_accepter_v2` resource to manage the accepter's side of the connection.
+-> **Note:** For cross-tenant (requester's tenant differs from the accepter's tenant) VPC Peering Connections, use the `sbercloud_vpc_peering_connection` resource to manage the requester's side of the connection and use the `sbercloud_vpc_peering_connection_accepter` resource to manage the accepter's side of the connection.
 
 ## Example Usage
 
  ```hcl
-resource "sbercloud__vpc_peering_connection_v2" "peering" {
+resource "sbercloud_vpc_peering_connection" "peering" {
   name = "${var.peer_conn_name}"
   vpc_id = "${var.vpc_id}"
   peer_vpc_id = "${var.accepter_vpc_id}"
@@ -52,4 +52,4 @@ If you create a VPC peering connection with another VPC of your own, the connect
 
 VPC Peering resources can be imported using the `vpc peering id`, e.g.
 
-> $ terraform import sbercloud_vpc_peering_connection_v2.test_connection 22b76469-08e3-4937-8c1d-7aad34892be1
+> $ terraform import sbercloud_vpc_peering_connection.test_connection 22b76469-08e3-4937-8c1d-7aad34892be1

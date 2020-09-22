@@ -2,12 +2,12 @@
 subcategory: "Virtual Private Cloud (VPC)"
 layout: "sbercloud"
 page_title: "SberCloud: sbercloud_vpc_route"
-sidebar_current: "docs-sbercloud-datasource-vpc-route-v2"
+sidebar_current: "docs-sbercloud-datasource-vpc-route"
 description: |-
   Provides details about a specific VPC Route.
 ---
 
-# Data Source: sbercloud_vpc_route
+# sbercloud\_vpc\_route
 
 `sbercloud_vpc_route` provides details about a specific VPC route.
 

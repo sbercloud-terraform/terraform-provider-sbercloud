@@ -2,12 +2,12 @@
 subcategory: "Virtual Private Cloud (VPC)"
 layout: "sbercloud"
 page_title: "SberCloud: sbercloud_vpc_subnet"
-sidebar_current: "docs-sbercloud-datasource-vpc-subnet-v1"
+sidebar_current: "docs-sbercloud-datasource-vpc-subnet"
 description: |-
   Provides details about a specific VPC subnet
 ---
 
-# Data Source: sbercloud_vpc_subnet
+# sbercloud\_vpc\_subnet
 
 `sbercloud_vpc_subnet` provides details about a specific VPC subnet.
 

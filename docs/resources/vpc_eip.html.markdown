@@ -2,12 +2,12 @@
 subcategory: "Virtual Private Cloud (VPC)"
 layout: "sbercloud"
 page_title: "SberCloud: sbercloud_vpc_eip"
-sidebar_current: "docs-sbercloud-resource-vpc-eip-v1"
+sidebar_current: "docs-sbercloud-resource-vpc-eip"
 description: |-
   Manages a V1 EIP resource within SberCloud VPC.
 ---
 
-# sbercloud\_vpc\_eip_v1
+# sbercloud\_vpc\_eip
 
 Manages a V1 EIP resource within SberCloud VPC.
 
@@ -30,7 +30,7 @@ resource "sbercloud_vpc_eip" "eip_1" {
 ## Example Usage of Share Bandwidth
 
 ```hcl
-resource "sbercloud_vpc_bandwidth_v2" "bandwidth_1" {
+resource "sbercloud_vpc_bandwidth" "bandwidth_1" {
 	name = "bandwidth_1"
 	size = 5
 }
@@ -40,7 +40,7 @@ resource "sbercloud_vpc_eip" "eip_1" {
     type = "5_bgp"
   }
   bandwidth {
-    id = "${sbercloud_vpc_bandwidth_v2.bandwidth_1.id}"
+    id = "${sbercloud_vpc_bandwidth.bandwidth_1.id}"
     share_type = "WHOLE"
   }
 }

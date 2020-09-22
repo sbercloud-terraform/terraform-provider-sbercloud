@@ -1,13 +1,13 @@
 ---
 subcategory: "Virtual Private Cloud (VPC)"
 layout: "sbercloud"
-page_title: "SberCloud: sbercloud_subnet_ids_v1"
-sidebar_current: "docs-sbercloud-datasource-subnet-ids-v1"
+page_title: "SberCloud: sbercloud_subnet_ids"
+sidebar_current: "docs-sbercloud-datasource-subnet-ids"
 description: |-
   Provides a list of subnet Ids for a VPC
 ---
 
-# Data Source: sbercloud_vpc_subnet_ids
+# sbercloud\_vpc\_subnet\_ids
 
 `sbercloud_vpc_subnet_ids` provides a list of subnet ids for a vpc_id
 

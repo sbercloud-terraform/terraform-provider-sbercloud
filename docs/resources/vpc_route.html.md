@@ -2,12 +2,12 @@
 subcategory: "Virtual Private Cloud (VPC)"
 layout: "sbercloud"
 page_title: "SberCloud: sbercloud_vpc_route"
-sidebar_current: "docs-sbercloud-resource-vpc-route-v2"
+sidebar_current: "docs-sbercloud-resource-vpc-route"
 description: |-
   Provides an VPC route resource.
 ---
 
-# sbercloud_vpc_route
+# sbercloud\_vpc\_route
 
 Provides a resource to create a route.
 
