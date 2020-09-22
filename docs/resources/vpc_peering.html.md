@@ -1,4 +1,5 @@
 ---
+subcategory: "Virtual Private Cloud (VPC)"
 layout: "sbercloud"
 page_title: "SberCloud: sbercloud_vpc_peering_connection_v2"
 sidebar_current: "docs-sbercloud-resource-vpc-peering-v2"

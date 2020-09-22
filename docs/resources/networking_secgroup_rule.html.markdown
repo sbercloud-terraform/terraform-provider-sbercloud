@@ -1,4 +1,5 @@
 ---
+subcategory: "Virtual Private Cloud (VPC)"
 layout: "sbercloud"
 page_title: "SberCloud: sbercloud_networking_secgroup_rule"
 sidebar_current: "docs-sbercloud-resource-networking-secgroup-rule-v2"

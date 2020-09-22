@@ -1,4 +1,5 @@
 ---
+subcategory: "Virtual Private Cloud (VPC)"
 layout: "sbercloud"
 page_title: "SberCloud: sbercloud_subnet_ids_v1"
 sidebar_current: "docs-sbercloud-datasource-subnet-ids-v1"
