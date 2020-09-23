@@ -1,9 +1,5 @@
 ---
-layout: "sbercloud"
-page_title: "SberCloud: sbercloud_identity_role_v3"
-sidebar_current: "docs-sbercloud-datasource-identity-role-v3"
-description: |-
-  Get information on an SberCloud Role.
+subcategory: "Identity and Access Management (IAM)"
 ---
 
 # sbercloud\_identity\_role\_v3

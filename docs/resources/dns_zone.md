@@ -1,10 +1,5 @@
 ---
 subcategory: "Domain Name Service (DNS)"
-layout: "sbercloud"
-page_title: "SberCloud: sbercloud_dns_zone"
-sidebar_current: "docs-sbercloud-resource-dns-zone"
-description: |-
-  Manages a DNS zone in the SberCloud DNS Service
 ---
 
 # sbercloud\_dns\_zone

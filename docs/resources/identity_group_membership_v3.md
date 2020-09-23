@@ -1,14 +1,8 @@
 ---
 subcategory: "Identity and Access Management (IAM)"
-layout: "sbercloud"
-page_title: "SberCloud: sbercloud_identity_group_membership_v3"
-sidebar_current: "docs-sbercloud-resource-identity-group-membership-v3"
-description: |-
-  Manages the membership combine User Group resource and User resource  within
-  SberCloud IAM service.
 ---
 
-# sbercloud\_identity\_group_membership_v3
+# sbercloud\_identity\_group\_membership\_v3
 
 Manages a User Group Membership resource within SberCloud IAM service.
 

@@ -1,10 +1,5 @@
 ---
 subcategory: "Virtual Private Cloud (VPC)"
-layout: "sbercloud"
-page_title: "SberCloud: sbercloud_vpc_peering_connection"
-sidebar_current: "docs-sbercloud-resource-vpc-peering-connection"
-description: |-
-  Manage a VPC Peering Connection resource.
 ---
 
 # sbercloud\_vpc\_peering\_connection

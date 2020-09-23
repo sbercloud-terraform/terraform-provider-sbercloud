@@ -1,10 +1,5 @@
 ---
 subcategory: "Virtual Private Cloud (VPC)"
-layout: "sbercloud"
-page_title: "SberCloud: sbercloud_vpc"
-sidebar_current: "docs-sbercloud-datasource-vpc"
-description: |-
-  Get information on an sbercloud VPC.
 ---
 
 # sbercloud\_vpc
