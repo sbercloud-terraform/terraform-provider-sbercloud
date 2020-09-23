@@ -1,10 +1,5 @@
 ---
 subcategory: "Domain Name Service (DNS)"
-layout: "sbercloud"
-page_title: "SberCloud: sbercloud_dns_recordset"
-sidebar_current: "docs-sbercloud-resource-dns-recordset"
-description: |-
-  Manages a DNS record set in the SberCloud DNS Service
 ---
 
 # sbercloud\_dns\_recordset

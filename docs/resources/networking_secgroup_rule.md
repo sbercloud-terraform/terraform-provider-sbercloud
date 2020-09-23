@@ -1,10 +1,5 @@
 ---
 subcategory: "Virtual Private Cloud (VPC)"
-layout: "sbercloud"
-page_title: "SberCloud: sbercloud_networking_secgroup_rule"
-sidebar_current: "docs-sbercloud-resource-networking-secgroup-rule"
-description: |-
-  Manages a V2 Neutron security group rule resource within SberCloud.
 ---
 
 # sbercloud\_networking\_secgroup\_rule

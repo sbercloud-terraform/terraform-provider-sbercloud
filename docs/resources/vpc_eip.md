@@ -1,10 +1,5 @@
 ---
 subcategory: "Virtual Private Cloud (VPC)"
-layout: "sbercloud"
-page_title: "SberCloud: sbercloud_vpc_eip"
-sidebar_current: "docs-sbercloud-resource-vpc-eip"
-description: |-
-  Manages a V1 EIP resource within SberCloud VPC.
 ---
 
 # sbercloud\_vpc\_eip

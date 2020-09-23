@@ -1,13 +1,8 @@
 ---
 subcategory: "Identity and Access Management (IAM)"
-layout: "sbercloud"
-page_title: "SberCloud: sbercloud_identity_user_v3"
-sidebar_current: "docs-sbercloud-resource-identity-user-v3"
-description: |-
-  Manages a User resource within SberCloud IAM service.
 ---
 
-# sbercloud\_identity\_user_v3
+# sbercloud\_identity\_user\_v3
 
 Manages a User resource within SberCloud IAM service.
 

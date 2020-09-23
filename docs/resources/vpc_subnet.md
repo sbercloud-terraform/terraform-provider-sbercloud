@@ -1,10 +1,5 @@
 ---
 subcategory: "Virtual Private Cloud (VPC)"
-layout: "sbercloud"
-page_title: "SberCloud: sbercloud_vpc_subnet"
-sidebar_current: "docs-sbercloud-resource-vpc-subnet"
-description: |-
-  Provides an VPC subnet resource.
 ---
 
 # sbercloud\_vpc\_subnet

@@ -1,10 +1,5 @@
 ---
 subcategory: "Virtual Private Cloud (VPC)"
-layout: "sbercloud"
-page_title: "SberCloud: sbercloud_vpc"
-sidebar_current: "docs-sbercloud-resource-vpc"
-description: |-
-  Manages a V1 VPC resource within SberCloud.
 ---
 
 # sbercloud\_vpc
