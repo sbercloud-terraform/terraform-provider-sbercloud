@@ -13,8 +13,8 @@ Use the navigation to the left to read about the available resources.
 provider "sbercloud" {
   region       = "ru-moscow-1"
   account_name = "my-account-name"
-  user_name    = "my-username"
-  password     = "my-password"
+  access_key  = "my-access-key"
+  secret_key  = "my-secret-key"
 }
 
 # Create a user
@@ -41,7 +41,7 @@ explained below:
 recommended, and risks secret leakage should this file ever be committed to a
 public version control system.
 
-Static credentials can be provided by adding an `user_name` and `password`
+Static credentials can be provided by adding an `access_key` and `secret_key`
 in-line in the provider block:
 
 Usage:
@@ -50,15 +50,15 @@ Usage:
 provider "sbercloud" {
   region       = "ru-moscow-1"
   account_name = "my-account-name"
-  user_name    = "my-username"
-  password     = "my-password"
+  access_key  = "my-access-key"
+  secret_key  = "my-secret-key"
 }
 ```
 
 ### Environment variables
 
-You can provide your credentials via the `SBC_USERNAME` and
-`SBC_PASSWORD`, environment variables, representing your Sber
+You can provide your credentials via the `SBC_ACCESS_KEY` and
+`SBC_SECRET_KEY`, environment variables, representing your Sber
 Cloud Username and Password, respectively.
 
 ```hcl
@@ -68,8 +68,8 @@ provider "sbercloud" {}
 Usage:
 
 ```sh
-$ export SBC_USERNAME="user-name"
-$ export SBC_PASSWORD="password"
+$ export SBC_ACCESS_KEY="user-name"
+$ export SBC_SECRET_KEY="password"
 $ export SBC_REGION_NAME="ru-moscow-1"
 $ export SBC_ACCOUNT_NAME="account-name"
 $ terraform plan
@@ -92,12 +92,6 @@ The following arguments are supported:
 * `secret_key` - (Optional) The secret key of the SberCloud to use.
   If omitted, the `SBC_SECRET_KEY` environment variable is used.
 
-* `user_name` - (Optional) The Username to login with. If omitted, the
-  `SBC_USERNAME` environment variable is used.
-
-* `password` - (Optional) The Password to login with. If omitted, the
-  `SBC_PASSWORD` environment variable is used.
-
 * `project_name` - (Optional) The Name of the Project to login with.
   If omitted, the `SBC_PROJECT_NAME` environment variable are used.
 
@@ -115,9 +109,9 @@ variables must also be set:
 
 * `SBC_REGION_NAME` - The region in which to create resources.
 
-* `SBC_USERNAME` - The username to login with.
+* `SBC_ACCESS_KEY` - The username to login with.
 
-* `SBC_PASSWORD` - The password to login with.
+* `SBC_SECRET_KEY` - The password to login with.
 
 * `SBC_ACCOUNT_NAME` - The IAM account name.
 
