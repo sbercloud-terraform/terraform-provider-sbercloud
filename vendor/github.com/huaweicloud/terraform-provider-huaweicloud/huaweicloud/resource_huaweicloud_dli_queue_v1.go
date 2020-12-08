@@ -30,6 +30,12 @@ func resourceDliQueueV1() *schema.Resource {
 		Delete: resourceDliQueueV1Delete,
 
 		Schema: map[string]*schema.Schema{
+			"region": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
 			"cu_count": {
 				Type:     schema.TypeInt,
 				Required: true,
@@ -89,7 +95,7 @@ func resourceDliQueueV1UserInputParams(d *schema.ResourceData) map[string]interf
 
 func resourceDliQueueV1Create(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	client, err := config.sdkClient(GetRegion(d, config), "dli", serviceProjectLevel)
+	client, err := config.dliV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}
@@ -116,7 +122,7 @@ func resourceDliQueueV1Create(d *schema.ResourceData, meta interface{}) error {
 
 func resourceDliQueueV1Read(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	client, err := config.sdkClient(GetRegion(d, config), "dli", serviceProjectLevel)
+	client, err := config.dliV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}
@@ -139,7 +145,7 @@ func resourceDliQueueV1Read(d *schema.ResourceData, meta interface{}) error {
 
 func resourceDliQueueV1Delete(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	client, err := config.sdkClient(GetRegion(d, config), "dli", serviceProjectLevel)
+	client, err := config.dliV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}

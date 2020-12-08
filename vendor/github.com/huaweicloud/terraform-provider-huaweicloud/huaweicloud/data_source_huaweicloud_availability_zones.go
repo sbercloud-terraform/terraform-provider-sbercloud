@@ -10,10 +10,15 @@ import (
 	"github.com/huaweicloud/golangsdk/openstack/compute/v2/extensions/availabilityzones"
 )
 
-func dataSourceAvailabilityZones() *schema.Resource {
+func DataSourceAvailabilityZones() *schema.Resource {
 	return &schema.Resource{
 		Read: dataSourceAvailabilityZonesRead,
 		Schema: map[string]*schema.Schema{
+			"region": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+			},
 			"names": {
 				Type:     schema.TypeList,
 				Computed: true,
@@ -34,7 +39,7 @@ func dataSourceAvailabilityZones() *schema.Resource {
 func dataSourceAvailabilityZonesRead(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 	region := GetRegion(d, config)
-	computeClient, err := config.computeV2Client(region)
+	computeClient, err := config.ComputeV2Client(region)
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud compute client: %s", err)
 	}

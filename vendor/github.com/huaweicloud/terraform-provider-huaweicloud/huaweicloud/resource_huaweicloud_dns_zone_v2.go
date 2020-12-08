@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 )
 
 func ResourceDNSZoneV2() *schema.Resource {
@@ -43,37 +44,28 @@ func ResourceDNSZoneV2() *schema.Resource {
 			"email": {
 				Type:     schema.TypeString,
 				Optional: true,
-				ForceNew: false,
 			},
 			"zone_type": {
 				Type:         schema.TypeString,
 				Optional:     true,
 				ForceNew:     true,
 				Default:      "public",
-				ValidateFunc: resourceZoneValidateType,
+				ValidateFunc: validation.StringInSlice([]string{"public", "private"}, false),
 			},
 			"ttl": {
 				Type:         schema.TypeInt,
 				Optional:     true,
-				ForceNew:     false,
 				Default:      300,
 				ValidateFunc: resourceValidateTTL,
 			},
 			"description": {
 				Type:         schema.TypeString,
 				Optional:     true,
-				ForceNew:     false,
 				ValidateFunc: resourceValidateDescription,
-			},
-			"masters": {
-				Type:     schema.TypeSet,
-				Computed: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
 			"router": {
 				Type:     schema.TypeSet,
 				Optional: true,
-				ForceNew: false,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"router_id": {
@@ -82,7 +74,7 @@ func ResourceDNSZoneV2() *schema.Resource {
 						},
 						"router_region": {
 							Type:     schema.TypeString,
-							Required: true,
+							Optional: true,
 						},
 					},
 				},
@@ -94,11 +86,16 @@ func ResourceDNSZoneV2() *schema.Resource {
 				ForceNew: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
+			"masters": {
+				Type:     schema.TypeSet,
+				Computed: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
+			},
 		},
 	}
 }
 
-func resourceDNSRouter(d *schema.ResourceData) map[string]string {
+func resourceDNSRouter(d *schema.ResourceData, region string) map[string]string {
 	router := d.Get("router").(*schema.Set).List()
 
 	if len(router) > 0 {
@@ -110,6 +107,8 @@ func resourceDNSRouter(d *schema.ResourceData) map[string]string {
 		}
 		if val, ok := c["router_region"]; ok {
 			mp["router_region"] = val.(string)
+		} else {
+			mp["router_region"] = region
 		}
 		return mp
 	}
@@ -118,7 +117,10 @@ func resourceDNSRouter(d *schema.ResourceData) map[string]string {
 
 func resourceDNSZoneV2Create(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	dnsClient, err := config.DnsV2Client(GetRegion(d, config))
+	region := GetRegion(d, config)
+	var dnsClient *golangsdk.ServiceClient
+
+	dnsClient, err := config.DnsV2Client(region)
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud DNS client: %s", err)
 	}
@@ -131,11 +133,16 @@ func resourceDNSZoneV2Create(d *schema.ResourceData, meta interface{}) error {
 		if len(router) < 1 {
 			return fmt.Errorf("The argument (router) is required when creating HuaweiCloud DNS private zone")
 		}
+		// update the endpoint with region when creating private zone
+		dnsClient, err = config.DnsWithRegionClient(GetRegion(d, config))
+		if err != nil {
+			return fmt.Errorf("Error creating HuaweiCloud DNS region client: %s", err)
+		}
 	}
 	vs := MapResourceProp(d, "value_specs")
-	// Add zone_type to the list.  We do this to keep GopherCloud HuaweiCloud standard.
+	// Add zone_type to the list
 	vs["zone_type"] = zone_type
-	vs["router"] = resourceDNSRouter(d)
+	vs["router"] = resourceDNSRouter(d, region)
 	createOpts := ZoneCreateOpts{
 		zones.CreateOpts{
 			Name:        d.Get("name").(string),
@@ -172,7 +179,7 @@ func resourceDNSZoneV2Create(d *schema.ResourceData, meta interface{}) error {
 	// router length >1 when creating private zone
 	if zone_type == "private" {
 		// AssociateZone for the other routers
-		routerList := getDNSRouters(d)
+		routerList := getDNSRouters(d, region)
 		if len(routerList) > 1 {
 			for i := range routerList {
 				// Skip the first router
@@ -214,34 +221,53 @@ func resourceDNSZoneV2Create(d *schema.ResourceData, meta interface{}) error {
 
 func resourceDNSZoneV2Read(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	dnsClient, err := config.DnsV2Client(GetRegion(d, config))
+	region := GetRegion(d, config)
+
+	// we can not get the corresponding client by zone type in import scene
+	dnsClient, err := config.DnsV2Client(region)
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud DNS client: %s", err)
 	}
 
-	n, err := zones.Get(dnsClient, d.Id()).Extract()
+	var zoneInfo *zones.Zone
+	zoneInfo, err = zones.Get(dnsClient, d.Id()).Extract()
 	if err != nil {
-		return CheckDeleted(d, err, "zone")
+		log.Printf("[WARN] fetching zone failed with DNS global endpoint: %s", err)
+		// an error occurred while fetching the zone with DNS global endpoint
+		// try to fetch it again with DNS region endpoint
+		dnsClient, clientErr := config.DnsWithRegionClient(GetRegion(d, config))
+		if clientErr != nil {
+			// it looks tricky as we return the fetching error rather than clientErr
+			return CheckDeleted(d, err, "zone")
+		}
+
+		zoneInfo, err = zones.Get(dnsClient, d.Id()).Extract()
+		if err != nil {
+			return CheckDeleted(d, err, "zone")
+		}
 	}
 
-	log.Printf("[DEBUG] Retrieved Zone %s: %#v", d.Id(), n)
+	log.Printf("[DEBUG] Retrieved Zone %s: %#v", d.Id(), zoneInfo)
 
-	d.Set("name", n.Name)
-	d.Set("email", n.Email)
-	d.Set("description", n.Description)
-	d.Set("ttl", n.TTL)
-	if err = d.Set("masters", n.Masters); err != nil {
+	d.Set("name", zoneInfo.Name)
+	d.Set("email", zoneInfo.Email)
+	d.Set("description", zoneInfo.Description)
+	d.Set("ttl", zoneInfo.TTL)
+	if err = d.Set("masters", zoneInfo.Masters); err != nil {
 		return fmt.Errorf("[DEBUG] Error saving masters to state for HuaweiCloud DNS zone (%s): %s", d.Id(), err)
 	}
-	d.Set("region", GetRegion(d, config))
-	d.Set("zone_type", n.ZoneType)
+	d.Set("region", region)
+	d.Set("zone_type", zoneInfo.ZoneType)
 
 	return nil
 }
 
 func resourceDNSZoneV2Update(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	dnsClient, err := config.DnsV2Client(GetRegion(d, config))
+	region := GetRegion(d, config)
+	var dnsClient *golangsdk.ServiceClient
+
+	dnsClient, err := config.DnsV2Client(region)
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud DNS client: %s", err)
 	}
@@ -253,6 +279,11 @@ func resourceDNSZoneV2Update(d *schema.ResourceData, meta interface{}) error {
 	if zone_type == "private" {
 		if len(router) < 1 {
 			return fmt.Errorf("The argument (router) is required when updating HuaweiCloud DNS private zone")
+		}
+		// update the endpoint with region when creating private zone
+		dnsClient, err = config.DnsWithRegionClient(GetRegion(d, config))
+		if err != nil {
+			return fmt.Errorf("Error creating HuaweiCloud DNS region client: %s", err)
 		}
 	}
 
@@ -289,7 +320,7 @@ func resourceDNSZoneV2Update(d *schema.ResourceData, meta interface{}) error {
 	if d.HasChange("router") {
 		// when updating private zone
 		if zone_type == "private" {
-			associateList, disassociateList, err := resourceGetDNSRouters(dnsClient, d)
+			associateList, disassociateList, err := resourceGetDNSRouters(dnsClient, d, region)
 			if err != nil {
 				return fmt.Errorf("Error getting HuaweiCloud DNS Zone Router: %s", err)
 			}
@@ -355,7 +386,16 @@ func resourceDNSZoneV2Update(d *schema.ResourceData, meta interface{}) error {
 
 func resourceDNSZoneV2Delete(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	dnsClient, err := config.DnsV2Client(GetRegion(d, config))
+	var dnsClient *golangsdk.ServiceClient
+	var err error
+
+	zoneType := d.Get("zone_type").(string)
+	// update the endpoint with region when creating private zone
+	if zoneType == "private" {
+		dnsClient, err = config.DnsWithRegionClient(GetRegion(d, config))
+	} else {
+		dnsClient, err = config.DnsV2Client(GetRegion(d, config))
+	}
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud DNS client: %s", err)
 	}
@@ -387,24 +427,6 @@ func resourceDNSZoneV2Delete(d *schema.ResourceData, meta interface{}) error {
 	return nil
 }
 
-func resourceDNSZoneV2ValidType(v interface{}, k string) (ws []string, errors []error) {
-	value := v.(string)
-	validTypes := []string{
-		"PRIMARY",
-		"SECONDARY",
-	}
-
-	for _, v := range validTypes {
-		if value == v {
-			return
-		}
-	}
-
-	err := fmt.Errorf("%s must be one of %s", k, validTypes)
-	errors = append(errors, err)
-	return
-}
-
 func waitForDNSZone(dnsClient *golangsdk.ServiceClient, zoneId string) resource.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		zone, err := zones.Get(dnsClient, zoneId).Extract()
@@ -421,38 +443,28 @@ func waitForDNSZone(dnsClient *golangsdk.ServiceClient, zoneId string) resource.
 	}
 }
 
-var zoneTypes = [2]string{"public", "private"}
-
-func resourceZoneValidateType(v interface{}, k string) (ws []string, errors []error) {
-	value := v.(string)
-	for i := range zoneTypes {
-		if value == zoneTypes[i] {
-			return
-		}
-	}
-	errors = append(errors, fmt.Errorf("%q must be one of %v", k, zoneTypes))
-
-	return
-}
-
-func getDNSRouters(d *schema.ResourceData) []zones.RouterOpts {
+func getDNSRouters(d *schema.ResourceData, region string) []zones.RouterOpts {
 	router := d.Get("router").(*schema.Set).List()
-	if len(router) > 0 {
-		res := make([]zones.RouterOpts, len(router))
-		for i := range router {
-			ro := zones.RouterOpts{}
-			c := router[i].(map[string]interface{})
-			if val, ok := c["router_id"]; ok {
-				ro.RouterID = val.(string)
-			}
-			if val, ok := c["router_region"]; ok {
-				ro.RouterRegion = val.(string)
-			}
-			res[i] = ro
-		}
-		return res
+	if len(router) == 0 {
+		return nil
 	}
-	return nil
+
+	res := make([]zones.RouterOpts, len(router))
+	for i := range router {
+		ro := zones.RouterOpts{}
+		c := router[i].(map[string]interface{})
+		if val, ok := c["router_id"]; ok {
+			ro.RouterID = val.(string)
+		}
+		if val, ok := c["router_region"]; ok {
+			ro.RouterRegion = val.(string)
+		} else {
+			ro.RouterRegion = region
+		}
+
+		res[i] = ro
+	}
+	return res
 }
 
 func waitForDNSZoneRouter(dnsClient *golangsdk.ServiceClient, zoneId string, routerId string) resource.StateRefreshFunc {
@@ -472,14 +484,16 @@ func waitForDNSZoneRouter(dnsClient *golangsdk.ServiceClient, zoneId string, rou
 	}
 }
 
-func resourceGetDNSRouters(dnsClient *golangsdk.ServiceClient, d *schema.ResourceData) ([]zones.RouterOpts, []zones.RouterOpts, error) {
+func resourceGetDNSRouters(dnsClient *golangsdk.ServiceClient, d *schema.ResourceData,
+	region string) ([]zones.RouterOpts, []zones.RouterOpts, error) {
+
 	// get zone info from api
 	n, err := zones.Get(dnsClient, d.Id()).Extract()
 	if err != nil {
 		return nil, nil, CheckDeleted(d, err, "zone")
 	}
 	// get routers from local
-	localRouters := getDNSRouters(d)
+	localRouters := getDNSRouters(d, region)
 
 	// get associateMap
 	associateMap := make(map[string]zones.RouterOpts)

@@ -41,12 +41,10 @@ func resourceGeminiDBInstanceV3() *schema.Resource {
 			"name": {
 				Type:     schema.TypeString,
 				Required: true,
-				ForceNew: false,
 			},
 			"flavor": {
 				Type:     schema.TypeString,
 				Required: true,
-				ForceNew: false,
 			},
 			"node_num": {
 				Type:         schema.TypeInt,
@@ -57,13 +55,11 @@ func resourceGeminiDBInstanceV3() *schema.Resource {
 			"volume_size": {
 				Type:     schema.TypeInt,
 				Required: true,
-				ForceNew: false,
 			},
 			"password": {
 				Type:      schema.TypeString,
 				Sensitive: true,
 				Required:  true,
-				ForceNew:  false,
 			},
 			"vpc_id": {
 				Type:     schema.TypeString,
@@ -78,7 +74,6 @@ func resourceGeminiDBInstanceV3() *schema.Resource {
 			"security_group_id": {
 				Type:     schema.TypeString,
 				Optional: true,
-				ForceNew: false,
 			},
 			"configuration_id": {
 				Type:     schema.TypeString,
@@ -128,7 +123,6 @@ func resourceGeminiDBInstanceV3() *schema.Resource {
 			"backup_strategy": {
 				Type:     schema.TypeList,
 				Optional: true,
-				ForceNew: false,
 				Computed: true,
 				MaxItems: 1,
 				Elem: &schema.Resource{
@@ -136,17 +130,20 @@ func resourceGeminiDBInstanceV3() *schema.Resource {
 						"start_time": {
 							Type:     schema.TypeString,
 							Required: true,
-							ForceNew: false,
 						},
 						"keep_days": {
 							Type:     schema.TypeInt,
 							Optional: true,
-							ForceNew: false,
 						},
 					},
 				},
 			},
 			"ssl": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				ForceNew: true,
+			},
+			"force_import": {
 				Type:     schema.TypeBool,
 				Optional: true,
 				ForceNew: true,
@@ -273,6 +270,29 @@ func resourceGeminiDBInstanceV3Create(d *schema.ResourceData, meta interface{}) 
 	client, err := config.GeminiDBV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud GeminiDB client: %s ", err)
+	}
+
+	// If force_import set, try to import it instead of creating
+	if hasFilledOpt(d, "force_import") {
+		log.Printf("[DEBUG] Gaussdb cassandra instance force_import is set, try to import it instead of creating")
+		listOpts := instances.ListGeminiDBInstanceOpts{
+			Name: d.Get("name").(string),
+		}
+		pages, err := instances.List(client, listOpts).AllPages()
+		if err != nil {
+			return err
+		}
+
+		allInstances, err := instances.ExtractGeminiDBInstances(pages)
+		if err != nil {
+			return fmt.Errorf("Unable to retrieve instances: %s ", err)
+		}
+		if allInstances.TotalCount > 0 {
+			instance := allInstances.Instances[0]
+			log.Printf("[DEBUG] Found existing cassandra instance %s with name %s", instance.Id, instance.Name)
+			d.SetId(instance.Id)
+			return resourceGeminiDBInstanceV3Read(d, meta)
+		}
 	}
 
 	createOpts := instances.CreateGeminiDBOpts{
@@ -473,7 +493,7 @@ func resourceGeminiDBInstanceV3Update(d *schema.ResourceData, meta interface{}) 
 	}
 	//update tags
 	if d.HasChange("tags") {
-		tagErr := UpdateResourceTags(client, d, "instances")
+		tagErr := UpdateResourceTags(client, d, "instances", d.Id())
 		if tagErr != nil {
 			return fmt.Errorf("Error updating tags of GeminiDB %q: %s", d.Id(), tagErr)
 		}

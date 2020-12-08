@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
-func resourceVpcBandWidthV2() *schema.Resource {
+func ResourceVpcBandWidthV2() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceVpcBandWidthV2Create,
 		Read:   resourceVpcBandWidthV2Read,
@@ -30,21 +30,42 @@ func resourceVpcBandWidthV2() *schema.Resource {
 		},
 
 		Schema: map[string]*schema.Schema{
+			"region": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
 			"name": {
 				Type:     schema.TypeString,
 				Required: true,
-				ForceNew: false,
 			},
 			"size": {
 				Type:         schema.TypeInt,
 				Required:     true,
-				ForceNew:     false,
 				ValidateFunc: validateIntegerInRange(5, 2000),
 			},
 			"enterprise_project_id": {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
+				Computed: true,
+			},
+
+			"share_type": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"bandwidth_type": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"charge_mode": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"status": {
+				Type:     schema.TypeString,
 				Computed: true,
 			},
 		},
@@ -60,10 +81,15 @@ func resourceVpcBandWidthV2Create(d *schema.ResourceData, meta interface{}) erro
 	}
 
 	size := d.Get("size").(int)
+
 	createOpts := bandwidths.CreateOpts{
-		Name:                d.Get("name").(string),
-		Size:                &size,
-		EnterpriseProjectId: d.Get("enterprise_project_id").(string),
+		Name: d.Get("name").(string),
+		Size: &size,
+	}
+
+	epsID := GetEnterpriseProjectID(d, config)
+	if epsID != "" {
+		createOpts.EnterpriseProjectId = epsID
 	}
 
 	log.Printf("[DEBUG] Create Options: %#v", createOpts)
@@ -83,7 +109,6 @@ func resourceVpcBandWidthV2Create(d *schema.ResourceData, meta interface{}) erro
 	}
 
 	_, err = stateConf.WaitForState()
-
 	if err != nil {
 		return fmt.Errorf(
 			"Error waiting for Bandwidth (%s) to become ACTIVE for creation: %s",
@@ -139,6 +164,10 @@ func resourceVpcBandWidthV2Read(d *schema.ResourceData, meta interface{}) error 
 	d.Set("size", b.Size)
 	d.Set("enterprise_project_id", b.EnterpriseProjectID)
 
+	d.Set("share_type", b.ShareType)
+	d.Set("bandwidth_type", b.BandwidthType)
+	d.Set("charge_mode", b.ChargeMode)
+	d.Set("status", b.Status)
 	return nil
 }
 
@@ -156,7 +185,7 @@ func resourceVpcBandWidthV2Delete(d *schema.ResourceData, meta interface{}) erro
 	}
 
 	stateConf := &resource.StateChangeConf{
-		Pending:    []string{"ACTIVE"},
+		Pending:    []string{"NORMAL"},
 		Target:     []string{"DELETED"},
 		Refresh:    waitForBandwidth(NetworkingV1Client, d.Id()),
 		Timeout:    d.Timeout(schema.TimeoutDelete),
@@ -170,7 +199,6 @@ func resourceVpcBandWidthV2Delete(d *schema.ResourceData, meta interface{}) erro
 	}
 
 	d.SetId("")
-
 	return nil
 }
 

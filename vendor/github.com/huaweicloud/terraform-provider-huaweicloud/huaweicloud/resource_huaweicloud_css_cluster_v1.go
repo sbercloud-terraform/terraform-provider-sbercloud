@@ -22,6 +22,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/huaweicloud/golangsdk"
+	"github.com/huaweicloud/golangsdk/openstack/common/tags"
 	"github.com/huaweicloud/golangsdk/openstack/css/v1/snapshots"
 )
 
@@ -33,11 +34,17 @@ func resourceCssClusterV1() *schema.Resource {
 		Delete: resourceCssClusterV1Delete,
 
 		Timeouts: &schema.ResourceTimeout{
-			Create: schema.DefaultTimeout(30 * time.Minute),
-			Update: schema.DefaultTimeout(30 * time.Minute),
+			Create: schema.DefaultTimeout(60 * time.Minute),
+			Update: schema.DefaultTimeout(60 * time.Minute),
 		},
 
 		Schema: map[string]*schema.Schema{
+			"region": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
 			"name": {
 				Type:     schema.TypeString,
 				Required: true,
@@ -46,9 +53,9 @@ func resourceCssClusterV1() *schema.Resource {
 
 			"engine_type": {
 				Type:     schema.TypeString,
-				Computed: true,
 				Optional: true,
 				ForceNew: true,
+				Default:  "elasticsearch",
 			},
 			"engine_version": {
 				Type:     schema.TypeString,
@@ -60,6 +67,18 @@ func resourceCssClusterV1() *schema.Resource {
 				Type:     schema.TypeInt,
 				Optional: true,
 				Default:  1,
+			},
+
+			"security_mode": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				ForceNew: true,
+			},
+			"password": {
+				Type:      schema.TypeString,
+				Sensitive: true,
+				Optional:  true,
+				ForceNew:  true,
 			},
 
 			"node_config": {
@@ -151,12 +170,7 @@ func resourceCssClusterV1() *schema.Resource {
 				},
 			},
 
-			"tags": {
-				Type:     schema.TypeMap,
-				Optional: true,
-				ForceNew: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-			},
+			"tags": tagsSchema(),
 
 			"created": {
 				Type:     schema.TypeString,
@@ -200,25 +214,22 @@ func resourceCssClusterV1UserInputParams(d *schema.ResourceData) map[string]inte
 		"engine_version":          d.Get("engine_version"),
 		"expect_node_num":         d.Get("expect_node_num"),
 		"node_config":             d.Get("node_config"),
-		"backup_strategy":         d.Get("backup_strategy"),
 		"tags":                    d.Get("tags"),
 	}
 }
 
 func resourceCssClusterV1Create(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	client, err := config.sdkClient(GetRegion(d, config), "css", serviceProjectLevel)
+	client, err := config.cssV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}
 
 	opts := resourceCssClusterV1UserInputParams(d)
-
 	arrayIndex := map[string]int{
 		"node_config.network_info": 0,
 		"node_config.volume":       0,
 		"node_config":              0,
-		"backup_strategy":          0,
 	}
 
 	params, err := buildCssClusterV1CreateParameters(opts, arrayIndex)
@@ -241,11 +252,24 @@ func resourceCssClusterV1Create(d *schema.ResourceData, meta interface{}) error 
 	}
 	d.SetId(id.(string))
 
-	// enable snapshot function when "backup_strategy" was not specified
-	if len(d.Get("backup_strategy").([]interface{})) == 0 {
+	// enable snapshot function and set policy when "backup_strategy" was specified
+	backupRaw := d.Get("backup_strategy").([]interface{})
+	if len(backupRaw) == 1 {
 		err = snapshots.Enable(client, d.Id()).ExtractErr()
 		if err != nil {
 			return fmt.Errorf("Error enable snapshot function: %s", err)
+		}
+
+		raw := backupRaw[0].(map[string]interface{})
+		policyOpts := snapshots.PolicyCreateOpts{
+			Prefix:  raw["prefix"].(string),
+			Period:  raw["start_time"].(string),
+			KeepDay: raw["keep_days"].(int),
+			Enable:  "true",
+		}
+		err := snapshots.PolicyCreate(client, &policyOpts, d.Id()).ExtractErr()
+		if err != nil {
+			return fmt.Errorf("Error creating backup strategy: %s", err)
 		}
 	}
 
@@ -254,19 +278,18 @@ func resourceCssClusterV1Create(d *schema.ResourceData, meta interface{}) error 
 
 func resourceCssClusterV1Read(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	client, err := config.sdkClient(GetRegion(d, config), "css", serviceProjectLevel)
+	client, err := config.cssV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}
-
-	res := make(map[string]interface{})
 
 	v, err := sendCssClusterV1ReadRequest(d, client)
 	if err != nil {
 		return err
 	}
-	res["read"] = fillCssClusterV1ReadRespBody(v)
 
+	res := make(map[string]interface{})
+	res["read"] = fillCssClusterV1ReadRespBody(v)
 	if err := setCssClusterV1Properties(d, res); err != nil {
 		return err
 	}
@@ -292,24 +315,33 @@ func resourceCssClusterV1Read(d *schema.ResourceData, meta interface{}) error {
 		d.Set("backup_strategy", nil)
 	}
 
+	// set tags
+	resourceTags, err := tags.Get(client, "css-cluster", d.Id()).Extract()
+	if err != nil {
+		return fmt.Errorf("Error fetching CSS cluster tags: %s", err)
+	}
+
+	tagmap := tagsToMap(resourceTags.Tags)
+	if err := d.Set("tags", tagmap); err != nil {
+		return fmt.Errorf("[DEBUG] Error saving tag to state for CSS cluster (%s): %s", d.Id(), err)
+	}
+
 	return nil
 }
 
 func resourceCssClusterV1Update(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	client, err := config.sdkClient(GetRegion(d, config), "css", serviceProjectLevel)
+	client, err := config.cssV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}
 
 	opts := resourceCssClusterV1UserInputParams(d)
-
 	arrayIndex := map[string]int{
 		"node_config.network_info": 0,
 		"node_config.volume":       0,
 		"node_config":              0,
 	}
-	timeout := d.Timeout(schema.TimeoutUpdate)
 
 	params, err := buildCssClusterV1ExtendClusterParameters(opts, arrayIndex)
 	if err != nil {
@@ -320,6 +352,8 @@ func resourceCssClusterV1Update(d *schema.ResourceData, meta interface{}) error 
 		if err != nil {
 			return err
 		}
+
+		timeout := d.Timeout(schema.TimeoutUpdate)
 		_, err = asyncWaitCssClusterV1ExtendCluster(d, config, r, client, timeout)
 		if err != nil {
 			return err
@@ -337,6 +371,18 @@ func resourceCssClusterV1Update(d *schema.ResourceData, meta interface{}) error 
 
 		rawList := d.Get("backup_strategy").([]interface{})
 		if len(rawList) == 1 {
+			// check backup strategy, if the policy was disabled, we should enable it
+			policy, err := snapshots.PolicyGet(client, d.Id()).Extract()
+			if err != nil {
+				return fmt.Errorf("Error extracting Cluster backup_strategy, err: %s", err)
+			}
+			if policy.Enable == "false" {
+				err = snapshots.Enable(client, d.Id()).ExtractErr()
+				if err != nil {
+					return fmt.Errorf("Error enable snapshot function: %s", err)
+				}
+			}
+
 			raw := rawList[0].(map[string]interface{})
 			opts = snapshots.PolicyCreateOpts{
 				Prefix:  raw["prefix"].(string),
@@ -351,12 +397,19 @@ func resourceCssClusterV1Update(d *schema.ResourceData, meta interface{}) error 
 		}
 	}
 
+	if d.HasChange("tags") {
+		tagErr := UpdateResourceTags(client, d, "css-cluster", d.Id())
+		if tagErr != nil {
+			return fmt.Errorf("Error updating tags of CSS cluster:%s, err:%s", d.Id(), tagErr)
+		}
+	}
+
 	return resourceCssClusterV1Read(d, meta)
 }
 
 func resourceCssClusterV1Delete(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	client, err := config.sdkClient(GetRegion(d, config), "css", serviceProjectLevel)
+	client, err := config.cssV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}
@@ -401,6 +454,11 @@ func resourceCssClusterV1Delete(d *schema.ResourceData, meta interface{}) error 
 func buildCssClusterV1CreateParameters(opts map[string]interface{}, arrayIndex map[string]int) (interface{}, error) {
 	params := make(map[string]interface{})
 
+	resourceData := opts["terraform_resource_data"].(*schema.ResourceData)
+	if resourceData == nil {
+		return nil, fmt.Errorf("failed to build parameters: Resource Data is null")
+	}
+
 	v, err := expandCssClusterV1CreateDatastore(opts, arrayIndex)
 	if err != nil {
 		return nil, err
@@ -421,34 +479,22 @@ func buildCssClusterV1CreateParameters(opts map[string]interface{}, arrayIndex m
 		params["instance"] = v
 	}
 
-	v, err = navigateValue(opts, []string{"expect_node_num"}, arrayIndex)
-	if err != nil {
-		return nil, err
+	if nodeNumber := resourceData.Get("expect_node_num").(int); nodeNumber != 0 {
+		params["instanceNum"] = nodeNumber
 	}
-	if e, err := isEmptyValue(reflect.ValueOf(v)); err != nil {
-		return nil, err
-	} else if !e {
-		params["instanceNum"] = v
+	if clusterName := resourceData.Get("name").(string); clusterName != "" {
+		params["name"] = clusterName
 	}
 
-	v, err = navigateValue(opts, []string{"name"}, arrayIndex)
-	if err != nil {
-		return nil, err
-	}
-	if e, err := isEmptyValue(reflect.ValueOf(v)); err != nil {
-		return nil, err
-	} else if !e {
-		params["name"] = v
-	}
-
-	v, err = expandCssClusterV1BackupStrategy(opts, arrayIndex)
-	if err != nil {
-		return nil, err
-	}
-	if e, err := isEmptyValue(reflect.ValueOf(v)); err != nil {
-		return nil, err
-	} else if !e {
-		params["backupStrategy"] = v
+	securityMode := resourceData.Get("security_mode").(bool)
+	if securityMode == true {
+		adminPassword := resourceData.Get("password").(string)
+		if adminPassword == "" {
+			return nil, fmt.Errorf("Administrator password is required in security mode")
+		}
+		params["httpsEnable"] = true
+		params["authorityEnable"] = true
+		params["adminPwd"] = adminPassword
 	}
 
 	// build tags parameter
@@ -478,8 +524,6 @@ func expandCssClusterV1CreateDatastore(d interface{}, arrayIndex map[string]int)
 		return nil, err
 	} else if !e {
 		req["type"] = v
-	} else {
-		req["type"] = "elasticsearch"
 	}
 
 	v, err = navigateValue(d, []string{"engine_version"}, arrayIndex)
@@ -598,42 +642,6 @@ func expandCssClusterV1CreateInstanceVolume(d interface{}, arrayIndex map[string
 		return nil, err
 	} else if !e {
 		req["volume_type"] = v
-	}
-
-	return req, nil
-}
-
-func expandCssClusterV1BackupStrategy(d interface{}, arrayIndex map[string]int) (interface{}, error) {
-	req := make(map[string]interface{})
-
-	v, err := navigateValue(d, []string{"backup_strategy", "start_time"}, arrayIndex)
-	if err != nil {
-		return nil, err
-	}
-	if e, err := isEmptyValue(reflect.ValueOf(v)); err != nil {
-		return nil, err
-	} else if !e {
-		req["period"] = v
-	}
-
-	v, err = navigateValue(d, []string{"backup_strategy", "keep_days"}, arrayIndex)
-	if err != nil {
-		return nil, err
-	}
-	if e, err := isEmptyValue(reflect.ValueOf(v)); err != nil {
-		return nil, err
-	} else if !e {
-		req["keepday"] = v
-	}
-
-	v, err = navigateValue(d, []string{"backup_strategy", "prefix"}, arrayIndex)
-	if err != nil {
-		return nil, err
-	}
-	if e, err := isEmptyValue(reflect.ValueOf(v)); err != nil {
-		return nil, err
-	} else if !e {
-		req["prefix"] = v
 	}
 
 	return req, nil
@@ -846,6 +854,10 @@ func fillCssClusterV1ReadRespBody(body interface{}) interface{} {
 		result["name"] = nil
 	}
 
+	if v, ok := val["httpsEnable"]; ok {
+		result["security_mode"] = v
+	}
+
 	if v, ok := val["status"]; ok {
 		result["status"] = v
 	} else {
@@ -974,6 +986,13 @@ func setCssClusterV1Properties(d *schema.ResourceData, response map[string]inter
 	}
 	if err = d.Set("name", v); err != nil {
 		return fmt.Errorf("Error setting Cluster:name, err: %s", err)
+	}
+
+	v, err = navigateValue(response, []string{"read", "security_mode"}, nil)
+	if err == nil {
+		if err = d.Set("security_mode", v); err != nil {
+			return fmt.Errorf("Error setting Cluster:security_mode, err: %s", err)
+		}
 	}
 
 	v, _ = opts["nodes"]

@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -16,46 +17,55 @@ import (
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/logging"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/pathorcontents"
-	"github.com/hashicorp/terraform-plugin-sdk/httpclient"
 	"github.com/huaweicloud/golangsdk"
 	huaweisdk "github.com/huaweicloud/golangsdk/openstack"
+	"github.com/huaweicloud/golangsdk/openstack/identity/v3/projects"
 	"github.com/huaweicloud/golangsdk/openstack/obs"
 )
 
 const (
-	serviceProjectLevel string = "project"
-	serviceDomainLevel  string = "domain"
+	obsLogFile         string = "./.obs-sdk.log"
+	obsLogFileSize10MB int64  = 1024 * 1024 * 10
 )
 
 type Config struct {
-	AccessKey        string
-	SecretKey        string
-	CACertFile       string
-	ClientCertFile   string
-	ClientKeyFile    string
-	DomainID         string
-	DomainName       string
-	IdentityEndpoint string
-	Insecure         bool
-	Password         string
-	Region           string
-	TenantID         string
-	TenantName       string
-	Token            string
-	Username         string
-	UserID           string
-	AgencyName       string
-	AgencyDomainName string
-	DelegatedProject string
-	Cloud            string
-	MaxRetries       int
-	TerraformVersion string
-	RegionClient     bool
+	AccessKey           string
+	SecretKey           string
+	CACertFile          string
+	ClientCertFile      string
+	ClientKeyFile       string
+	DomainID            string
+	DomainName          string
+	IdentityEndpoint    string
+	Insecure            bool
+	Password            string
+	Region              string
+	TenantID            string
+	TenantName          string
+	Token               string
+	Username            string
+	UserID              string
+	AgencyName          string
+	AgencyDomainName    string
+	DelegatedProject    string
+	Cloud               string
+	MaxRetries          int
+	TerraformVersion    string
+	RegionClient        bool
+	EnterpriseProjectID string
 
 	HwClient *golangsdk.ProviderClient
 	s3sess   *session.Session
 
 	DomainClient *golangsdk.ProviderClient
+
+	// RegionProjectIDMap is a map which stores the region-projectId pairs,
+	// and region name will be the key and projectID will be the value in this map.
+	RegionProjectIDMap map[string]string
+
+	// RPLock is used to make the accessing of RegionProjectIDMap serial,
+	// prevent sending duplicate query requests
+	RPLock *sync.Mutex
 }
 
 func (c *Config) LoadAndValidate() error {
@@ -68,15 +78,15 @@ func (c *Config) LoadAndValidate() error {
 	if c.Token != "" {
 		err = buildClientByToken(c)
 
+	} else if c.AccessKey != "" && c.SecretKey != "" {
+		err = buildClientByAKSK(c)
+
 	} else if c.Password != "" {
 		if c.Username == "" && c.UserID == "" {
 			err = fmt.Errorf("\"password\": one of `user_name, user_id` must be specified")
 		} else {
 			err = buildClientByPassword(c)
 		}
-
-	} else if c.AccessKey != "" && c.SecretKey != "" {
-		err = buildClientByAKSK(c)
 
 	}
 	if err != nil {
@@ -132,7 +142,7 @@ func genClient(c *Config, ao golangsdk.AuthOptionsProvider) (*golangsdk.Provider
 	}
 
 	// Set UserAgent
-	client.UserAgent.Prepend(httpclient.TerraformUserAgent(c.TerraformVersion))
+	client.UserAgent.Prepend("terraform-provider-huaweicloud")
 
 	config, err := generateTLSConfig(c)
 	if err != nil {
@@ -359,68 +369,51 @@ func (l sLogger) Log(args ...interface{}) {
 	log.Printf("[DEBUG] [aws-sdk-go] %s", strings.Join(tokens, " "))
 }
 
-func (c *Config) determineRegion(region string) string {
-	// If a resource-level region was not specified, and a provider-level region was set,
-	// use the provider-level region.
-	if region == "" && c.Region != "" {
-		region = c.Region
-	}
-
-	log.Printf("[DEBUG] HuaweiCloud Region is: %s", region)
-	return region
+func getObsEndpoint(c *Config, region string) string {
+	return fmt.Sprintf("https://obs.%s.%s/", region, c.Cloud)
 }
 
 func (c *Config) computeS3conn(region string) (*s3.S3, error) {
 	if c.s3sess == nil {
-		return nil, fmt.Errorf("Missing credentials for Swift S3 Provider, need access_key and secret_key values for provider.")
+		return nil, fmt.Errorf("missing credentials for Swift S3 Provider, need access_key and secret_key values for provider")
 	}
 
-	client, err := huaweisdk.NewNetworkV2(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
-	// Bit of a hack, seems the only way to compute this.
-	endpoint := strings.Replace(client.Endpoint, "//vpc", "//obs", 1)
-
-	S3Sess := c.s3sess.Copy(&aws.Config{Endpoint: aws.String(endpoint)})
+	obsEndpoint := getObsEndpoint(c, region)
+	S3Sess := c.s3sess.Copy(&aws.Config{Endpoint: aws.String(obsEndpoint)})
 	s3conn := s3.New(S3Sess)
 
-	return s3conn, err
+	return s3conn, nil
 }
 
 func (c *Config) newObjectStorageClientWithSignature(region string) (*obs.ObsClient, error) {
 	if c.AccessKey == "" || c.SecretKey == "" {
-		return nil, fmt.Errorf("Missing credentials for OBS, need access_key and secret_key values for provider.")
+		return nil, fmt.Errorf("missing credentials for OBS, need access_key and secret_key values for provider")
 	}
 
 	// init log
 	if logging.IsDebugOrHigher() {
-		var logfile = "./.obs-sdk.log"
-		// maxLogSize:10M, backups:10
-		if err := obs.InitLog(logfile, 1024*1024*10, 10, obs.LEVEL_DEBUG, false); err != nil {
+		if err := obs.InitLog(obsLogFile, obsLogFileSize10MB, 10, obs.LEVEL_DEBUG, false); err != nil {
 			log.Printf("[WARN] initial obs sdk log failed: %s", err)
 		}
 	}
 
-	obsEndpoint := getOBSEndpoint(c, region)
+	obsEndpoint := getObsEndpoint(c, region)
 	return obs.New(c.AccessKey, c.SecretKey, obsEndpoint, obs.WithSignature("OBS"))
 }
 
 func (c *Config) newObjectStorageClient(region string) (*obs.ObsClient, error) {
 	if c.AccessKey == "" || c.SecretKey == "" {
-		return nil, fmt.Errorf("Missing credentials for OBS, need access_key and secret_key values for provider.")
+		return nil, fmt.Errorf("missing credentials for OBS, need access_key and secret_key values for provider")
 	}
 
 	// init log
 	if logging.IsDebugOrHigher() {
-		var logfile = "./.obs-sdk.log"
-		// maxLogSize:10M, backups:10
-		if err := obs.InitLog(logfile, 1024*1024*10, 10, obs.LEVEL_DEBUG, false); err != nil {
+		if err := obs.InitLog(obsLogFile, obsLogFileSize10MB, 10, obs.LEVEL_DEBUG, false); err != nil {
 			log.Printf("[WARN] initial obs sdk log failed: %s", err)
 		}
 	}
 
-	obsEndpoint := getOBSEndpoint(c, region)
+	obsEndpoint := getObsEndpoint(c, region)
 	return obs.New(c.AccessKey, c.SecretKey, obsEndpoint)
 }
 
@@ -432,7 +425,7 @@ func (c *Config) NewServiceClient(srv, region string) (*golangsdk.ServiceClient,
 	if allServiceCatalog[srv].Admin {
 		client = c.DomainClient
 	}
-	return c.newServiceClientByName(client, allServiceCatalog[srv], c.Region)
+	return c.newServiceClientByName(client, allServiceCatalog[srv], region)
 }
 
 func (c *Config) newServiceClientByName(client *golangsdk.ProviderClient, catalog ServiceCatalog, region string) (*golangsdk.ServiceClient, error) {
@@ -440,8 +433,32 @@ func (c *Config) newServiceClientByName(client *golangsdk.ProviderClient, catalo
 		return nil, fmt.Errorf("must specify the service name and api version")
 	}
 
+	// Custom Resource-level region only supports AK/SK authentication.
+	// If set it when using non AK/SK authentication, then it must be the same as Provider-level region.
+	if region != c.Region && (c.AccessKey == "" || c.SecretKey == "") {
+		return nil, fmt.Errorf("Resource-level region must be the same as Provider-level region when using non AK/SK authentication if Resource-level region set")
+	}
+
+	c.RPLock.Lock()
+	defer c.RPLock.Unlock()
+	projectID, ok := c.RegionProjectIDMap[region]
+	if !ok {
+		// Not find in the map, then try to query and store.
+		err := c.loadUserProjects(client, region)
+		if err != nil {
+			return nil, err
+		}
+		projectID, _ = c.RegionProjectIDMap[region]
+	}
+
 	sc := new(golangsdk.ServiceClient)
-	sc.ProviderClient = client
+
+	clone := new(golangsdk.ProviderClient)
+	*clone = *client
+	clone.ProjectID = projectID
+	clone.AKSKAuthOptions.ProjectId = projectID
+	clone.AKSKAuthOptions.Region = region
+	sc.ProviderClient = clone
 
 	if catalog.Scope == "global" && !c.RegionClient {
 		sc.Endpoint = fmt.Sprintf("https://%s.%s/", catalog.Name, c.Cloud)
@@ -451,7 +468,7 @@ func (c *Config) newServiceClientByName(client *golangsdk.ProviderClient, catalo
 
 	sc.ResourceBase = sc.Endpoint + catalog.Version + "/"
 	if !catalog.WithOutProjectID {
-		sc.ResourceBase = sc.ResourceBase + client.ProjectID + "/"
+		sc.ResourceBase = sc.ResourceBase + projectID + "/"
 	}
 	if catalog.ResourceBase != "" {
 		sc.ResourceBase = sc.ResourceBase + catalog.ResourceBase + "/"
@@ -460,193 +477,157 @@ func (c *Config) newServiceClientByName(client *golangsdk.ProviderClient, catalo
 	return sc, nil
 }
 
-func (c *Config) getHwEndpointType() golangsdk.Availability {
-	return golangsdk.AvailabilityPublic
+// loadUserProjects will query the region-projectId pair and store it into RegionProjectIDMap
+func (c *Config) loadUserProjects(client *golangsdk.ProviderClient, region string) error {
+
+	log.Printf("Load projectID for region: %s", region)
+	domainID := client.DomainID
+	opts := projects.ListOpts{
+		DomainID: domainID,
+		Name:     region,
+	}
+	sc := new(golangsdk.ServiceClient)
+	sc.Endpoint = c.IdentityEndpoint + "/"
+	sc.ProviderClient = client
+	allPages, err := projects.List(sc, &opts).AllPages()
+	if err != nil {
+		return fmt.Errorf("List projects failed, err=%s", err)
+	}
+
+	all, err := projects.ExtractProjects(allPages)
+	if err != nil {
+		return fmt.Errorf("Extract projects failed, err=%s", err)
+	}
+
+	if len(all) == 0 {
+		return fmt.Errorf("Wrong name or no access to the region: %s", region)
+	}
+
+	for _, item := range all {
+		c.RegionProjectIDMap[item.Name] = item.ID
+	}
+	return nil
 }
 
 // ********** client for Global Service **********
-func (c *Config) loadIAMV3Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewIdentityV3(c.DomainClient, golangsdk.EndpointOpts{})
-}
-
-func (c *Config) IdentityV3Client(region string) (*golangsdk.ServiceClient, error) {
+func (c *Config) IAMV3Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("iam", region)
 }
 
-func (c *Config) DnsV2Client(region string) (*golangsdk.ServiceClient, error) {
-	return c.NewServiceClient("dns", region)
+func (c *Config) IdentityV3Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("identity", region)
 }
 
 func (c *Config) CdnV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("cdn", region)
 }
 
+func (c *Config) EnterpriseProjectClient(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("eps", region)
+}
+
 // ********** client for Compute **********
-func (c *Config) computeV1Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewComputeV1(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
+func (c *Config) ComputeV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("ecs", region)
 }
 
-func (c *Config) computeV11Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewComputeV11(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
+func (c *Config) ComputeV11Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("ecsv11", region)
 }
 
-func (c *Config) computeV2Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewComputeV2(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
+func (c *Config) ComputeV2Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("ecsv21", region)
 }
 
-func (c *Config) autoscalingV1Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewAutoScalingService(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
+func (c *Config) AutoscalingV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("autoscalingv1", region)
 }
 
-func (c *Config) imageV2Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewImageServiceV2(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
+func (c *Config) ImageV2Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("imagev2", region)
 }
 
-func (c *Config) cceV3Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewCCEV3(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
+func (c *Config) CceV3Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("ccev3", region)
 }
 
-func (c *Config) cceAddonV3Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewCCEAddonV3(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
+func (c *Config) CceAddonV3Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("cceaddonv3", region)
 }
 
-func (c *Config) cciV1Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.CCIV1(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
+func (c *Config) CciV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("cciv1", region)
 }
 
 func (c *Config) FgsV2Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewFGSV2(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
+	return c.NewServiceClient("fgsv2", region)
 }
 
 // ********** client for Storage **********
-func (c *Config) blockStorageV1Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewBlockStorageV1(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
+func (c *Config) BlockStorageV2Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("volumev2", region)
 }
 
-func (c *Config) blockStorageV2Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewBlockStorageV2(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
+func (c *Config) BlockStorageV3Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("volumev3", region)
 }
 
-func (c *Config) blockStorageV3Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewBlockStorageV3(c.HwClient, golangsdk.EndpointOpts{
-		Region:       region,
-		Availability: c.getHwEndpointType(),
-	})
+func (c *Config) SfsV2Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("sfsv2", region)
 }
 
-func (c *Config) loadEVSV2Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewBlockStorageV2(c.HwClient, golangsdk.EndpointOpts{
-		Region:       region,
-		Availability: c.getHwEndpointType(),
-	})
-}
-
-func (c *Config) sfsV2Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewHwSFSV2(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
-}
-
-func (c *Config) sfsV1Client(region string) (*golangsdk.ServiceClient, error) {
+func (c *Config) SfsV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("sfs-turbo", region)
 }
 
-func (c *Config) csbsV1Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewCSBSService(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
+func (c *Config) CsbsV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("csbsv1", region)
 }
 
-func (c *Config) vbsV2Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewVBSV2(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
+func (c *Config) VbsV2Client(region string) (*golangsdk.ServiceClient, error) {
+
+	return c.NewServiceClient("vbsv2", region)
 }
 
 // ********** client for Network **********
 func (c *Config) NetworkingV1Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewNetworkV1(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
+	return c.NewServiceClient("vpc", region)
+}
+
+func (c *Config) SecurityGroupV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("security_group", region)
 }
 
 func (c *Config) NetworkingV2Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewNetworkV2(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
-}
-
-func (c *Config) NetworkingHwV2Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewNetworkV2(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
+	return c.NewServiceClient("networkv2", region)
 }
 
 func (c *Config) natV2Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewNatV2(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
+	return c.NewServiceClient("natv2", region)
 }
 
-func (c *Config) loadElasticLoadBalancerClient(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewElasticLoadBalancer(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
+func (c *Config) natGatewayV2Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("nat_gatewayv2", region)
 }
 
-func (c *Config) loadBalancerV2Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewLoadBalancerV2(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
+func (c *Config) elasticLBClient(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("elb", region)
+}
+
+func (c *Config) elbV2Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("elbv2", region)
 }
 
 func (c *Config) fwV2Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewNetworkV2(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
+	return c.NewServiceClient("networkv2", region)
+}
+
+func (c *Config) DnsV2Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("dns", region)
+}
+
+func (c *Config) DnsWithRegionClient(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("dns_region", region)
 }
 
 // ********** client for Management **********
@@ -654,12 +635,16 @@ func (c *Config) ctsV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("cts", region)
 }
 
-func (c *Config) loadCESClient(region string) (*golangsdk.ServiceClient, error) {
+func (c *Config) newCESClient(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("ces", region)
 }
 
 func (c *Config) ltsV2Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("lts", region)
+}
+
+func (c *Config) SmnV2Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("smn", region)
 }
 
 // ********** client for Security **********
@@ -676,8 +661,36 @@ func (c *Config) MrsV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("mrs", region)
 }
 
-func (c *Config) SmnV2Client(region string) (*golangsdk.ServiceClient, error) {
-	return c.NewServiceClient("smn", region)
+func (c *Config) dwsV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("dws", region)
+}
+
+func (c *Config) dliV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("dli", region)
+}
+
+func (c *Config) disV2Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("disv2", region)
+}
+
+func (c *Config) cssV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("css", region)
+}
+
+func (c *Config) cloudStreamV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("cs", region)
+}
+
+func (c *Config) cloudtableV2Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("cloudtable", region)
+}
+
+func (c *Config) cdmV11Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("cdmv11", region)
+}
+
+func (c *Config) gesV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("ges", region)
 }
 
 // ********** client for Application **********
@@ -689,8 +702,16 @@ func (c *Config) dcsV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("dcsv1", region)
 }
 
+func (c *Config) dcsV2Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("dcsv2", region)
+}
+
 func (c *Config) dmsV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("dms", region)
+}
+
+func (c *Config) dmsV2Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("dmsv2", region)
 }
 
 // ********** client for Database **********
@@ -720,47 +741,21 @@ func (c *Config) gaussdbV3Client(region string) (*golangsdk.ServiceClient, error
 
 // ********** client for Others **********
 func (c *Config) BssV1Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewBSSV1(c.HwClient, golangsdk.EndpointOpts{
-		Availability: c.getHwEndpointType(),
-	})
+	return c.NewServiceClient("bss", region)
+}
+
+func (c *Config) BssV2Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("bssv2", region)
 }
 
 func (c *Config) maasV1Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.MAASV1(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
+	return c.NewServiceClient("oms", region)
 }
 
 func (c *Config) orchestrationV1Client(region string) (*golangsdk.ServiceClient, error) {
-	return huaweisdk.NewOrchestrationV1(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
+	return c.NewServiceClient("rts", region)
 }
 
-func (c *Config) sdkClient(region, serviceType string, level string) (*golangsdk.ServiceClient, error) {
-	client := c.HwClient
-	if level == serviceDomainLevel {
-		client = c.DomainClient
-	}
-	return huaweisdk.NewSDKClient(
-		client,
-		golangsdk.EndpointOpts{
-			Region:       c.determineRegion(region),
-			Availability: c.getHwEndpointType(),
-		},
-		serviceType)
-}
-
-func getOBSEndpoint(c *Config, region string) string {
-	obsClient, err := huaweisdk.NewOBSService(c.HwClient, golangsdk.EndpointOpts{
-		Region:       c.determineRegion(region),
-		Availability: c.getHwEndpointType(),
-	})
-	if err != nil {
-		log.Printf("[WARN] failed to get obs client: %s, try to assemble it from region", err)
-		return fmt.Sprintf("https://obs.%s.myhuaweicloud.com", region)
-	}
-	return obsClient.Endpoint
+func (c *Config) mlsV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("mls", region)
 }

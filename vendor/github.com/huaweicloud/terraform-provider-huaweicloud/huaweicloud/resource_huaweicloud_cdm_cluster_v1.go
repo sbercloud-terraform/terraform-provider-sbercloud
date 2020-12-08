@@ -36,6 +36,12 @@ func resourceCdmClusterV1() *schema.Resource {
 		},
 
 		Schema: map[string]*schema.Schema{
+			"region": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
 			"availability_zone": {
 				Type:     schema.TypeString,
 				Required: true,
@@ -191,7 +197,7 @@ func resourceCdmClusterV1UserInputParams(d *schema.ResourceData) map[string]inte
 
 func resourceCdmClusterV1Create(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	client, err := config.sdkClient(GetRegion(d, config), "cdm", serviceProjectLevel)
+	client, err := config.cdmV11Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}
@@ -223,7 +229,7 @@ func resourceCdmClusterV1Create(d *schema.ResourceData, meta interface{}) error 
 
 func resourceCdmClusterV1Read(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	client, err := config.sdkClient(GetRegion(d, config), "cdm", serviceProjectLevel)
+	client, err := config.cdmV11Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}
@@ -241,7 +247,7 @@ func resourceCdmClusterV1Read(d *schema.ResourceData, meta interface{}) error {
 
 func resourceCdmClusterV1Delete(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	client, err := config.sdkClient(GetRegion(d, config), "cdm", serviceProjectLevel)
+	client, err := config.cdmV11Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-sdk/helper/hashcode"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/huaweicloud/golangsdk"
@@ -41,13 +42,21 @@ func CheckDeleted(d *schema.ResourceData, err error, msg string) error {
 
 // GetRegion returns the region that was specified in the resource. If a
 // region was not set, the provider-level region is checked. The provider-level
-// region can either be set by the region argument or by OS_REGION_NAME.
+// region can either be set by the region argument or by HW_REGION_NAME.
 func GetRegion(d *schema.ResourceData, config *Config) string {
 	if v, ok := d.GetOk("region"); ok {
 		return v.(string)
 	}
 
 	return config.Region
+}
+
+func GetEnterpriseProjectID(d *schema.ResourceData, config *Config) string {
+	if v, ok := d.GetOk("enterprise_project_id"); ok {
+		return v.(string)
+	}
+
+	return config.EnterpriseProjectID
 }
 
 // AddValueSpecs expands the 'value_specs' object and removes 'value_specs'
@@ -176,4 +185,29 @@ func jsonMarshal(t interface{}) ([]byte, error) {
 	enc.SetEscapeHTML(false)
 	err := enc.Encode(t)
 	return buffer.Bytes(), err
+}
+
+// Generates a hash for the set hash function used by the ID
+func dataResourceIdHash(ids []string) string {
+	var buf bytes.Buffer
+
+	for _, id := range ids {
+		buf.WriteString(fmt.Sprintf("%s-", id))
+	}
+
+	return fmt.Sprintf("%d", hashcode.String(buf.String()))
+}
+
+// Remove duplicate elements from slice
+func removeDuplicateElem(s []string) []string {
+	result := []string{}
+	tmpMap := map[string]byte{}
+	for _, e := range s {
+		l := len(tmpMap)
+		tmpMap[e] = 0
+		if len(tmpMap) != l {
+			result = append(result, e)
+		}
+	}
+	return result
 }

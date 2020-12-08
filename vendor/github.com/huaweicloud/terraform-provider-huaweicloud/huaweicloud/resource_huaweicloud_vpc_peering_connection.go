@@ -35,12 +35,7 @@ func ResourceVpcPeeringConnectionV2() *schema.Resource {
 			"name": {
 				Type:         schema.TypeString,
 				Required:     true,
-				ForceNew:     false,
-				ValidateFunc: validateName,
-			},
-			"status": {
-				Type:     schema.TypeString,
-				Computed: true,
+				ValidateFunc: validateString64WithChinese,
 			},
 			"vpc_id": {
 				Type:     schema.TypeString,
@@ -58,13 +53,17 @@ func ResourceVpcPeeringConnectionV2() *schema.Resource {
 				ForceNew: true,
 				Computed: true,
 			},
+			"status": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
 		},
 	}
 }
 
 func resourceVPCPeeringV2Create(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	peeringClient, err := config.NetworkingHwV2Client(GetRegion(d, config))
+	peeringClient, err := config.NetworkingV2Client(GetRegion(d, config))
 
 	if err != nil {
 		return fmt.Errorf("Error creating Huaweicloud Vpc Peering Connection Client: %s", err)
@@ -113,7 +112,7 @@ func resourceVPCPeeringV2Create(d *schema.ResourceData, meta interface{}) error 
 
 func resourceVPCPeeringV2Read(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	peeringClient, err := config.NetworkingHwV2Client(GetRegion(d, config))
+	peeringClient, err := config.NetworkingV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating Huaweicloud   Vpc Peering Connection Client: %s", err)
 	}
@@ -140,7 +139,7 @@ func resourceVPCPeeringV2Read(d *schema.ResourceData, meta interface{}) error {
 
 func resourceVPCPeeringV2Update(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	peeringClient, err := config.NetworkingHwV2Client(GetRegion(d, config))
+	peeringClient, err := config.NetworkingV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating Huaweicloud  Vpc Peering Connection Client: %s", err)
 	}
@@ -160,7 +159,7 @@ func resourceVPCPeeringV2Update(d *schema.ResourceData, meta interface{}) error 
 func resourceVPCPeeringV2Delete(d *schema.ResourceData, meta interface{}) error {
 
 	config := meta.(*Config)
-	peeringClient, err := config.NetworkingHwV2Client(GetRegion(d, config))
+	peeringClient, err := config.NetworkingV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating Huaweicloud  Vpc Peering Connection Client: %s", err)
 	}

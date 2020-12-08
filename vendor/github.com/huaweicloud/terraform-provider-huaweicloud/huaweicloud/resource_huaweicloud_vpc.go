@@ -38,14 +38,18 @@ func ResourceVirtualPrivateCloudV1() *schema.Resource {
 			"name": {
 				Type:         schema.TypeString,
 				Required:     true,
-				ForceNew:     false,
-				ValidateFunc: validateName,
+				ValidateFunc: validateString64WithChinese,
 			},
 			"cidr": {
 				Type:         schema.TypeString,
 				Required:     true,
-				ForceNew:     false,
 				ValidateFunc: validateCIDR,
+			},
+			"enterprise_project_id": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
 			},
 			"status": {
 				Type:     schema.TypeString,
@@ -87,6 +91,12 @@ func resourceVirtualPrivateCloudV1Create(d *schema.ResourceData, meta interface{
 	createOpts := vpcs.CreateOpts{
 		Name: d.Get("name").(string),
 		CIDR: d.Get("cidr").(string),
+	}
+
+	epsID := GetEnterpriseProjectID(d, config)
+
+	if epsID != "" {
+		createOpts.EnterpriseProjectID = epsID
 	}
 
 	n, err := vpcs.Create(vpcClient, createOpts).Extract()
@@ -149,6 +159,7 @@ func resourceVirtualPrivateCloudV1Read(d *schema.ResourceData, meta interface{})
 
 	d.Set("name", n.Name)
 	d.Set("cidr", n.CIDR)
+	d.Set("enterprise_project_id", n.EnterpriseProjectID)
 	d.Set("status", n.Status)
 	d.Set("shared", n.EnableSharedSnat)
 	d.Set("region", GetRegion(d, config))
@@ -214,7 +225,7 @@ func resourceVirtualPrivateCloudV1Update(d *schema.ResourceData, meta interface{
 			return fmt.Errorf("Error creating Huaweicloud vpc client: %s", err)
 		}
 
-		tagErr := UpdateResourceTags(vpcV2Client, d, "vpcs")
+		tagErr := UpdateResourceTags(vpcV2Client, d, "vpcs", d.Id())
 		if tagErr != nil {
 			return fmt.Errorf("Error updating tags of VPC %s: %s", d.Id(), tagErr)
 		}

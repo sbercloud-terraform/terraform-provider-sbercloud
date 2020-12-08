@@ -19,6 +19,12 @@ func resourceTopic() *schema.Resource {
 		Update: resourceTopicUpdate,
 
 		Schema: map[string]*schema.Schema{
+			"region": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
 			"name": {
 				Type:     schema.TypeString,
 				Required: true,
@@ -28,7 +34,6 @@ func resourceTopic() *schema.Resource {
 			"display_name": {
 				Type:     schema.TypeString,
 				Optional: true,
-				ForceNew: false,
 			},
 			"topic_urn": {
 				Type:     schema.TypeString,

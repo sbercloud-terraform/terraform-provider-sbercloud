@@ -16,7 +16,6 @@ func dataSourceCdmFlavorV1() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
-				ForceNew: true,
 			},
 			"version": {
 				Type:     schema.TypeString,
@@ -44,7 +43,7 @@ func dataSourceCdmFlavorV1() *schema.Resource {
 
 func dataSourceCdmFlavorV1Read(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	client, err := config.sdkClient(GetRegion(d, config), "cdm", serviceProjectLevel)
+	client, err := config.cdmV11Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}

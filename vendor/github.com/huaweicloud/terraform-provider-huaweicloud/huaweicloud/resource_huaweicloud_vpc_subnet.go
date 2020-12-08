@@ -47,8 +47,7 @@ func ResourceVpcSubnetV1() *schema.Resource {
 			"name": {
 				Type:         schema.TypeString,
 				Required:     true,
-				ForceNew:     false,
-				ValidateFunc: validateName,
+				ValidateFunc: validateString64WithChinese,
 			},
 			"cidr": {
 				Type:         schema.TypeString,
@@ -75,18 +74,15 @@ func ResourceVpcSubnetV1() *schema.Resource {
 				Type:     schema.TypeBool,
 				Optional: true,
 				Default:  true,
-				ForceNew: false,
 			},
 			"primary_dns": {
 				Type:         schema.TypeString,
-				ForceNew:     false,
 				Optional:     true,
 				ValidateFunc: validateIP,
 				Computed:     true,
 			},
 			"secondary_dns": {
 				Type:         schema.TypeString,
-				ForceNew:     false,
 				Optional:     true,
 				ValidateFunc: validateIP,
 				Computed:     true,
@@ -265,7 +261,7 @@ func resourceVpcSubnetV1Update(d *schema.ResourceData, meta interface{}) error {
 			return fmt.Errorf("Error creating Huaweicloud VpcSubnet client: %s", err)
 		}
 
-		tagErr := UpdateResourceTags(vpcSubnetV2Client, d, "subnets")
+		tagErr := UpdateResourceTags(vpcSubnetV2Client, d, "subnets", d.Id())
 		if tagErr != nil {
 			return fmt.Errorf("Error updating tags of VPC subnet %s: %s", d.Id(), tagErr)
 		}

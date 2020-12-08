@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/huaweicloud/golangsdk"
+	"github.com/huaweicloud/golangsdk/openstack/common/tags"
 	"github.com/huaweicloud/golangsdk/openstack/sfs/v2/shares"
 )
 
@@ -72,16 +73,21 @@ func resourceSFSFileSystemV2() *schema.Resource {
 			"access_level": {
 				Type:     schema.TypeString,
 				Optional: true,
-				Default:  "rw",
 			},
 			"access_type": {
 				Type:     schema.TypeString,
 				Optional: true,
-				Default:  "cert",
 			},
 			"access_to": {
 				Type:     schema.TypeString,
 				Optional: true,
+			},
+			"tags": tagsSchema(),
+			"enterprise_project_id": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
 			},
 			"share_access_id": {
 				Type:     schema.TypeString,
@@ -137,7 +143,7 @@ func resourceSFSFileSystemV2() *schema.Resource {
 
 func resourceSFSFileSystemV2Create(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	sfsClient, err := config.sfsV2Client(GetRegion(d, config))
+	sfsClient, err := config.SfsV2Client(GetRegion(d, config))
 
 	if err != nil {
 		return fmt.Errorf("Error creating Huaweicloud File Share Client: %s", err)
@@ -149,7 +155,7 @@ func resourceSFSFileSystemV2Create(d *schema.ResourceData, meta interface{}) err
 		Name:             d.Get("name").(string),
 		Description:      d.Get("description").(string),
 		IsPublic:         d.Get("is_public").(bool),
-		Metadata:         resourceSFSMetadataV2(d),
+		Metadata:         resourceSFSMetadataV2(d, config),
 		AvailabilityZone: d.Get("availability_zone").(string),
 	}
 
@@ -178,9 +184,19 @@ func resourceSFSFileSystemV2Create(d *schema.ResourceData, meta interface{}) err
 	// specified the "access_to" field, apply first access rule to share file
 	if _, ok := d.GetOk("access_to"); ok {
 		grantAccessOpts := shares.GrantAccessOpts{
-			AccessLevel: d.Get("access_level").(string),
-			AccessType:  d.Get("access_type").(string),
-			AccessTo:    d.Get("access_to").(string),
+			AccessTo: d.Get("access_to").(string),
+		}
+
+		if _, ok := d.GetOk("access_level"); ok {
+			grantAccessOpts.AccessLevel = d.Get("access_level").(string)
+		} else {
+			grantAccessOpts.AccessLevel = "rw"
+		}
+
+		if _, ok := d.GetOk("access_type"); ok {
+			grantAccessOpts.AccessType = d.Get("access_type").(string)
+		} else {
+			grantAccessOpts.AccessType = "cert"
 		}
 
 		grant, accessErr := shares.GrantAccess(sfsClient, d.Id(), grantAccessOpts).ExtractAccess()
@@ -192,13 +208,22 @@ func resourceSFSFileSystemV2Create(d *schema.ResourceData, meta interface{}) err
 		d.Set("share_access_id", grant.ID)
 	}
 
+	// create tags
+	tagRaw := d.Get("tags").(map[string]interface{})
+	if len(tagRaw) > 0 {
+		taglist := expandResourceTags(tagRaw)
+		if tagErr := tags.Create(sfsClient, "sfs", d.Id(), taglist).ExtractErr(); tagErr != nil {
+			return fmt.Errorf("Error setting tags of sfs %s: %s", d.Id(), tagErr)
+		}
+	}
+
 	return resourceSFSFileSystemV2Read(d, meta)
 }
 
 func resourceSFSFileSystemV2Read(d *schema.ResourceData, meta interface{}) error {
 
 	config := meta.(*Config)
-	sfsClient, err := config.sfsV2Client(GetRegion(d, config))
+	sfsClient, err := config.SfsV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating Huaweicloud File Share Client: %s", err)
 	}
@@ -223,6 +248,7 @@ func resourceSFSFileSystemV2Read(d *schema.ResourceData, meta interface{}) error
 	d.Set("region", GetRegion(d, config))
 	d.Set("export_location", n.ExportLocation)
 	d.Set("host", n.Host)
+	d.Set("enterprise_project_id", n.Metadata["enterprise_project_id"])
 
 	// NOTE: This tries to remove system metadata.
 	md := make(map[string]string)
@@ -288,12 +314,20 @@ OUTER:
 		d.Set("status", "unavailable")
 	}
 
+	// set tags
+	resourceTags, err := tags.Get(sfsClient, "sfs", d.Id()).Extract()
+	if err != nil {
+		return fmt.Errorf("Error fetching tags of sfs: %s", err)
+	}
+	tagmap := tagsToMap(resourceTags.Tags)
+	d.Set("tags", tagmap)
+
 	return nil
 }
 
 func resourceSFSFileSystemV2Update(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	sfsClient, err := config.sfsV2Client(GetRegion(d, config))
+	sfsClient, err := config.SfsV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error updating Huaweicloud Share File Client: %s", err)
 	}
@@ -353,12 +387,20 @@ func resourceSFSFileSystemV2Update(d *schema.ResourceData, meta interface{}) err
 		}
 	}
 
+	// update tags
+	if d.HasChange("tags") {
+		tagErr := UpdateResourceTags(sfsClient, d, "sfs", d.Id())
+		if tagErr != nil {
+			return fmt.Errorf("Error updating tags of sfs:%s, err:%s", d.Id(), tagErr)
+		}
+	}
+
 	return resourceSFSFileSystemV2Read(d, meta)
 }
 
 func resourceSFSFileSystemV2Delete(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	sfsClient, err := config.sfsV2Client(GetRegion(d, config))
+	sfsClient, err := config.SfsV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating Huaweicloud Shared File Client: %s", err)
 	}
@@ -427,10 +469,17 @@ func waitForSFSFileDelete(sfsClient *golangsdk.ServiceClient, shareId string) re
 	}
 }
 
-func resourceSFSMetadataV2(d *schema.ResourceData) map[string]string {
+func resourceSFSMetadataV2(d *schema.ResourceData, config *Config) map[string]string {
 	m := make(map[string]string)
 	for key, val := range d.Get("metadata").(map[string]interface{}) {
 		m[key] = val.(string)
 	}
+
+	epsID := GetEnterpriseProjectID(d, config)
+
+	if epsID != "" {
+		m["enterprise_project_id"] = epsID
+	}
+
 	return m
 }
