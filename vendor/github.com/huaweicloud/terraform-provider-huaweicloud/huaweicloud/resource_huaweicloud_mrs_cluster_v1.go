@@ -8,7 +8,9 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/huaweicloud/golangsdk"
+	"github.com/huaweicloud/golangsdk/openstack/common/tags"
 	"github.com/huaweicloud/golangsdk/openstack/mrs/v1/cluster"
 	"github.com/huaweicloud/golangsdk/openstack/networking/v1/subnets"
 	"github.com/huaweicloud/golangsdk/openstack/networking/v1/vpcs"
@@ -18,14 +20,15 @@ func resourceMRSClusterV1() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceClusterV1Create,
 		Read:   resourceClusterV1Read,
+		Update: resourceClusterV1Update,
 		Delete: resourceClusterV1Delete,
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},
 
 		Timeouts: &schema.ResourceTimeout{
-			Create: schema.DefaultTimeout(20 * time.Minute),
-			Delete: schema.DefaultTimeout(5 * time.Minute),
+			Create: schema.DefaultTimeout(60 * time.Minute),
+			Delete: schema.DefaultTimeout(10 * time.Minute),
 		},
 
 		Schema: map[string]*schema.Schema{
@@ -35,49 +38,17 @@ func resourceMRSClusterV1() *schema.Resource {
 				ForceNew: true,
 				Computed: true,
 			},
-
-			"billing_type": {
-				Type:     schema.TypeInt,
-				Required: true,
-				ForceNew: true,
-			},
-			"master_node_num": {
-				Type:     schema.TypeInt,
-				Required: true,
-				ForceNew: true,
-			},
-			"master_node_size": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
-			},
-			"core_node_num": {
-				Type:         schema.TypeInt,
-				Required:     true,
-				ValidateFunc: resourceClusterValidateCoreNodeNum,
-				ForceNew:     true,
-			},
-			"core_node_size": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
-			},
 			"available_zone_id": {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
 			},
+			"billing_type": {
+				Type:     schema.TypeInt,
+				Required: true,
+				ForceNew: true,
+			},
 			"cluster_name": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
-			},
-			"vpc_id": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
-			},
-			"subnet_id": {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
@@ -94,21 +65,50 @@ func resourceMRSClusterV1() *schema.Resource {
 				Computed: true,
 				ForceNew: true,
 			},
+			"master_node_num": {
+				Type:         schema.TypeInt,
+				Required:     true,
+				ForceNew:     true,
+				ValidateFunc: validation.IntBetween(1, 2),
+			},
+			"master_node_size": {
+				Type:     schema.TypeString,
+				Required: true,
+				ForceNew: true,
+			},
+			"core_node_num": {
+				Type:         schema.TypeInt,
+				Required:     true,
+				ForceNew:     true,
+				ValidateFunc: validation.IntBetween(1, 500),
+			},
+			"core_node_size": {
+				Type:     schema.TypeString,
+				Required: true,
+				ForceNew: true,
+			},
+
+			"vpc_id": {
+				Type:     schema.TypeString,
+				Required: true,
+				ForceNew: true,
+			},
+			"subnet_id": {
+				Type:     schema.TypeString,
+				Required: true,
+				ForceNew: true,
+			},
+
 			"volume_type": {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
-				ValidateFunc: func(v interface{}, k string) (ws []string, errors []error) {
-					return ValidateStringList(v, k, []string{"SATA", "SSD"})
-				},
+				ValidateFunc: validation.StringInSlice([]string{
+					"SATA", "SAS", "SSD",
+				}, false),
 			},
 			"volume_size": {
 				Type:     schema.TypeInt,
-				Required: true,
-				ForceNew: true,
-			},
-			"node_public_cert_name": {
-				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
 			},
@@ -118,10 +118,25 @@ func resourceMRSClusterV1() *schema.Resource {
 				ForceNew: true,
 			},
 			"cluster_admin_secret": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
-				ForceNew: true,
+				Type:         schema.TypeString,
+				Required:     true,
+				Sensitive:    true,
+				ForceNew:     true,
+				ValidateFunc: validation.StringLenBetween(8, 26),
+			},
+			"node_password": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				Sensitive:    true,
+				ForceNew:     true,
+				ExactlyOneOf: []string{"node_public_cert_name"},
+				ValidateFunc: validation.StringLenBetween(8, 26),
+			},
+			"node_public_cert_name": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				ForceNew:     true,
+				ExactlyOneOf: []string{"node_password"},
 			},
 			"log_collection": {
 				Type:     schema.TypeInt,
@@ -232,11 +247,8 @@ func resourceMRSClusterV1() *schema.Resource {
 					},
 				},
 			},
+			"tags": tagsSchema(),
 			"order_id": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
-			"cluster_id": {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
@@ -324,10 +336,6 @@ func resourceMRSClusterV1() *schema.Resource {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
-			"tenant_id": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
 			"update_at": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -342,15 +350,6 @@ func resourceMRSClusterV1() *schema.Resource {
 			},
 		},
 	}
-}
-
-func resourceClusterValidateCoreNodeNum(v interface{}, k string) (ws []string, errors []error) {
-	value := v.(int)
-	if 3 <= value && value <= 100 {
-		return
-	}
-	errors = append(errors, fmt.Errorf("%q must be [3, 100]", k))
-	return
 }
 
 func getAllClusterComponents(d *schema.ResourceData) []cluster.ComponentOpts {
@@ -415,11 +414,13 @@ func ClusterStateRefreshFunc(client *golangsdk.ServiceClient, clusterID string) 
 
 func resourceClusterV1Create(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	client, err := config.MrsV1Client(GetRegion(d, config))
+	region := GetRegion(d, config)
+
+	client, err := config.MrsV1Client(region)
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud MRS client: %s", err)
 	}
-	vpcClient, err := config.NetworkingV1Client(GetRegion(d, config))
+	vpcClient, err := config.NetworkingV1Client(region)
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud Vpc client: %s", err)
 	}
@@ -435,29 +436,36 @@ func resourceClusterV1Create(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("Error retrieving HuaweiCloud Subnet: %s", err)
 	}
 
+	loginMode := 0
+	if _, ok := d.GetOk("node_public_cert_name"); ok {
+		loginMode = 1
+	}
+
 	createOpts := &cluster.CreateOpts{
-		BillingType:        d.Get("billing_type").(int),
-		DataCenter:         d.Get("region").(string),
-		MasterNodeNum:      d.Get("master_node_num").(int),
-		MasterNodeSize:     d.Get("master_node_size").(string),
-		CoreNodeNum:        d.Get("core_node_num").(int),
-		CoreNodeSize:       d.Get("core_node_size").(string),
-		AvailableZoneID:    d.Get("available_zone_id").(string),
-		ClusterName:        d.Get("cluster_name").(string),
-		Vpc:                vpc.Name,
-		VpcID:              d.Get("vpc_id").(string),
-		SubnetID:           d.Get("subnet_id").(string),
-		SubnetName:         subnet.Name,
-		ClusterVersion:     d.Get("cluster_version").(string),
-		ClusterType:        d.Get("cluster_type").(int),
-		VolumeType:         d.Get("volume_type").(string),
-		VolumeSize:         d.Get("volume_size").(int),
-		NodePublicCertName: d.Get("node_public_cert_name").(string),
-		SafeMode:           d.Get("safe_mode").(int),
-		ClusterAdminSecret: d.Get("cluster_admin_secret").(string),
-		LogCollection:      d.Get("log_collection").(int),
-		ComponentList:      getAllClusterComponents(d),
-		AddJobs:            getAllClusterJobs(d),
+		DataCenter:          region,
+		BillingType:         d.Get("billing_type").(int),
+		MasterNodeNum:       d.Get("master_node_num").(int),
+		MasterNodeSize:      d.Get("master_node_size").(string),
+		CoreNodeNum:         d.Get("core_node_num").(int),
+		CoreNodeSize:        d.Get("core_node_size").(string),
+		AvailableZoneID:     d.Get("available_zone_id").(string),
+		ClusterName:         d.Get("cluster_name").(string),
+		ClusterVersion:      d.Get("cluster_version").(string),
+		ClusterType:         d.Get("cluster_type").(int),
+		VpcID:               d.Get("vpc_id").(string),
+		SubnetID:            d.Get("subnet_id").(string),
+		Vpc:                 vpc.Name,
+		SubnetName:          subnet.Name,
+		VolumeType:          d.Get("volume_type").(string),
+		VolumeSize:          d.Get("volume_size").(int),
+		SafeMode:            d.Get("safe_mode").(int),
+		LoginMode:           loginMode,
+		NodePublicCertName:  d.Get("node_public_cert_name").(string),
+		ClusterMasterSecret: d.Get("node_password").(string),
+		ClusterAdminSecret:  d.Get("cluster_admin_secret").(string),
+		LogCollection:       d.Get("log_collection").(int),
+		ComponentList:       getAllClusterComponents(d),
+		AddJobs:             getAllClusterJobs(d),
 	}
 
 	log.Printf("[DEBUG] Create Options: %#v", createOpts)
@@ -484,6 +492,15 @@ func resourceClusterV1Create(d *schema.ResourceData, meta interface{}) error {
 			clusterCreate.ClusterID, err)
 	}
 
+	// create tags
+	tagRaw := d.Get("tags").(map[string]interface{})
+	if len(tagRaw) > 0 {
+		taglist := expandResourceTags(tagRaw)
+		if tagErr := tags.Create(client, "clusters", d.Id(), taglist).ExtractErr(); tagErr != nil {
+			return fmt.Errorf("Error setting tags of MRS cluster %s: %s", d.Id(), tagErr)
+		}
+	}
+
 	return resourceClusterV1Read(d, meta)
 }
 
@@ -496,33 +513,46 @@ func resourceClusterV1Read(d *schema.ResourceData, meta interface{}) error {
 
 	clusterGet, err := cluster.Get(client, d.Id()).Extract()
 	if err != nil {
-		return CheckDeleted(d, err, "Cluster")
+		return CheckDeleted(d, err, "MRS Cluster")
 	}
+	if clusterGet.Clusterstate == "terminated" {
+		log.Printf("[WARN] The Cluster %s has been terminated.", d.Id())
+		d.SetId("")
+		return nil
+	}
+
 	log.Printf("[DEBUG] Retrieved Cluster %s: %#v", d.Id(), clusterGet)
 	d.SetId(clusterGet.Clusterid)
 	d.Set("region", GetRegion(d, config))
 	d.Set("order_id", clusterGet.Orderid)
-	d.Set("cluster_id", clusterGet.Clusterid)
 	d.Set("available_zone_name", clusterGet.Azname)
 	d.Set("available_zone_id", clusterGet.Azid)
+	d.Set("cluster_name", clusterGet.Clustername)
 	d.Set("cluster_version", clusterGet.Clusterversion)
 
-	masterNodeNum, err := strconv.Atoi(clusterGet.Masternodenum)
-	if err != nil {
-		return fmt.Errorf("Error converting Masternodenum: %s", err)
+	if clusterGet.Masternodenum != "" {
+		masterNodeNum, err := strconv.Atoi(clusterGet.Masternodenum)
+		if err != nil {
+			return fmt.Errorf("Error converting Masternodenum: %s", err)
+		}
+		d.Set("master_node_num", masterNodeNum)
 	}
-	coreNodeNum, err := strconv.Atoi(clusterGet.Corenodenum)
-	if err != nil {
-		return fmt.Errorf("Error converting Corenodenum: %s", err)
+
+	if clusterGet.Corenodenum != "" {
+		coreNodeNum, err := strconv.Atoi(clusterGet.Corenodenum)
+		if err != nil {
+			return fmt.Errorf("Error converting Corenodenum: %s", err)
+		}
+		d.Set("core_node_num", coreNodeNum)
 	}
-	d.Set("master_node_num", masterNodeNum)
-	d.Set("core_node_num", coreNodeNum)
-	d.Set("cluster_name", clusterGet.Clustername)
-	d.Set("core_node_size", clusterGet.Corenodesize)
-	d.Set("volume_size", clusterGet.Volumesize)
+
+	// the following attributes are empty during to the API backend
+	// d.Set("master_node_size", clusterGet.Masternodesize)
+	// d.Set("core_node_size", clusterGet.Corenodesize)
+	// d.Set("volume_size", clusterGet.Volumesize)
+
 	d.Set("node_public_cert_name", clusterGet.Nodepubliccertname)
 	d.Set("safe_mode", clusterGet.Safemode)
-	d.Set("master_node_size", clusterGet.Masternodesize)
 	d.Set("instance_id", clusterGet.Instanceid)
 	d.Set("hadoop_version", clusterGet.Hadoopversion)
 	d.Set("master_node_ip", clusterGet.Masternodeip)
@@ -543,7 +573,6 @@ func resourceClusterV1Read(d *schema.ResourceData, meta interface{}) error {
 	d.Set("cluster_state", clusterGet.Clusterstate)
 	d.Set("error_info", clusterGet.Errorinfo)
 	d.Set("remark", clusterGet.Remark)
-	d.Set("tenant_id", clusterGet.Tenantid)
 
 	updateAt, err := strconv.ParseInt(clusterGet.Updateat, 10, 64)
 	if err != nil {
@@ -579,7 +608,32 @@ func resourceClusterV1Read(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	d.Set("component_list", components)
+
+	// set tags
+	if resourceTags, err := tags.Get(client, "clusters", d.Id()).Extract(); err == nil {
+		tagmap := tagsToMap(resourceTags.Tags)
+		d.Set("tags", tagmap)
+	} else {
+		log.Printf("[WARN] fetching tags of MRS cluster failed: %s", err)
+	}
+
 	return nil
+}
+
+func resourceClusterV1Update(d *schema.ResourceData, meta interface{}) error {
+	config := meta.(*Config)
+	client, err := config.MrsV1Client(GetRegion(d, config))
+	if err != nil {
+		return fmt.Errorf("Error creating HuaweiCloud MRS client: %s", err)
+	}
+
+	// update tags
+	tagErr := UpdateResourceTags(client, d, "clusters", d.Id())
+	if tagErr != nil {
+		return fmt.Errorf("Error updating tags of MRS cluster:%s, err:%s", d.Id(), tagErr)
+	}
+
+	return resourceClusterV1Read(d, meta)
 }
 
 func resourceClusterV1Delete(d *schema.ResourceData, meta interface{}) error {

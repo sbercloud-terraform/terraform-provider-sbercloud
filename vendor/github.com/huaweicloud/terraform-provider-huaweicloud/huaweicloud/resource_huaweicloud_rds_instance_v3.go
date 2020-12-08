@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/huaweicloud/golangsdk"
+	"github.com/huaweicloud/golangsdk/openstack/common/tags"
 	"github.com/huaweicloud/golangsdk/openstack/rds/v1/datastores"
 	"github.com/huaweicloud/golangsdk/openstack/rds/v1/flavors"
 	"github.com/huaweicloud/golangsdk/openstack/rds/v1/instances"
@@ -46,6 +47,12 @@ func resourceRdsInstanceV3() *schema.Resource {
 		},
 
 		Schema: map[string]*schema.Schema{
+			"region": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
 			"availability_zone": {
 				Type:     schema.TypeList,
 				Required: true,
@@ -95,7 +102,6 @@ func resourceRdsInstanceV3() *schema.Resource {
 			"flavor": {
 				Type:     schema.TypeString,
 				Required: true,
-				ForceNew: false,
 			},
 
 			"name": {
@@ -119,14 +125,12 @@ func resourceRdsInstanceV3() *schema.Resource {
 			"volume": {
 				Type:     schema.TypeList,
 				Required: true,
-				ForceNew: false,
 				MaxItems: 1,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"size": {
 							Type:     schema.TypeInt,
 							Required: true,
-							ForceNew: false,
 						},
 						"type": {
 							Type:     schema.TypeString,
@@ -153,23 +157,27 @@ func resourceRdsInstanceV3() *schema.Resource {
 				Type:     schema.TypeList,
 				Computed: true,
 				Optional: true,
-				ForceNew: false,
 				MaxItems: 1,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"start_time": {
 							Type:     schema.TypeString,
 							Required: true,
-							ForceNew: false,
 						},
 						"keep_days": {
 							Type:     schema.TypeInt,
 							Computed: true,
 							Optional: true,
-							ForceNew: false,
 						},
 					},
 				},
+			},
+
+			"enterprise_project_id": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
 			},
 
 			"ha_replication_mode": {
@@ -179,15 +187,12 @@ func resourceRdsInstanceV3() *schema.Resource {
 				ForceNew: true,
 			},
 
+			"tags": tagsSchema(),
+
 			"param_group_id": {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
-			},
-
-			"created": {
-				Type:     schema.TypeString,
-				Computed: true,
 			},
 
 			"nodes": {
@@ -234,6 +239,15 @@ func resourceRdsInstanceV3() *schema.Resource {
 					Type: schema.TypeString,
 				},
 			},
+
+			"status": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"created": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
 		},
 	}
 }
@@ -257,13 +271,14 @@ func resourceRdsInstanceV3UserInputParams(d *schema.ResourceData) map[string]int
 
 func resourceRdsInstanceV3Create(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	client, err := config.sdkClient(GetRegion(d, config), "rdsv3", serviceProjectLevel)
+	client, err := config.RdsV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}
 
 	opts := resourceRdsInstanceV3UserInputParams(d)
 	opts["region"] = GetRegion(d, config)
+	opts["enterprise_project_id"] = GetEnterpriseProjectID(d, config)
 
 	arrayIndex := map[string]int{
 		"backup_strategy": 0,
@@ -289,7 +304,17 @@ func resourceRdsInstanceV3Create(d *schema.ResourceData, meta interface{}) error
 	if err != nil {
 		return fmt.Errorf("Error constructing id, err=%s", err)
 	}
-	d.SetId(id.(string))
+	instanceID := id.(string)
+	d.SetId(instanceID)
+
+	//set tags
+	tagRaw := d.Get("tags").(map[string]interface{})
+	if len(tagRaw) > 0 {
+		taglist := expandResourceTags(tagRaw)
+		if tagErr := tags.Create(client, "instances", instanceID, taglist).ExtractErr(); tagErr != nil {
+			return fmt.Errorf("Error setting tags of RDS instance %s: %s", instanceID, tagErr)
+		}
+	}
 
 	return resourceRdsInstanceV3Read(d, meta)
 }
@@ -325,6 +350,10 @@ func resourceRdsInstanceV3Update(d *schema.ResourceData, meta interface{}) error
 	if err != nil {
 		return err
 	}
+	if v == nil {
+		return fmt.Errorf("RDS instance: %s was not found", d.Id())
+	}
+
 	res["list"] = v
 	opts := resourceRdsInstanceV3UserInputParams(d)
 	v, _ = opts["nodes"]
@@ -335,11 +364,18 @@ func resourceRdsInstanceV3Update(d *schema.ResourceData, meta interface{}) error
 
 	nodes := v.([]interface{})
 	if len(nodes) > 0 {
-		node_id = nodes[0].(map[string]interface{})["id"].(string)
+		for _, node := range nodes {
+			n := node.(map[string]interface{})
+			if n["role"] == "master" {
+				node_id = n["id"].(string)
+				break
+			}
+		}
 	} else {
 		log.Printf("[WARN] Error setting nodes of instance:%s", d.Id())
 		return nil
 	}
+	log.Printf("[DEBUG] get master node id: %s", node_id)
 
 	if d.HasChange("flavor") {
 		nflavor := d.Get("flavor")
@@ -454,12 +490,19 @@ func resourceRdsInstanceV3Update(d *schema.ResourceData, meta interface{}) error
 		log.Printf("[DEBUG] Successfully updated instance %s volume: %+v", node_id, volume)
 	}
 
+	if d.HasChange("tags") {
+		tagErr := UpdateResourceTags(rdsClient, d, "instances", d.Id())
+		if tagErr != nil {
+			return fmt.Errorf("Error updating tags of RDS instance:%s, err:%s", d.Id(), tagErr)
+		}
+	}
+
 	return resourceRdsInstanceV3Read(d, meta)
 }
 
 func resourceRdsInstanceV3Read(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	client, err := config.sdkClient(GetRegion(d, config), "rdsv3", serviceProjectLevel)
+	client, err := config.RdsV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}
@@ -470,8 +513,13 @@ func resourceRdsInstanceV3Read(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return err
 	}
-	res["list"] = v
+	if v == nil {
+		log.Printf("[WARN] RDS instance: %s was not found", d.Id())
+		d.SetId("")
+		return nil
+	}
 
+	res["list"] = v
 	err = setRdsInstanceV3Properties(d, res)
 	if err != nil {
 		return err
@@ -482,7 +530,7 @@ func resourceRdsInstanceV3Read(d *schema.ResourceData, meta interface{}) error {
 
 func resourceRdsInstanceV3Delete(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	client, err := config.sdkClient(GetRegion(d, config), "rdsv3", serviceProjectLevel)
+	client, err := config.RdsV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}
@@ -511,14 +559,14 @@ func resourceRdsInstanceV3Delete(d *schema.ResourceData, meta interface{}) error
 	_, err = waitToFinish(
 		[]string{"Done"}, []string{"Pending"},
 		d.Timeout(schema.TimeoutCreate),
-		1*time.Second,
+		5*time.Second,
 		func() (interface{}, string, error) {
-			_, err := fetchRdsInstanceV3ByList(d, client)
+			v, err := fetchRdsInstanceV3ByList(d, client)
 			if err != nil {
-				if strings.Index(err.Error(), "Error finding the resource by list api") != -1 {
-					return true, "Done", nil
-				}
-				return nil, "", nil
+				return nil, "Failed", err
+			}
+			if v == nil {
+				return true, "Done", nil
 			}
 			return true, "Pending", nil
 		},
@@ -557,6 +605,16 @@ func buildRdsInstanceV3CreateParameters(opts map[string]interface{}, arrayIndex 
 		return nil, err
 	} else if !e {
 		params["configuration_id"] = v
+	}
+
+	v, err = navigateValue(opts, []string{"enterprise_project_id"}, arrayIndex)
+	if err != nil {
+		return nil, err
+	}
+	if e, err := isEmptyValue(reflect.ValueOf(v)); err != nil {
+		return nil, err
+	} else if !e {
+		params["enterprise_project_id"] = v
 	}
 
 	v, err = expandRdsInstanceV3CreateDatastore(opts, arrayIndex)
@@ -862,7 +920,7 @@ func asyncWaitRdsInstanceV3Create(d *schema.ResourceData, config *Config, result
 	return waitToFinish(
 		[]string{"Completed"},
 		[]string{"Running"},
-		timeout, 1*time.Second,
+		timeout, 5*time.Second,
 		func() (interface{}, string, error) {
 			r := golangsdk.Result{}
 			_, r.Err = client.Get(url, &r.Body, &golangsdk.RequestOpts{
@@ -914,7 +972,7 @@ func findRdsInstanceV3ByList(client *golangsdk.ServiceClient, link string, ident
 		}
 	}
 
-	return nil, fmt.Errorf("Error finding the resource by list api")
+	return nil, nil
 }
 
 func sendRdsInstanceV3ListRequest(client *golangsdk.ServiceClient, url string) (interface{}, error) {
@@ -961,6 +1019,22 @@ func setRdsInstanceV3Properties(d *schema.ResourceData, response map[string]inte
 	}
 	if err = d.Set("created", v); err != nil {
 		return fmt.Errorf("Error setting Instance:created, err: %s", err)
+	}
+
+	v, err = navigateValue(response, []string{"list", "status"}, nil)
+	if err != nil {
+		return fmt.Errorf("Error reading Instance:status, err: %s", err)
+	}
+	if err = d.Set("status", v); err != nil {
+		return fmt.Errorf("Error setting Instance:status, err: %s", err)
+	}
+
+	v, err = navigateValue(response, []string{"list", "enterprise_project_id"}, nil)
+	if err != nil {
+		return fmt.Errorf("Error reading Instance:enterprise_project_id, err: %s", err)
+	}
+	if err = d.Set("enterprise_project_id", v); err != nil {
+		return fmt.Errorf("Error setting Instance:enterprise_project_id, err: %s", err)
 	}
 
 	v, _ = opts["db"]
@@ -1053,6 +1127,14 @@ func setRdsInstanceV3Properties(d *schema.ResourceData, response map[string]inte
 	}
 	if err = d.Set("vpc_id", v); err != nil {
 		return fmt.Errorf("Error setting Instance:vpc_id, err: %s", err)
+	}
+
+	v, err = flattenRdsInstanceTags(response)
+	if err != nil {
+		return fmt.Errorf("Error reading Instance:tags, err: %s", err)
+	}
+	if err = d.Set("tags", v); err != nil {
+		return fmt.Errorf("Error setting Instance:tags, err: %s", err)
 	}
 
 	return nil
@@ -1242,5 +1324,24 @@ func flattenRdsInstanceV3Volume(d interface{}, arrayIndex map[string]int, curren
 	}
 	r["type"] = v
 
+	return result, nil
+}
+
+func flattenRdsInstanceTags(d interface{}) (map[string]interface{}, error) {
+	result := make(map[string]interface{})
+
+	tagsRaw, err := navigateValue(d, []string{"list", "tags"}, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Error reading Instance tags, err: %s", err)
+	}
+
+	for _, item := range tagsRaw.([]interface{}) {
+		val := item.(map[string]interface{})
+		if key, ok := val["key"].(string); ok {
+			result[key] = val["value"]
+		}
+	}
+
+	log.Printf("[DEBUG] reading RDS Instance tags: %#v", result)
 	return result, nil
 }

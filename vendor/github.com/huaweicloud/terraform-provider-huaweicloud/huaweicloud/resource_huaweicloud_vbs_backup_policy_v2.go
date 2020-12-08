@@ -20,6 +20,7 @@ func resourceVBSBackupPolicyV2() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},
+		DeprecationMessage: "this is deprecated",
 
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(5 * time.Minute),
@@ -27,6 +28,12 @@ func resourceVBSBackupPolicyV2() *schema.Resource {
 		},
 
 		Schema: map[string]*schema.Schema{
+			"region": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
 			"name": {
 				Type:         schema.TypeString,
 				Required:     true,
@@ -85,13 +92,11 @@ func resourceVBSBackupPolicyV2() *schema.Resource {
 						"key": {
 							Type:         schema.TypeString,
 							Required:     true,
-							ForceNew:     false,
 							ValidateFunc: validateVBSTagKey,
 						},
 						"value": {
 							Type:         schema.TypeString,
 							Required:     true,
-							ForceNew:     false,
 							ValidateFunc: validateVBSTagValue,
 						},
 					},
@@ -107,7 +112,7 @@ func resourceVBSBackupPolicyV2() *schema.Resource {
 
 func resourceVBSBackupPolicyV2Create(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	vbsClient, err := config.vbsV2Client(GetRegion(d, config))
+	vbsClient, err := config.VbsV2Client(GetRegion(d, config))
 
 	if err != nil {
 		return fmt.Errorf("Error creating Huaweicloud VBS client: %s", err)
@@ -173,7 +178,7 @@ func resourceVBSBackupPolicyV2Create(d *schema.ResourceData, meta interface{}) e
 func resourceVBSBackupPolicyV2Read(d *schema.ResourceData, meta interface{}) error {
 
 	config := meta.(*Config)
-	vbsClient, err := config.vbsV2Client(GetRegion(d, config))
+	vbsClient, err := config.VbsV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating Huaweicloud VBS client: %s", err)
 	}
@@ -225,7 +230,7 @@ func resourceVBSBackupPolicyV2Read(d *schema.ResourceData, meta interface{}) err
 
 func resourceVBSBackupPolicyV2Update(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	vbsClient, err := config.vbsV2Client(GetRegion(d, config))
+	vbsClient, err := config.VbsV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error updating Huaweicloud VBS client: %s", err)
 	}
@@ -333,7 +338,7 @@ func resourceVBSBackupPolicyV2Update(d *schema.ResourceData, meta interface{}) e
 
 func resourceVBSBackupPolicyV2Delete(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	vbsClient, err := config.vbsV2Client(GetRegion(d, config))
+	vbsClient, err := config.VbsV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating Huaweicloud VBS client: %s", err)
 	}

@@ -24,6 +24,12 @@ func resourceCCEAddonV3() *schema.Resource {
 		},
 
 		Schema: map[string]*schema.Schema{ // request and response parameters
+			"region": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
 			"cluster_id": {
 				Type:     schema.TypeString,
 				Required: true,
@@ -53,7 +59,7 @@ func resourceCCEAddonV3() *schema.Resource {
 
 func resourceCCEAddonV3Create(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	cceClient, err := config.cceAddonV3Client(GetRegion(d, config))
+	cceClient, err := config.CceAddonV3Client(GetRegion(d, config))
 
 	if err != nil {
 		return fmt.Errorf("Unable to create HuaweiCloud CCE client : %s", err)
@@ -74,7 +80,7 @@ func resourceCCEAddonV3Create(d *schema.ResourceData, meta interface{}) error {
 			ClusterID:         cluster_id,
 			AddonTemplateName: d.Get("template_name").(string),
 			Values: addons.Values{
-				Basic: map[string]string{},
+				Basic: map[string]interface{}{},
 			},
 		},
 	}
@@ -108,7 +114,7 @@ func resourceCCEAddonV3Create(d *schema.ResourceData, meta interface{}) error {
 
 func resourceCCEAddonV3Read(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	cceClient, err := config.cceAddonV3Client(GetRegion(d, config))
+	cceClient, err := config.CceAddonV3Client(GetRegion(d, config))
 
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud CCE client: %s", err)
@@ -137,7 +143,7 @@ func resourceCCEAddonV3Read(d *schema.ResourceData, meta interface{}) error {
 
 func resourceCCEAddonV3Delete(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	cceClient, err := config.cceAddonV3Client(GetRegion(d, config))
+	cceClient, err := config.CceAddonV3Client(GetRegion(d, config))
 
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud CCEAddon Client: %s", err)

@@ -12,11 +12,10 @@ import (
 )
 
 var (
-	SBC_REGION_NAME  = os.Getenv("SBC_REGION_NAME")
-	SBC_ACCOUNT_NAME = os.Getenv("SBC_ACCOUNT_NAME")
-	SBC_ADMIN        = os.Getenv("SBC_ADMIN")
-	// Test data
-	TEST_SBC_PROJECT_ID = os.Getenv("TEST_SBC_PROJECT_ID")
+	SBC_REGION_NAME                = os.Getenv("SBC_REGION_NAME")
+	SBC_ACCOUNT_NAME               = os.Getenv("SBC_ACCOUNT_NAME")
+	SBC_ADMIN                      = os.Getenv("SBC_ADMIN")
+	SBC_ENTERPRISE_PROJECT_ID_TEST = os.Getenv("SBC_ENTERPRISE_PROJECT_ID_TEST")
 )
 
 var testAccProviders map[string]terraform.ResourceProvider
@@ -33,9 +32,6 @@ func testAccPreCheckRequiredEnvVars(t *testing.T) {
 	if SBC_REGION_NAME == "" {
 		t.Fatal("SBC_REGION_NAME must be set for acceptance tests")
 	}
-	if TEST_SBC_PROJECT_ID == "" {
-		t.Fatal("TEST_SBC_PROJECT_ID must be set for acceptance tests")
-	}
 }
 
 func testAccPreCheck(t *testing.T) {
@@ -45,6 +41,12 @@ func testAccPreCheck(t *testing.T) {
 func testAccPreCheckAdminOnly(t *testing.T) {
 	if SBC_ADMIN == "" {
 		t.Skip("SBC_ADMIN must be set for acceptance tests")
+	}
+}
+
+func testAccPreCheckEpsID(t *testing.T) {
+	if SBC_ENTERPRISE_PROJECT_ID_TEST == "" {
+		t.Skip("This environment does not support EPS_ID tests")
 	}
 }
 

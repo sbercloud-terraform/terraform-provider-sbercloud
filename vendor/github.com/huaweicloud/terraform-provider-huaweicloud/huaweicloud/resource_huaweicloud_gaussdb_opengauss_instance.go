@@ -87,12 +87,10 @@ func resourceOpenGaussInstance() *schema.Resource {
 			"sharding_num": {
 				Type:     schema.TypeInt,
 				Optional: true,
-				ForceNew: false,
 			},
 			"coordinator_num": {
 				Type:     schema.TypeInt,
 				Optional: true,
-				ForceNew: false,
 			},
 			"enterprise_project_id": {
 				Type:     schema.TypeString,
@@ -179,7 +177,6 @@ func resourceOpenGaussInstance() *schema.Resource {
 			"volume": {
 				Type:     schema.TypeList,
 				Required: true,
-				ForceNew: false,
 				MaxItems: 1,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
@@ -191,10 +188,14 @@ func resourceOpenGaussInstance() *schema.Resource {
 						"size": {
 							Type:     schema.TypeInt,
 							Required: true,
-							ForceNew: false,
 						},
 					},
 				},
+			},
+			"force_import": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				ForceNew: true,
 			},
 			"status": {
 				Type:     schema.TypeString,
@@ -324,6 +325,29 @@ func resourceOpenGaussInstanceCreate(d *schema.ResourceData, meta interface{}) e
 	client, err := config.openGaussV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud GaussDB client: %s ", err)
+	}
+
+	// If force_import set, try to import it instead of creating
+	if hasFilledOpt(d, "force_import") {
+		log.Printf("[DEBUG] Gaussdb opengauss instance force_import is set, try to import it instead of creating")
+		listOpts := instances.ListGaussDBInstanceOpts{
+			Name: d.Get("name").(string),
+		}
+		pages, err := instances.List(client, listOpts).AllPages()
+		if err != nil {
+			return err
+		}
+
+		allInstances, err := instances.ExtractGaussDBInstances(pages)
+		if err != nil {
+			return fmt.Errorf("Unable to retrieve instances: %s ", err)
+		}
+		if allInstances.TotalCount > 0 {
+			instance := allInstances.Instances[0]
+			log.Printf("[DEBUG] Found existing opengauss instance %s with name %s", instance.Id, instance.Name)
+			d.SetId(instance.Id)
+			return resourceOpenGaussInstanceRead(d, meta)
+		}
 	}
 
 	createOpts := instances.CreateGaussDBOpts{

@@ -14,6 +14,11 @@ func dataSourceKmsKeyV1() *schema.Resource {
 		Read: dataSourceKmsKeyV1Read,
 
 		Schema: map[string]*schema.Schema{
+			"region": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+			},
 			"key_alias": {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -43,6 +48,11 @@ func dataSourceKmsKeyV1() *schema.Resource {
 				ValidateFunc: validateKmsKeyStatus,
 			},
 			"default_key_flag": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+			},
+			"enterprise_project_id": {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
@@ -105,6 +115,9 @@ func dataSourceKmsKeyV1Read(d *schema.ResourceData, meta interface{}) error {
 	if v, ok := d.GetOk("domain_id"); ok {
 		keyProperties["DomainID"] = v.(string)
 	}
+	if v, ok := d.GetOk("enterprise_project_id"); ok {
+		keyProperties["EnterpriseProjectID"] = v.(string)
+	}
 
 	if len(allKeys) > 1 && len(keyProperties) > 0 {
 		var filteredKeys []keys.Key
@@ -156,6 +169,7 @@ func dataSourceKmsKeyV1Read(d *schema.ResourceData, meta interface{}) error {
 	d.Set("key_state", key.KeyState)
 	d.Set("default_key_flag", key.DefaultKeyFlag)
 	d.Set("expiration_time", key.ExpirationTime)
+	d.Set("enterprise_project_id", key.EnterpriseProjectID)
 
 	return nil
 }

@@ -11,14 +11,13 @@ import (
 
 func dataSourceVBSBackupPolicyV2() *schema.Resource {
 	return &schema.Resource{
-		Read: dataSourceVBSPolicyV2Read,
-
+		Read:               dataSourceVBSPolicyV2Read,
+		DeprecationMessage: "It has been deprecated.",
 		Schema: map[string]*schema.Schema{
 			"region": {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
-				ForceNew: true,
 			},
 			"id": {
 				Type:     schema.TypeString,
@@ -92,7 +91,7 @@ func dataSourceVBSBackupPolicyV2() *schema.Resource {
 
 func dataSourceVBSPolicyV2Read(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	vbsClient, err := config.vbsV2Client(GetRegion(d, config))
+	vbsClient, err := config.VbsV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating huaweicloud vbs client: %s", err)
 	}

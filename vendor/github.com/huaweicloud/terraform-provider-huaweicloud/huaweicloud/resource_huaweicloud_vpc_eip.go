@@ -38,7 +38,6 @@ func ResourceVpcEIPV1() *schema.Resource {
 			"publicip": {
 				Type:     schema.TypeList,
 				Required: true,
-				ForceNew: false,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"type": {
@@ -55,7 +54,6 @@ func ResourceVpcEIPV1() *schema.Resource {
 						"port_id": {
 							Type:     schema.TypeString,
 							Optional: true,
-							ForceNew: false,
 							Computed: true,
 						},
 					},
@@ -64,7 +62,6 @@ func ResourceVpcEIPV1() *schema.Resource {
 			"bandwidth": {
 				Type:     schema.TypeList,
 				Required: true,
-				ForceNew: false,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"id": {
@@ -76,13 +73,11 @@ func ResourceVpcEIPV1() *schema.Resource {
 						"name": {
 							Type:     schema.TypeString,
 							Optional: true,
-							ForceNew: false,
 							Computed: true,
 						},
 						"size": {
 							Type:     schema.TypeInt,
 							Optional: true,
-							ForceNew: false,
 							Computed: true,
 						},
 						"share_type": {
@@ -99,6 +94,12 @@ func ResourceVpcEIPV1() *schema.Resource {
 					},
 				},
 			},
+			"enterprise_project_id": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
+			},
 			"address": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -106,7 +107,6 @@ func ResourceVpcEIPV1() *schema.Resource {
 			"value_specs": {
 				Type:     schema.TypeMap,
 				Optional: true,
-				ForceNew: false,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
 		},
@@ -126,6 +126,12 @@ func resourceVpcEIPV1Create(d *schema.ResourceData, meta interface{}) error {
 			Bandwidth: resourceBandWidth(d),
 		},
 		MapValueSpecs(d),
+	}
+
+	epsID := GetEnterpriseProjectID(d, config)
+
+	if epsID != "" {
+		createOpts.EnterpriseProjectID = epsID
 	}
 
 	log.Printf("[DEBUG] Create Options: %#v", createOpts)
@@ -193,6 +199,7 @@ func resourceVpcEIPV1Read(d *schema.ResourceData, meta interface{}) error {
 	d.Set("bandwidth", bW)
 	d.Set("address", eIP.PublicAddress)
 	d.Set("region", GetRegion(d, config))
+	d.Set("enterprise_project_id", eIP.EnterpriseProjectID)
 
 	return nil
 }

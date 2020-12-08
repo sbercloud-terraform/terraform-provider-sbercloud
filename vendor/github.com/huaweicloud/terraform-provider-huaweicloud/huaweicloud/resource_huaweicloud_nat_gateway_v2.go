@@ -19,6 +19,10 @@ func resourceNatGatewayV2() *schema.Resource {
 		Update: resourceNatGatewayV2Update,
 		Delete: resourceNatGatewayV2Delete,
 
+		Importer: &schema.ResourceImporter{
+			State: schema.ImportStatePassthrough,
+		},
+
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(10 * time.Minute),
 			Delete: schema.DefaultTimeout(10 * time.Minute),
@@ -34,18 +38,15 @@ func resourceNatGatewayV2() *schema.Resource {
 			"name": {
 				Type:     schema.TypeString,
 				Required: true,
-				ForceNew: false,
 			},
 			"description": {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
-				ForceNew: false,
 			},
 			"spec": {
 				Type:         schema.TypeString,
 				Required:     true,
-				ForceNew:     false,
 				ValidateFunc: resourceNatGatewayV2ValidateSpec,
 			},
 			"tenant_id": {
@@ -64,24 +65,35 @@ func resourceNatGatewayV2() *schema.Resource {
 				Required: true,
 				ForceNew: true,
 			},
+			"enterprise_project_id": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
+			},
+			"status": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
 		},
 	}
 }
 
 func resourceNatGatewayV2Create(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	natV2Client, err := config.natV2Client(GetRegion(d, config))
+	natV2Client, err := config.natGatewayV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud nat client: %s", err)
 	}
 
 	createOpts := &natgateways.CreateOpts{
-		Name:              d.Get("name").(string),
-		Description:       d.Get("description").(string),
-		Spec:              d.Get("spec").(string),
-		TenantID:          d.Get("tenant_id").(string),
-		RouterID:          d.Get("router_id").(string),
-		InternalNetworkID: d.Get("internal_network_id").(string),
+		Name:                d.Get("name").(string),
+		Description:         d.Get("description").(string),
+		Spec:                d.Get("spec").(string),
+		TenantID:            d.Get("tenant_id").(string),
+		RouterID:            d.Get("router_id").(string),
+		InternalNetworkID:   d.Get("internal_network_id").(string),
+		EnterpriseProjectID: GetEnterpriseProjectID(d, config),
 	}
 
 	log.Printf("[DEBUG] Create Options: %#v", createOpts)
@@ -112,7 +124,7 @@ func resourceNatGatewayV2Create(d *schema.ResourceData, meta interface{}) error 
 
 func resourceNatGatewayV2Read(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	natV2Client, err := config.natV2Client(GetRegion(d, config))
+	natV2Client, err := config.natGatewayV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud nat client: %s", err)
 	}
@@ -128,15 +140,16 @@ func resourceNatGatewayV2Read(d *schema.ResourceData, meta interface{}) error {
 	d.Set("router_id", natGateway.RouterID)
 	d.Set("internal_network_id", natGateway.InternalNetworkID)
 	d.Set("tenant_id", natGateway.TenantID)
-
+	d.Set("status", natGateway.Status)
 	d.Set("region", GetRegion(d, config))
+	d.Set("enterprise_project_id", natGateway.EnterpriseProjectID)
 
 	return nil
 }
 
 func resourceNatGatewayV2Update(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	natV2Client, err := config.natV2Client(GetRegion(d, config))
+	natV2Client, err := config.natGatewayV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud nat client: %s", err)
 	}
@@ -165,7 +178,7 @@ func resourceNatGatewayV2Update(d *schema.ResourceData, meta interface{}) error 
 
 func resourceNatGatewayV2Delete(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	natV2Client, err := config.natV2Client(GetRegion(d, config))
+	natV2Client, err := config.natGatewayV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud nat client: %s", err)
 	}

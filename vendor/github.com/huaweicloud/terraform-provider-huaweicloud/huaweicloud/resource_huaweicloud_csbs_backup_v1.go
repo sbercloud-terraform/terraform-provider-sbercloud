@@ -19,6 +19,7 @@ func resourceCSBSBackupV1() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},
+		DeprecationMessage: "this is deprecated",
 
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(60 * time.Minute),
@@ -177,7 +178,7 @@ func resourceCSBSBackupV1() *schema.Resource {
 
 func resourceCSBSBackupV1Create(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	backupClient, err := config.csbsV1Client(GetRegion(d, config))
+	backupClient, err := config.CsbsV1Client(GetRegion(d, config))
 
 	if err != nil {
 		return fmt.Errorf("Error creating csbs client: %s", err)
@@ -256,7 +257,7 @@ func resourceCSBSBackupV1Create(d *schema.ResourceData, meta interface{}) error 
 func resourceCSBSBackupV1Read(d *schema.ResourceData, meta interface{}) error {
 
 	config := meta.(*Config)
-	backupClient, err := config.csbsV1Client(GetRegion(d, config))
+	backupClient, err := config.CsbsV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating csbs client: %s", err)
 	}
@@ -293,7 +294,7 @@ func resourceCSBSBackupV1Read(d *schema.ResourceData, meta interface{}) error {
 
 func resourceCSBSBackupV1Delete(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	backupClient, err := config.csbsV1Client(GetRegion(d, config))
+	backupClient, err := config.CsbsV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating csbs client: %s", err)
 	}

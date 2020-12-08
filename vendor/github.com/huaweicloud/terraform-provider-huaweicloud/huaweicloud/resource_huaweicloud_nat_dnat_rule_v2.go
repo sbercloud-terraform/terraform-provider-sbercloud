@@ -34,6 +34,12 @@ func resourceNatDnatRuleV2() *schema.Resource {
 		},
 
 		Schema: map[string]*schema.Schema{
+			"region": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
 			"floating_ip_id": {
 				Type:     schema.TypeString,
 				Required: true,
@@ -115,7 +121,7 @@ func resourceNatDnatUserInputParams(d *schema.ResourceData) map[string]interface
 
 func resourceNatDnatRuleCreate(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	client, err := config.sdkClient(GetRegion(d, config), "nat", serviceProjectLevel)
+	client, err := config.natV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}
@@ -237,7 +243,7 @@ func resourceNatDnatRuleCreate(d *schema.ResourceData, meta interface{}) error {
 
 func resourceNatDnatRuleRead(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	client, err := config.sdkClient(GetRegion(d, config), "nat", serviceProjectLevel)
+	client, err := config.natV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}
@@ -406,7 +412,7 @@ func resourceNatDnatRuleRead(d *schema.ResourceData, meta interface{}) error {
 
 func resourceNatDnatRuleDelete(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	client, err := config.sdkClient(GetRegion(d, config), "nat", serviceProjectLevel)
+	client, err := config.natV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}

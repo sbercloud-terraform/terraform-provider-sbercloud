@@ -1,6 +1,8 @@
 package sbercloud
 
 import (
+	"sync"
+
 	"github.com/hashicorp/terraform-plugin-sdk/helper/mutexkv"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
@@ -93,6 +95,7 @@ func Provider() terraform.ResourceProvider {
 		DataSourcesMap: map[string]*schema.Resource{
 			"sbercloud_identity_role_v3": huaweicloud.DataSourceIdentityRoleV3(),
 			"sbercloud_vpc":              huaweicloud.DataSourceVirtualPrivateCloudVpcV1(),
+			"sbercloud_vpc_bandwidth":    huaweicloud.DataSourceBandWidth(),
 			"sbercloud_vpc_subnet":       huaweicloud.DataSourceVpcSubnetV1(),
 			"sbercloud_vpc_subnet_ids":   huaweicloud.DataSourceVpcSubnetIdsV1(),
 			"sbercloud_vpc_route":        huaweicloud.DataSourceVPCRouteV2(),
@@ -106,6 +109,7 @@ func Provider() terraform.ResourceProvider {
 			"sbercloud_identity_group_v3":            huaweicloud.ResourceIdentityGroupV3(),
 			"sbercloud_identity_group_membership_v3": huaweicloud.ResourceIdentityGroupMembershipV3(),
 			"sbercloud_vpc":                          huaweicloud.ResourceVirtualPrivateCloudV1(),
+			"sbercloud_vpc_bandwidth":                huaweicloud.ResourceVpcBandWidthV2(),
 			"sbercloud_vpc_eip":                      huaweicloud.ResourceVpcEIPV1(),
 			"sbercloud_vpc_route":                    huaweicloud.ResourceVPCRouteV2(),
 			"sbercloud_vpc_peering_connection":       huaweicloud.ResourceVpcPeeringConnectionV2(),
@@ -159,22 +163,28 @@ func configureProvider(d *schema.ResourceData, terraformVersion string) (interfa
 	}
 
 	config := huaweicloud.Config{
-		AccessKey:        d.Get("access_key").(string),
-		SecretKey:        d.Get("secret_key").(string),
-		DomainName:       d.Get("account_name").(string),
-		IdentityEndpoint: d.Get("auth_url").(string),
-		Insecure:         d.Get("insecure").(bool),
-		Password:         d.Get("password").(string),
-		Region:           d.Get("region").(string),
-		TenantName:       project_name,
-		Username:         d.Get("user_name").(string),
-		TerraformVersion: terraformVersion,
-		Cloud:            "hc.sbercloud.ru",
-		RegionClient:     true,
+		AccessKey:          d.Get("access_key").(string),
+		SecretKey:          d.Get("secret_key").(string),
+		DomainName:         d.Get("account_name").(string),
+		IdentityEndpoint:   d.Get("auth_url").(string),
+		Insecure:           d.Get("insecure").(bool),
+		Password:           d.Get("password").(string),
+		Region:             d.Get("region").(string),
+		TenantName:         project_name,
+		Username:           d.Get("user_name").(string),
+		TerraformVersion:   terraformVersion,
+		Cloud:              "hc.sbercloud.ru",
+		RegionClient:       true,
+		RegionProjectIDMap: make(map[string]string),
+		RPLock:             new(sync.Mutex),
 	}
 
 	if err := config.LoadAndValidate(); err != nil {
 		return nil, err
+	}
+
+	if config.HwClient != nil && config.HwClient.ProjectID != "" {
+		config.RegionProjectIDMap[config.Region] = config.HwClient.ProjectID
 	}
 
 	return &config, nil

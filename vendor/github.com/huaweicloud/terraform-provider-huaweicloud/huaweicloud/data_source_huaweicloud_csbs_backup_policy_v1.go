@@ -10,14 +10,13 @@ import (
 
 func dataSourceCSBSBackupPolicyV1() *schema.Resource {
 	return &schema.Resource{
-		Read: dataSourceCSBSBackupPolicyV1Read,
-
+		Read:               dataSourceCSBSBackupPolicyV1Read,
+		DeprecationMessage: "It has been deprecated.",
 		Schema: map[string]*schema.Schema{
 			"region": {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
-				ForceNew: true,
 			},
 			"status": {
 				Type:     schema.TypeString,
@@ -129,7 +128,7 @@ func dataSourceCSBSBackupPolicyV1() *schema.Resource {
 
 func dataSourceCSBSBackupPolicyV1Read(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	policyClient, err := config.csbsV1Client(GetRegion(d, config))
+	policyClient, err := config.CsbsV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating csbs client: %s", err)
 	}

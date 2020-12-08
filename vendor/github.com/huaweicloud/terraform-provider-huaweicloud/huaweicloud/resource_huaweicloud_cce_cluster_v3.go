@@ -139,6 +139,12 @@ func resourceCCEClusterV3() *schema.Resource {
 				Optional: true,
 				ForceNew: true,
 			},
+			"enterprise_project_id": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
+			},
 			"status": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -209,7 +215,7 @@ func resourceClusterAnnotationsV3(d *schema.ResourceData) map[string]string {
 	}
 	return m
 }
-func resourceClusterExtendParamV3(d *schema.ResourceData) map[string]string {
+func resourceClusterExtendParamV3(d *schema.ResourceData, config *Config) map[string]string {
 	m := make(map[string]string)
 	for key, val := range d.Get("extend_param").(map[string]interface{}) {
 		m[key] = val.(string)
@@ -223,12 +229,18 @@ func resourceClusterExtendParamV3(d *schema.ResourceData) map[string]string {
 	if eip, ok := d.GetOk("eip"); ok {
 		m["clusterExternalIP"] = eip.(string)
 	}
+
+	epsID := GetEnterpriseProjectID(d, config)
+
+	if epsID != "" {
+		m["enterpriseProjectId"] = epsID
+	}
 	return m
 }
 
 func resourceCCEClusterV3Create(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	cceClient, err := config.cceV3Client(GetRegion(d, config))
+	cceClient, err := config.CceV3Client(GetRegion(d, config))
 
 	if err != nil {
 		return fmt.Errorf("Unable to create HuaweiCloud CCE client : %s", err)
@@ -263,7 +275,7 @@ func resourceCCEClusterV3Create(d *schema.ResourceData, meta interface{}) error 
 				AuthenticatingProxy: authenticating_proxy,
 			},
 			BillingMode: d.Get("billing_mode").(int),
-			ExtendParam: resourceClusterExtendParamV3(d),
+			ExtendParam: resourceClusterExtendParamV3(d, config),
 		},
 	}
 
@@ -276,12 +288,12 @@ func resourceCCEClusterV3Create(d *schema.ResourceData, meta interface{}) error 
 	log.Printf("[DEBUG] Waiting for HuaweiCloud CCE cluster (%s) to become available", create.Metadata.Id)
 
 	stateConf := &resource.StateChangeConf{
-		Pending:    []string{"Creating"},
-		Target:     []string{"Available"},
-		Refresh:    waitForCCEClusterActive(cceClient, create.Metadata.Id),
-		Timeout:    d.Timeout(schema.TimeoutCreate),
-		Delay:      5 * time.Second,
-		MinTimeout: 3 * time.Second,
+		Pending:      []string{"Creating"},
+		Target:       []string{"Available"},
+		Refresh:      waitForCCEClusterActive(cceClient, create.Metadata.Id),
+		Timeout:      d.Timeout(schema.TimeoutCreate),
+		Delay:        150 * time.Second,
+		PollInterval: 20 * time.Second,
 	}
 
 	_, err = stateConf.WaitForState()
@@ -296,7 +308,7 @@ func resourceCCEClusterV3Create(d *schema.ResourceData, meta interface{}) error 
 
 func resourceCCEClusterV3Read(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	cceClient, err := config.cceV3Client(GetRegion(d, config))
+	cceClient, err := config.CceV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud CCE client: %s", err)
 	}
@@ -326,6 +338,7 @@ func resourceCCEClusterV3Read(d *schema.ResourceData, meta interface{}) error {
 	d.Set("authentication_mode", n.Spec.Authentication.Mode)
 	d.Set("security_group_id", n.Spec.HostNetwork.SecurityGroup)
 	d.Set("region", GetRegion(d, config))
+	d.Set("enterprise_project_id", n.Spec.ExtendParam["enterpriseProjectId"])
 
 	r := clusters.GetCert(cceClient, d.Id())
 
@@ -340,7 +353,7 @@ func resourceCCEClusterV3Read(d *schema.ResourceData, meta interface{}) error {
 	cert, err := r.Extract()
 
 	if err != nil {
-		log.Printf("Error retrieving opentelekomcloud CCE cluster cert: %s", err)
+		log.Printf("Error retrieving HuaweiCloud CCE cluster cert: %s", err)
 	}
 
 	//Set Certificate Clusters
@@ -370,7 +383,7 @@ func resourceCCEClusterV3Read(d *schema.ResourceData, meta interface{}) error {
 
 func resourceCCEClusterV3Update(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	cceClient, err := config.cceV3Client(GetRegion(d, config))
+	cceClient, err := config.CceV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud CCE Client: %s", err)
 	}
@@ -391,7 +404,7 @@ func resourceCCEClusterV3Update(d *schema.ResourceData, meta interface{}) error 
 
 func resourceCCEClusterV3Delete(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	cceClient, err := config.cceV3Client(GetRegion(d, config))
+	cceClient, err := config.CceV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud CCE Client: %s", err)
 	}
@@ -400,12 +413,12 @@ func resourceCCEClusterV3Delete(d *schema.ResourceData, meta interface{}) error 
 		return fmt.Errorf("Error deleting HuaweiCloud CCE Cluster: %s", err)
 	}
 	stateConf := &resource.StateChangeConf{
-		Pending:    []string{"Deleting", "Available", "Unavailable"},
-		Target:     []string{"Deleted"},
-		Refresh:    waitForCCEClusterDelete(cceClient, d.Id()),
-		Timeout:    d.Timeout(schema.TimeoutDelete),
-		Delay:      5 * time.Second,
-		MinTimeout: 3 * time.Second,
+		Pending:      []string{"Deleting", "Available", "Unavailable"},
+		Target:       []string{"Deleted"},
+		Refresh:      waitForCCEClusterDelete(cceClient, d.Id()),
+		Timeout:      d.Timeout(schema.TimeoutDelete),
+		Delay:        60 * time.Second,
+		PollInterval: 20 * time.Second,
 	}
 
 	_, err = stateConf.WaitForState()
