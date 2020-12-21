@@ -1,6 +1,9 @@
 package huaweicloud
 
 import (
+	"fmt"
+	"log"
+	"strings"
 	"sync"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/mutexkv"
@@ -219,6 +222,13 @@ func Provider() terraform.ResourceProvider {
 					"HW_CLOUD", "myhuaweicloud.com"),
 			},
 
+			"endpoints": {
+				Type:        schema.TypeMap,
+				Optional:    true,
+				Description: descriptions["endpoints"],
+				Elem:        &schema.Schema{Type: schema.TypeString},
+			},
+
 			"enterprise_project_id": {
 				Type:        schema.TypeString,
 				Optional:    true,
@@ -241,6 +251,7 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_cce_node":                    dataSourceCCENodeV3(),
 			"huaweicloud_cdm_flavors":                 dataSourceCdmFlavorV1(),
 			"huaweicloud_compute_flavors":             DataSourceEcsFlavors(),
+			"huaweicloud_compute_instance":            DataSourceComputeInstance(),
 			"huaweicloud_csbs_backup":                 dataSourceCSBSBackupV1(),
 			"huaweicloud_csbs_backup_policy":          dataSourceCSBSBackupPolicyV1(),
 			"huaweicloud_cts_tracker":                 dataSourceCTSTrackerV1(),
@@ -273,6 +284,7 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_vbs_backup":                  dataSourceVBSBackupV2(),
 			"huaweicloud_vpc":                         DataSourceVirtualPrivateCloudVpcV1(),
 			"huaweicloud_vpc_bandwidth":               DataSourceBandWidth(),
+			"huaweicloud_vpc_eip":                     DataSourceVpcEip(),
 			"huaweicloud_vpc_ids":                     dataSourceVirtualPrivateCloudVpcIdsV1(),
 			"huaweicloud_vpc_peering_connection":      dataSourceVpcPeeringConnectionV2(),
 			"huaweicloud_vpc_route":                   DataSourceVPCRouteV2(),
@@ -600,6 +612,8 @@ func init() {
 
 		"cloud": "The endpoint of cloud provider, defaults to myhuaweicloud.com",
 
+		"endpoints": "The custom endpoints used to override the default endpoint URL.",
+
 		"max_retries": "How many times HTTP connection should be retried until giving up.",
 
 		"enterprise_project_id": "enterprise project id",
@@ -670,5 +684,56 @@ func configureProvider(d *schema.ResourceData, terraformVersion string) (interfa
 		config.RegionProjectIDMap[config.Region] = config.HwClient.ProjectID
 	}
 
+	// get custom endpoints
+	endpoints, err := flattenProviderEndpoints(d)
+	if err != nil {
+		return nil, err
+	}
+	config.endpoints = endpoints
+
 	return &config, nil
+}
+
+func flattenProviderEndpoints(d *schema.ResourceData) (map[string]string, error) {
+	endpoints := d.Get("endpoints").(map[string]interface{})
+	epMap := make(map[string]string)
+
+	for key, val := range endpoints {
+		endpoint := strings.TrimSpace(val.(string))
+		// check empty string
+		if endpoint == "" {
+			return nil, fmt.Errorf("the value of customer endpoint %s must be specified", key)
+		}
+
+		// add prefix "https://" and suffix "/"
+		if !strings.HasPrefix(endpoint, "http") {
+			endpoint = fmt.Sprintf("https://%s", endpoint)
+		}
+		if !strings.HasSuffix(endpoint, "/") {
+			endpoint = fmt.Sprintf("%s/", endpoint)
+		}
+		epMap[key] = endpoint
+	}
+
+	// unify the endpoint which has multi types
+	if endpoint, ok := epMap["iam"]; ok {
+		epMap["identity"] = endpoint
+	}
+	if endpoint, ok := epMap["ecs"]; ok {
+		epMap["ecsv11"] = endpoint
+		epMap["ecsv21"] = endpoint
+	}
+	if endpoint, ok := epMap["cce"]; ok {
+		epMap["cce_addon"] = endpoint
+	}
+	if endpoint, ok := epMap["evs"]; ok {
+		epMap["volumev2"] = endpoint
+	}
+	if endpoint, ok := epMap["vpc"]; ok {
+		epMap["networkv2"] = endpoint
+		epMap["security_group"] = endpoint
+	}
+
+	log.Printf("[DEBUG] customer endpoints: %+v", epMap)
+	return epMap, nil
 }

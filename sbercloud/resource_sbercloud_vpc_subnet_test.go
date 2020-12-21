@@ -19,7 +19,7 @@ func TestAccVpcSubnetV1_basic(t *testing.T) {
 	resourceName := "sbercloud_vpc_subnet.test"
 	rNameUpdate := rName + "-updated"
 
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckVpcSubnetV1Destroy,
