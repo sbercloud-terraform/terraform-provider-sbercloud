@@ -115,7 +115,6 @@ variables must also be set:
 
 * `SBC_ACCOUNT_NAME` - The IAM account name.
 
-* `TEST_SBC_PROJECT_ID` - (Required) The test project ID to create project-related resources.
 
 You should be able to use any SberCloud environment to develop on as long as the
 above environment variables are set.
