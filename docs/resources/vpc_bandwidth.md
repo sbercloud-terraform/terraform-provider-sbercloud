@@ -4,7 +4,7 @@ subcategory: "Elastic IP (EIP)"
 
 # sbercloud\_vpc\_bandwidth
 
-Manages a Shared Bandwidth resource within HuaweiCloud.
+Manages a Shared Bandwidth resource within SberCloud.
 
 ## Example Usage
 

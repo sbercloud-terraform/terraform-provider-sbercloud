@@ -5,7 +5,6 @@ subcategory: "Elastic Cloud Server (ECS)"
 # sbercloud\_compute\_keypair
 
 Manages a keypair resource within Sbercloud.
-This is an alternative to `sbercloud_compute_keypair_v2`
 
 ## Example Usage
 

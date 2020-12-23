@@ -5,7 +5,6 @@ subcategory: "Elastic Cloud Server (ECS)"
 # sbercloud\_compute\_instance
 
 Manages a ECS VM instance resource within Sbercloud.
-This is an alternative to `sbercloud_compute_instance_v2`
 
 ## Example Usage
 

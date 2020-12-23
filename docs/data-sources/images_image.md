@@ -5,7 +5,6 @@ subcategory: "Image Management Service (IMS)"
 # sbercloud\_images\_image
 
 Use this data source to get the ID of an available Sbercloud image.
-This is an alternative to `sbercloud_images_image`
 
 ## Example Usage
 

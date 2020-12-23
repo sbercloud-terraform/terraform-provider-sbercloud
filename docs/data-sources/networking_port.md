@@ -5,7 +5,6 @@ subcategory: "Virtual Private Cloud (VPC)"
 # sbercloud\_networking\_port
 
 Use this data source to get the ID of an available Sbercloud port.
-This is an alternative to `sbercloud_networking_port_v2`
 
 ## Example Usage
 
