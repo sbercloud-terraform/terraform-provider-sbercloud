@@ -109,6 +109,9 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
+			"sbercloud_as_configuration":             huaweicloud.ResourceASConfiguration(),
+			"sbercloud_as_group":                     huaweicloud.ResourceASGroup(),
+			"sbercloud_as_policy":                    huaweicloud.ResourceASPolicy(),
 			"sbercloud_cce_cluster":                  huaweicloud.ResourceCCEClusterV3(),
 			"sbercloud_cce_node":                     huaweicloud.ResourceCCENodeV3(),
 			"sbercloud_dns_recordset":                huaweicloud.ResourceDNSRecordSetV2(),
