@@ -13,7 +13,7 @@ import (
 	"github.com/huaweicloud/golangsdk/openstack/autoscaling/v1/groups"
 )
 
-func resourceASConfiguration() *schema.Resource {
+func ResourceASConfiguration() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceASConfigurationCreate,
 		Read:   resourceASConfigurationRead,
@@ -45,9 +45,8 @@ func resourceASConfiguration() *schema.Resource {
 							Optional: true,
 						},
 						"flavor": {
-							Type:        schema.TypeString,
-							Optional:    true,
-							DefaultFunc: schema.EnvDefaultFunc("HW_FLAVOR_ID", nil),
+							Type:     schema.TypeString,
+							Required: true,
 						},
 						"image": {
 							Type:     schema.TypeString,
