@@ -90,6 +90,20 @@ func Provider() terraform.ResourceProvider {
 				DefaultFunc: schema.EnvDefaultFunc("SBC_INSECURE", false),
 				Description: descriptions["insecure"],
 			},
+
+			"enterprise_project_id": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: descriptions["enterprise_project_id"],
+				DefaultFunc: schema.EnvDefaultFunc("SBC_ENTERPRISE_PROJECT_ID", ""),
+			},
+
+			"max_retries": {
+				Type:        schema.TypeInt,
+				Optional:    true,
+				Description: descriptions["max_retries"],
+				DefaultFunc: schema.EnvDefaultFunc("SBC_MAX_RETRIES", 5),
+			},
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{
@@ -197,20 +211,22 @@ func configureProvider(d *schema.ResourceData, terraformVersion string) (interfa
 	}
 
 	config := huaweicloud.Config{
-		AccessKey:          d.Get("access_key").(string),
-		SecretKey:          d.Get("secret_key").(string),
-		DomainName:         d.Get("account_name").(string),
-		IdentityEndpoint:   d.Get("auth_url").(string),
-		Insecure:           d.Get("insecure").(bool),
-		Password:           d.Get("password").(string),
-		Region:             d.Get("region").(string),
-		TenantName:         project_name,
-		Username:           d.Get("user_name").(string),
-		TerraformVersion:   terraformVersion,
-		Cloud:              "hc.sbercloud.ru",
-		RegionClient:       true,
-		RegionProjectIDMap: make(map[string]string),
-		RPLock:             new(sync.Mutex),
+		AccessKey:           d.Get("access_key").(string),
+		SecretKey:           d.Get("secret_key").(string),
+		DomainName:          d.Get("account_name").(string),
+		IdentityEndpoint:    d.Get("auth_url").(string),
+		Insecure:            d.Get("insecure").(bool),
+		Password:            d.Get("password").(string),
+		Region:              d.Get("region").(string),
+		TenantName:          project_name,
+		Username:            d.Get("user_name").(string),
+		TerraformVersion:    terraformVersion,
+		Cloud:               "hc.sbercloud.ru",
+		MaxRetries:          d.Get("max_retries").(int),
+		EnterpriseProjectID: d.Get("enterprise_project_id").(string),
+		RegionClient:        true,
+		RegionProjectIDMap:  make(map[string]string),
+		RPLock:              new(sync.Mutex),
 	}
 
 	if err := config.LoadAndValidate(); err != nil {
