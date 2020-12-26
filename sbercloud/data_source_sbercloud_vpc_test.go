@@ -66,7 +66,7 @@ func testAccDataSourceVpcV1Config(rName string) string {
 	return fmt.Sprintf(`
 resource "sbercloud_vpc" "test" {
   name = "%s"
-  cidr = "172.16.8.0/24"
+  cidr = "172.16.10.0/24"
 }
 
 data "sbercloud_vpc" "by_id" {
