@@ -4,8 +4,7 @@ subcategory: "Elastic Cloud Server (ECS)"
 
 # sbercloud\_compute\_eip\_associate
 
-Associate an EIP to an instance. This is an alternative to
-`sbercloud_compute_floatingip_associate_v2`.
+Associate an EIP to an instance.
 
 ## Example Usage
 

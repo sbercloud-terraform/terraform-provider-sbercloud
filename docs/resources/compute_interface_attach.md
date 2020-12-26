@@ -5,7 +5,6 @@ subcategory: "Elastic Cloud Server (ECS)"
 # sbercloud\_compute\_interface\_attach
 
 Attaches a Network Interface to an Instance.
-This is an alternative to `sbercloud_compute_interface_attach_v2`
 
 ## Example Usage
 

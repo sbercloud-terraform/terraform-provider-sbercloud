@@ -5,7 +5,6 @@ subcategory: "Elastic Cloud Server (ECS)"
 # sbercloud\_compute\_volume\_attach
 
 Attaches a Volume to an Instance.
-This is an alternative to `sbercloud_compute_volume_attach_v2`
 
 ## Example Usage
 

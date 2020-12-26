@@ -94,6 +94,8 @@ func Provider() terraform.ResourceProvider {
 
 		DataSourcesMap: map[string]*schema.Resource{
 			"sbercloud_availability_zones":  huaweicloud.DataSourceAvailabilityZones(),
+			"sbercloud_cce_cluster":         huaweicloud.DataSourceCCEClusterV3(),
+			"sbercloud_cce_node":            huaweicloud.DataSourceCCENodeV3(),
 			"sbercloud_compute_flavors":     huaweicloud.DataSourceEcsFlavors(),
 			"sbercloud_identity_role_v3":    huaweicloud.DataSourceIdentityRoleV3(),
 			"sbercloud_images_image":        huaweicloud.DataSourceImagesImageV2(),
@@ -107,6 +109,8 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
+			"sbercloud_cce_cluster":                  huaweicloud.ResourceCCEClusterV3(),
+			"sbercloud_cce_node":                     huaweicloud.ResourceCCENodeV3(),
 			"sbercloud_dns_recordset":                huaweicloud.ResourceDNSRecordSetV2(),
 			"sbercloud_dns_zone":                     huaweicloud.ResourceDNSZoneV2(),
 			"sbercloud_identity_role_assignment_v3":  huaweicloud.ResourceIdentityRoleAssignmentV3(),

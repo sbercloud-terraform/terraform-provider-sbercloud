@@ -5,7 +5,6 @@ subcategory: "Elastic Cloud Server (ECS)"
 # sbercloud\_compute\_servergroup
 
 Manages Server Group resource within Sbercloud.
-This is an alternative to `sbercloud_compute_servergroup_v2`
 
 ## Example Usage
 
