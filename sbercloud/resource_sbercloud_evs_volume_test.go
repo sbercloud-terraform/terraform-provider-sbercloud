@@ -72,7 +72,7 @@ func testAccCheckEvsStorageV3VolumeDestroy(s *terraform.State) error {
 	}
 
 	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "sbercloud_evs_volume_v3" {
+		if rs.Type != "sbercloud_evs_volume" {
 			continue
 		}
 

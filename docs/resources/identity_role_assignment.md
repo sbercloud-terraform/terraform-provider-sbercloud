@@ -2,7 +2,7 @@
 subcategory: "Identity and Access Management (IAM)"
 ---
 
-# sbercloud\_identity\_role\_assignment_v3
+# sbercloud\_identity\_role\_assignment
 
 Manages a V3 Role assignment within group on SberCloud IAM Service.
 
@@ -12,18 +12,18 @@ this resource.
 ## Example Usage: Assign Role On Project Level
 
 ```hcl
-resource "sbercloud_identity_group_v3" "group_1" {
+resource "sbercloud_identity_group" "group_1" {
   name = "group_1"
 }
 
-data "sbercloud_identity_role_v3" "role_1" {
+data "sbercloud_identity_role" "role_1" {
   name = "system_all_4" #ECS admin
 }
 
-resource "sbercloud_identity_role_assignment_v3" "role_assignment_1" {
-  group_id   = "${sbercloud_identity_group_v3.group_1.id}"
+resource "sbercloud_identity_role_assignment" "role_assignment_1" {
+  group_id   = "${sbercloud_identity_group.group_1.id}"
   project_id = "${var.project_id}"
-  role_id    = "${data.sbercloud_identity_role_v3.role_1.id}"
+  role_id    = "${data.sbercloud_identity_role.role_1.id}"
 }
 ```
 
@@ -36,18 +36,18 @@ variable "domain_id" {
   description = "this is the domain id"
 }
 
-resource "sbercloud_identity_group_v3" "group_1" {
+resource "sbercloud_identity_group" "group_1" {
   name = "group_1"
 }
 
-data "sbercloud_identity_role_v3" "role_1" {
+data "sbercloud_identity_role" "role_1" {
   name = "secu_admin" #security admin
 }
 
-resource "sbercloud_identity_role_assignment_v3" "role_assignment_1" {
-  group_id  = "${sbercloud_identity_group_v3.group_1.id}"
+resource "sbercloud_identity_role_assignment" "role_assignment_1" {
+  group_id  = "${sbercloud_identity_group.group_1.id}"
   domain_id = "${var.domain_id}"
-  role_id   = "${data.sbercloud_identity_role_v3.role_1.id}"
+  role_id   = "${data.sbercloud_identity_role.role_1.id}"
 }
 
 ```

@@ -2,7 +2,7 @@
 subcategory: "Identity and Access Management (IAM)"
 ---
 
-# sbercloud\_identity\_group_v3
+# sbercloud\_identity\_group
 
 Manages a User Group resource within SberCloud IAM service.
 
@@ -12,7 +12,7 @@ this resource.
 ## Example Usage
 
 ```hcl
-resource "sbercloud_identity_group_v3" "group_1" {
+resource "sbercloud_identity_group" "group_1" {
   name        = "group_1"
   description = "This is a test group"
 }
@@ -40,5 +40,5 @@ The following attributes are exported:
 Groups can be imported using the `id`, e.g.
 
 ```
-$ terraform import sbercloud_identity_group_v3.group_1 89c60255-9bd6-460c-822a-e2b959ede9d2
+$ terraform import sbercloud_identity_group.group_1 89c60255-9bd6-460c-822a-e2b959ede9d2
 ```

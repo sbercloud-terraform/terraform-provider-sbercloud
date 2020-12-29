@@ -2,7 +2,7 @@
 subcategory: "Identity and Access Management (IAM)"
 ---
 
-# sbercloud\_identity\_user\_v3
+# sbercloud\_identity\_user
 
 Manages a User resource within SberCloud IAM service.
 
@@ -12,7 +12,7 @@ this resource.
 ## Example Usage
 
 ```hcl
-resource "sbercloud_identity_user_v3" "user_1" {
+resource "sbercloud_identity_user" "user_1" {
   name        = "user_1"
   description = "A user"
   password    = "password123!"
@@ -52,5 +52,5 @@ The following attributes are exported:
 Users can be imported using the `id`, e.g.
 
 ```
-$ terraform import sbercloud_identity_user_v3.user_1 89c60255-9bd6-460c-822a-e2b959ede9d2
+$ terraform import sbercloud_identity_user.user_1 89c60255-9bd6-460c-822a-e2b959ede9d2
 ```
