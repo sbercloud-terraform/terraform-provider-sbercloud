@@ -27,25 +27,25 @@ func TestAccIdentityV3Group_basic(t *testing.T) {
 			{
 				Config: testAccIdentityV3Group_basic(groupName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckIdentityV3GroupExists("sbercloud_identity_group_v3.group_1", &group),
+					testAccCheckIdentityV3GroupExists("sbercloud_identity_group.group_1", &group),
 					resource.TestCheckResourceAttrPtr(
-						"sbercloud_identity_group_v3.group_1", "name", &group.Name),
+						"sbercloud_identity_group.group_1", "name", &group.Name),
 					resource.TestCheckResourceAttrPtr(
-						"sbercloud_identity_group_v3.group_1", "description", &group.Description),
+						"sbercloud_identity_group.group_1", "description", &group.Description),
 					resource.TestCheckResourceAttrPtr(
-						"sbercloud_identity_group_v3.group_1", "domain_id", &group.DomainID),
+						"sbercloud_identity_group.group_1", "domain_id", &group.DomainID),
 				),
 			},
 			{
 				Config: testAccIdentityV3Group_update(groupName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckIdentityV3GroupExists("sbercloud_identity_group_v3.group_1", &group),
+					testAccCheckIdentityV3GroupExists("sbercloud_identity_group.group_1", &group),
 					resource.TestCheckResourceAttrPtr(
-						"sbercloud_identity_group_v3.group_1", "name", &group.Name),
+						"sbercloud_identity_group.group_1", "name", &group.Name),
 					resource.TestCheckResourceAttrPtr(
-						"sbercloud_identity_group_v3.group_1", "description", &group.Description),
+						"sbercloud_identity_group.group_1", "description", &group.Description),
 					resource.TestCheckResourceAttrPtr(
-						"sbercloud_identity_group_v3.group_1", "domain_id", &group.DomainID),
+						"sbercloud_identity_group.group_1", "domain_id", &group.DomainID),
 				),
 			},
 		},
@@ -60,7 +60,7 @@ func testAccCheckIdentityV3GroupDestroy(s *terraform.State) error {
 	}
 
 	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "sbercloud_identity_group_v3" {
+		if rs.Type != "sbercloud_identity_group" {
 			continue
 		}
 
@@ -107,7 +107,7 @@ func testAccCheckIdentityV3GroupExists(n string, group *groups.Group) resource.T
 
 func testAccIdentityV3Group_basic(groupName string) string {
 	return fmt.Sprintf(`
-    resource "sbercloud_identity_group_v3" "group_1" {
+    resource "sbercloud_identity_group" "group_1" {
       name = "%s"
       description = "A ACC test group"
     }
@@ -116,7 +116,7 @@ func testAccIdentityV3Group_basic(groupName string) string {
 
 func testAccIdentityV3Group_update(groupName string) string {
 	return fmt.Sprintf(`
-    resource "sbercloud_identity_group_v3" "group_1" {
+    resource "sbercloud_identity_group" "group_1" {
       name = "%s"
       description = "Some Group"
     }

@@ -35,13 +35,13 @@ func TestAccIdentityV3RoleAssignment_basic(t *testing.T) {
 			{
 				Config: testAccIdentityV3RoleAssignment_basic,
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckIdentityV3RoleAssignmentExists("sbercloud_identity_role_assignment_v3.role_assignment_1", &role, &group, &project),
+					testAccCheckIdentityV3RoleAssignmentExists("sbercloud_identity_role_assignment.role_assignment_1", &role, &group, &project),
 					resource.TestCheckResourceAttrPtr(
-						"sbercloud_identity_role_assignment_v3.role_assignment_1", "project_id", &project.ID),
+						"sbercloud_identity_role_assignment.role_assignment_1", "project_id", &project.ID),
 					resource.TestCheckResourceAttrPtr(
-						"sbercloud_identity_role_assignment_v3.role_assignment_1", "group_id", &group.ID),
+						"sbercloud_identity_role_assignment.role_assignment_1", "group_id", &group.ID),
 					resource.TestCheckResourceAttrPtr(
-						"sbercloud_identity_role_assignment_v3.role_assignment_1", "role_id", &role.ID),
+						"sbercloud_identity_role_assignment.role_assignment_1", "role_id", &role.ID),
 				),
 			},
 		},
@@ -56,7 +56,7 @@ func testAccCheckIdentityV3RoleAssignmentDestroy(s *terraform.State) error {
 	}
 
 	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "sbercloud_identity_role_assignment_v3" {
+		if rs.Type != "sbercloud_identity_role_assignment" {
 			continue
 		}
 
@@ -138,18 +138,18 @@ func testAccCheckIdentityV3RoleAssignmentExists(n string, role *roles.Role, grou
 }
 
 const testAccIdentityV3RoleAssignment_basic = `
-resource "sbercloud_identity_group_v3" "group_1" {
+resource "sbercloud_identity_group" "group_1" {
   name = "group_1"
 }
 
-data "sbercloud_identity_role_v3" "role_1" {
+data "sbercloud_identity_role" "role_1" {
   name = "ims_adm"
 }
 
-resource "sbercloud_identity_role_assignment_v3" "role_assignment_1" {
-  group_id = "${sbercloud_identity_group_v3.group_1.id}"
+resource "sbercloud_identity_role_assignment" "role_assignment_1" {
+  group_id = "${sbercloud_identity_group.group_1.id}"
   #project_id = "09338f629380276a2f95c0180c2bdb72"
   project_id = "0910fc31530026f82fd0c018a303517e"
-  role_id = "${data.sbercloud_identity_role_v3.role_1.id}"
+  role_id = "${data.sbercloud_identity_role.role_1.id}"
 }
 `

@@ -27,21 +27,21 @@ func TestAccIdentityV3User_basic(t *testing.T) {
 			{
 				Config: testAccIdentityV3User_basic(userName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckIdentityV3UserExists("sbercloud_identity_user_v3.user_1", &user),
+					testAccCheckIdentityV3UserExists("sbercloud_identity_user.user_1", &user),
 					resource.TestCheckResourceAttrPtr(
-						"sbercloud_identity_user_v3.user_1", "name", &user.Name),
+						"sbercloud_identity_user.user_1", "name", &user.Name),
 					resource.TestCheckResourceAttr(
-						"sbercloud_identity_user_v3.user_1", "enabled", "true"),
+						"sbercloud_identity_user.user_1", "enabled", "true"),
 				),
 			},
 			{
 				Config: testAccIdentityV3User_update(userName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckIdentityV3UserExists("sbercloud_identity_user_v3.user_1", &user),
+					testAccCheckIdentityV3UserExists("sbercloud_identity_user.user_1", &user),
 					resource.TestCheckResourceAttrPtr(
-						"sbercloud_identity_user_v3.user_1", "name", &user.Name),
+						"sbercloud_identity_user.user_1", "name", &user.Name),
 					resource.TestCheckResourceAttr(
-						"sbercloud_identity_user_v3.user_1", "enabled", "false"),
+						"sbercloud_identity_user.user_1", "enabled", "false"),
 				),
 			},
 		},
@@ -56,7 +56,7 @@ func testAccCheckIdentityV3UserDestroy(s *terraform.State) error {
 	}
 
 	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "sbercloud_identity_user_v3" {
+		if rs.Type != "sbercloud_identity_user" {
 			continue
 		}
 
@@ -103,7 +103,7 @@ func testAccCheckIdentityV3UserExists(n string, user *users.User) resource.TestC
 
 func testAccIdentityV3User_basic(userName string) string {
 	return fmt.Sprintf(`
-    resource "sbercloud_identity_user_v3" "user_1" {
+    resource "sbercloud_identity_user" "user_1" {
       name = "%s"
       password = "password123@!"
       enabled = true
@@ -114,7 +114,7 @@ func testAccIdentityV3User_basic(userName string) string {
 
 func testAccIdentityV3User_update(userName string) string {
 	return fmt.Sprintf(`
-    resource "sbercloud_identity_user_v3" "user_1" {
+    resource "sbercloud_identity_user" "user_1" {
       name = "%s"
       enabled = false
       password = "password123@!"

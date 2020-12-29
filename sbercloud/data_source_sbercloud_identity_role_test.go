@@ -19,9 +19,9 @@ func TestAccIdentityV3RoleDataSource_basic(t *testing.T) {
 			{
 				Config: testAccIdentityV3RoleDataSource_basic,
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckIdentityV3DataSourceID("data.sbercloud_identity_role_v3.role_1"),
+					testAccCheckIdentityV3DataSourceID("data.sbercloud_identity_role.role_1"),
 					resource.TestCheckResourceAttr(
-						"data.sbercloud_identity_role_v3.role_1", "name", "secu_admin"),
+						"data.sbercloud_identity_role.role_1", "name", "secu_admin"),
 				),
 			},
 		},
@@ -44,7 +44,7 @@ func testAccCheckIdentityV3DataSourceID(n string) resource.TestCheckFunc {
 }
 
 const testAccIdentityV3RoleDataSource_basic = `
-data "sbercloud_identity_role_v3" "role_1" {
+data "sbercloud_identity_role" "role_1" {
     name = "secu_admin"
 }
 `
