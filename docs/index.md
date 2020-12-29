@@ -11,9 +11,9 @@ Use the navigation to the left to read about the available resources.
 ```hcl
 # Configure the SberCloud Provider
 provider "sbercloud" {
-  region       = "ru-moscow-1"
-  access_key  = "my-access-key"
-  secret_key  = "my-secret-key"
+  region     = "ru-moscow-1"
+  access_key = "my-access-key"
+  secret_key = "my-secret-key"
 }
 
 # Create a VPC
