@@ -12,17 +12,14 @@ Use the navigation to the left to read about the available resources.
 # Configure the SberCloud Provider
 provider "sbercloud" {
   region       = "ru-moscow-1"
-  account_name = "my-account-name"
   access_key  = "my-access-key"
   secret_key  = "my-secret-key"
 }
 
-# Create a user
-resource "sbercloud_identity_user_v3" "example" {
-  name = "terraform"
-  password = "password123@!"
-  enabled = true
-  description = "created by terraform"
+# Create a VPC
+resource "sbercloud_vpc" "example" {
+  name = "my_vpc"
+  cidr = "192.168.0.0/16"
 }
 ```
 
@@ -48,10 +45,9 @@ Usage:
 
 ```hcl
 provider "sbercloud" {
-  region       = "ru-moscow-1"
-  account_name = "my-account-name"
-  access_key  = "my-access-key"
-  secret_key  = "my-secret-key"
+  region     = "ru-moscow-1"
+  access_key = "my-access-key"
+  secret_key = "my-secret-key"
 }
 ```
 
@@ -71,7 +67,6 @@ Usage:
 $ export SBC_ACCESS_KEY="user-name"
 $ export SBC_SECRET_KEY="password"
 $ export SBC_REGION_NAME="ru-moscow-1"
-$ export SBC_ACCOUNT_NAME="account-name"
 $ terraform plan
 ```
 
@@ -112,8 +107,6 @@ variables must also be set:
 * `SBC_ACCESS_KEY` - The username to login with.
 
 * `SBC_SECRET_KEY` - The password to login with.
-
-* `SBC_ACCOUNT_NAME` - The IAM account name.
 
 
 You should be able to use any SberCloud environment to develop on as long as the
