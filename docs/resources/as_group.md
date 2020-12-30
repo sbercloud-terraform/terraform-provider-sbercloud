@@ -81,23 +81,23 @@ resource "sbercloud_as_group" "my_as_group_only_remove_members" {
 ### Autoscaling Group With Enhanced Load Balancer Listener
 
 ```hcl
-resource "sbercloud_lb_loadbalancer_v2" "loadbalancer_1" {
+resource "sbercloud_lb_loadbalancer" "loadbalancer_1" {
   name          = "loadbalancer_1"
   vip_subnet_id = "d9415786-5f1a-428b-b35f-2f1523e146d2"
 }
 
-resource "sbercloud_lb_listener_v2" "listener_1" {
+resource "sbercloud_lb_listener" "listener_1" {
   name            = "listener_1"
   protocol        = "HTTP"
   protocol_port   = 8080
-  loadbalancer_id = sbercloud_lb_loadbalancer_v2.loadbalancer_1.id
+  loadbalancer_id = sbercloud_lb_loadbalancer.loadbalancer_1.id
 }
 
-resource "sbercloud_lb_pool_v2" "pool_1" {
+resource "sbercloud_lb_pool" "pool_1" {
   name        = "pool_1"
   protocol    = "HTTP"
   lb_method   = "ROUND_ROBIN"
-  listener_id = sbercloud_lb_listener_v2.listener_1.id
+  listener_id = sbercloud_lb_listener.listener_1.id
 }
 
 resource "sbercloud_as_group" "my_as_group_with_enhanced_lb" {
@@ -115,8 +115,8 @@ resource "sbercloud_as_group" "my_as_group_with_enhanced_lb" {
     id = "45e4c6de-6bf0-4843-8953-2babde3d4810"
   }
   lbaas_listeners {
-    pool_id       = sbercloud_lb_pool_v2.pool_1.id
-    protocol_port = sbercloud_lb_listener_v2.listener_1.protocol_port
+    pool_id       = sbercloud_lb_pool.pool_1.id
+    protocol_port = sbercloud_lb_listener.listener_1.protocol_port
   }
 }
 ```
