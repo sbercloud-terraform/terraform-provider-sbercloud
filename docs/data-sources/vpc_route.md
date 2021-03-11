@@ -12,14 +12,14 @@ subcategory: "Virtual Private Cloud (VPC)"
  variable "route_id" { }
 
 data "sbercloud_vpc_route" "vpc_route" {
-  id = "${var.route_id}"
+  id = var.route_id
 }
 
 resource "sbercloud_vpc_subnet" "subnet_v1" {
   name = "test-subnet"
   cidr = "192.168.0.0/24"
   gateway_ip = "192.168.0.1"
-  vpc_id = "${data.sbercloud_vpc_route.vpc_route.vpc_id}"
+  vpc_id = data.sbercloud_vpc_route.vpc_route.vpc_id
 }
 
  ```
@@ -30,19 +30,20 @@ The arguments of this data source act as filters for querying the available
 routes in the current tenant. The given filters must match exactly one
 route whose data will be exported as attributes.
 
-* `id` (Optional) - The id of the specific route to retrieve.
+* `region` - (Optional, String) The region in which to obtain the vpc route. If omitted, the provider-level region will be used.
 
-* `vpc_id` (Optional) - The id of the VPC that the desired route belongs to.
+* `id` - (Optional, String) The id of the specific route to retrieve.
 
-* `destination` (Optional) - The route destination address (CIDR).
+* `vpc_id` - (Optional, String) The id of the VPC that the desired route belongs to.
 
-* `tenant_id` (Optional) - Only the administrator can specify the tenant ID of other tenants.
+* `destination` - (Optional, String) The route destination address (CIDR).
 
-* `type` (Optional) - Route type for filtering.
+* `tenant_id` - (Optional, String) Only the administrator can specify the tenant ID of other tenants.
+
+* `type` - (Optional, String) Route type for filtering.
 
 ## Attribute Reference
 
-All of the argument attributes are also exported as
-result attributes.
+In addition to all arguments above, the following attributes are exported:
 
 * `nexthop` - The next hop of the route. If the route type is peering, it will provide VPC peering connection ID.

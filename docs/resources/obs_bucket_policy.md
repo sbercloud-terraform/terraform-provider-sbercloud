@@ -36,7 +36,7 @@ POLICY
 ### Policy with S3 format
 
 ```hcl
-resource "sbercloud_obs_bucket" "b" {
+resource "sbercloud_obs_bucket" "bucket" {
   bucket = "my-test-bucket"
 }
 

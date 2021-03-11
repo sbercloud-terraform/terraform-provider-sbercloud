@@ -30,9 +30,9 @@ resource "sbercloud_identity_user" "user_2" {
 }
 
 resource "sbercloud_identity_group_membership" "membership_1" {
-  group = "${sbercloud_identity_group.group_1.id}"
-  users = ["${sbercloud_identity_user.user_1.id}",
-    "${sbercloud_identity_user.user_2.id}"
+  group = sbercloud_identity_group.group_1.id
+  users = [sbercloud_identity_user.user_1.id,
+    sbercloud_identity_user.user_2.id
   ]
 }
 ```
@@ -41,15 +41,13 @@ resource "sbercloud_identity_group_membership" "membership_1" {
 
 The following arguments are supported:
 
-* `group` - (Required) The group ID of this membership. 
+* `group` - (Required, String, ForceNew) The group ID of this membership. 
 
-* `users` - (Required) A List of user IDs to associate to the group.
+* `users` - (Required, List) A List of user IDs to associate to the group.
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to all arguments above, the following attributes are exported:
 
-* `group` - See Argument Reference above.
-
-* `users` - See Argument Reference above.
+* `id` - Specifies a resource ID in UUID format.
 

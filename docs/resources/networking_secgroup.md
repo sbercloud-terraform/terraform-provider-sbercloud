@@ -21,31 +21,28 @@ resource "sbercloud_networking_secgroup" "secgroup_1" {
 
 The following arguments are supported:
 
-* `region` - (Optional) The region in which to obtain the V2 networking client.
+* `region` - (Optional, String, ForceNew) The region in which to obtain the V2 networking client.
     A networking client is needed to create a port. If omitted, the
     `region` argument of the provider is used. Changing this creates a new
     security group.
 
-* `name` - (Required) A unique name for the security group.
+* `name` - (Required, String) A unique name for the security group.
 
-* `description` - (Optional) A unique name for the security group.
+* `description` - (Optional, String) Description of the security group.
 
-* `tenant_id` - (Optional) The owner of the security group. Required if admin
+* `tenant_id` - (Optional, String, ForceNew) The owner of the security group. Required if admin
     wants to create a port for another tenant. Changing this creates a new
     security group.
 
-* `delete_default_rules` - (Optional) Whether or not to delete the default
+* `delete_default_rules` - (Optional, Bool, ForceNew) Whether or not to delete the default
     egress security rules. This is `false` by default. See the below note
     for more information.
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to all arguments above, the following attributes are exported:
 
-* `region` - See Argument Reference above.
-* `name` - See Argument Reference above.
-* `description` - See Argument Reference above.
-* `tenant_id` - See Argument Reference above.
+* `id` - Specifies a resource ID in UUID format.
 
 ## Default Security Group Rules
 
@@ -59,13 +56,13 @@ separate security group rules such as the following:
 resource "sbercloud_networking_secgroup_rule" "secgroup_rule_v4" {
   direction         = "egress"
   ethertype         = "IPv4"
-  security_group_id = "${sbercloud_networking_secgroup.secgroup.id}"
+  security_group_id = sbercloud_networking_secgroup.secgroup.id
 }
 
 resource "sbercloud_networking_secgroup_rule" "secgroup_rule_v6" {
   direction         = "egress"
   ethertype         = "IPv6"
-  security_group_id = "${sbercloud_networking_secgroup.secgroup.id}"
+  security_group_id = sbercloud_networking_secgroup.secgroup.id
 }
 ```
 
@@ -75,6 +72,10 @@ behavior. Some SberCloud clouds might provide additional rules and some might
 not provide any rules at all (in which case the `delete_default_rules` setting
 is moot).
 
+
+## Timeouts
+This resource provides the following timeouts configuration options:
+- `delete` - Default is 10 minute.
 ## Import
 
 Security Groups can be imported using the `id`, e.g.

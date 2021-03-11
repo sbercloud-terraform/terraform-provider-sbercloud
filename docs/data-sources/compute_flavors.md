@@ -10,7 +10,7 @@ Use this data source to get the ID of the available Compute Flavors.
 
 ```hcl
 data "sbercloud_compute_flavors" "flavors" {
-  availability_zone = "cn-north-4a"
+  availability_zone = "ru-moscow-1a"
   performance_type  = "normal"
   cpu_core_count    = 2
   memory_size       = 4

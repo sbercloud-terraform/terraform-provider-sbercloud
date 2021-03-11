@@ -14,7 +14,7 @@ resource "sbercloud_evs_volume" "volume" {
   description       = "my volume"
   volume_type       = "SATA"
   size              = 20
-  availability_zone = "cn-north-4a"
+  availability_zone = "ru-moscow-1a"
 }
 ```
 
@@ -27,7 +27,7 @@ resource "sbercloud_evs_volume" "volume" {
   volume_type       = "SATA"
   size              = 20
   kms_id            = var.kms_id
-  availability_zone = "cn-north-4a"
+  availability_zone = "ru-moscow-1a"
 }
 ```
 

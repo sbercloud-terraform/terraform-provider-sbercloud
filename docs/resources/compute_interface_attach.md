@@ -21,7 +21,7 @@ resource "sbercloud_compute_instance" "myinstance" {
   flavor_id         = "s6.small.1"
   key_pair          = "my_key_pair_name"
   security_groups   = ["default"]
-  availability_zone = "cn-north-4a"
+  availability_zone = "ru-moscow-1a"
 
   network {
     uuid = "55534eaa-533a-419d-9b40-ec427ea7195a"
@@ -47,7 +47,7 @@ resource "sbercloud_compute_instance" "myinstance" {
   flavor_id         = "s6.small.1"
   key_pair          = "my_key_pair_name"
   security_groups   = ["default"]
-  availability_zone = "cn-north-4a"
+  availability_zone = "ru-moscow-1a"
 
   network {
     uuid = "55534eaa-533a-419d-9b40-ec427ea7195a"
@@ -81,7 +81,7 @@ resource "sbercloud_compute_instance" "myinstance" {
   flavor_id         = "s6.small.1"
   key_pair          = "my_key_pair_name"
   security_groups   = ["default"]
-  availability_zone = "cn-north-4a"
+  availability_zone = "ru-moscow-1a"
 
   network {
     uuid = "55534eaa-533a-419d-9b40-ec427ea7195a"
