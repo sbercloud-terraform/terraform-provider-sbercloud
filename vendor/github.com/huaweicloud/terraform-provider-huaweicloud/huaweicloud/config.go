@@ -6,19 +6,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/hashicorp/errwrap"
-	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/logging"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/pathorcontents"
 	"github.com/huaweicloud/golangsdk"
 	huaweisdk "github.com/huaweicloud/golangsdk/openstack"
+	"github.com/huaweicloud/golangsdk/openstack/identity/v3/domains"
 	"github.com/huaweicloud/golangsdk/openstack/identity/v3/projects"
 	"github.com/huaweicloud/golangsdk/openstack/obs"
 )
@@ -54,13 +48,11 @@ type Config struct {
 	RegionClient        bool
 	EnterpriseProjectID string
 
-	HwClient *golangsdk.ProviderClient
-	s3sess   *session.Session
-
+	HwClient     *golangsdk.ProviderClient
 	DomainClient *golangsdk.ProviderClient
 
 	// the custom endpoints used to override the default endpoint URL
-	endpoints map[string]string
+	Endpoints map[string]string
 
 	// RegionProjectIDMap is a map which stores the region-projectId pairs,
 	// and region name will be the key and projectID will be the value in this map.
@@ -96,7 +88,16 @@ func (c *Config) LoadAndValidate() error {
 		return err
 	}
 
-	return c.newS3Session(logging.IsDebugOrHigher())
+	// set DomainID for IAM resource
+	if c.DomainID == "" {
+		if domainID, err := c.getDomainID(); err == nil {
+			c.DomainID = domainID
+		} else {
+			log.Printf("[WARN] get domain id failed: %s", err)
+		}
+	}
+
+	return nil
 }
 
 func generateTLSConfig(c *Config) (*tls.Config, error) {
@@ -177,56 +178,6 @@ func genClient(c *Config, ao golangsdk.AuthOptionsProvider) (*golangsdk.Provider
 	}
 
 	return client, nil
-}
-
-func (c *Config) newS3Session(osDebug bool) error {
-
-	if c.AccessKey != "" && c.SecretKey != "" {
-		// Setup S3 client/config information for Swift S3 buckets
-		log.Println("[INFO] Building Swift S3 auth structure")
-		creds, err := GetCredentials(c)
-		if err != nil {
-			return err
-		}
-		// Call Get to check for credential provider. If nothing found, we'll get an
-		// error, and we can present it nicely to the user
-		cp, err := creds.Get()
-		if err != nil {
-			if sErr, ok := err.(awserr.Error); ok && sErr.Code() == "NoCredentialProviders" {
-				return fmt.Errorf("No valid credential sources found for S3 Provider.")
-			}
-
-			return fmt.Errorf("Error loading credentials for S3 Provider: %s", err)
-		}
-
-		log.Printf("[INFO] S3 Auth provider used: %q", cp.ProviderName)
-
-		sConfig := &aws.Config{
-			Credentials: creds,
-			Region:      aws.String(c.Region),
-			HTTPClient:  cleanhttp.DefaultClient(),
-		}
-
-		if osDebug {
-			sConfig.LogLevel = aws.LogLevel(aws.LogDebugWithHTTPBody | aws.LogDebugWithRequestRetries | aws.LogDebugWithRequestErrors)
-			sConfig.Logger = sLogger{}
-		}
-
-		if c.Insecure {
-			transport := sConfig.HTTPClient.Transport.(*http.Transport)
-			transport.TLSClientConfig = &tls.Config{
-				InsecureSkipVerify: true,
-			}
-		}
-
-		// Set up base session for S3
-		c.s3sess, err = session.NewSession(sConfig)
-		if err != nil {
-			return errwrap.Wrapf("Error creating Swift S3 session: {{err}}", err)
-		}
-	}
-
-	return nil
 }
 
 func buildClientByToken(c *Config) error {
@@ -360,32 +311,11 @@ func genClients(c *Config, pao, dao golangsdk.AuthOptionsProvider) error {
 	return err
 }
 
-type sLogger struct{}
-
-func (l sLogger) Log(args ...interface{}) {
-	tokens := make([]string, 0, len(args))
-	for _, arg := range args {
-		if token, ok := arg.(string); ok {
-			tokens = append(tokens, token)
-		}
-	}
-	log.Printf("[DEBUG] [aws-sdk-go] %s", strings.Join(tokens, " "))
-}
-
 func getObsEndpoint(c *Config, region string) string {
-	return fmt.Sprintf("https://obs.%s.%s/", region, c.Cloud)
-}
-
-func (c *Config) computeS3conn(region string) (*s3.S3, error) {
-	if c.s3sess == nil {
-		return nil, fmt.Errorf("missing credentials for Swift S3 Provider, need access_key and secret_key values for provider")
+	if endpoint, ok := c.Endpoints["obs"]; ok {
+		return endpoint
 	}
-
-	obsEndpoint := getObsEndpoint(c, region)
-	S3Sess := c.s3sess.Copy(&aws.Config{Endpoint: aws.String(obsEndpoint)})
-	s3conn := s3.New(S3Sess)
-
-	return s3conn, nil
+	return fmt.Sprintf("https://obs.%s.%s/", region, c.Cloud)
 }
 
 func (c *Config) NewObjectStorageClientWithSignature(region string) (*obs.ObsClient, error) {
@@ -434,7 +364,7 @@ func (c *Config) NewServiceClient(srv, region string) (*golangsdk.ServiceClient,
 		client = c.DomainClient
 	}
 
-	if endpoint, ok := c.endpoints[srv]; ok {
+	if endpoint, ok := c.Endpoints[srv]; ok {
 		return c.newServiceClientByEndpoint(client, srv, endpoint)
 	}
 	return c.newServiceClientByName(client, serviceCatalog, region)
@@ -509,6 +439,34 @@ func (c *Config) newServiceClientByEndpoint(client *golangsdk.ProviderClient, sr
 		sc.ResourceBase = sc.ResourceBase + catalog.ResourceBase + "/"
 	}
 	return sc, nil
+}
+
+func (c *Config) getDomainID() (string, error) {
+	identityClient, err := c.IdentityV3Client(c.Region)
+	if err != nil {
+		return "", fmt.Errorf("Error creating HuaweiCloud identity client: %s", err)
+	}
+	// ResourceBase: https://iam.{CLOUD}/v3/auth/
+	identityClient.ResourceBase += "auth/"
+
+	opts := domains.ListOpts{
+		Name: c.DomainName,
+	}
+	allPages, err := domains.List(identityClient, &opts).AllPages()
+	if err != nil {
+		return "", fmt.Errorf("List domains failed, err=%s", err)
+	}
+
+	all, err := domains.ExtractDomains(allPages)
+	if err != nil {
+		return "", fmt.Errorf("Extract domains failed, err=%s", err)
+	}
+
+	if len(all) == 0 {
+		return "", fmt.Errorf("domain was not found")
+	}
+
+	return all[0].ID, nil
 }
 
 // loadUserProjects will query the region-projectId pair and store it into RegionProjectIDMap
@@ -589,6 +547,10 @@ func (c *Config) CceAddonV3Client(region string) (*golangsdk.ServiceClient, erro
 	return c.NewServiceClient("cce_addon", region)
 }
 
+func (c *Config) AomV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("aom", region)
+}
+
 func (c *Config) CciV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("cciv1", region)
 }
@@ -644,12 +606,8 @@ func (c *Config) VPCEPClient(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("vpcep", region)
 }
 
-func (c *Config) natV2Client(region string) (*golangsdk.ServiceClient, error) {
-	return c.NewServiceClient("natv2", region)
-}
-
-func (c *Config) natGatewayV2Client(region string) (*golangsdk.ServiceClient, error) {
-	return c.NewServiceClient("nat_gatewayv2", region)
+func (c *Config) NatGatewayClient(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("nat", region)
 }
 
 func (c *Config) elasticLBClient(region string) (*golangsdk.ServiceClient, error) {
@@ -660,7 +618,7 @@ func (c *Config) ElbV2Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("elbv2", region)
 }
 
-func (c *Config) fwV2Client(region string) (*golangsdk.ServiceClient, error) {
+func (c *Config) FwV2Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("networkv2", region)
 }
 
@@ -779,6 +737,13 @@ func (c *Config) openGaussV3Client(region string) (*golangsdk.ServiceClient, err
 
 func (c *Config) gaussdbV3Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("gaussdb", region)
+}
+
+// ********** client for edge / IoT **********
+
+// IECV1Client returns a ServiceClient for IEC Endpoint APIs
+func (c *Config) IECV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("iec", region)
 }
 
 // ********** client for Others **********

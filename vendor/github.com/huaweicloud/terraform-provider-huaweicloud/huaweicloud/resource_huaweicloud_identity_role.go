@@ -36,7 +36,7 @@ func resourceIdentityRole() *schema.Resource {
 			"policy": {
 				Type:         schema.TypeString,
 				Required:     true,
-				ValidateFunc: validation.ValidateJsonString,
+				ValidateFunc: validation.StringIsJSON,
 				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
 					equal, _ := compareJsonTemplateAreEquivalent(old, new)
 					return equal
@@ -44,10 +44,6 @@ func resourceIdentityRole() *schema.Resource {
 			},
 			"references": {
 				Type:     schema.TypeInt,
-				Computed: true,
-			},
-			"domain_id": {
-				Type:     schema.TypeString,
 				Computed: true,
 			},
 		},
@@ -104,7 +100,6 @@ func resourceIdentityRoleRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("description", role.Description)
 	d.Set("type", role.Type)
 	d.Set("references", role.References)
-	d.Set("domain_id", role.DomainId)
 
 	policy, err := json.Marshal(role.Policy)
 	if err != nil {

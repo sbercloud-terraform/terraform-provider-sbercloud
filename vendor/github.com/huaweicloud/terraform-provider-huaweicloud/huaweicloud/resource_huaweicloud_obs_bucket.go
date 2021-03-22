@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/url"
 
+	"github.com/hashicorp/terraform-plugin-sdk/helper/hashcode"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/huaweicloud/golangsdk/openstack/obs"
@@ -417,7 +418,7 @@ func resourceObsBucketRead(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	d.Set("region", region)
-	d.Set("bucket_domain_name", bucketDomainName(d.Get("bucket").(string), region))
+	d.Set("bucket_domain_name", bucketDomainNameWithCloud(d.Get("bucket").(string), region, config.Cloud))
 
 	// Read storage class
 	if err := setObsBucketStorageClass(obsClient, d); err != nil {
@@ -914,12 +915,12 @@ func setObsBucketStorageClass(obsClient *obs.ObsClient, d *schema.ResourceData) 
 	bucket := d.Id()
 	output, err := obsClient.GetBucketStoragePolicy(bucket)
 	if err != nil {
-		return getObsError("Error getting storage class of OBS bucket", bucket, err)
+		log.Printf("[WARN] Error getting storage class of OBS bucket %s: %s", bucket, err)
+	} else {
+		class := string(output.StorageClass)
+		log.Printf("[DEBUG] getting storage class of OBS bucket %s: %s", bucket, class)
+		d.Set("storage_class", normalizeStorageClass(class))
 	}
-
-	class := string(output.StorageClass)
-	log.Printf("[DEBUG] getting storage class of OBS bucket %s: %s", bucket, class)
-	d.Set("storage_class", normalizeStorageClass(class))
 
 	return nil
 }
@@ -1263,6 +1264,19 @@ func deleteAllBucketObjects(obsClient *obs.ObsClient, bucket string) error {
 	return nil
 }
 
+func expirationHash(v interface{}) int {
+	var buf bytes.Buffer
+	m := v.(map[string]interface{})
+
+	if v, ok := m["days"]; ok {
+		buf.WriteString(fmt.Sprintf("%d-", v.(int)))
+	}
+	if v, ok := m["storage_class"]; ok {
+		buf.WriteString(fmt.Sprintf("%s-", v.(string)))
+	}
+	return hashcode.String(buf.String())
+}
+
 func getObsError(action string, bucket string, err error) error {
 	if obsError, ok := err.(obs.ObsError); ok {
 		return fmt.Errorf("%s %s: %s,\n Reason: %s", action, bucket, obsError.Code, obsError.Message)
@@ -1324,6 +1338,10 @@ func normalizeWebsiteRoutingRules(w []obs.RoutingRule) (string, error) {
 	}
 
 	return string(withoutNulls), nil
+}
+
+func bucketDomainNameWithCloud(bucket, region, cloud string) string {
+	return fmt.Sprintf("%s.obs.%s.%s", bucket, region, cloud)
 }
 
 type Condition struct {

@@ -27,7 +27,7 @@ func resourceNetworkingFloatingIPV2() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},
-		DeprecationMessage: "use huaweicloud_vpc_eip_v1 resource instead",
+		DeprecationMessage: "use huaweicloud_vpc_eip resource instead",
 
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(10 * time.Minute),
@@ -60,10 +60,11 @@ func resourceNetworkingFloatingIPV2() *schema.Resource {
 				Computed: true,
 			},
 			"tenant_id": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
-				ForceNew: true,
+				Type:       schema.TypeString,
+				Optional:   true,
+				Computed:   true,
+				ForceNew:   true,
+				Deprecated: "tenant_id is deprecated",
 			},
 			"fixed_ip": {
 				Type:     schema.TypeString,

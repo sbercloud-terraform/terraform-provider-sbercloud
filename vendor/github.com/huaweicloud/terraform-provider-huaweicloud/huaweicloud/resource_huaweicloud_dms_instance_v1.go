@@ -285,13 +285,13 @@ func resourceDmsInstancesV1Read(d *schema.ResourceData, meta interface{}) error 
 	}
 
 	engine := d.Get("engine").(string)
-	resourceTags, err := tags.Get(dmsV2Client, engine, d.Id()).Extract()
-	if err != nil {
-		return fmt.Errorf("Error fetching tags of dms instance: %s", err)
-	}
-	tagmap := tagsToMap(resourceTags.Tags)
-	if err := d.Set("tags", tagmap); err != nil {
-		return fmt.Errorf("[DEBUG] Error saving tag to state for dms instance (%s): %s", d.Id(), err)
+	if resourceTags, err := tags.Get(dmsV2Client, engine, d.Id()).Extract(); err == nil {
+		tagmap := tagsToMap(resourceTags.Tags)
+		if err := d.Set("tags", tagmap); err != nil {
+			return fmt.Errorf("Error saving tags to state for dms instance (%s): %s", d.Id(), err)
+		}
+	} else {
+		log.Printf("[WARN] Error fetching tags of dms instance (%s): %s", d.Id(), err)
 	}
 
 	return nil
@@ -300,6 +300,7 @@ func resourceDmsInstancesV1Read(d *schema.ResourceData, meta interface{}) error 
 func resourceDmsInstancesV1Update(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 
+	//lintignore:R019
 	if d.HasChanges("name", "description", "maintain_begin", "maintain_end", "security_group_id") {
 		dmsV1Client, err := config.dmsV1Client(GetRegion(d, config))
 		if err != nil {

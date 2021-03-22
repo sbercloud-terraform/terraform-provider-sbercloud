@@ -33,6 +33,12 @@ func resourceGaussDBInstance() *schema.Resource {
 		},
 
 		Schema: map[string]*schema.Schema{
+			"region": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
+			},
 			"name": {
 				Type:     schema.TypeString,
 				Required: true,
@@ -143,7 +149,6 @@ func resourceGaussDBInstance() *schema.Resource {
 			"force_import": {
 				Type:     schema.TypeBool,
 				Optional: true,
-				ForceNew: true,
 			},
 			"charging_mode": {
 				Type:     schema.TypeString,
@@ -180,10 +185,6 @@ func resourceGaussDBInstance() *schema.Resource {
 				Computed: true,
 			},
 			"mode": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
-			"region": {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
@@ -302,7 +303,7 @@ func resourceGaussDBInstanceCreate(d *schema.ResourceData, meta interface{}) err
 		SubnetId:            d.Get("subnet_id").(string),
 		SecurityGroupId:     d.Get("security_group_id").(string),
 		ConfigurationId:     d.Get("configuration_id").(string),
-		EnterpriseProjectId: d.Get("enterprise_project_id").(string),
+		EnterpriseProjectId: GetEnterpriseProjectID(d, config),
 		TimeZone:            d.Get("time_zone").(string),
 		SlaveCount:          d.Get("read_replicas").(int),
 		Mode:                "Cluster",
@@ -375,7 +376,7 @@ func resourceGaussDBInstanceCreate(d *schema.ResourceData, meta interface{}) err
 	}
 
 	// This is a workaround to avoid db connection issue
-	time.Sleep(360 * time.Second)
+	time.Sleep(360 * time.Second) //lintignore:R018
 
 	return resourceGaussDBInstanceRead(d, meta)
 }

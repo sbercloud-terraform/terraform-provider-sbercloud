@@ -12,7 +12,7 @@ func ResourceComputeServerGroupV2() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceComputeServerGroupV2Create,
 		Read:   resourceComputeServerGroupV2Read,
-		Update: nil,
+		Update: resourceComputeServerGroupV2Update,
 		Delete: resourceComputeServerGroupV2Delete,
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
@@ -38,19 +38,15 @@ func ResourceComputeServerGroupV2() *schema.Resource {
 				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
 			"members": {
-				Type:     schema.TypeList,
+				Type:     schema.TypeSet,
+				Optional: true,
 				Computed: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
+				Set:      schema.HashString,
 			},
 			"fault_domains": {
 				Type:     schema.TypeList,
 				Computed: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-			},
-			"value_specs": {
-				Type:     schema.TypeMap,
-				Optional: true,
-				ForceNew: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
 		},
@@ -64,12 +60,9 @@ func resourceComputeServerGroupV2Create(d *schema.ResourceData, meta interface{}
 		return fmt.Errorf("Error creating HuaweiCloud compute client: %s", err)
 	}
 
-	createOpts := ServerGroupCreateOpts{
-		servergroups.CreateOpts{
-			Name:     d.Get("name").(string),
-			Policies: resourceServerGroupPoliciesV2(d),
-		},
-		MapValueSpecs(d),
+	createOpts := servergroups.CreateOpts{
+		Name:     d.Get("name").(string),
+		Policies: resourceServerGroupPoliciesV2(d),
 	}
 
 	log.Printf("[DEBUG] Create Options: %#v", createOpts)
@@ -79,6 +72,19 @@ func resourceComputeServerGroupV2Create(d *schema.ResourceData, meta interface{}
 	}
 
 	d.SetId(newSG.ID)
+
+	clv1, err := config.ComputeV1Client(GetRegion(d, config))
+	if err != nil {
+		return fmt.Errorf("Error creating HuaweiCloud compute V1 client: %s", err)
+	}
+	membersToAdd := d.Get("members").(*schema.Set)
+	for _, v := range membersToAdd.List() {
+		var addMemberOpts servergroups.MemberOpts
+		addMemberOpts.InstanceUUid = v.(string)
+		if err := servergroups.UpdateMember(clv1, addMemberOpts, "add_member", d.Id()).ExtractErr(); err != nil {
+			return fmt.Errorf("Error to add a instance to ECS server group, err=%s", err)
+		}
+	}
 
 	return resourceComputeServerGroupV2Read(d, meta)
 }
@@ -97,23 +103,49 @@ func resourceComputeServerGroupV2Read(d *schema.ResourceData, meta interface{}) 
 
 	log.Printf("[DEBUG] Retrieved ServerGroup %s: %+v", d.Id(), sg)
 
-	// Set the name
-	d.Set("name", sg.Name)
-
-	// Set the policies
-	policies := []string{}
-	for _, p := range sg.Policies {
-		policies = append(policies, p)
+	policies := make([]string, len(sg.Policies))
+	for i, p := range sg.Policies {
+		policies[i] = p
 	}
 	d.Set("policies", policies)
-
-	// Set the members & fault_domains
+	d.Set("name", sg.Name)
 	d.Set("members", sg.Members)
 	d.Set("fault_domains", sg.FaultDomain.Names)
-
 	d.Set("region", GetRegion(d, config))
 
 	return nil
+}
+
+func resourceComputeServerGroupV2Update(d *schema.ResourceData, meta interface{}) error {
+	config := meta.(*Config)
+	clv1, err := config.ComputeV1Client(GetRegion(d, config))
+	if err != nil {
+		return fmt.Errorf("Error creating HuaweiCloud compute V1 client: %s", err)
+	}
+	if d.HasChange("members") {
+		oldMembers, newMembers := d.GetChange("members")
+		oldMemberSet, newMemberSet := oldMembers.(*schema.Set), newMembers.(*schema.Set)
+		membersToAdd := newMemberSet.Difference(oldMemberSet)
+		membersToRemove := oldMemberSet.Difference(newMemberSet)
+
+		for _, v := range membersToAdd.List() {
+			var addMemberOpts servergroups.MemberOpts
+			addMemberOpts.InstanceUUid = v.(string)
+			if err := servergroups.UpdateMember(clv1, addMemberOpts, "add_member", d.Id()).ExtractErr(); err != nil {
+				return fmt.Errorf("Error to add a instance to ECS server group, err=%s", err)
+			}
+		}
+
+		for _, v := range membersToRemove.List() {
+			var removeMemberOpts servergroups.MemberOpts
+			removeMemberOpts.InstanceUUid = v.(string)
+			if err := servergroups.UpdateMember(clv1, removeMemberOpts, "remove_member", d.Id()).ExtractErr(); err != nil {
+				return fmt.Errorf("Error to remove a instance from ECS server group, err=%s", err)
+			}
+		}
+	}
+
+	return resourceComputeServerGroupV2Read(d, meta)
 }
 
 func resourceComputeServerGroupV2Delete(d *schema.ResourceData, meta interface{}) error {

@@ -125,7 +125,7 @@ func resourceCdnDomainV1Create(d *schema.ResourceData, meta interface{}) error {
 		DomainName:          d.Get("name").(string),
 		BusinessType:        d.Get("type").(string),
 		Sources:             getDomainSources(d),
-		EnterpriseProjectId: d.Get("enterprise_project_id").(string),
+		EnterpriseProjectId: GetEnterpriseProjectID(d, config),
 	}
 
 	log.Printf("[DEBUG] Create Options: %#v", createOpts)
@@ -140,7 +140,7 @@ func resourceCdnDomainV1Create(d *schema.ResourceData, meta interface{}) error {
 		ID:      v.ID,
 		Penging: []string{"configuring"},
 		Target:  []string{"online"},
-		Opts:    getResourceExtensionOpts(d),
+		Opts:    getResourceExtensionOpts(d, config),
 	}
 	timeout := d.Timeout(schema.TimeoutCreate)
 	err = waitforCDNV1DomainStatus(cdnClient, wait, timeout)
@@ -191,7 +191,7 @@ func resourceCdnDomainV1Read(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("Error creating HuaweiCloud CDN v1 client: %s", err)
 	}
 
-	opts := getResourceExtensionOpts(d)
+	opts := getResourceExtensionOpts(d, config)
 	v, err := domains.Get(cdnClient, d.Id(), opts).Extract()
 	if err != nil {
 		return fmt.Errorf("Error reading CDN Domain: %s", err)
@@ -226,7 +226,7 @@ func resourceCdnDomainV1Update(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	if d.HasChange("sources") {
-		opts := getResourceExtensionOpts(d)
+		opts := getResourceExtensionOpts(d, config)
 		updateOpts := &domains.OriginOpts{
 			Sources: getDomainSources(d),
 		}
@@ -242,7 +242,7 @@ func resourceCdnDomainV1Update(d *schema.ResourceData, meta interface{}) error {
 			ID:      id,
 			Penging: []string{"configuring"},
 			Target:  []string{"online"},
-			Opts:    getResourceExtensionOpts(d),
+			Opts:    opts,
 		}
 		timeout := d.Timeout(schema.TimeoutCreate)
 		err = waitforCDNV1DomainStatus(cdnClient, wait, timeout)
@@ -262,7 +262,7 @@ func resourceCdnDomainV1Delete(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	id := d.Id()
-	opts := getResourceExtensionOpts(d)
+	opts := getResourceExtensionOpts(d, config)
 	timeout := d.Timeout(schema.TimeoutCreate)
 
 	if d.Get("domain_status").(string) == "online" {
@@ -292,15 +292,18 @@ func resourceCdnDomainV1Delete(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("Error deleting CDN Domain %s: %s", id, err)
 	}
 
-	time.Sleep(3 * time.Second)
+	// an API issue will be raised in ForceNew scene, so wait for a while
+	time.Sleep(3 * time.Second) //lintignore:R018
+
 	d.SetId("")
 	return nil
 }
 
-func getResourceExtensionOpts(d *schema.ResourceData) *domains.ExtensionOpts {
-	if hasFilledOpt(d, "enterprise_project_id") {
+func getResourceExtensionOpts(d *schema.ResourceData, config *Config) *domains.ExtensionOpts {
+	epsID := GetEnterpriseProjectID(d, config)
+	if epsID != "" {
 		return &domains.ExtensionOpts{
-			EnterpriseProjectId: d.Get("enterprise_project_id").(string),
+			EnterpriseProjectId: epsID,
 		}
 	}
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 
 	"github.com/huaweicloud/golangsdk"
 	"github.com/huaweicloud/golangsdk/openstack/common/tags"
@@ -53,7 +54,7 @@ func ResourceDNSPtrRecordV2() *schema.Resource {
 			"ttl": {
 				Type:         schema.TypeInt,
 				Optional:     true,
-				ValidateFunc: resourceValidateTTL,
+				ValidateFunc: validation.IntBetween(1, 2147483647),
 			},
 			"tags": tagsSchema(),
 			"address": {
@@ -146,15 +147,15 @@ func resourceDNSPtrRecordV2Read(d *schema.ResourceData, meta interface{}) error 
 	d.Set("address", n.Address)
 
 	// save tags
-	resourceTags, err := tags.Get(dnsClient, "DNS-ptr_record", d.Id()).Extract()
-	if err != nil {
-		return fmt.Errorf("Error fetching HuaweiCloud DNS ptr record tags: %s", err)
+	if resourceTags, err := tags.Get(dnsClient, "DNS-ptr_record", d.Id()).Extract(); err == nil {
+		tagmap := tagsToMap(resourceTags.Tags)
+		if err := d.Set("tags", tagmap); err != nil {
+			return fmt.Errorf("Error saving tags to state for DNS ptr record (%s): %s", d.Id(), err)
+		}
+	} else {
+		log.Printf("[WARN] Error fetching tags of DNS ptr record (%s): %s", d.Id(), err)
 	}
 
-	tagmap := tagsToMap(resourceTags.Tags)
-	if err := d.Set("tags", tagmap); err != nil {
-		return fmt.Errorf("Error saving tags for HuaweiCloud DNS ptr record %s: %s", d.Id(), err)
-	}
 	return nil
 }
 

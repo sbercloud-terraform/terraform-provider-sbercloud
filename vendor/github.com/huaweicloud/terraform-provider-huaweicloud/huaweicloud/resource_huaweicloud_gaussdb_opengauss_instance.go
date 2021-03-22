@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/huaweicloud/golangsdk"
+	"github.com/huaweicloud/golangsdk/openstack/opengauss/v3/backups"
 	"github.com/huaweicloud/golangsdk/openstack/opengauss/v3/instances"
 )
 
@@ -37,10 +38,15 @@ func resourceOpenGaussInstance() *schema.Resource {
 		},
 
 		Schema: map[string]*schema.Schema{
+			"region": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
+			},
 			"name": {
 				Type:     schema.TypeString,
 				Required: true,
-				ForceNew: true,
 			},
 			"flavor": {
 				Type:     schema.TypeString,
@@ -56,7 +62,6 @@ func resourceOpenGaussInstance() *schema.Resource {
 				Type:      schema.TypeString,
 				Sensitive: true,
 				Required:  true,
-				ForceNew:  true,
 			},
 			"vpc_id": {
 				Type:     schema.TypeString,
@@ -85,12 +90,16 @@ func resourceOpenGaussInstance() *schema.Resource {
 				ForceNew: true,
 			},
 			"sharding_num": {
-				Type:     schema.TypeInt,
-				Optional: true,
+				Type:         schema.TypeInt,
+				Optional:     true,
+				Default:      3,
+				ValidateFunc: validation.IntBetween(1, 9),
 			},
 			"coordinator_num": {
-				Type:     schema.TypeInt,
-				Optional: true,
+				Type:         schema.TypeInt,
+				Optional:     true,
+				Default:      3,
+				ValidateFunc: validation.IntBetween(1, 9),
 			},
 			"enterprise_project_id": {
 				Type:     schema.TypeString,
@@ -156,7 +165,6 @@ func resourceOpenGaussInstance() *schema.Resource {
 			"backup_strategy": {
 				Type:     schema.TypeList,
 				Optional: true,
-				ForceNew: true,
 				Computed: true,
 				MaxItems: 1,
 				Elem: &schema.Resource{
@@ -164,12 +172,10 @@ func resourceOpenGaussInstance() *schema.Resource {
 						"start_time": {
 							Type:     schema.TypeString,
 							Required: true,
-							ForceNew: true,
 						},
 						"keep_days": {
 							Type:     schema.TypeInt,
 							Optional: true,
-							ForceNew: true,
 						},
 					},
 				},
@@ -195,13 +201,8 @@ func resourceOpenGaussInstance() *schema.Resource {
 			"force_import": {
 				Type:     schema.TypeBool,
 				Optional: true,
-				ForceNew: true,
 			},
 			"status": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
-			"region": {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
@@ -359,7 +360,7 @@ func resourceOpenGaussInstanceCreate(d *schema.ResourceData, meta interface{}) e
 		SubnetId:            d.Get("subnet_id").(string),
 		SecurityGroupId:     d.Get("security_group_id").(string),
 		Port:                d.Get("port").(string),
-		EnterpriseProjectId: d.Get("enterprise_project_id").(string),
+		EnterpriseProjectId: GetEnterpriseProjectID(d, config),
 		TimeZone:            d.Get("time_zone").(string),
 		AvailabilityZone:    d.Get("availability_zone").(string),
 		ConfigurationId:     d.Get("configuration_id").(string),
@@ -420,7 +421,7 @@ func resourceOpenGaussInstanceCreate(d *schema.ResourceData, meta interface{}) e
 	}
 
 	// This is a workaround to avoid db connection issue
-	time.Sleep(360 * time.Second)
+	time.Sleep(360 * time.Second) //lintignore:R018
 
 	return resourceOpenGaussInstanceRead(d, meta)
 }
@@ -684,6 +685,49 @@ func resourceOpenGaussInstanceUpdate(d *schema.ResourceData, meta interface{}) e
 		}
 	}
 	log.Printf("[DEBUG] Successfully updated instance %s", instanceId)
+
+	if d.HasChange("backup_strategy") {
+		backupRaw := d.Get("backup_strategy").([]interface{})
+		rawMap := backupRaw[0].(map[string]interface{})
+		keep_days := rawMap["keep_days"].(int)
+
+		updateOpts := backups.UpdateOpts{
+			KeepDays:  &keep_days,
+			StartTime: rawMap["start_time"].(string),
+			// Fixed to "1,2,3,4,5,6,7"
+			Period: "1,2,3,4,5,6,7",
+			// Fixed to "30"
+			DifferentialPeriod: "30",
+		}
+
+		log.Printf("[DEBUG] Update backup_strategy: %#v", updateOpts)
+
+		err = backups.Update(client, d.Id(), updateOpts).ExtractErr()
+		if err != nil {
+			return fmt.Errorf("Error updating backup_strategy: %s", err)
+		}
+	}
+
+	if d.HasChange("name") {
+		renameOpts := instances.RenameOpts{
+			Name: d.Get("name").(string),
+		}
+		_, err = instances.Rename(client, renameOpts, instanceId).Extract()
+		if err != nil {
+			return fmt.Errorf("Error updating name for instance (%s): %s ", instanceId, err)
+		}
+	}
+
+	if d.HasChange("password") {
+		restorePasswordOpts := instances.RestorePasswordOpts{
+			Password: d.Get("password").(string),
+		}
+		r := golangsdk.ErrResult{}
+		r.Result = instances.RestorePassword(client, restorePasswordOpts, instanceId)
+		if r.ExtractErr() != nil {
+			return fmt.Errorf("Error updating password for instance (%s): %s ", instanceId, r.Err)
+		}
+	}
 
 	return resourceOpenGaussInstanceRead(d, meta)
 }
