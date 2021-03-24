@@ -21,7 +21,7 @@ func resourceNetworkingRouterV2() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},
-		DeprecationMessage: "use huaweicloud_vpc_v1 resource instead",
+		DeprecationMessage: "use huaweicloud_vpc resource instead",
 
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(10 * time.Minute),
@@ -78,10 +78,11 @@ func resourceNetworkingRouterV2() *schema.Resource {
 				},
 			},
 			"tenant_id": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
-				Computed: true,
+				Type:       schema.TypeString,
+				Optional:   true,
+				ForceNew:   true,
+				Computed:   true,
+				Deprecated: "tenant_id is deprecated",
 			},
 			"value_specs": {
 				Type:     schema.TypeMap,

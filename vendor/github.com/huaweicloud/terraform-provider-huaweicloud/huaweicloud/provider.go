@@ -11,6 +11,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 )
 
+const defaultCloud string = "myhuaweicloud.com"
+
 // This is a global MutexKV for use within this plugin.
 var osMutexKV = mutexkv.NewMutexKV()
 
@@ -211,15 +213,14 @@ func Provider() terraform.ResourceProvider {
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
 					"HW_AUTH_URL",
 					"OS_AUTH_URL",
-				}, "https://iam.myhuaweicloud.com:443/v3"),
+				}, fmt.Sprintf("https://iam.%s:443/v3", defaultCloud)),
 			},
 
 			"cloud": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: descriptions["cloud"],
-				DefaultFunc: schema.EnvDefaultFunc(
-					"HW_CLOUD", "myhuaweicloud.com"),
+				DefaultFunc: schema.EnvDefaultFunc("HW_CLOUD", defaultCloud),
 			},
 
 			"endpoints": {
@@ -269,12 +270,16 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_gaussdb_mysql_configuration": dataSourceGaussdbMysqlConfigurations(),
 			"huaweicloud_gaussdb_mysql_flavors":       dataSourceGaussdbMysqlFlavors(),
 			"huaweicloud_gaussdb_mysql_instance":      dataSourceGaussDBMysqlInstance(),
-			"huaweicloud_iam_role":                    dataSourceIAMRoleV3(),
+			"huaweicloud_gaussdb_mysql_instances":     dataSourceGaussDBMysqlInstances(),
 			"huaweicloud_identity_role":               DataSourceIdentityRoleV3(),
+			"huaweicloud_identity_custom_role":        DataSourceIdentityCustomRole(),
+			"huaweicloud_iec_flavors":                 dataSourceIecFlavors(),
+			"huaweicloud_iec_images":                  dataSourceIecImages(),
+			"huaweicloud_iec_sites":                   dataSourceIecSites(),
 			"huaweicloud_images_image":                DataSourceImagesImageV2(),
 			"huaweicloud_kms_key":                     dataSourceKmsKeyV1(),
 			"huaweicloud_kms_data_key":                dataSourceKmsDataKeyV1(),
-			"huaweicloud_nat_gateway":                 dataSourceNatGatewayV2(),
+			"huaweicloud_nat_gateway":                 DataSourceNatGatewayV2(),
 			"huaweicloud_networking_port":             DataSourceNetworkingPortV2(),
 			"huaweicloud_networking_secgroup":         DataSourceNetworkingSecGroupV2(),
 			"huaweicloud_obs_bucket_object":           DataSourceObsBucketObject(),
@@ -300,7 +305,6 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_kms_data_key_v1":           dataSourceKmsDataKeyV1(),
 			"huaweicloud_rds_flavors_v3":            dataSourceRdsFlavorV3(),
 			"huaweicloud_sfs_file_system_v2":        dataSourceSFSFileSystemV2(),
-			"huaweicloud_iam_role_v3":               dataSourceIAMRoleV3(),
 			"huaweicloud_vpc_v1":                    DataSourceVirtualPrivateCloudVpcV1(),
 			"huaweicloud_vpc_ids_v1":                dataSourceVirtualPrivateCloudVpcIdsV1(),
 			"huaweicloud_vpc_peering_connection_v2": dataSourceVpcPeeringConnectionV2(),
@@ -328,7 +332,6 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_dis_partition_v2":          dataSourceDisPartitionV2(),
 			// Deprecated
 			"huaweicloud_compute_availability_zones_v2": dataSourceComputeAvailabilityZonesV2(),
-			"huaweicloud_s3_bucket_object":              dataSourceS3BucketObject(),
 			"huaweicloud_networking_network_v2":         dataSourceNetworkingNetworkV2(),
 			"huaweicloud_networking_subnet_v2":          dataSourceNetworkingSubnetV2(),
 			"huaweicloud_rts_stack_v1":                  dataSourceRTSStackV1(),
@@ -384,6 +387,7 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_gaussdb_mysql_instance":          resourceGaussDBInstance(),
 			"huaweicloud_gaussdb_opengauss_instance":      resourceOpenGaussInstance(),
 			"huaweicloud_ges_graph":                       resourceGesGraphV1(),
+			"huaweicloud_identity_acl":                    resourceIdentityACL(),
 			"huaweicloud_identity_agency":                 resourceIAMAgencyV3(),
 			"huaweicloud_identity_group":                  ResourceIdentityGroupV3(),
 			"huaweicloud_identity_group_membership":       ResourceIdentityGroupMembershipV3(),
@@ -391,6 +395,16 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_identity_role":                   resourceIdentityRole(),
 			"huaweicloud_identity_role_assignment":        ResourceIdentityRoleAssignmentV3(),
 			"huaweicloud_identity_user":                   ResourceIdentityUserV3(),
+			"huaweicloud_iec_eip":                         resourceIecNetworkEip(),
+			"huaweicloud_iec_keypair":                     resourceIecKeypair(),
+			"huaweicloud_iec_network_acl":                 resourceIecNetworkACL(),
+			"huaweicloud_iec_network_acl_rule":            resourceIecNetworkACLRule(),
+			"huaweicloud_iec_security_group":              resourceIecSecurityGroup(),
+			"huaweicloud_iec_security_group_rule":         resourceIecSecurityGroupRule(),
+			"huaweicloud_iec_server":                      resourceIecServer(),
+			"huaweicloud_iec_vip":                         resourceIecVipV1(),
+			"huaweicloud_iec_vpc":                         ResourceIecVpc(),
+			"huaweicloud_iec_vpc_subnet":                  resourceIecSubnet(),
 			"huaweicloud_images_image":                    ResourceImsImage(),
 			"huaweicloud_kms_key":                         resourceKmsKeyV1(),
 			"huaweicloud_lb_certificate":                  ResourceCertificateV2(),
@@ -408,11 +422,11 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_mls_instance":                    resourceMlsInstance(),
 			"huaweicloud_mrs_cluster":                     resourceMRSClusterV1(),
 			"huaweicloud_mrs_job":                         resourceMRSJobV1(),
-			"huaweicloud_nat_dnat_rule":                   resourceNatDnatRuleV2(),
-			"huaweicloud_nat_gateway":                     resourceNatGatewayV2(),
-			"huaweicloud_nat_snat_rule":                   resourceNatSnatRuleV2(),
-			"huaweicloud_network_acl":                     resourceNetworkACL(),
-			"huaweicloud_network_acl_rule":                resourceNetworkACLRule(),
+			"huaweicloud_nat_dnat_rule":                   ResourceNatDnatRuleV2(),
+			"huaweicloud_nat_gateway":                     ResourceNatGatewayV2(),
+			"huaweicloud_nat_snat_rule":                   ResourceNatSnatRuleV2(),
+			"huaweicloud_network_acl":                     ResourceNetworkACL(),
+			"huaweicloud_network_acl_rule":                ResourceNetworkACLRule(),
 			"huaweicloud_networking_eip_associate":        resourceNetworkingFloatingIPAssociateV2(),
 			"huaweicloud_networking_port":                 ResourceNetworkingPortV2(),
 			"huaweicloud_networking_secgroup":             ResourceNetworkingSecGroupV2(),
@@ -439,6 +453,7 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_vpc_peering_connection_accepter": resourceVpcPeeringConnectionAccepterV2(),
 			"huaweicloud_vpc_route":                       ResourceVPCRouteV2(),
 			"huaweicloud_vpc_subnet":                      ResourceVpcSubnetV1(),
+			"huaweicloud_vpcep_approval":                  ResourceVPCEndpointApproval(),
 			"huaweicloud_vpcep_endpoint":                  ResourceVPCEndpoint(),
 			"huaweicloud_vpcep_service":                   ResourceVPCEndpointService(),
 			"huaweicloud_vpnaas_endpoint_group":           resourceVpnEndpointGroupV2(),
@@ -483,9 +498,9 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_smn_subscription_v2":                resourceSubscription(),
 			"huaweicloud_rds_instance_v3":                    resourceRdsInstanceV3(),
 			"huaweicloud_rds_parametergroup_v3":              resourceRdsConfigurationV3(),
-			"huaweicloud_nat_gateway_v2":                     resourceNatGatewayV2(),
-			"huaweicloud_nat_snat_rule_v2":                   resourceNatSnatRuleV2(),
-			"huaweicloud_nat_dnat_rule_v2":                   resourceNatDnatRuleV2(),
+			"huaweicloud_nat_gateway_v2":                     ResourceNatGatewayV2(),
+			"huaweicloud_nat_snat_rule_v2":                   ResourceNatSnatRuleV2(),
+			"huaweicloud_nat_dnat_rule_v2":                   ResourceNatDnatRuleV2(),
 			"huaweicloud_sfs_access_rule_v2":                 resourceSFSAccessRuleV2(),
 			"huaweicloud_sfs_file_system_v2":                 resourceSFSFileSystemV2(),
 			"huaweicloud_iam_agency":                         resourceIAMAgencyV3(),
@@ -535,9 +550,6 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_cdn_domain_v1":                      resourceCdnDomainV1(),
 			// Deprecated
 			"huaweicloud_blockstorage_volume_v2":             resourceBlockStorageVolumeV2(),
-			"huaweicloud_s3_bucket":                          resourceS3Bucket(),
-			"huaweicloud_s3_bucket_policy":                   resourceS3BucketPolicy(),
-			"huaweicloud_s3_bucket_object":                   resourceS3BucketObject(),
 			"huaweicloud_networking_network_v2":              resourceNetworkingNetworkV2(),
 			"huaweicloud_networking_subnet_v2":               resourceNetworkingSubnetV2(),
 			"huaweicloud_networking_floatingip_v2":           resourceNetworkingFloatingIPV2(),
@@ -680,6 +692,13 @@ func configureProvider(d *schema.ResourceData, terraformVersion string) (interfa
 		RPLock:              new(sync.Mutex),
 	}
 
+	// get custom endpoints
+	endpoints, err := flattenProviderEndpoints(d)
+	if err != nil {
+		return nil, err
+	}
+	config.Endpoints = endpoints
+
 	if err := config.LoadAndValidate(); err != nil {
 		return nil, err
 	}
@@ -687,13 +706,6 @@ func configureProvider(d *schema.ResourceData, terraformVersion string) (interfa
 	if config.HwClient != nil && config.HwClient.ProjectID != "" {
 		config.RegionProjectIDMap[config.Region] = config.HwClient.ProjectID
 	}
-
-	// get custom endpoints
-	endpoints, err := flattenProviderEndpoints(d)
-	if err != nil {
-		return nil, err
-	}
-	config.endpoints = endpoints
 
 	return &config, nil
 }

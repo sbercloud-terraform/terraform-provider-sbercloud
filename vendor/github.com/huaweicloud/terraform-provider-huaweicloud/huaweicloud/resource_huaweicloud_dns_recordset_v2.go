@@ -52,7 +52,7 @@ func ResourceDNSRecordSetV2() *schema.Resource {
 			"description": {
 				Type:         schema.TypeString,
 				Optional:     true,
-				ValidateFunc: resourceValidateDescription,
+				ValidateFunc: validation.StringLenBetween(0, 255),
 			},
 			"records": {
 				Type:     schema.TypeList,
@@ -64,14 +64,14 @@ func ResourceDNSRecordSetV2() *schema.Resource {
 				Type:         schema.TypeInt,
 				Optional:     true,
 				Default:      300,
-				ValidateFunc: resourceValidateTTL,
+				ValidateFunc: validation.IntBetween(1, 2147483647),
 			},
 			"type": {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
 				ValidateFunc: validation.StringInSlice([]string{
-					"A", "AAAA", "MX", "CNAME", "TXT", "NS", "SRV", "PTR",
+					"A", "AAAA", "MX", "CNAME", "TXT", "NS", "SRV", "PTR", "CAA",
 				}, false),
 			},
 			"value_specs": {
@@ -115,6 +115,9 @@ func resourceDNSRecordSetV2Create(d *schema.ResourceData, meta interface{}) erro
 		return fmt.Errorf("Error creating HuaweiCloud DNS record set: %s", err)
 	}
 
+	id := fmt.Sprintf("%s/%s", zoneID, n.ID)
+	d.SetId(id)
+
 	log.Printf("[DEBUG] Waiting for DNS record set (%s) to become available", n.ID)
 	stateConf := &resource.StateChangeConf{
 		Target:     []string{"ACTIVE"},
@@ -133,13 +136,10 @@ func resourceDNSRecordSetV2Create(d *schema.ResourceData, meta interface{}) erro
 			n.ID, err)
 	}
 
-	id := fmt.Sprintf("%s/%s", zoneID, n.ID)
-	d.SetId(id)
-
 	// set tags
 	tagRaw := d.Get("tags").(map[string]interface{})
 	if len(tagRaw) > 0 {
-		resourceType, err := getDNSRecordSetResourceType(zoneType)
+		resourceType, err := getDNSRecordSetTagType(zoneType)
 		if err != nil {
 			return fmt.Errorf("Error getting resource type of DNS record set %s: %s", n.ID, err)
 		}
@@ -167,7 +167,6 @@ func resourceDNSRecordSetV2Read(d *schema.ResourceData, meta interface{}) error 
 		return err
 	}
 
-	time.Sleep(2 * time.Second)
 	n, err := recordsets.Get(dnsClient, zoneID, recordsetID).Extract()
 	if err != nil {
 		return CheckDeleted(d, err, "record_set")
@@ -186,18 +185,17 @@ func resourceDNSRecordSetV2Read(d *schema.ResourceData, meta interface{}) error 
 	d.Set("zone_id", zoneID)
 
 	// save tags
-	resourceType, err := getDNSRecordSetResourceType(zoneType)
+	resourceType, err := getDNSRecordSetTagType(zoneType)
 	if err != nil {
 		return fmt.Errorf("Error getting resource type of DNS record set %s: %s", recordsetID, err)
 	}
-	resourceTags, err := tags.Get(dnsClient, resourceType, recordsetID).Extract()
-	if err != nil {
-		return fmt.Errorf("Error fetching HuaweiCloud DNS record set tags: %s", err)
-	}
-
-	tagmap := tagsToMap(resourceTags.Tags)
-	if err := d.Set("tags", tagmap); err != nil {
-		return fmt.Errorf("Error saving tags for HuaweiCloud DNS record set %s: %s", recordsetID, err)
+	if resourceTags, err := tags.Get(dnsClient, resourceType, recordsetID).Extract(); err == nil {
+		tagmap := tagsToMap(resourceTags.Tags)
+		if err := d.Set("tags", tagmap); err != nil {
+			return fmt.Errorf("Error saving tags to state for DNS record set (%s): %s", recordsetID, err)
+		}
+	} else {
+		log.Printf("[WARN] Error fetching tags of DNS record set (%s): %s", recordsetID, err)
 	}
 
 	return nil
@@ -258,7 +256,7 @@ func resourceDNSRecordSetV2Update(d *schema.ResourceData, meta interface{}) erro
 	}
 
 	// update tags
-	resourceType, err := getDNSRecordSetResourceType(zoneType)
+	resourceType, err := getDNSRecordSetTagType(zoneType)
 	if err != nil {
 		return fmt.Errorf("Error getting resource type of DNS record set %s: %s", d.Id(), err)
 	}
@@ -341,34 +339,6 @@ func parseDNSV2RecordSetID(id string) (string, string, error) {
 	recordsetID := idParts[1]
 
 	return zoneID, recordsetID, nil
-}
-
-func resourceValidateDescription(v interface{}, k string) (ws []string, errors []error) {
-	value := v.(string)
-	if len(value) > 255 {
-		errors = append(errors, fmt.Errorf("%q must less than 255 characters", k))
-	}
-
-	return
-}
-
-func resourceValidateTTL(v interface{}, k string) (ws []string, errors []error) {
-	value := v.(int)
-	if 300 <= value && value <= 2147483647 {
-		return
-	}
-	errors = append(errors, fmt.Errorf("%q must be [300, 2147483647]", k))
-	return
-}
-
-// get resource type of DNS record set by zoneType
-func getDNSRecordSetResourceType(zoneType string) (string, error) {
-	if zoneType == "public" {
-		return "DNS-public_recordset", nil
-	} else if zoneType == "private" {
-		return "DNS-private_recordset", nil
-	}
-	return "", fmt.Errorf("invalid zone type: %s", zoneType)
 }
 
 func chooseDNSClientbyZoneID(d *schema.ResourceData, zoneID string, meta interface{}) (*golangsdk.ServiceClient, string, error) {

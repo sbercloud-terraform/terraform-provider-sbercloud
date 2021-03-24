@@ -24,7 +24,7 @@ import (
 	"github.com/huaweicloud/golangsdk"
 )
 
-func resourceNatDnatRuleV2() *schema.Resource {
+func ResourceNatDnatRuleV2() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceNatDnatRuleCreate,
 		Read:   resourceNatDnatRuleRead,
@@ -122,7 +122,7 @@ func resourceNatDnatUserInputParams(d *schema.ResourceData) map[string]interface
 
 func resourceNatDnatRuleCreate(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	client, err := config.natV2Client(GetRegion(d, config))
+	client, err := config.NatGatewayClient(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}
@@ -147,25 +147,13 @@ func resourceNatDnatRuleCreate(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return err
 	}
-	e, err = isEmptyValue(reflect.ValueOf(internalServicePortProp))
-	if err != nil {
-		return err
-	}
-	if !e {
-		params["internal_service_port"] = internalServicePortProp
-	}
+	params["internal_service_port"] = internalServicePortProp
 
 	externalServicePortProp, err := navigateValue(opts, []string{"external_service_port"}, nil)
 	if err != nil {
 		return err
 	}
-	e, err = isEmptyValue(reflect.ValueOf(externalServicePortProp))
-	if err != nil {
-		return err
-	}
-	if !e {
-		params["external_service_port"] = externalServicePortProp
-	}
+	params["external_service_port"] = externalServicePortProp
 
 	natGatewayIDProp, err := navigateValue(opts, []string{"nat_gateway_id"}, nil)
 	if err != nil {
@@ -240,14 +228,14 @@ func resourceNatDnatRuleCreate(d *schema.ResourceData, meta interface{}) error {
 	d.SetId(id.(string))
 
 	// wait for a while to become ACTIVE
-	time.Sleep(3 * time.Second)
+	time.Sleep(3 * time.Second) //lintignore:R018
 
 	return resourceNatDnatRuleRead(d, meta)
 }
 
 func resourceNatDnatRuleRead(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	client, err := config.natV2Client(GetRegion(d, config))
+	client, err := config.NatGatewayClient(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}
@@ -416,7 +404,7 @@ func resourceNatDnatRuleRead(d *schema.ResourceData, meta interface{}) error {
 
 func resourceNatDnatRuleDelete(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	client, err := config.natV2Client(GetRegion(d, config))
+	client, err := config.NatGatewayClient(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}
@@ -425,7 +413,8 @@ func resourceNatDnatRuleDelete(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return err
 	}
-	url = client.ServiceURL(url)
+	natGatewayID := d.Get("nat_gateway_id").(string)
+	url = client.ServiceURL("nat_gateways", natGatewayID, url)
 
 	log.Printf("[DEBUG] Deleting Dnat %q", d.Id())
 	r := golangsdk.Result{}
@@ -439,6 +428,6 @@ func resourceNatDnatRuleDelete(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	// wait for a while to become DELETED
-	time.Sleep(3 * time.Second)
+	time.Sleep(3 * time.Second) //lintignore:R018
 	return nil
 }

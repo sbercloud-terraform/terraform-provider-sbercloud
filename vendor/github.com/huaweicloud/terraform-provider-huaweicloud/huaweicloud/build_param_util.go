@@ -188,13 +188,13 @@ func (e *exchangeParam) BuildResourceData(resp interface{}, d *schema.ResourceDa
 
 		switch v.Kind() {
 		default:
-			err := d.Set(optn, optv)
+			err := d.Set(optn, optv) //lintignore:R001
 			if err != nil {
 				return err
 			}
 		case reflect.Struct:
 			//The corresponding schema of Struct is TypeList in Terrafrom
-			err := d.Set(optn, []interface{}{optv})
+			err := d.Set(optn, []interface{}{optv}) //lintignore:R001
 			if err != nil {
 				return err
 			}
@@ -227,13 +227,6 @@ func (e *exchangeParam) convertToMap(resp interface{}) (map[string]interface{}, 
 	}
 	log.Printf("[DEBUG]refreshResourceData:: raw data = %#v\n", p)
 	return p, nil
-}
-
-// The result may be not correct when the type of param is string and user config it to 'param=""'
-// but, there is no other way.
-func hasFilledOpt(d *schema.ResourceData, param string) bool {
-	_, b := d.GetOkExists(param)
-	return b
 }
 
 func getParamTag(key string, tag reflect.StructTag) string {

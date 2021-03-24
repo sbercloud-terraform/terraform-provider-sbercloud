@@ -34,6 +34,12 @@ func resourceGeminiDBInstanceV3() *schema.Resource {
 		},
 
 		Schema: map[string]*schema.Schema{
+			"region": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
+			},
 			"availability_zone": {
 				Type:     schema.TypeString,
 				Required: true,
@@ -147,7 +153,6 @@ func resourceGeminiDBInstanceV3() *schema.Resource {
 			"force_import": {
 				Type:     schema.TypeBool,
 				Optional: true,
-				ForceNew: true,
 			},
 			"charging_mode": {
 				Type:     schema.TypeString,
@@ -191,10 +196,6 @@ func resourceGeminiDBInstanceV3() *schema.Resource {
 				Computed: true,
 			},
 			"mode": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
-			"region": {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
@@ -330,7 +331,7 @@ func resourceGeminiDBInstanceV3Create(d *schema.ResourceData, meta interface{}) 
 		SubnetId:            d.Get("subnet_id").(string),
 		SecurityGroupId:     d.Get("security_group_id").(string),
 		ConfigurationId:     d.Get("configuration_id").(string),
-		EnterpriseProjectId: d.Get("enterprise_project_id").(string),
+		EnterpriseProjectId: GetEnterpriseProjectID(d, config),
 		Password:            d.Get("password").(string),
 		Mode:                "Cluster",
 		Flavor:              resourceGeminiDBFlavor(d),
@@ -387,7 +388,7 @@ func resourceGeminiDBInstanceV3Create(d *schema.ResourceData, meta interface{}) 
 	}
 
 	// This is a workaround to avoid db connection issue
-	time.Sleep(360 * time.Second)
+	time.Sleep(360 * time.Second) //lintignore:R018
 
 	return resourceGeminiDBInstanceV3Read(d, meta)
 }
@@ -479,14 +480,13 @@ func resourceGeminiDBInstanceV3Read(d *schema.ResourceData, meta interface{}) er
 	d.Set("backup_strategy", backupStrategyList)
 
 	//save geminidb tags
-	resourceTags, err := tags.Get(client, "instances", d.Id()).Extract()
-	if err != nil {
-		return fmt.Errorf("Error fetching HuaweiCloud geminidb tags: %s", err)
-	}
-
-	tagmap := tagsToMap(resourceTags.Tags)
-	if err := d.Set("tags", tagmap); err != nil {
-		return fmt.Errorf("Error saving tags for HuaweiCloud geminidb (%s): %s", d.Id(), err)
+	if resourceTags, err := tags.Get(client, "instances", d.Id()).Extract(); err == nil {
+		tagmap := tagsToMap(resourceTags.Tags)
+		if err := d.Set("tags", tagmap); err != nil {
+			return fmt.Errorf("Error saving tags to state for geminidb (%s): %s", d.Id(), err)
+		}
+	} else {
+		log.Printf("[WARN] Error fetching tags of geminidb (%s): %s", d.Id(), err)
 	}
 
 	return nil

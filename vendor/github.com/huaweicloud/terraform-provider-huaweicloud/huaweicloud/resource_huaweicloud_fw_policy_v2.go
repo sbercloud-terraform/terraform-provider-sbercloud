@@ -51,10 +51,11 @@ func resourceFWPolicyV2() *schema.Resource {
 				Optional: true,
 			},
 			"tenant_id": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
-				Computed: true,
+				Type:       schema.TypeString,
+				Optional:   true,
+				ForceNew:   true,
+				Computed:   true,
+				Deprecated: "tenant_id is deprecated",
 			},
 			"rules": {
 				Type:     schema.TypeList,
@@ -73,7 +74,7 @@ func resourceFWPolicyV2() *schema.Resource {
 
 func resourceFWPolicyV2Create(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	fwClient, err := config.fwV2Client(GetRegion(d, config))
+	fwClient, err := config.FwV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud fw client: %s", err)
 	}
@@ -124,12 +125,11 @@ func resourceFWPolicyV2Read(d *schema.ResourceData, meta interface{}) error {
 	log.Printf("[DEBUG] Retrieve information about firewall policy: %s", d.Id())
 
 	config := meta.(*Config)
-	fwClient, err := config.fwV2Client(GetRegion(d, config))
+	fwClient, err := config.FwV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud fw client: %s", err)
 	}
 
-	time.Sleep(2 * time.Second)
 	policy, err := policies.Get(fwClient, d.Id()).Extract()
 	if err != nil {
 		return CheckDeleted(d, err, "FW policy")
@@ -152,7 +152,7 @@ func resourceFWPolicyV2Read(d *schema.ResourceData, meta interface{}) error {
 
 func resourceFWPolicyV2Update(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
-	fwClient, err := config.fwV2Client(GetRegion(d, config))
+	fwClient, err := config.FwV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud fw client: %s", err)
 	}
@@ -194,7 +194,7 @@ func resourceFWPolicyV2Delete(d *schema.ResourceData, meta interface{}) error {
 	log.Printf("[DEBUG] Destroy firewall policy: %s", d.Id())
 
 	config := meta.(*Config)
-	fwClient, err := config.fwV2Client(GetRegion(d, config))
+	fwClient, err := config.FwV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud fw client: %s", err)
 	}

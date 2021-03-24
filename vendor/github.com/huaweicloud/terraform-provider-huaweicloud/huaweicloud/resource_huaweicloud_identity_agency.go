@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/hashcode"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/huaweicloud/golangsdk"
 	"github.com/huaweicloud/golangsdk/openstack/identity/v3/agency"
-	"github.com/huaweicloud/golangsdk/openstack/identity/v3/domains"
 	"github.com/huaweicloud/golangsdk/openstack/identity/v3/projects"
 	"github.com/huaweicloud/golangsdk/openstack/identity/v3/roles"
 )
@@ -34,35 +35,25 @@ func resourceIAMAgencyV3() *schema.Resource {
 		},
 
 		Schema: map[string]*schema.Schema{
-			"region": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
-				ForceNew: true,
-			},
 			"name": {
 				Type:     schema.TypeString,
 				Required: true,
+				ForceNew: true,
 			},
 			"delegated_domain_name": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				ExactlyOneOf: []string{"delegated_service_name"},
+			},
+			"delegated_service_name": {
 				Type:     schema.TypeString,
-				Required: true,
+				Optional: true,
+				ValidateFunc: validation.StringMatch(regexp.MustCompile("^op_svc_[A-Za-z]+"),
+					"Please check your delegated_service_name input, it must be an existing cloud service"),
 			},
 			"description": {
 				Type:     schema.TypeString,
 				Optional: true,
-				Computed: true,
-			},
-			"duration": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
-			"expire_time": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
-			"create_time": {
-				Type:     schema.TypeString,
 				Computed: true,
 			},
 			"project_role": {
@@ -94,6 +85,20 @@ func resourceIAMAgencyV3() *schema.Resource {
 				MaxItems: 25,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 				Set:      schema.HashString,
+			},
+
+			"duration": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Default:  "FOREVER",
+			},
+			"expire_time": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"create_time": {
+				Type:     schema.TypeString,
+				Computed: true,
 			},
 		},
 	}
@@ -191,54 +196,6 @@ func allRolesOfDomain(domainID string, client *golangsdk.ServiceClient) (map[str
 	return roles, nil
 }
 
-func getDomainID(config *Config, client *golangsdk.ServiceClient) (string, error) {
-	if config.DomainID != "" {
-		return config.DomainID, nil
-	}
-
-	name := config.DomainName
-	if name == "" {
-		return "", fmt.Errorf("The required domain name was missed")
-	}
-
-	old := client.ResourceBase
-	defer func() { client.ResourceBase = old }()
-	// ResourceBase: https://iam.{CLOUD}/v3/auth/
-	client.ResourceBase = old + "auth/"
-
-	opts := domains.ListOpts{
-		Name: name,
-	}
-	allPages, err := domains.List(client, &opts).AllPages()
-	if err != nil {
-		return "", fmt.Errorf("List domains failed, err=%s", err)
-	}
-
-	all, err := domains.ExtractDomains(allPages)
-	if err != nil {
-		return "", fmt.Errorf("Extract domains failed, err=%s", err)
-	}
-
-	count := len(all)
-	switch count {
-	case 0:
-		err := &golangsdk.ErrResourceNotFound{}
-		err.ResourceType = "iam"
-		err.Name = name
-		return "", err
-	case 1:
-		domainID := all[0].ID
-		config.DomainID = domainID
-		return domainID, nil
-	default:
-		err := &golangsdk.ErrMultipleResourcesFound{}
-		err.ResourceType = "iam"
-		err.Name = name
-		err.Count = count
-		return "", err
-	}
-}
-
 func changeToPRPair(prs *schema.Set) (r map[string]bool) {
 	r = make(map[string]bool)
 	for _, v := range prs.List() {
@@ -285,18 +242,24 @@ func resourceIAMAgencyV3Create(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("Error creating HuaweiCloud identity client: %s", err)
 	}
 
-	domainID, err := getDomainID(config, identityClient)
-	if err != nil {
-		return fmt.Errorf("Error getting the domain id, err=%s", err)
+	domainID := config.DomainID
+	if domainID == "" {
+		return fmt.Errorf("the domain_id must be specified in the provider configuration")
 	}
 
 	opts := agency.CreateOpts{
-		Name:            d.Get("name").(string),
-		DomainID:        domainID,
-		DelegatedDomain: d.Get("delegated_domain_name").(string),
-		Description:     d.Get("description").(string),
+		Name:        d.Get("name").(string),
+		DomainID:    domainID,
+		Description: d.Get("description").(string),
+		Duration:    d.Get("duration").(string),
+	}
+	if v, ok := d.GetOk("delegated_domain_name"); ok {
+		opts.DelegatedDomain = v.(string)
+	} else {
+		opts.DelegatedDomain = d.Get("delegated_service_name").(string)
 	}
 	log.Printf("[DEBUG] Create IAM-Agency Options: %#v", opts)
+
 	a, err := agency.Create(iamClient, opts).Extract()
 	if err != nil {
 		return fmt.Errorf("Error creating IAM-Agency: %s", err)
@@ -375,13 +338,19 @@ func resourceIAMAgencyV3Read(d *schema.ResourceData, meta interface{}) error {
 	}
 	log.Printf("[DEBUG] Retrieved IAM-Agency %s: %#v", d.Id(), a)
 
-	d.Set("region", GetRegion(d, config))
 	d.Set("name", a.Name)
-	d.Set("delegated_domain_name", a.DelegatedDomainName)
 	d.Set("description", a.Description)
 	d.Set("duration", a.Duration)
 	d.Set("expire_time", a.ExpireTime)
 	d.Set("create_time", a.CreateTime)
+
+	if ok, err := regexp.MatchString("^op_svc_[A-Za-z]+$", a.DelegatedDomainName); err != nil {
+		log.Printf("[ERROR] Regexp error, err= %s", err)
+	} else if ok {
+		d.Set("delegated_service_name", a.DelegatedDomainName)
+	} else {
+		d.Set("delegated_domain_name", a.DelegatedDomainName)
+	}
 
 	projects, err := listProjectsOfDomain(a.DomainID, identityClient)
 	if err != nil {
@@ -441,11 +410,20 @@ func resourceIAMAgencyV3Update(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	agencyID := d.Id()
+	domainID := config.DomainID
+	if domainID == "" {
+		return fmt.Errorf("the domain_id must be specified in the provider configuration")
+	}
 
-	if d.HasChanges("delegated_domain_name", "description") {
+	if d.HasChanges("delegated_domain_name", "delegated_service_name", "description", "duration") {
 		updateOpts := agency.UpdateOpts{
-			DelegatedDomain: d.Get("delegated_domain_name").(string),
-			Description:     d.Get("description").(string),
+			Description: d.Get("description").(string),
+			Duration:    d.Get("duration").(string),
+		}
+		if v, ok := d.GetOk("delegated_domain_name"); ok {
+			updateOpts.DelegatedDomain = v.(string)
+		} else {
+			updateOpts.DelegatedDomain = d.Get("delegated_service_name").(string)
 		}
 		log.Printf("[DEBUG] Updating IAM-Agency %s with options: %#v", agencyID, updateOpts)
 		timeout := d.Timeout(schema.TimeoutUpdate)
@@ -462,14 +440,8 @@ func resourceIAMAgencyV3Update(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	domainID := ""
 	var roles map[string]string
 	if d.HasChanges("project_role", "domain_roles") {
-		domainID, err = getDomainID(config, identityClient)
-		if err != nil {
-			return fmt.Errorf("Error getting the domain id, err=%s", err)
-		}
-
 		roles, err = allRolesOfDomain(domainID, identityClient)
 		if err != nil {
 			return fmt.Errorf("Error querying the roles, err=%s", err)

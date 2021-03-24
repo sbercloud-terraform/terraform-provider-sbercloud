@@ -70,6 +70,10 @@ func ResourceVpcSubnetV1() *schema.Resource {
 				ForceNew:     true,
 				ValidateFunc: validateIP,
 			},
+			"ipv6_enable": {
+				Type:     schema.TypeBool,
+				Optional: true,
+			},
 			"dhcp_enable": {
 				Type:     schema.TypeBool,
 				Optional: true,
@@ -102,6 +106,14 @@ func ResourceVpcSubnetV1() *schema.Resource {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
+			"ipv6_cidr": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"ipv6_gateway": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
 			"tags": tagsSchema(),
 		},
 	}
@@ -115,11 +127,13 @@ func resourceVpcSubnetV1Create(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("Error creating Huaweicloud networking client: %s", err)
 	}
 
+	enable := d.Get("ipv6_enable").(bool)
 	createOpts := subnets.CreateOpts{
 		Name:             d.Get("name").(string),
 		CIDR:             d.Get("cidr").(string),
 		AvailabilityZone: d.Get("availability_zone").(string),
 		GatewayIP:        d.Get("gateway_ip").(string),
+		EnableIPv6:       &enable,
 		EnableDHCP:       d.Get("dhcp_enable").(bool),
 		VPC_ID:           d.Get("vpc_id").(string),
 		PRIMARY_DNS:      d.Get("primary_dns").(string),
@@ -189,31 +203,29 @@ func resourceVpcSubnetV1Read(d *schema.ResourceData, meta interface{}) error {
 	d.Set("cidr", n.CIDR)
 	d.Set("dns_list", n.DnsList)
 	d.Set("gateway_ip", n.GatewayIP)
+	d.Set("ipv6_enable", n.EnableIPv6)
 	d.Set("dhcp_enable", n.EnableDHCP)
 	d.Set("primary_dns", n.PRIMARY_DNS)
 	d.Set("secondary_dns", n.SECONDARY_DNS)
 	d.Set("availability_zone", n.AvailabilityZone)
 	d.Set("vpc_id", n.VPC_ID)
 	d.Set("subnet_id", n.SubnetId)
+	d.Set("ipv6_cidr", n.IPv6CIDR)
+	d.Set("ipv6_gateway", n.IPv6Gateway)
 	d.Set("region", GetRegion(d, config))
 
 	// save VpcSubnet tags
-	vpcSubnetV2Client, err := config.NetworkingV2Client(GetRegion(d, config))
-	if err != nil {
-		return fmt.Errorf("Error creating Huaweicloud VpcSubnet client: %s", err)
-	}
-	resourceTags, err := tags.Get(vpcSubnetV2Client, "subnets", d.Id()).Extract()
-	if err != nil {
-		if err404, ok := err.(golangsdk.ErrDefault404); ok {
-			log.Printf("[INFO] fetching Subnet tags failed: %s", err404)
+	if vpcSubnetV2Client, err := config.NetworkingV2Client(GetRegion(d, config)); err == nil {
+		if resourceTags, err := tags.Get(vpcSubnetV2Client, "subnets", d.Id()).Extract(); err == nil {
+			tagmap := tagsToMap(resourceTags.Tags)
+			if err := d.Set("tags", tagmap); err != nil {
+				return fmt.Errorf("Error saving tags to state for Subnet (%s): %s", d.Id(), err)
+			}
 		} else {
-			return fmt.Errorf("Error fetching HuaweiCloud Subnet %s tags: %s", d.Id(), err)
+			log.Printf("[WARN] Error fetching tags of Subnet (%s): %s", d.Id(), err)
 		}
 	} else {
-		tagmap := tagsToMap(resourceTags.Tags)
-		if err := d.Set("tags", tagmap); err != nil {
-			return fmt.Errorf("Error saving HuaweiCloud Subnet %s tags: %s", d.Id(), err)
-		}
+		return fmt.Errorf("Error creating VpcSubnet client: %s", err)
 	}
 
 	return nil
@@ -231,6 +243,14 @@ func resourceVpcSubnetV1Update(d *schema.ResourceData, meta interface{}) error {
 	//as name is mandatory while updating subnet
 	updateOpts.Name = d.Get("name").(string)
 
+	if d.HasChange("ipv6_enable") {
+		if d.Get("ipv6_enable").(bool) {
+			enable := d.Get("ipv6_enable").(bool)
+			updateOpts.EnableIPv6 = &enable
+		} else {
+			return fmt.Errorf("Parameter cannot be disabled after IPv6 enable")
+		}
+	}
 	if d.HasChange("primary_dns") {
 		updateOpts.PRIMARY_DNS = d.Get("primary_dns").(string)
 	}

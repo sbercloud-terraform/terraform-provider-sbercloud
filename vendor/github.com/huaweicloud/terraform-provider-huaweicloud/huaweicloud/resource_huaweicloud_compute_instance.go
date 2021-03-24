@@ -201,11 +201,13 @@ func ResourceComputeInstanceV2() *schema.Resource {
 			"scheduler_hints": {
 				Type:     schema.TypeSet,
 				Optional: true,
+				Computed: true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"group": {
 							Type:     schema.TypeString,
 							Optional: true,
+							Computed: true,
 							ForceNew: true,
 						},
 						"fault_domain": {
@@ -250,6 +252,8 @@ func ResourceComputeInstanceV2() *schema.Resource {
 			"enterprise_project_id": {
 				Type:          schema.TypeString,
 				Optional:      true,
+				ForceNew:      true,
+				Computed:      true,
 				ConflictsWith: []string{"block_device", "metadata"},
 			},
 			"delete_disks_on_termination": {
@@ -260,6 +264,7 @@ func ResourceComputeInstanceV2() *schema.Resource {
 			"charging_mode": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Computed: true,
 				ForceNew: true,
 				ValidateFunc: validation.StringInSlice([]string{
 					"prePaid", "postPaid",
@@ -312,16 +317,20 @@ func ResourceComputeInstanceV2() *schema.Resource {
 							Type:     schema.TypeString,
 							Computed: true,
 						},
-						"pci_address": {
-							Type:     schema.TypeString,
-							Computed: true,
-						},
 						"boot_index": {
 							Type:     schema.TypeInt,
 							Computed: true,
 						},
 						"size": {
 							Type:     schema.TypeInt,
+							Computed: true,
+						},
+						"type": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"pci_address": {
+							Type:     schema.TypeString,
 							Computed: true,
 						},
 					},
@@ -479,8 +488,9 @@ func resourceComputeInstanceV2Create(d *schema.ResourceData, meta interface{}) e
 			extendParam.IsAutoPay = "true"
 			extendParam.IsAutoRenew = d.Get("auto_renew").(string)
 		}
-		if hasFilledOpt(d, "enterprise_project_id") {
-			extendParam.EnterpriseProjectId = d.Get("enterprise_project_id").(string)
+		epsID := GetEnterpriseProjectID(d, config)
+		if epsID != "" {
+			extendParam.EnterpriseProjectId = epsID
 		}
 		if extendParam != (cloudservers.ServerExtendParam{}) {
 			createOpts.ExtendParam = &extendParam
@@ -657,10 +667,18 @@ func resourceComputeInstanceV2Read(d *schema.ResourceData, meta interface{}) err
 	log.Printf("[DEBUG] Retrieved compute instance %s: %+v", d.Id(), server)
 	// Set some attributes
 	d.Set("region", GetRegion(d, config))
+	d.Set("enterprise_project_id", server.EnterpriseProjectID)
 	d.Set("availability_zone", server.AvailabilityZone)
 	d.Set("name", server.Name)
 	d.Set("status", server.Status)
 	d.Set("agency_name", server.Metadata.AgencyName)
+
+	chageMode := server.Metadata.ChargingMode
+	if chageMode == "0" {
+		d.Set("charging_mode", "postPaid")
+	} else if chageMode == "1" {
+		d.Set("charging_mode", "prePaid")
+	}
 
 	flavorInfo := server.Flavor
 	d.Set("flavor_id", flavorInfo.ID)
@@ -722,52 +740,61 @@ func resourceComputeInstanceV2Read(d *schema.ResourceData, meta interface{}) err
 	}
 	d.Set("security_groups", secGrpNames)
 
-	root_volume := ""
 	// Set volume attached
-	bds := []map[string]interface{}{}
 	if len(server.VolumeAttached) > 0 {
-		for _, b := range server.VolumeAttached {
+		bds := make([]map[string]interface{}, len(server.VolumeAttached))
+		for i, b := range server.VolumeAttached {
+			// retrieve volume `size` and `type`
+			volumeInfo, err := volumes.Get(blockStorageClient, b.ID).Extract()
+			if err != nil {
+				return err
+			}
+			log.Printf("[DEBUG] Retrieved volume %s: %#v", b.ID, volumeInfo)
+
+			// retrieve volume `pci_address`
 			va, err := block_devices.Get(ecsClient, d.Id(), b.ID).Extract()
 			if err != nil {
 				return err
 			}
-			log.Printf("[DEBUG] Retrieved volume attachment %s: %#v", d.Id(), va)
-			v := map[string]interface{}{
-				"pci_address": va.PciAddress,
+			log.Printf("[DEBUG] Retrieved block device %s: %#v", b.ID, va)
+
+			bds[i] = map[string]interface{}{
 				"volume_id":   b.ID,
+				"size":        volumeInfo.Size,
+				"type":        volumeInfo.VolumeType,
 				"boot_index":  va.BootIndex,
-				"size":        va.Size,
+				"pci_address": va.PciAddress,
 			}
-			bds = append(bds, v)
+
 			if va.BootIndex == 0 {
-				root_volume = b.ID
+				d.Set("system_disk_id", b.ID)
+				d.Set("system_disk_size", volumeInfo.Size)
+				d.Set("system_disk_type", volumeInfo.VolumeType)
 			}
 		}
 		d.Set("volume_attached", bds)
 	}
 
-	// Set root volume
-	if root_volume != "" {
-		v, err := volumes.Get(blockStorageClient, root_volume).Extract()
-		if err != nil {
-			return err
+	// set scheduler_hints
+	osHints := server.OsSchedulerHints
+	if len(osHints.Group) > 0 {
+		schedulerHints := make([]map[string]interface{}, len(osHints.Group))
+		for i, v := range osHints.Group {
+			schedulerHints[i] = map[string]interface{}{
+				"group": v,
+			}
 		}
-		log.Printf("[DEBUG] Retrieved root volume %s: %+v", root_volume, v)
-
-		d.Set("system_disk_id", root_volume)
-		d.Set("system_disk_size", v.Size)
-		d.Set("system_disk_type", v.VolumeType)
+		d.Set("scheduler_hints", schedulerHints)
 	}
 
 	// Set instance tags
-	resourceTags, err := tags.Get(ecsClient, "cloudservers", d.Id()).Extract()
-	if err != nil {
-		return fmt.Errorf("Error fetching HuaweiCloud instance tags: %s", err)
-	}
-
-	tagmap := tagsToMap(resourceTags.Tags)
-	if err := d.Set("tags", tagmap); err != nil {
-		return fmt.Errorf("[DEBUG] Error saving tag to state for HuaweiCloud instance (%s): %s", d.Id(), err)
+	if resourceTags, err := tags.Get(ecsClient, "cloudservers", d.Id()).Extract(); err == nil {
+		tagmap := tagsToMap(resourceTags.Tags)
+		if err := d.Set("tags", tagmap); err != nil {
+			return fmt.Errorf("Error saving tags to state for compute instance (%s): %s", d.Id(), err)
+		}
+	} else {
+		log.Printf("[WARN] Error fetching tags of compute instance (%s): %s", d.Id(), err)
 	}
 
 	return nil

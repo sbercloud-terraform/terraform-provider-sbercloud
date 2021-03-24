@@ -5,45 +5,13 @@ import (
 	"net"
 	"regexp"
 	"strings"
-	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 )
 
-func ValidateStringList(v interface{}, k string, l []string) (ws []string, errors []error) {
-	value := v.(string)
-	for i := range l {
-		if value == l[i] {
-			return
-		}
-	}
-	errors = append(errors, fmt.Errorf("%q must be one of %v", k, l))
-	return
-}
-
-func ValidateIntRange(v interface{}, k string, l int, h int) (ws []string, errors []error) {
-	i, ok := v.(int)
-	if !ok {
-		errors = append(errors, fmt.Errorf("%q must be an integer", k))
-		return
-	}
-	if i < l || i > h {
-		errors = append(errors, fmt.Errorf("%q must be between %d and %d", k, l, h))
-		return
-	}
-	return
-}
-
-func validateS3BucketLifecycleTimestamp(v interface{}, k string) (ws []string, errors []error) {
-	value := v.(string)
-	_, err := time.Parse(time.RFC3339, fmt.Sprintf("%sT00:00:00Z", value))
-	if err != nil {
-		errors = append(errors, fmt.Errorf(
-			"%q cannot be parsed as RFC3339 Timestamp Format", value))
-	}
-
-	return
-}
+var validateSubnetV2IPv6Mode = validation.StringInSlice([]string{
+	"slaac", "dhcpv6-stateful", "dhcpv6-stateless",
+}, false)
 
 func validateTrueOnly(v interface{}, k string) (ws []string, errors []error) {
 	if b, ok := v.(bool); ok && b {
@@ -56,37 +24,9 @@ func validateTrueOnly(v interface{}, k string) (ws []string, errors []error) {
 	return
 }
 
-func validateS3BucketLifecycleExpirationDays(v interface{}, k string) (ws []string, errors []error) {
-	if v.(int) <= 0 {
-		errors = append(errors, fmt.Errorf(
-			"%q must be greater than 0", k))
-	}
-
-	return
-}
-
-func validateS3BucketLifecycleRuleId(v interface{}, k string) (ws []string, errors []error) {
-	value := v.(string)
-	if len(value) > 255 {
-		errors = append(errors, fmt.Errorf(
-			"%q cannot exceed 255 characters", k))
-	}
-	return
-}
-
 func validateJsonString(v interface{}, k string) (ws []string, errors []error) {
 	if _, err := normalizeJsonString(v); err != nil {
 		errors = append(errors, fmt.Errorf("%q contains an invalid JSON: %s", k, err))
-	}
-	return
-}
-
-func validateKmsKeyStatus(v interface{}, k string) (ws []string, errors []error) {
-	status := v.(string)
-	if status != EnabledState && status != DisabledState && status != PendingDeletionState {
-		errors = append(errors, fmt.Errorf(
-			"%q must contain a valid status, expected %s or %s or %s, got %s.",
-			k, EnabledState, DisabledState, PendingDeletionState, status))
 	}
 	return
 }
@@ -126,6 +66,7 @@ func validateName(v interface{}, k string) (ws []string, errors []error) {
 	return
 }
 
+//lintignore:V001
 func validateString64WithChinese(v interface{}, k string) (ws []string, errors []error) {
 	value := v.(string)
 	if len(value) > 64 {
@@ -160,6 +101,43 @@ func validateCIDR(v interface{}, k string) (ws []string, errors []error) {
 	return
 }
 
+func validateIPRange(v interface{}, k string) (ws []string, errors []error) {
+	value := v.(string)
+	ipAddresses := strings.Split(value, "-")
+	if len(ipAddresses) != 2 {
+		errors = append(errors, fmt.Errorf(
+			"%q must be a valid network IP address range, such as 0.0.0.0-255.255.255.0, but got %q", k, value))
+		return
+	}
+	for _, address := range ipAddresses {
+		ipnet := net.ParseIP(address)
+		if ipnet == nil || address != ipnet.String() {
+			errors = append(errors, fmt.Errorf("%q must contains valid network IP address, got %q", k, address))
+		}
+	}
+	if len(errors) == 0 {
+		if ipAddresses[0] == ipAddresses[1] {
+			errors = append(errors, fmt.Errorf("Two network IP address of %q cannot equal, got %q", k, value))
+		}
+		// Split the IP address into a string array for comparison.
+		startAddress := strings.Split(ipAddresses[0], ".")
+		endAddress := strings.Split(ipAddresses[1], ".")
+		// Verify the correctness of the IP address range: The starting IP address must be less than the ending IP address.
+		// The For loop compares the four parts of the IPv4 address in turn.
+		for i := 0; i < len(startAddress); i++ {
+			if startAddress[i] > endAddress[i] {
+				errors = append(errors, fmt.Errorf(
+					"%q starting IP address cannot be greater than the ending IP address, got %q", k, value))
+				return
+			} else if startAddress[i] < endAddress[i] {
+				return
+			}
+		}
+	}
+
+	return
+}
+
 func validateIP(v interface{}, k string) (ws []string, errors []error) {
 	value := v.(string)
 	ipnet := net.ParseIP(value)
@@ -189,42 +167,6 @@ func validateVBSPolicyName(v interface{}, k string) (ws []string, errors []error
 		errors = append(errors, fmt.Errorf(
 			"%q doesn't comply with restrictions (%q): %q",
 			k, pattern, value))
-	}
-	return
-}
-
-func validateVBSPolicyFrequency(v interface{}, k string) (ws []string, errors []error) {
-	value := v.(int)
-	if value < 1 || value > 14 {
-		errors = append(errors, fmt.Errorf(
-			"%q should be in the range of 1-14: %d", k, value))
-	}
-	return
-}
-
-func validateVBSPolicyStatus(v interface{}, k string) (ws []string, errors []error) {
-	value := v.(string)
-	if value != "ON" && value != "OFF" {
-		errors = append(errors, fmt.Errorf(
-			"%q should be either ON or OFF: %q", k, value))
-	}
-	return
-}
-
-func validateVBSPolicyRetentionNum(v interface{}, k string) (ws []string, errors []error) {
-	value := v.(int)
-	if value < 2 {
-		errors = append(errors, fmt.Errorf(
-			"%q cannot be less than 2: %d", k, value))
-	}
-	return
-}
-
-func validateVBSPolicyRetainBackup(v interface{}, k string) (ws []string, errors []error) {
-	value := v.(string)
-	if value != "Y" && value != "N" {
-		errors = append(errors, fmt.Errorf(
-			"%q should be either N or Y: %q", k, value))
 	}
 	return
 }
@@ -312,15 +254,4 @@ func validateECSTagValue(v interface{}, k string) (ws []string, errors []error) 
 		}
 	}
 	return
-}
-
-func validateIntegerInRange(min, max int) schema.SchemaValidateFunc {
-	return func(v interface{}, k string) (ws []string, errors []error) {
-		value := v.(int)
-		if value < min || value > max {
-			errors = append(errors, fmt.Errorf(
-				"%q cannot be lower than %d and larger than %d. Current value is %d.", k, min, max, value))
-		}
-		return
-	}
 }

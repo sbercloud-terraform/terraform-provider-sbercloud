@@ -19,12 +19,6 @@ func ResourceIdentityGroupV3() *schema.Resource {
 		},
 
 		Schema: map[string]*schema.Schema{
-			"domain_id": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
-			},
-
 			"name": {
 				Type:     schema.TypeString,
 				Required: true,
@@ -33,13 +27,6 @@ func ResourceIdentityGroupV3() *schema.Resource {
 			"description": {
 				Type:     schema.TypeString,
 				Optional: true,
-			},
-
-			"region": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
-				ForceNew: true,
 			},
 		},
 	}
@@ -55,7 +42,6 @@ func resourceIdentityGroupV3Create(d *schema.ResourceData, meta interface{}) err
 	createOpts := groups.CreateOpts{
 		Name:        d.Get("name").(string),
 		Description: d.Get("description").(string),
-		DomainID:    d.Get("domain_id").(string),
 	}
 
 	log.Printf("[DEBUG] Create Options: %#v", createOpts)
@@ -84,10 +70,8 @@ func resourceIdentityGroupV3Read(d *schema.ResourceData, meta interface{}) error
 
 	log.Printf("[DEBUG] Retrieved HuaweiCloud Group: %#v", group)
 
-	d.Set("domain_id", group.DomainID)
-	d.Set("description", group.Description)
 	d.Set("name", group.Name)
-	d.Set("region", GetRegion(d, config))
+	d.Set("description", group.Description)
 
 	return nil
 }
@@ -105,11 +89,6 @@ func resourceIdentityGroupV3Update(d *schema.ResourceData, meta interface{}) err
 	if d.HasChange("description") {
 		hasChange = true
 		updateOpts.Description = d.Get("description").(string)
-	}
-
-	if d.HasChange("domain_id") {
-		hasChange = true
-		updateOpts.DomainID = d.Get("domain_id").(string)
 	}
 
 	if d.HasChange("name") {

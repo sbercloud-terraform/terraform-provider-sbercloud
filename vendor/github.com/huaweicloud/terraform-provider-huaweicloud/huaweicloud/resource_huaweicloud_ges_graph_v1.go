@@ -203,7 +203,6 @@ func resourceGesGraphV1Create(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return err
 	}
-	time.Sleep(240 * time.Second)
 
 	id, err := navigateValue(obj, []string{"graph", "id"}, nil)
 	if err != nil {

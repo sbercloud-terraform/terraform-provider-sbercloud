@@ -3,11 +3,13 @@ package huaweicloud
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/huaweicloud/golangsdk"
+	"github.com/huaweicloud/golangsdk/openstack/aom/v1/icagents"
 	"github.com/huaweicloud/golangsdk/openstack/cce/v3/clusters"
 )
 
@@ -112,6 +114,20 @@ func ResourceCCEClusterV3() *schema.Resource {
 				Computed: true,
 				ForceNew: true,
 			},
+			"eni_subnet_id": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				ForceNew:     true,
+				Computed:     true,
+				RequiredWith: []string{"eni_subnet_cidr"},
+			},
+			"eni_subnet_cidr": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				ForceNew:     true,
+				Computed:     true,
+				RequiredWith: []string{"eni_subnet_id"},
+			},
 			"authentication_mode": {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -124,15 +140,40 @@ func ResourceCCEClusterV3() *schema.Resource {
 				ForceNew: true,
 			},
 			"multi_az": {
-				Type:     schema.TypeBool,
-				Optional: true,
-				ForceNew: true,
+				Type:          schema.TypeBool,
+				Optional:      true,
+				ForceNew:      true,
+				ConflictsWith: []string{"masters"},
+			},
+			"masters": {
+				Type:          schema.TypeList,
+				Optional:      true,
+				ForceNew:      true,
+				Computed:      true,
+				MaxItems:      3,
+				ConflictsWith: []string{"multi_az"},
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"availability_zone": {
+							Type:     schema.TypeString,
+							Optional: true,
+							ForceNew: true,
+							Computed: true,
+						},
+					},
+				},
 			},
 			"eip": {
 				Type:         schema.TypeString,
 				Optional:     true,
 				ForceNew:     true,
 				ValidateFunc: validateIP,
+			},
+			"service_network_cidr": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
 			},
 			"kube_proxy_mode": {
 				Type:     schema.TypeString,
@@ -238,6 +279,31 @@ func resourceClusterExtendParamV3(d *schema.ResourceData, config *Config) map[st
 	return m
 }
 
+func resourceClusterMastersV3(d *schema.ResourceData) ([]clusters.MasterSpec, error) {
+	if v, ok := d.GetOk("masters"); ok {
+		flavorId := d.Get("flavor_id").(string)
+		mastersRaw := v.([]interface{})
+		if strings.Contains(flavorId, "s1") && len(mastersRaw) != 1 {
+			return nil, fmt.Errorf("Error creating HuaweiCloud Cluster: "+
+				"single-master cluster need 1 az for master node, but got %d", len(mastersRaw))
+		}
+		if strings.Contains(flavorId, "s2") && len(mastersRaw) != 3 {
+			return nil, fmt.Errorf("Error creating HuaweiCloud Cluster: "+
+				"high-availability cluster need 3 az for master nodes, but got %d", len(mastersRaw))
+		}
+		masters := make([]clusters.MasterSpec, len(mastersRaw))
+		for i, raw := range mastersRaw {
+			rawMap := raw.(map[string]interface{})
+			masters[i] = clusters.MasterSpec{
+				MasterAZ: rawMap["availability_zone"].(string),
+			}
+		}
+		return masters, nil
+	}
+
+	return nil, nil
+}
+
 func resourceCCEClusterV3Create(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*Config)
 	cceClient, err := config.CceV3Client(GetRegion(d, config))
@@ -274,10 +340,25 @@ func resourceCCEClusterV3Create(d *schema.ResourceData, meta interface{}) error 
 				Mode:                d.Get("authentication_mode").(string),
 				AuthenticatingProxy: authenticating_proxy,
 			},
-			BillingMode: d.Get("billing_mode").(int),
-			ExtendParam: resourceClusterExtendParamV3(d, config),
+			BillingMode:          d.Get("billing_mode").(int),
+			ExtendParam:          resourceClusterExtendParamV3(d, config),
+			KubernetesSvcIPRange: d.Get("service_network_cidr").(string),
 		},
 	}
+
+	if _, ok := d.GetOk("eni_subnet_id"); ok {
+		eniNetwork := clusters.EniNetworkSpec{
+			SubnetId: d.Get("eni_subnet_id").(string),
+			Cidr:     d.Get("eni_subnet_cidr").(string),
+		}
+		createOpts.Spec.EniNetwork = &eniNetwork
+	}
+
+	masters, err := resourceClusterMastersV3(d)
+	if err != nil {
+		return err
+	}
+	createOpts.Spec.Masters = masters
 
 	create, err := clusters.Create(cceClient, createOpts).Extract()
 
@@ -302,6 +383,17 @@ func resourceCCEClusterV3Create(d *schema.ResourceData, meta interface{}) error 
 	}
 	d.SetId(create.Metadata.Id)
 
+	icAgentClient, err := config.AomV1Client(GetRegion(d, config))
+
+	installParam := icagents.InstallParam{
+		ClusterId: d.Id(),
+		NameSpace: "default",
+	}
+
+	result := icagents.Create(icAgentClient, installParam)
+	if result.Err != nil {
+		log.Printf("Error installing ci agent in CCE cluster: %s", result.Err)
+	}
 	return resourceCCEClusterV3Read(d, meta)
 
 }
@@ -335,10 +427,13 @@ func resourceCCEClusterV3Read(d *schema.ResourceData, meta interface{}) error {
 	d.Set("highway_subnet_id", n.Spec.HostNetwork.HighwaySubnet)
 	d.Set("container_network_type", n.Spec.ContainerNetwork.Mode)
 	d.Set("container_network_cidr", n.Spec.ContainerNetwork.Cidr)
+	d.Set("eni_subnet_id", n.Spec.EniNetwork.SubnetId)
+	d.Set("eni_subnet_cidr", n.Spec.EniNetwork.Cidr)
 	d.Set("authentication_mode", n.Spec.Authentication.Mode)
 	d.Set("security_group_id", n.Spec.HostNetwork.SecurityGroup)
 	d.Set("region", GetRegion(d, config))
 	d.Set("enterprise_project_id", n.Spec.ExtendParam["enterpriseProjectId"])
+	d.Set("service_network_cidr", n.Spec.KubernetesSvcIPRange)
 
 	r := clusters.GetCert(cceClient, d.Id())
 
@@ -377,6 +472,15 @@ func resourceCCEClusterV3Read(d *schema.ResourceData, meta interface{}) error {
 		userList = append(userList, userCert)
 	}
 	d.Set("certificate_users", userList)
+
+	// Set masters
+	var masterList []map[string]interface{}
+	for _, masterObj := range n.Spec.Masters {
+		master := make(map[string]interface{})
+		master["availability_zone"] = masterObj.MasterAZ
+		masterList = append(masterList, master)
+	}
+	d.Set("masters", masterList)
 
 	return nil
 }

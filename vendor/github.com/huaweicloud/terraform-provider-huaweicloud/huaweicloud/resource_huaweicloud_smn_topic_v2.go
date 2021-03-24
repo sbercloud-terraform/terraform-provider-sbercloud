@@ -3,7 +3,6 @@ package huaweicloud
 import (
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
@@ -37,26 +36,18 @@ func resourceTopic() *schema.Resource {
 			},
 			"topic_urn": {
 				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
 				Computed: true,
 			},
 			"push_policy": {
 				Type:     schema.TypeInt,
-				Optional: true,
-				ForceNew: true,
 				Computed: true,
 			},
 			"update_time": {
 				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
 				Computed: true,
 			},
 			"create_time": {
 				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
 				Computed: true,
 			},
 		},
@@ -83,7 +74,6 @@ func resourceTopicCreate(d *schema.ResourceData, meta interface{}) error {
 	log.Printf("[DEBUG] Create : topic.TopicUrn %s", topic.TopicUrn)
 	if topic.TopicUrn != "" {
 		d.SetId(topic.TopicUrn)
-		time.Sleep(120 * time.Second)
 		return resourceTopicRead(d, meta)
 	}
 
@@ -127,7 +117,7 @@ func resourceTopicDelete(d *schema.ResourceData, meta interface{}) error {
 	id := d.Id()
 	result := topics.Delete(client, id)
 	if result.Err != nil {
-		return err
+		return result.Err
 	}
 
 	for {
@@ -163,7 +153,6 @@ func resourceTopicUpdate(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("Error updating topic from result: %s", err)
 	}
 
-	time.Sleep(120 * time.Second)
 	log.Printf("[DEBUG] Update : topic.TopicUrn: %s", id)
 	return resourceTopicRead(d, meta)
 }

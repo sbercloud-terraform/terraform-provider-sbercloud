@@ -3,7 +3,6 @@ package huaweicloud
 import (
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
@@ -73,10 +72,12 @@ func resourceSFSFileSystemV2() *schema.Resource {
 			"access_level": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Computed: true,
 			},
 			"access_type": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Computed: true,
 			},
 			"access_to": {
 				Type:     schema.TypeString,
@@ -98,10 +99,6 @@ func resourceSFSFileSystemV2() *schema.Resource {
 				Computed: true,
 			},
 			"status": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
-			"host": {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
@@ -247,24 +244,19 @@ func resourceSFSFileSystemV2Read(d *schema.ResourceData, meta interface{}) error
 	d.Set("availability_zone", n.AvailabilityZone)
 	d.Set("region", GetRegion(d, config))
 	d.Set("export_location", n.ExportLocation)
-	d.Set("host", n.Host)
 	d.Set("enterprise_project_id", n.Metadata["enterprise_project_id"])
 
-	// NOTE: This tries to remove system metadata.
+	// NOTE: only support the following metadata key
+	var metaKeys = [3]string{"#sfs_crypt_key_id", "#sfs_crypt_domain_id", "#sfs_crypt_alias"}
 	md := make(map[string]string)
-	var sys_keys = [2]string{"enterprise_project_id", "share_used"}
 
-OUTER:
 	for key, val := range n.Metadata {
-		if strings.HasPrefix(key, "#sfs") {
-			continue
-		}
-		for i := range sys_keys {
-			if key == sys_keys[i] {
-				continue OUTER
+		for i := range metaKeys {
+			if key == metaKeys[i] {
+				md[key] = val
+				break
 			}
 		}
-		md[key] = val
 	}
 	d.Set("metadata", md)
 
@@ -315,12 +307,14 @@ OUTER:
 	}
 
 	// set tags
-	resourceTags, err := tags.Get(sfsClient, "sfs", d.Id()).Extract()
-	if err != nil {
-		return fmt.Errorf("Error fetching tags of sfs: %s", err)
+	if resourceTags, err := tags.Get(sfsClient, "sfs", d.Id()).Extract(); err == nil {
+		tagmap := tagsToMap(resourceTags.Tags)
+		if err := d.Set("tags", tagmap); err != nil {
+			return fmt.Errorf("Error saving tags to state for SFS file system (%s): %s", d.Id(), err)
+		}
+	} else {
+		log.Printf("[WARN] Error fetching tags of SFS file system (%s): %s", d.Id(), err)
 	}
-	tagmap := tagsToMap(resourceTags.Tags)
-	d.Set("tags", tagmap)
 
 	return nil
 }
@@ -344,9 +338,8 @@ func resourceSFSFileSystemV2Update(d *schema.ResourceData, meta interface{}) err
 	}
 
 	if d.HasChanges("access_to", "access_level", "access_type") {
-		ruleID := d.Get("share_access_id").(string)
-		if ruleID != "" {
-			deleteAccessOpts := shares.DeleteAccessOpts{AccessID: ruleID}
+		if ruleID, ok := d.GetOk("share_access_id"); ok {
+			deleteAccessOpts := shares.DeleteAccessOpts{AccessID: ruleID.(string)}
 			deny := shares.DeleteAccess(sfsClient, d.Id(), deleteAccessOpts)
 			if deny.Err != nil {
 				return fmt.Errorf("Error changing access rules for share file : %s", deny.Err)
@@ -354,11 +347,21 @@ func resourceSFSFileSystemV2Update(d *schema.ResourceData, meta interface{}) err
 			d.Set("share_access_id", "")
 		}
 
-		if _, ok := d.GetOk("access_to"); ok {
+		if v, ok := d.GetOk("access_to"); ok {
 			grantAccessOpts := shares.GrantAccessOpts{
-				AccessLevel: d.Get("access_level").(string),
-				AccessType:  d.Get("access_type").(string),
-				AccessTo:    d.Get("access_to").(string),
+				AccessTo: v.(string),
+			}
+
+			if v, ok := d.GetOk("access_level"); ok {
+				grantAccessOpts.AccessLevel = v.(string)
+			} else {
+				grantAccessOpts.AccessLevel = "rw"
+			}
+
+			if v, ok := d.GetOk("access_type"); ok {
+				grantAccessOpts.AccessType = v.(string)
+			} else {
+				grantAccessOpts.AccessType = "cert"
 			}
 
 			log.Printf("[DEBUG] Grant Access Rules: %#v", grantAccessOpts)

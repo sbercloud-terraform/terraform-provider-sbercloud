@@ -17,35 +17,29 @@ func ResourceIdentityRoleAssignmentV3() *schema.Resource {
 		Create: resourceIdentityRoleAssignmentV3Create,
 		Read:   resourceIdentityRoleAssignmentV3Read,
 		Delete: resourceIdentityRoleAssignmentV3Delete,
-		Importer: &schema.ResourceImporter{
-			State: schema.ImportStatePassthrough,
-		},
 
 		Schema: map[string]*schema.Schema{
+			"role_id": {
+				Type:     schema.TypeString,
+				Required: true,
+				ForceNew: true,
+			},
+			"group_id": {
+				Type:     schema.TypeString,
+				Required: true,
+				ForceNew: true,
+			},
 			"domain_id": {
 				Type:          schema.TypeString,
 				ConflictsWith: []string{"project_id"},
 				Optional:      true,
 				ForceNew:      true,
 			},
-
-			"group_id": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
-			},
-
 			"project_id": {
 				Type:          schema.TypeString,
 				ConflictsWith: []string{"domain_id"},
 				Optional:      true,
 				ForceNew:      true,
-			},
-
-			"role_id": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
 			},
 		},
 	}
@@ -58,13 +52,14 @@ func resourceIdentityRoleAssignmentV3Create(d *schema.ResourceData, meta interfa
 		return fmt.Errorf("Error creating HuaweiCloud identity client: %s", err)
 	}
 
-	domainID := d.Get("domain_id").(string)
-	groupID := d.Get("group_id").(string)
-	projectID := d.Get("project_id").(string)
 	roleID := d.Get("role_id").(string)
+	groupID := d.Get("group_id").(string)
+	domainID := d.Get("domain_id").(string)
+	projectID := d.Get("project_id").(string)
+
 	opts := roles.AssignOpts{
-		DomainID:  domainID,
 		GroupID:   groupID,
+		DomainID:  domainID,
 		ProjectID: projectID,
 	}
 
@@ -92,11 +87,10 @@ func resourceIdentityRoleAssignmentV3Read(d *schema.ResourceData, meta interface
 	domainID, projectID, groupID, _ := extractRoleAssignmentID(d.Id())
 
 	log.Printf("[DEBUG] Retrieved HuaweiCloud role assignment: %#v", roleAssignment)
+	d.Set("role_id", roleAssignment.ID)
+	d.Set("group_id", groupID)
 	d.Set("domain_id", domainID)
 	d.Set("project_id", projectID)
-	d.Set("group_id", groupID)
-	d.Set("role_id", roleAssignment.ID)
-	d.Set("region", GetRegion(d, config))
 
 	return nil
 }
@@ -111,8 +105,8 @@ func resourceIdentityRoleAssignmentV3Delete(d *schema.ResourceData, meta interfa
 	domainID, projectID, groupID, roleID := extractRoleAssignmentID(d.Id())
 	var opts roles.UnassignOpts
 	opts = roles.UnassignOpts{
-		DomainID:  domainID,
 		GroupID:   groupID,
+		DomainID:  domainID,
 		ProjectID: projectID,
 	}
 	roles.Unassign(identityClient, roleID, opts).ExtractErr()

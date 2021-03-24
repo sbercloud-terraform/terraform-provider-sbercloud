@@ -56,12 +56,18 @@ type Spec struct {
 	HostNetwork HostNetworkSpec `json:"hostNetwork" required:"true"`
 	//Container network parameters
 	ContainerNetwork ContainerNetworkSpec `json:"containerNetwork" required:"true"`
+	//ENI network parameters
+	EniNetwork *EniNetworkSpec `json:"eniNetwork,omitempty"`
 	//Authentication parameters
 	Authentication AuthenticationSpec `json:"authentication,omitempty"`
 	// Charging mode of the cluster, which is 0 (on demand)
 	BillingMode int `json:"billingMode,omitempty"`
 	//Extended parameter for a cluster
 	ExtendParam map[string]string `json:"extendParam,omitempty"`
+	//Advanced configuration of master node
+	Masters []MasterSpec `json:"masters,omitempty"`
+	//Range of kubernetes clusterIp
+	KubernetesSvcIPRange string `json:"kubernetesSvcIpRange,omitempty"`
 }
 
 // Node network parameters
@@ -85,11 +91,23 @@ type ContainerNetworkSpec struct {
 	Cidr string `json:"cidr,omitempty"`
 }
 
+type EniNetworkSpec struct {
+	//Eni network subnet id
+	SubnetId string `json:"eniSubnetId" required:"true"`
+	//Eni network cidr
+	Cidr string `json:"eniSubnetCIDR" required:"true"`
+}
+
 //Authentication parameters
 type AuthenticationSpec struct {
 	//Authentication mode: rbac , x509 or authenticating_proxy
 	Mode                string            `json:"mode" required:"true"`
 	AuthenticatingProxy map[string]string `json:"authenticatingProxy" required:"true"`
+}
+
+type MasterSpec struct {
+	// AZ of master node
+	MasterAZ string `json:"availabilityZone,omitempty"`
 }
 
 type Status struct {

@@ -39,7 +39,7 @@ func ResourceListenerV2() *schema.Resource {
 				Required: true,
 				ForceNew: true,
 				ValidateFunc: validation.StringInSlice([]string{
-					"TCP", "UDP", "HTTP", "HTTPS", "TERMINATED_HTTPS",
+					"TCP", "UDP", "HTTP", "TERMINATED_HTTPS",
 				}, false),
 			},
 
@@ -50,10 +50,11 @@ func ResourceListenerV2() *schema.Resource {
 			},
 
 			"tenant_id": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
-				ForceNew: true,
+				Type:       schema.TypeString,
+				Optional:   true,
+				Computed:   true,
+				ForceNew:   true,
+				Deprecated: "tenant_id is deprecated",
 			},
 
 			"loadbalancer_id": {
@@ -236,6 +237,7 @@ func resourceListenerV2Update(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("Error creating HuaweiCloud elb client: %s", err)
 	}
 
+	//lintignore:R019
 	if d.HasChanges("name", "description", "admin_state_up", "connection_limit",
 		"default_tls_container_ref", "sni_container_refs", "http2_enable") {
 		var updateOpts listeners.UpdateOpts
