@@ -15,7 +15,7 @@ resource "sbercloud_evs_volume" "myvolume" {
   volume_type = "SATA"
   size        = 20
 
-  availability_zone = "cn-north-4a"
+  availability_zone = "ru-moscow-1a"
 
   tags = {
     foo = "bar"

@@ -14,11 +14,11 @@ VPC that the subnet belongs to.
 
 ```hcl
 data "sbercloud_vpc_subnet" "subnet_v1" {
-  id   = "${var.subnet_id}"
+  id   = var.subnet_id
  }
 
 output "subnet_vpc_id" {
-  value = "${data.sbercloud_vpc_subnet.subnet_v1.vpc_id}"
+  value = data.sbercloud_vpc_subnet.subnet_v1.vpc_id
 }
 ```
 
@@ -28,30 +28,29 @@ The arguments of this data source act as filters for querying the available
 subnets in the current tenant. The given filters must match exactly one
 subnet whose data will be exported as attributes.
 
-* `id` - (Optional) - Specifies a resource ID in UUID format.
+* `region` - (Optional, String) The region in which to obtain the subnet. If omitted, the provider-level region will be used.
 
-* `name` (Optional) - The name of the specific subnet to retrieve.
+* `id` - (Optional, String) - Specifies a resource ID in UUID format.
 
-* `cidr` (Optional) - The network segment of specific subnet to retrieve. The value must be in CIDR format.
+* `name` - (Optional, String) The name of the specific subnet to retrieve.
 
-* `status` (Optional) - The value can be ACTIVE, DOWN, UNKNOWN, or ERROR.
+* `cidr` - (Optional, String) The network segment of specific subnet to retrieve. The value must be in CIDR format.
 
-* `vpc_id` (Optional) - The id of the VPC that the desired subnet belongs to.
+* `status` - (Optional, String) The value can be ACTIVE, DOWN, UNKNOWN, or ERROR.
 
-* `gateway_ip` (Optional) - The subnet gateway address of specific subnet.
+* `vpc_id` - (Optional, String) The id of the VPC that the desired subnet belongs to.
 
-* `primary_dns` (Optional) - The IP address of DNS server 1 on the specific subnet.
+* `gateway_ip` - (Optional, String) The subnet gateway address of specific subnet.
 
-* `secondary_dns` (Optional) - The IP address of DNS server 2 on the specific subnet.
+* `primary_dns` - (Optional, String) The IP address of DNS server 1 on the specific subnet.
 
-* `availability_zone` (Optional) - The availability zone (AZ) to which the subnet should belong.
+* `secondary_dns` - (Optional, String) The IP address of DNS server 2 on the specific subnet.
+
+* `availability_zone` - (Optional, String) The availability zone (AZ) to which the subnet should belong.
 
 ## **Attributes Reference**
 
-All of the argument attributes are also exported as
-result attributes. This data source will complete the data by populating
-any fields that are not included in the configuration with the data for
-the selected subnet.
+In addition to all arguments above, the following attributes are exported:
 
 * `dns_list` - The IP address list of DNS servers on the subnet.
 

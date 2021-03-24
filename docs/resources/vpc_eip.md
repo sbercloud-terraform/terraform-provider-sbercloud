@@ -1,5 +1,5 @@
 ---
-subcategory: "Virtual Private Cloud (VPC)"
+subcategory: "Elastic IP (EIP)"
 ---
 
 # sbercloud\_vpc\_eip
@@ -35,7 +35,7 @@ resource "sbercloud_vpc_eip" "eip_1" {
     type = "5_bgp"
   }
   bandwidth {
-    id = "${sbercloud_vpc_bandwidth.bandwidth_1.id}"
+    id = sbercloud_vpc_bandwidth.bandwidth_1.id
     share_type = "WHOLE"
   }
 }
@@ -45,55 +45,54 @@ resource "sbercloud_vpc_eip" "eip_1" {
 
 The following arguments are supported:
 
-* `region` - (Optional) The region in which to create the eip. If omitted,
+* `region` - (Optional, String, ForceNew) The region in which to create the eip. If omitted,
     the `region` argument of the provider is used. Changing this creates a new eip.
 
-* `publicip` - (Required) The elastic IP address object.
+* `publicip` - (Required, List) The elastic IP address object.
 
-* `bandwidth` - (Required) The bandwidth object.
+* `bandwidth` - (Required, List) The bandwidth object.
 
 
 The `publicip` block supports:
 
-* `type` - (Required) The value must be a type supported by the system. Only
+* `type` - (Required, String, ForceNew) The value must be a type supported by the system. Only
     `5_bgp` supported now. Changing this creates a new eip.
 
-* `ip_address` - (Optional) The value must be a valid IP address in the available
+* `ip_address` - (Optional, String, ForceNew) The value must be a valid IP address in the available
     IP address segment. Changing this creates a new eip.
 
-* `port_id` - (Optional) The port id which this eip will associate with. If the value
+* `port_id` - (Optional, String) The port id which this eip will associate with. If the value
     is "" or this not specified, the eip will be in unbind state.
 
 
 The `bandwidth` block supports:
 
-* `name` - (Optional) The bandwidth name, which is a string of 1 to 64 characters
+* `name` - (Optional, String) The bandwidth name, which is a string of 1 to 64 characters
     that contain letters, digits, underscores (_), and hyphens (-).
 
-* `size` - (Optional) The bandwidth size. The value ranges from 1 to 300 Mbit/s.
+* `size` - (Optional, Int) The bandwidth size. The value ranges from 1 to 300 Mbit/s.
 
-* `id` - (Optional) The share bandwidth id. Changing this creates a new eip.
+* `id` - (Optional, String, ForceNew) The share bandwidth id. Changing this creates a new eip.
 
-* `share_type` - (Required) Whether the bandwidth is shared or exclusive. Changing
+* `share_type` - (Required, String, ForceNew) Whether the bandwidth is shared or exclusive. Changing
     this creates a new eip.
 
-* `charge_mode` - (Optional) This is a reserved field. If the system supports charging
+* `charge_mode` - (Optional, String, ForceNew) This is a reserved field. If the system supports charging
     by traffic and this field is specified, then you are charged by traffic for elastic
     IP addresses. Changing this creates a new eip.
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to all arguments above, the following attributes are exported:
 
-* `region` - See Argument Reference above.
-* `publicip/type` - See Argument Reference above.
-* `publicip/ip_address` - See Argument Reference above.
-* `publicip/port_id` - See Argument Reference above.
-* `bandwidth/name` - See Argument Reference above.
-* `bandwidth/size` - See Argument Reference above.
-* `bandwidth/share_type` - See Argument Reference above.
-* `bandwidth/charge_mode` - See Argument Reference above.
+* `id` - Specifies a resource ID in UUID format.
+
 * `address` - The IP address of the eip.
+
+## Timeouts
+This resource provides the following timeouts configuration options:
+- `create` - Default is 10 minute.
+- `delete` - Default is 10 minute.
 
 ## Import
 

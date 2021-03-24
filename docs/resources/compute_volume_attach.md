@@ -13,7 +13,7 @@ Attaches a Volume to an Instance.
 ```hcl
 resource "sbercloud_evs_volume" "myvol" {
   name              = "volume"
-  availability_zone = "cn-north-4a"
+  availability_zone = "ru-moscow-1a"
   volume_type       = "SAS"
   size              = 10
 }
@@ -24,7 +24,7 @@ resource "sbercloud_compute_instance" "myinstance" {
   flavor_id         = "s6.small.1"
   key_pair          = "my_key_pair_name"
   security_groups   = ["default"]
-  availability_zone = "cn-north-4a"
+  availability_zone = "ru-moscow-1a"
 
   network {
     uuid = "55534eaa-533a-419d-9b40-ec427ea7195a"
@@ -43,7 +43,7 @@ resource "sbercloud_compute_volume_attach" "attached" {
 resource "sbercloud_evs_volume" "myvol" {
   count             = 2
   name              = "volume_1"
-  availability_zone = "cn-north-4a"
+  availability_zone = "ru-moscow-1a"
   volume_type       = "SAS"
   size              = 10
 }
@@ -54,7 +54,7 @@ resource "sbercloud_compute_instance" "myinstance" {
   flavor_id         = "s6.small.1"
   key_pair          = "my_key_pair_name"
   security_groups   = ["default"]
-  availability_zone = "cn-north-4a"
+  availability_zone = "ru-moscow-1a"
 }
 
 resource "sbercloud_compute_volume_attach" "attachments" {

@@ -64,12 +64,6 @@ In addition to all arguments above, the following attributes are exported:
 
 * `share_type` - The bandwidth sharing type.
 
-NOTE:
-This parameter is mandatory when share_type is set to PER and is optional when share_type is set to WHOLE with an ID specified.
-
-Enumerated values: PER (indicates exclusive bandwidth) and WHOLE (indicates sharing)
-
-
 **root_volumes**
 
 * `disk_size` - Disk size in GB.

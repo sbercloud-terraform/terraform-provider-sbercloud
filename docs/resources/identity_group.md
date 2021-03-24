@@ -22,18 +22,17 @@ resource "sbercloud_identity_group" "group_1" {
 
 The following arguments are supported:
 
-* `name` - (Required) The name of the group.The length is less than or equal 
-     to 64 bytes 
+* `name` - (Required, String) Specifies the name of the group.The length is less than or equal to 64 bytes.
 
-* `description` - (Optional) A description of the group.
+* `description` - (Optional, String) Specifies the description of the group.
 
 * `domain_id` - (Optional) The domain this group belongs to.
 
 ## Attributes Reference
 
-The following attributes are exported:
+In addition to all arguments above, the following attributes are exported:
 
-* `domain_id` - See Argument Reference above.
+* `id` - A resource ID in UUID format.
 
 ## Import
 
