@@ -72,10 +72,10 @@ In addition to all arguments above, the following attributes are exported:
 
 # Import
 
-Subnets can be imported using the `subnet id`, e.g.
+Subnets can be imported using the `Network ID`, e.g.
 
 ```
-$ terraform import sbercloud_vpc_subnet 4779ab1c-7c1a-44b1-a02e-93dfc361b32d
+$ terraform import sbercloud_vpc_subnet.subnet_v1 4779ab1c-7c1a-44b1-a02e-93dfc361b32d
 ```
 
 ## Timeouts
