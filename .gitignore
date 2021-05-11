@@ -6,6 +6,15 @@
 *.dylib
 terraform-provider-sbercloud
 
+# Terraform related data
+*.tf
+*.tfstate
+*.tfstate.backup
+*.log
+*.json
+*.yaml
+.terraform/
+
 # Test binary, built with `go test -c`
 *.test
 .acc-test-env
