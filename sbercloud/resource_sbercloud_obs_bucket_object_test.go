@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 	"github.com/huaweicloud/golangsdk/openstack/obs"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
 func TestAccObsBucketObject_source(t *testing.T) {
@@ -72,8 +72,8 @@ func TestAccObsBucketObject_content(t *testing.T) {
 }
 
 func testAccCheckObsBucketObjectDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*huaweicloud.Config)
-	obsClient, err := config.NewObjectStorageClient(SBC_REGION_NAME)
+	config := testAccProvider.Meta().(*config.Config)
+	obsClient, err := config.ObjectStorageClient(SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating SberCloud OBS client: %s", err)
 	}
@@ -123,8 +123,8 @@ func testAccCheckObsBucketObjectExists(n string) resource.TestCheckFunc {
 			return fmt.Errorf("No OBS Bucket Object ID is set")
 		}
 
-		config := testAccProvider.Meta().(*huaweicloud.Config)
-		obsClient, err := config.NewObjectStorageClient(SBC_REGION_NAME)
+		config := testAccProvider.Meta().(*config.Config)
+		obsClient, err := config.ObjectStorageClient(SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud OBS client: %s", err)
 		}

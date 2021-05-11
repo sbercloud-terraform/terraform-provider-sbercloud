@@ -16,6 +16,8 @@ import (
 	"github.com/huaweicloud/golangsdk/openstack/identity/v3/agency"
 	"github.com/huaweicloud/golangsdk/openstack/identity/v3/projects"
 	"github.com/huaweicloud/golangsdk/openstack/identity/v3/roles"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
 func resourceIAMAgencyV3() *schema.Resource {
@@ -44,12 +46,14 @@ func resourceIAMAgencyV3() *schema.Resource {
 				Type:         schema.TypeString,
 				Optional:     true,
 				ExactlyOneOf: []string{"delegated_service_name"},
+				ValidateFunc: validation.StringDoesNotMatch(regexp.MustCompile("^op_svc_[A-Za-z]+"),
+					"the value can not start with op_svc_, use `delegated_service_name` instead"),
 			},
 			"delegated_service_name": {
 				Type:     schema.TypeString,
 				Optional: true,
 				ValidateFunc: validation.StringMatch(regexp.MustCompile("^op_svc_[A-Za-z]+"),
-					"Please check your delegated_service_name input, it must be an existing cloud service"),
+					"the value must start with op_svc_, for example, op_svc_obs"),
 			},
 			"description": {
 				Type:     schema.TypeString,
@@ -65,7 +69,6 @@ func resourceIAMAgencyV3() *schema.Resource {
 						"roles": {
 							Type:     schema.TypeSet,
 							Required: true,
-							MinItems: 1,
 							MaxItems: 25,
 							Elem:     &schema.Schema{Type: schema.TypeString},
 							Set:      schema.HashString,
@@ -81,7 +84,6 @@ func resourceIAMAgencyV3() *schema.Resource {
 			"domain_roles": {
 				Type:     schema.TypeSet,
 				Optional: true,
-				MinItems: 1,
 				MaxItems: 25,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 				Set:      schema.HashString,
@@ -117,6 +119,29 @@ func resourceIAMAgencyProRoleHash(v interface{}) int {
 	buf.WriteString(strings.Join(s, "-"))
 
 	return hashcode.String(buf.String())
+}
+
+func getProjectIDOfDomain(client *golangsdk.ServiceClient, domainID, name string) (string, error) {
+	opts := projects.ListOpts{
+		DomainID: domainID,
+		Name:     name,
+	}
+	allPages, err := projects.List(client, &opts).AllPages()
+	if err != nil {
+		return "", fmt.Errorf("List projects failed, err=%s", err)
+	}
+
+	all, err := projects.ExtractProjects(allPages)
+	if err != nil {
+		return "", fmt.Errorf("Extract projects failed, err=%s", err)
+	}
+
+	if len(all) == 0 {
+		return "", fmt.Errorf("Wrong name or no access to the project: %s", name)
+	}
+
+	item := all[0]
+	return item.ID, nil
 }
 
 func listProjectsOfDomain(domainID string, client *golangsdk.ServiceClient) (map[string]string, error) {
@@ -160,21 +185,20 @@ func listRolesOfDomain(domainID string, client *golangsdk.ServiceClient) (map[st
 
 	r := make(map[string]string, len(all))
 	for _, item := range all {
-		dn, ok := item.Extra["display_name"].(string)
-		if ok {
-			r[dn] = item.ID
+		if name := item.DisplayName; name != "" {
+			r[name] = item.ID
 		} else {
-			log.Printf("[DEBUG] Can not retrieve role:%#v", item)
+			log.Printf("[WARN] role %s without displayname", item.Name)
 		}
 	}
 	log.Printf("[TRACE] list roles = %#v, len=%d\n", r, len(r))
 	return r, nil
 }
 
-func allRolesOfDomain(domainID string, client *golangsdk.ServiceClient) (map[string]string, error) {
+func getAllRolesOfDomain(domainID string, client *golangsdk.ServiceClient) (map[string]string, error) {
 	roles, err := listRolesOfDomain("", client)
 	if err != nil {
-		return nil, fmt.Errorf("Error listing global roles, err=%s", err)
+		return nil, fmt.Errorf("Error listing system-defined roles, err=%s", err)
 	}
 
 	customRoles, err := listRolesOfDomain(domainID, client)
@@ -232,7 +256,7 @@ func diffChangeOfProjectRole(old, newv *schema.Set) (delete, add []string) {
 }
 
 func resourceIAMAgencyV3Create(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	iamClient, err := config.IAMV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud IAM client: %s", err)
@@ -268,12 +292,7 @@ func resourceIAMAgencyV3Create(d *schema.ResourceData, meta interface{}) error {
 	agencyID := a.ID
 	d.SetId(agencyID)
 
-	projects, err := listProjectsOfDomain(domainID, identityClient)
-	if err != nil {
-		return fmt.Errorf("Error querying the projects, err=%s", err)
-	}
-
-	roles, err := allRolesOfDomain(domainID, identityClient)
+	roles, err := getAllRolesOfDomain(domainID, identityClient)
 	if err != nil {
 		return fmt.Errorf("Error querying the roles, err=%s", err)
 	}
@@ -281,10 +300,10 @@ func resourceIAMAgencyV3Create(d *schema.ResourceData, meta interface{}) error {
 	prs := d.Get("project_role").(*schema.Set)
 	for _, v := range prs.List() {
 		pr := v.(map[string]interface{})
-		pn := pr["project"].(string)
-		pid, ok := projects[pn]
-		if !ok {
-			return fmt.Errorf("The project(%s) is not exist", pn)
+		pname := pr["project"].(string)
+		pid, err := getProjectIDOfDomain(identityClient, domainID, pname)
+		if err != nil {
+			return fmt.Errorf("The project(%s) is not exist", pname)
 		}
 
 		rs := pr["roles"].(*schema.Set)
@@ -322,7 +341,7 @@ func resourceIAMAgencyV3Create(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceIAMAgencyV3Read(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	iamClient, err := config.IAMV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud client: %s", err)
@@ -340,9 +359,13 @@ func resourceIAMAgencyV3Read(d *schema.ResourceData, meta interface{}) error {
 
 	d.Set("name", a.Name)
 	d.Set("description", a.Description)
-	d.Set("duration", a.Duration)
 	d.Set("expire_time", a.ExpireTime)
 	d.Set("create_time", a.CreateTime)
+	if a.Duration != "" {
+		d.Set("duration", a.Duration)
+	} else {
+		d.Set("duration", "FOREVER")
+	}
 
 	if ok, err := regexp.MatchString("^op_svc_[A-Za-z]+$", a.DelegatedDomainName); err != nil {
 		log.Printf("[ERROR] Regexp error, err= %s", err)
@@ -360,7 +383,7 @@ func resourceIAMAgencyV3Read(d *schema.ResourceData, meta interface{}) error {
 	prs := schema.Set{F: resourceIAMAgencyProRoleHash}
 	for pn, pid := range projects {
 		roles, err := agency.ListRolesAttachedOnProject(iamClient, agencyID, pid).ExtractRoles()
-		if err != nil && !isResourceNotFound(err) {
+		if err != nil && !utils.IsResourceNotFound(err) {
 			return fmt.Errorf("Error querying the roles attached on project(%s), err=%s", pn, err)
 		}
 		if len(roles) == 0 {
@@ -368,7 +391,7 @@ func resourceIAMAgencyV3Read(d *schema.ResourceData, meta interface{}) error {
 		}
 		v := schema.Set{F: schema.HashString}
 		for _, role := range roles {
-			v.Add(role.Extra["display_name"])
+			v.Add(role.DisplayName)
 		}
 		prs.Add(map[string]interface{}{
 			"project": pn,
@@ -381,13 +404,13 @@ func resourceIAMAgencyV3Read(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	roles, err := agency.ListRolesAttachedOnDomain(iamClient, agencyID, a.DomainID).ExtractRoles()
-	if err != nil && !isResourceNotFound(err) {
+	if err != nil && !utils.IsResourceNotFound(err) {
 		return fmt.Errorf("Error querying the roles attached on domain, err=%s", err)
 	}
 	if len(roles) != 0 {
 		v := schema.Set{F: schema.HashString}
 		for _, role := range roles {
-			v.Add(role.Extra["display_name"])
+			v.Add(role.DisplayName)
 		}
 		err = d.Set("domain_roles", &v)
 		if err != nil {
@@ -399,7 +422,7 @@ func resourceIAMAgencyV3Read(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceIAMAgencyV3Update(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	iamClient, err := config.IAMV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud client: %s", err)
@@ -442,24 +465,19 @@ func resourceIAMAgencyV3Update(d *schema.ResourceData, meta interface{}) error {
 
 	var roles map[string]string
 	if d.HasChanges("project_role", "domain_roles") {
-		roles, err = allRolesOfDomain(domainID, identityClient)
+		roles, err = getAllRolesOfDomain(domainID, identityClient)
 		if err != nil {
 			return fmt.Errorf("Error querying the roles, err=%s", err)
 		}
 	}
 
 	if d.HasChange("project_role") {
-		projects, err := listProjectsOfDomain(domainID, identityClient)
-		if err != nil {
-			return fmt.Errorf("Error querying the projects, err=%s", err)
-		}
-
 		o, n := d.GetChange("project_role")
 		deleteprs, addprs := diffChangeOfProjectRole(o.(*schema.Set), n.(*schema.Set))
 		for _, v := range deleteprs {
 			pr := strings.Split(v, "|")
-			pid, ok := projects[pr[0]]
-			if !ok {
+			pid, err := getProjectIDOfDomain(identityClient, domainID, pr[0])
+			if err != nil {
 				return fmt.Errorf("The project(%s) is not exist", pr[0])
 			}
 			rid, ok := roles[pr[1]]
@@ -468,7 +486,7 @@ func resourceIAMAgencyV3Update(d *schema.ResourceData, meta interface{}) error {
 			}
 
 			err = agency.DetachRoleByProject(iamClient, agencyID, pid, rid).ExtractErr()
-			if err != nil && !isResourceNotFound(err) {
+			if err != nil && !utils.IsResourceNotFound(err) {
 				return fmt.Errorf("Error detaching role(%s) by project{%s} from agency(%s), err=%s",
 					rid, pid, agencyID, err)
 			}
@@ -476,8 +494,8 @@ func resourceIAMAgencyV3Update(d *schema.ResourceData, meta interface{}) error {
 
 		for _, v := range addprs {
 			pr := strings.Split(v, "|")
-			pid, ok := projects[pr[0]]
-			if !ok {
+			pid, err := getProjectIDOfDomain(identityClient, domainID, pr[0])
+			if err != nil {
 				return fmt.Errorf("The project(%s) is not exist", pr[0])
 			}
 			rid, ok := roles[pr[1]]
@@ -505,7 +523,7 @@ func resourceIAMAgencyV3Update(d *schema.ResourceData, meta interface{}) error {
 			}
 
 			err = agency.DetachRoleByDomain(iamClient, agencyID, domainID, rid).ExtractErr()
-			if err != nil && !isResourceNotFound(err) {
+			if err != nil && !utils.IsResourceNotFound(err) {
 				return fmt.Errorf("Error detaching role(%s) by domain{%s} from agency(%s), err=%s",
 					rid, domainID, agencyID, err)
 			}
@@ -528,7 +546,7 @@ func resourceIAMAgencyV3Update(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceIAMAgencyV3Delete(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	iamClient, err := config.IAMV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud client: %s", err)
@@ -547,7 +565,7 @@ func resourceIAMAgencyV3Delete(d *schema.ResourceData, meta interface{}) error {
 		return nil
 	})
 	if err != nil {
-		if isResourceNotFound(err) {
+		if utils.IsResourceNotFound(err) {
 			log.Printf("[INFO] deleting an unavailable IAM-Agency: %s", rID)
 			return nil
 		}

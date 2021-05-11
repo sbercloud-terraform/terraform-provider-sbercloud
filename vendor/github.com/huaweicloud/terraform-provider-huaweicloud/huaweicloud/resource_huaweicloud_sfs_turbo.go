@@ -11,9 +11,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/huaweicloud/golangsdk"
 	"github.com/huaweicloud/golangsdk/openstack/sfs_turbo/v1/shares"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
-func resourceSFSTurbo() *schema.Resource {
+func ResourceSFSTurbo() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceSFSTurboCreate,
 		Read:   resourceSFSTurboRead,
@@ -89,7 +90,12 @@ func resourceSFSTurbo() *schema.Resource {
 				Computed: true,
 				ForceNew: true,
 			},
-
+			"enterprise_project_id": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
+			},
 			"status": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -111,21 +117,22 @@ func resourceSFSTurbo() *schema.Resource {
 }
 
 func resourceSFSTurboCreate(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	sfsClient, err := config.SfsV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud SFS Turbo client: %s", err)
 	}
 
 	createOpts := shares.CreateOpts{
-		Name:             d.Get("name").(string),
-		Size:             d.Get("size").(int),
-		ShareProto:       d.Get("share_proto").(string),
-		ShareType:        d.Get("share_type").(string),
-		VpcID:            d.Get("vpc_id").(string),
-		SubnetID:         d.Get("subnet_id").(string),
-		SecurityGroupID:  d.Get("security_group_id").(string),
-		AvailabilityZone: d.Get("availability_zone").(string),
+		Name:                d.Get("name").(string),
+		Size:                d.Get("size").(int),
+		ShareProto:          d.Get("share_proto").(string),
+		ShareType:           d.Get("share_type").(string),
+		VpcID:               d.Get("vpc_id").(string),
+		SubnetID:            d.Get("subnet_id").(string),
+		SecurityGroupID:     d.Get("security_group_id").(string),
+		AvailabilityZone:    d.Get("availability_zone").(string),
+		EnterpriseProjectId: GetEnterpriseProjectID(d, config),
 	}
 
 	metaOpts := shares.Metadata{}
@@ -161,7 +168,7 @@ func resourceSFSTurboCreate(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceSFSTurboRead(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	sfsClient, err := config.SfsV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud SFS Turbo client: %s", err)
@@ -184,6 +191,7 @@ func resourceSFSTurboRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("available_capacity", n.AvailCapacity)
 	d.Set("export_location", n.ExportLocation)
 	d.Set("crypt_key_id", n.CryptKeyID)
+	d.Set("enterprise_project_id", n.EnterpriseProjectId)
 
 	// n.Size is a string of float64, should convert it to int
 	if fsize, err := strconv.ParseFloat(n.Size, 64); err == nil {
@@ -209,7 +217,7 @@ func resourceSFSTurboRead(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceSFSTurboUpdate(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	sfsClient, err := config.SfsV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error updating HuaweiCloud SFS Turbo client: %s", err)
@@ -248,7 +256,7 @@ func resourceSFSTurboUpdate(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceSFSTurboDelete(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	sfsClient, err := config.SfsV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud SFS Turbo client: %s", err)

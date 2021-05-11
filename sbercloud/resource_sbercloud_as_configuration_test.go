@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 
 	"github.com/huaweicloud/golangsdk/openstack/autoscaling/v1/configurations"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
 func TestAccASV1Configuration_basic(t *testing.T) {
@@ -33,7 +33,7 @@ func TestAccASV1Configuration_basic(t *testing.T) {
 }
 
 func testAccCheckASV1ConfigurationDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*huaweicloud.Config)
+	config := testAccProvider.Meta().(*config.Config)
 	asClient, err := config.AutoscalingV1Client(SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating sbercloud autoscaling client: %s", err)
@@ -66,7 +66,7 @@ func testAccCheckASV1ConfigurationExists(n string, configuration *configurations
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*huaweicloud.Config)
+		config := testAccProvider.Meta().(*config.Config)
 		asClient, err := config.AutoscalingV1Client(SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating sbercloud autoscaling client: %s", err)

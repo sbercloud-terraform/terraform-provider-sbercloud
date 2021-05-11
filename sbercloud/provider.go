@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
 // This is a global MutexKV for use within this plugin.
@@ -221,7 +222,7 @@ func configureProvider(d *schema.ResourceData, terraformVersion string) (interfa
 		project_name = d.Get("region").(string)
 	}
 
-	config := huaweicloud.Config{
+	config := config.Config{
 		AccessKey:           d.Get("access_key").(string),
 		SecretKey:           d.Get("secret_key").(string),
 		DomainName:          d.Get("account_name").(string),

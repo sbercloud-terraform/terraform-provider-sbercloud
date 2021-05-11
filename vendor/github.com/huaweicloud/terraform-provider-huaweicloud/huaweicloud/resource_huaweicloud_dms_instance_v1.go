@@ -11,6 +11,8 @@ import (
 	"github.com/huaweicloud/golangsdk"
 	"github.com/huaweicloud/golangsdk/openstack/common/tags"
 	"github.com/huaweicloud/golangsdk/openstack/dms/v1/instances"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
 func resourceDmsInstancesV1() *schema.Resource {
@@ -163,8 +165,8 @@ func resourceDmsInstancesV1() *schema.Resource {
 }
 
 func resourceDmsInstancesV1Create(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
-	dmsV1Client, err := config.dmsV1Client(GetRegion(d, config))
+	config := meta.(*config.Config)
+	dmsV1Client, err := config.DmsV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud dms instance client: %s", err)
 	}
@@ -179,7 +181,6 @@ func resourceDmsInstancesV1Create(d *schema.ResourceData, meta interface{}) erro
 		Engine:          d.Get("engine").(string),
 		EngineVersion:   d.Get("engine_version").(string),
 		StorageSpace:    d.Get("storage_space").(int),
-		Password:        d.Get("password").(string),
 		AccessUser:      d.Get("access_user").(string),
 		VPCID:           d.Get("vpc_id").(string),
 		SecurityGroupID: d.Get("security_group_id").(string),
@@ -195,6 +196,9 @@ func resourceDmsInstancesV1Create(d *schema.ResourceData, meta interface{}) erro
 	}
 
 	log.Printf("[DEBUG] Create Options: %#v", createOpts)
+	// Add password here so it wouldn't go in the above log entry
+	createOpts.Password = d.Get("password").(string)
+
 	v, err := instances.Create(dmsV1Client, createOpts).Extract()
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud instance: %s", err)
@@ -222,12 +226,12 @@ func resourceDmsInstancesV1Create(d *schema.ResourceData, meta interface{}) erro
 	//set tags
 	tagRaw := d.Get("tags").(map[string]interface{})
 	if len(tagRaw) > 0 {
-		dmsV2Client, err := config.dmsV2Client(GetRegion(d, config))
+		dmsV2Client, err := config.DmsV2Client(GetRegion(d, config))
 		if err != nil {
 			return fmt.Errorf("Error creating HuaweiCloud dms instance v2 client: %s", err)
 		}
 
-		taglist := expandResourceTags(tagRaw)
+		taglist := utils.ExpandResourceTags(tagRaw)
 		engine := d.Get("engine").(string)
 		if tagErr := tags.Create(dmsV2Client, engine, v.InstanceID, taglist).ExtractErr(); tagErr != nil {
 			return fmt.Errorf("Error setting tags of dms instance %s: %s", v.InstanceID, tagErr)
@@ -238,9 +242,9 @@ func resourceDmsInstancesV1Create(d *schema.ResourceData, meta interface{}) erro
 }
 
 func resourceDmsInstancesV1Read(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 
-	dmsV1Client, err := config.dmsV1Client(GetRegion(d, config))
+	dmsV1Client, err := config.DmsV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud dms instance client: %s", err)
 	}
@@ -279,14 +283,14 @@ func resourceDmsInstancesV1Read(d *schema.ResourceData, meta interface{}) error 
 	d.Set("maintain_end", v.MaintainEnd)
 
 	// set tags
-	dmsV2Client, err := config.dmsV2Client(GetRegion(d, config))
+	dmsV2Client, err := config.DmsV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud dms instance v2 client: %s", err)
 	}
 
 	engine := d.Get("engine").(string)
 	if resourceTags, err := tags.Get(dmsV2Client, engine, d.Id()).Extract(); err == nil {
-		tagmap := tagsToMap(resourceTags.Tags)
+		tagmap := utils.TagsToMap(resourceTags.Tags)
 		if err := d.Set("tags", tagmap); err != nil {
 			return fmt.Errorf("Error saving tags to state for dms instance (%s): %s", d.Id(), err)
 		}
@@ -298,11 +302,11 @@ func resourceDmsInstancesV1Read(d *schema.ResourceData, meta interface{}) error 
 }
 
 func resourceDmsInstancesV1Update(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 
 	//lintignore:R019
 	if d.HasChanges("name", "description", "maintain_begin", "maintain_end", "security_group_id") {
-		dmsV1Client, err := config.dmsV1Client(GetRegion(d, config))
+		dmsV1Client, err := config.DmsV1Client(GetRegion(d, config))
 		if err != nil {
 			return fmt.Errorf("Error updating HuaweiCloud dms instance client: %s", err)
 		}
@@ -335,13 +339,13 @@ func resourceDmsInstancesV1Update(d *schema.ResourceData, meta interface{}) erro
 	}
 
 	if d.HasChange("tags") {
-		dmsV2Client, err := config.dmsV2Client(GetRegion(d, config))
+		dmsV2Client, err := config.DmsV2Client(GetRegion(d, config))
 		if err != nil {
 			return fmt.Errorf("Error updating HuaweiCloud dms instance v2 client: %s", err)
 		}
 		// update tags
 		engine := d.Get("engine").(string)
-		tagErr := UpdateResourceTags(dmsV2Client, d, engine, d.Id())
+		tagErr := utils.UpdateResourceTags(dmsV2Client, d, engine, d.Id())
 		if tagErr != nil {
 			return fmt.Errorf("Error updating tags of dms instance:%s, err:%s", d.Id(), tagErr)
 		}
@@ -351,8 +355,8 @@ func resourceDmsInstancesV1Update(d *schema.ResourceData, meta interface{}) erro
 }
 
 func resourceDmsInstancesV1Delete(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
-	dmsV1Client, err := config.dmsV1Client(GetRegion(d, config))
+	config := meta.(*config.Config)
+	dmsV1Client, err := config.DmsV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud dms instance client: %s", err)
 	}

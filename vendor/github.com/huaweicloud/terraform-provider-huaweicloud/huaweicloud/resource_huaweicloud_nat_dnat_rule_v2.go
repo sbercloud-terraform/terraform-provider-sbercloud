@@ -22,6 +22,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/huaweicloud/golangsdk"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
 func ResourceNatDnatRuleV2() *schema.Resource {
@@ -99,11 +100,6 @@ func ResourceNatDnatRuleV2() *schema.Resource {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
-
-			"tenant_id": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
 		},
 	}
 }
@@ -121,7 +117,7 @@ func resourceNatDnatUserInputParams(d *schema.ResourceData) map[string]interface
 }
 
 func resourceNatDnatRuleCreate(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	client, err := config.NatGatewayClient(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
@@ -234,7 +230,7 @@ func resourceNatDnatRuleCreate(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceNatDnatRuleRead(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	client, err := config.NatGatewayClient(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
@@ -391,19 +387,11 @@ func resourceNatDnatRuleRead(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("Error setting Dnat:status, err: %s", err)
 	}
 
-	tenantIDProp, err := navigateValue(res, []string{"read", "dnat_rule", "tenant_id"}, nil)
-	if err != nil {
-		return fmt.Errorf("Error reading Dnat:tenant_id, err: %s", err)
-	}
-	if err = d.Set("tenant_id", tenantIDProp); err != nil {
-		return fmt.Errorf("Error setting Dnat:tenant_id, err: %s", err)
-	}
-
 	return nil
 }
 
 func resourceNatDnatRuleDelete(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	client, err := config.NatGatewayClient(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)

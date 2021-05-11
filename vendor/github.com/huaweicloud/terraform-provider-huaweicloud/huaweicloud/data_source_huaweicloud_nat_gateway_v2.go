@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/huaweicloud/golangsdk/openstack/networking/v2/extensions/natgateways"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
 func DataSourceNatGatewayV2() *schema.Resource {
@@ -34,11 +35,11 @@ func DataSourceNatGatewayV2() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 			},
-			"router_id": {
+			"vpc_id": {
 				Type:     schema.TypeString,
 				Optional: true,
 			},
-			"internal_network_id": {
+			"subnet_id": {
 				Type:     schema.TypeString,
 				Optional: true,
 			},
@@ -46,23 +47,43 @@ func DataSourceNatGatewayV2() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 			},
-			"admin_state_up": {
-				Type:     schema.TypeBool,
-				Computed: true,
-			},
 			"enterprise_project_id": {
 				Type:     schema.TypeString,
 				Optional: true,
+			},
+
+			// deprecated
+			"router_id": {
+				Type:       schema.TypeString,
+				Optional:   true,
+				Deprecated: "use vpc_id instead",
+			},
+			"internal_network_id": {
+				Type:       schema.TypeString,
+				Optional:   true,
+				Deprecated: "use subnet_id instead",
 			},
 		},
 	}
 }
 
 func dataSourceNatGatewayV2Read(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	natClient, err := config.NatGatewayClient(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud nat client: %s", err)
+	}
+
+	var vpcID, subnetID string
+	if v1, ok := d.GetOk("vpc_id"); ok {
+		vpcID = v1.(string)
+	} else {
+		vpcID = d.Get("router_id").(string)
+	}
+	if v2, ok := d.GetOk("subnet_id"); ok {
+		subnetID = v2.(string)
+	} else {
+		subnetID = d.Get("internal_network_id").(string)
 	}
 
 	listOpts := natgateways.ListOpts{
@@ -70,8 +91,8 @@ func dataSourceNatGatewayV2Read(d *schema.ResourceData, meta interface{}) error 
 		Name:                d.Get("name").(string),
 		Description:         d.Get("description").(string),
 		Spec:                d.Get("spec").(string),
-		RouterID:            d.Get("router_id").(string),
-		InternalNetworkID:   d.Get("internal_network_id").(string),
+		RouterID:            vpcID,
+		InternalNetworkID:   subnetID,
 		Status:              d.Get("status").(string),
 		EnterpriseProjectID: d.Get("enterprise_project_id").(string),
 	}
@@ -104,11 +125,10 @@ func dataSourceNatGatewayV2Read(d *schema.ResourceData, meta interface{}) error 
 	d.SetId(natgateway.ID)
 	d.Set("name", natgateway.Name)
 	d.Set("description", natgateway.Description)
-	d.Set("router_id", natgateway.RouterID)
-	d.Set("internal_network_id", natgateway.InternalNetworkID)
 	d.Set("spec", natgateway.Spec)
+	d.Set("vpc_id", natgateway.RouterID)
+	d.Set("subnet_id", natgateway.InternalNetworkID)
 	d.Set("status", natgateway.Status)
-	d.Set("admin_state_up", natgateway.AdminStateUp)
 	d.Set("enterprise_project_id", natgateway.EnterpriseProjectID)
 
 	return nil

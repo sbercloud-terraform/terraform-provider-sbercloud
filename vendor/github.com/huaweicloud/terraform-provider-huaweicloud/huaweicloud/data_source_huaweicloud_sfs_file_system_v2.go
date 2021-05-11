@@ -5,11 +5,12 @@ import (
 	"log"
 
 	"github.com/huaweicloud/golangsdk/openstack/sfs/v2/shares"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
-func dataSourceSFSFileSystemV2() *schema.Resource {
+func DataSourceSFSFileSystemV2() *schema.Resource {
 	return &schema.Resource{
 		Read: dataSourceSFSFileSystemV2Read,
 
@@ -119,7 +120,7 @@ func dataSourceSFSFileSystemV2() *schema.Resource {
 }
 
 func dataSourceSFSFileSystemV2Read(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	sfsClient, err := config.SfsV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating Huaweicloud SFS Client: %s", err)

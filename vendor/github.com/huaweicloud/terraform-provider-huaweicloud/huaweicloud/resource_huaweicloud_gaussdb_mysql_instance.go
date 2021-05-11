@@ -11,9 +11,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/huaweicloud/golangsdk"
-	"github.com/huaweicloud/golangsdk/openstack/bss/v2/orders"
 	"github.com/huaweicloud/golangsdk/openstack/taurusdb/v3/backups"
 	"github.com/huaweicloud/golangsdk/openstack/taurusdb/v3/instances"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
 func resourceGaussDBInstance() *schema.Resource {
@@ -77,6 +77,10 @@ func resourceGaussDBInstance() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
+			},
+			"table_name_case_sensitivity": {
+				Type:     schema.TypeBool,
+				Optional: true,
 			},
 			"read_replicas": {
 				Type:     schema.TypeInt,
@@ -150,32 +154,6 @@ func resourceGaussDBInstance() *schema.Resource {
 				Type:     schema.TypeBool,
 				Optional: true,
 			},
-			"charging_mode": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
-				ValidateFunc: validation.StringInSlice([]string{
-					"prePaid", "postPaid",
-				}, true),
-			},
-			"period_unit": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
-				ValidateFunc: validation.StringInSlice([]string{
-					"month", "year",
-				}, true),
-			},
-			"period": {
-				Type:     schema.TypeInt,
-				Optional: true,
-				ForceNew: true,
-			},
-			"auto_renew": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
-			},
 			"status": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -228,6 +206,12 @@ func resourceGaussDBInstance() *schema.Resource {
 					},
 				},
 			},
+
+			// charge info: charging_mode, period_unit, period, auto_renew
+			"charging_mode": schemeChargingMode(nil),
+			"period_unit":   schemaPeriodUnit(nil),
+			"period":        schemaPeriod(nil),
+			"auto_renew":    schemaAutoRenew(nil),
 		},
 	}
 }
@@ -265,8 +249,8 @@ func GaussDBInstanceStateRefreshFunc(client *golangsdk.ServiceClient, instanceID
 }
 
 func resourceGaussDBInstanceCreate(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
-	client, err := config.gaussdbV3Client(GetRegion(d, config))
+	config := meta.(*config.Config)
+	client, err := config.GaussdbV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud GaussDB client: %s ", err)
 	}
@@ -297,7 +281,6 @@ func resourceGaussDBInstanceCreate(d *schema.ResourceData, meta interface{}) err
 	createOpts := instances.CreateTaurusDBOpts{
 		Name:                d.Get("name").(string),
 		Flavor:              d.Get("flavor").(string),
-		Password:            d.Get("password").(string),
 		Region:              GetRegion(d, config),
 		VpcId:               d.Get("vpc_id").(string),
 		SubnetId:            d.Get("subnet_id").(string),
@@ -309,6 +292,12 @@ func resourceGaussDBInstanceCreate(d *schema.ResourceData, meta interface{}) err
 		Mode:                "Cluster",
 		DataStore:           resourceGaussDBDataStore(d),
 	}
+
+	if d.Get("table_name_case_sensitivity").(bool) {
+		lowerCaseTableNames := 0
+		createOpts.LowerCaseTableNames = &lowerCaseTableNames
+	}
+
 	azMode := d.Get("availability_zone_mode").(string)
 	createOpts.AZMode = azMode
 	if azMode == "multi" {
@@ -321,6 +310,10 @@ func resourceGaussDBInstanceCreate(d *schema.ResourceData, meta interface{}) err
 
 	// PrePaid
 	if d.Get("charging_mode") == "prePaid" {
+		if err := validatePrePaidChargeInfo(d); err != nil {
+			return err
+		}
+
 		chargeInfo := &instances.ChargeInfoOpt{
 			ChargingMode: d.Get("charging_mode").(string),
 			PeriodType:   d.Get("period_unit").(string),
@@ -332,6 +325,8 @@ func resourceGaussDBInstanceCreate(d *schema.ResourceData, meta interface{}) err
 	}
 
 	log.Printf("[DEBUG] Create Options: %#v", createOpts)
+	// Add password here so it wouldn't go in the above log entry
+	createOpts.Password = d.Get("password").(string)
 
 	instance, err := instances.Create(client, createOpts).Extract()
 	if err != nil {
@@ -382,9 +377,9 @@ func resourceGaussDBInstanceCreate(d *schema.ResourceData, meta interface{}) err
 }
 
 func resourceGaussDBInstanceRead(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	region := GetRegion(d, config)
-	client, err := config.gaussdbV3Client(region)
+	client, err := config.GaussdbV3Client(region)
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud GaussDB client: %s", err)
 	}
@@ -480,8 +475,8 @@ func resourceGaussDBInstanceRead(d *schema.ResourceData, meta interface{}) error
 }
 
 func resourceGaussDBInstanceUpdate(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
-	client, err := config.gaussdbV3Client(GetRegion(d, config))
+	config := meta.(*config.Config)
+	client, err := config.GaussdbV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud GaussDB client: %s ", err)
 	}
@@ -615,26 +610,15 @@ func resourceGaussDBInstanceUpdate(d *schema.ResourceData, meta interface{}) err
 }
 
 func resourceGaussDBInstanceDelete(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
-	client, err := config.gaussdbV3Client(GetRegion(d, config))
+	config := meta.(*config.Config)
+	client, err := config.GaussdbV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud GaussDB client: %s ", err)
 	}
 
 	instanceId := d.Id()
 	if d.Get("charging_mode") == "prePaid" {
-		bssV2Client, err := config.BssV2Client(GetRegion(d, config))
-		if err != nil {
-			return fmt.Errorf("Error creating HuaweiCloud bss V2 client: %s", err)
-		}
-
-		resourceIds := []string{instanceId}
-		unsubscribeOpts := orders.UnsubscribeOpts{
-			ResourceIds:     resourceIds,
-			UnsubscribeType: 1,
-		}
-		_, err = orders.Unsubscribe(bssV2Client, unsubscribeOpts).Extract()
-		if err != nil {
+		if err := UnsubscribePrePaidResource(d, config, []string{instanceId}); err != nil {
 			return fmt.Errorf("Error unsubscribe HuaweiCloud GaussDB instance: %s", err)
 		}
 	} else {

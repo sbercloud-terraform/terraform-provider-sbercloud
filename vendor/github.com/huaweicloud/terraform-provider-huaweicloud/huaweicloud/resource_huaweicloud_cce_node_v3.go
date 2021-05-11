@@ -11,10 +11,14 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/huaweicloud/golangsdk"
 	"github.com/huaweicloud/golangsdk/openstack/cce/v3/clusters"
 	"github.com/huaweicloud/golangsdk/openstack/cce/v3/nodes"
 	"github.com/huaweicloud/golangsdk/openstack/common/tags"
+	"github.com/huaweicloud/golangsdk/openstack/networking/v1/eips"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
 func ResourceCCENodeV3() *schema.Resource {
@@ -41,23 +45,6 @@ func ResourceCCENodeV3() *schema.Resource {
 				Required: true,
 				ForceNew: true,
 			},
-			"name": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
-			},
-			"labels": { //(k8s_tags)
-				Type:     schema.TypeMap,
-				Optional: true,
-				ForceNew: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-			},
-			"annotations": {
-				Type:     schema.TypeMap,
-				Optional: true,
-				ForceNew: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-			},
 			"flavor_id": {
 				Type:     schema.TypeString,
 				Required: true,
@@ -67,6 +54,11 @@ func ResourceCCENodeV3() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
+			},
+			"name": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
 			},
 			"os": {
 				Type:     schema.TypeString,
@@ -114,6 +106,7 @@ func ResourceCCENodeV3() *schema.Resource {
 						"extend_params": {
 							Type:     schema.TypeMap,
 							Optional: true,
+							Computed: true,
 							Elem:     &schema.Schema{Type: schema.TypeString},
 						},
 					}},
@@ -144,6 +137,7 @@ func ResourceCCENodeV3() *schema.Resource {
 						"extend_params": {
 							Type:     schema.TypeMap,
 							Optional: true,
+							Computed: true,
 							Elem:     &schema.Schema{Type: schema.TypeString},
 						},
 					}},
@@ -168,17 +162,6 @@ func ResourceCCENodeV3() *schema.Resource {
 						},
 					}},
 			},
-			"eip_ids": {
-				Type:     schema.TypeSet,
-				Optional: true,
-				ForceNew: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-				Set:      schema.HashString,
-				ConflictsWith: []string{
-					"eip_id", "iptype", "bandwidth_charge_mode", "bandwidth_size", "sharetype",
-				},
-				Deprecated: "use eip_id instead",
-			},
 			"eip_id": {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -187,12 +170,6 @@ func ResourceCCENodeV3() *schema.Resource {
 					"eip_ids", "iptype", "bandwidth_charge_mode", "bandwidth_size", "sharetype",
 				},
 			},
-			"bandwidth_charge_mode": {
-				Type:          schema.TypeString,
-				Optional:      true,
-				ForceNew:      true,
-				ConflictsWith: []string{"eip_ids", "eip_id"},
-			},
 			"iptype": {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -200,6 +177,12 @@ func ResourceCCENodeV3() *schema.Resource {
 				RequiredWith: []string{
 					"iptype", "bandwidth_size", "sharetype",
 				},
+			},
+			"bandwidth_charge_mode": {
+				Type:          schema.TypeString,
+				Optional:      true,
+				ForceNew:      true,
+				ConflictsWith: []string{"eip_ids", "eip_id"},
 			},
 			"sharetype": {
 				Type:     schema.TypeString,
@@ -217,28 +200,21 @@ func ResourceCCENodeV3() *schema.Resource {
 					"iptype", "bandwidth_size", "sharetype",
 				},
 			},
+			"runtime": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
+				ValidateFunc: validation.StringInSlice([]string{
+					"docker", "containerd",
+				}, false),
+			},
 			"ecs_group_id": {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
 			},
-			"billing_mode": {
-				Type:     schema.TypeInt,
-				Optional: true,
-				ForceNew: true,
-				Computed: true,
-			},
-			"extend_param_charging_mode": {
-				Type:     schema.TypeInt,
-				Optional: true,
-				ForceNew: true,
-			},
 			"ecs_performance_type": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
-			},
-			"order_id": {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
@@ -284,6 +260,30 @@ func ResourceCCENodeV3() *schema.Resource {
 					}
 				},
 			},
+			"labels": { //(k8s_tags)
+				Type:     schema.TypeMap,
+				Optional: true,
+				ForceNew: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
+			},
+			"tags": { //(node/ecs_tags)
+				Type:     schema.TypeMap,
+				Optional: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
+			},
+			"annotations": {
+				Type:     schema.TypeMap,
+				Optional: true,
+				ForceNew: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
+			},
+
+			// charge info: charging_mode, period_unit, period, auto_renew
+			"charging_mode": schemeChargingMode(nil),
+			"period_unit":   schemaPeriodUnit(nil),
+			"period":        schemaPeriod(nil),
+			"auto_renew":    schemaAutoRenew(nil),
+
 			"extend_param": {
 				Type:     schema.TypeMap,
 				Optional: true,
@@ -301,11 +301,6 @@ func ResourceCCENodeV3() *schema.Resource {
 				Optional: true,
 				ForceNew: true,
 			},
-			"tags": {
-				Type:     schema.TypeMap,
-				Optional: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-			},
 			"private_ip": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -321,6 +316,38 @@ func ResourceCCENodeV3() *schema.Resource {
 			"status": {
 				Type:     schema.TypeString,
 				Computed: true,
+			},
+
+			// Deprecated
+			"eip_ids": {
+				Type:     schema.TypeSet,
+				Optional: true,
+				ForceNew: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
+				Set:      schema.HashString,
+				ConflictsWith: []string{
+					"eip_id", "iptype", "bandwidth_charge_mode", "bandwidth_size", "sharetype",
+				},
+				Deprecated: "use eip_id instead",
+			},
+			"billing_mode": {
+				Type:       schema.TypeInt,
+				Optional:   true,
+				ForceNew:   true,
+				Computed:   true,
+				Deprecated: "use charging_mode instead",
+			},
+			"extend_param_charging_mode": {
+				Type:       schema.TypeInt,
+				Optional:   true,
+				ForceNew:   true,
+				Deprecated: "use charging_mode instead",
+			},
+			"order_id": {
+				Type:       schema.TypeString,
+				Optional:   true,
+				ForceNew:   true,
+				Deprecated: "will be removed after v1.26.0",
 			},
 		},
 	}
@@ -344,7 +371,20 @@ func resourceCCENodeK8sTags(d *schema.ResourceData) map[string]string {
 
 func resourceCCENodeTags(d *schema.ResourceData) []tags.ResourceTag {
 	tagRaw := d.Get("tags").(map[string]interface{})
-	return expandResourceTags(tagRaw)
+	return utils.ExpandResourceTags(tagRaw)
+}
+
+func resourceCCERootVolume(d *schema.ResourceData) nodes.VolumeSpec {
+	var root nodes.VolumeSpec
+	volumeRaw := d.Get("root_volume").([]interface{})
+	if len(volumeRaw) == 1 {
+		rawMap := volumeRaw[0].(map[string]interface{})
+		root.Size = rawMap["size"].(int)
+		root.VolumeType = rawMap["volumetype"].(string)
+		root.HwPassthrough = rawMap["hw_passthrough"].(bool)
+		root.ExtendParam = rawMap["extend_params"].(map[string]interface{})
+	}
+	return root
 }
 
 func resourceCCEDataVolume(d *schema.ResourceData) []nodes.VolumeSpec {
@@ -376,18 +416,6 @@ func resourceCCETaint(d *schema.ResourceData) []nodes.TaintSpec {
 	return taints
 }
 
-func resourceCCERootVolume(d *schema.ResourceData) nodes.VolumeSpec {
-	var nics nodes.VolumeSpec
-	nicsRaw := d.Get("root_volume").([]interface{})
-	if len(nicsRaw) == 1 {
-		nics.Size = nicsRaw[0].(map[string]interface{})["size"].(int)
-		nics.VolumeType = nicsRaw[0].(map[string]interface{})["volumetype"].(string)
-		nics.HwPassthrough = nicsRaw[0].(map[string]interface{})["hw_passthrough"].(bool)
-		nics.ExtendParam = nicsRaw[0].(map[string]interface{})["extend_params"].(map[string]interface{})
-	}
-	return nics
-}
-
 func resourceCCEEipIDs(d *schema.ResourceData) []string {
 	if v, ok := d.GetOk("eip_id"); ok {
 		return []string{v.(string)}
@@ -414,9 +442,33 @@ func resourceCCEExtendParam(d *schema.ResourceData) map[string]interface{} {
 			extendParam["periodNum"] = periodNum
 		}
 	}
-	if v, ok := d.GetOk("extend_param_charging_mode"); ok {
-		extendParam["chargingMode"] = v.(int)
+
+	// assemble the charge info
+	var isPrePaid bool
+	var billingMode int
+
+	if v, ok := d.GetOk("charging_mode"); ok && v.(string) == "prePaid" {
+		isPrePaid = true
 	}
+	if v, ok := d.GetOk("billing_mode"); ok {
+		billingMode = v.(int)
+	}
+	if isPrePaid || billingMode == 2 {
+		extendParam["chargingMode"] = 2
+		extendParam["isAutoPay"] = "true"
+		extendParam["isAutoRenew"] = "false"
+	}
+
+	if v, ok := d.GetOk("period_unit"); ok {
+		extendParam["periodType"] = v.(string)
+	}
+	if v, ok := d.GetOk("period"); ok {
+		extendParam["periodNum"] = v.(int)
+	}
+	if v, ok := d.GetOk("auto_renew"); ok {
+		extendParam["isAutoRenew"] = v.(string)
+	}
+
 	if v, ok := d.GetOk("ecs_performance_type"); ok {
 		extendParam["ecs:performancetype"] = v.(string)
 	}
@@ -443,29 +495,36 @@ func resourceCCEExtendParam(d *schema.ResourceData) map[string]interface{} {
 }
 
 func resourceCCENodeV3Create(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	nodeClient, err := config.CceV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud CCE Node client: %s", err)
 	}
 
-	var loginSpec nodes.LoginSpec
-	if hasFilledOpt(d, "key_pair") {
-		loginSpec = nodes.LoginSpec{SshKey: d.Get("key_pair").(string)}
-	} else if hasFilledOpt(d, "password") {
-		loginSpec = nodes.LoginSpec{
-			UserPassword: nodes.UserPassword{
-				Username: "root",
-				Password: d.Get("password").(string),
-			},
+	// validation
+	billingMode := 0
+	if d.Get("charging_mode").(string) == "prePaid" || d.Get("billing_mode").(int) == 2 {
+		billingMode = 2
+		if err := validatePrePaidChargeInfo(d); err != nil {
+			return err
 		}
 	}
-
 	// eipCount must be specified when bandwidth_size parameters was set
 	eipCount := 0
 	if _, ok := d.GetOk("bandwidth_size"); ok {
 		eipCount = 1
 	}
+
+	// wait for the cce cluster to become available
+	clusterid := d.Get("cluster_id").(string)
+	stateCluster := &resource.StateChangeConf{
+		Target:     []string{"Available"},
+		Refresh:    waitForClusterAvailable(nodeClient, clusterid),
+		Timeout:    d.Timeout(schema.TimeoutCreate),
+		Delay:      5 * time.Second,
+		MinTimeout: 5 * time.Second,
+	}
+	_, err = stateCluster.WaitForState()
 
 	createOpts := nodes.CreateOpts{
 		Kind:       "Node",
@@ -478,7 +537,6 @@ func resourceCCENodeV3Create(d *schema.ResourceData, meta interface{}) error {
 			Flavor:      d.Get("flavor_id").(string),
 			Az:          d.Get("availability_zone").(string),
 			Os:          d.Get("os").(string),
-			Login:       loginSpec,
 			RootVolume:  resourceCCERootVolume(d),
 			DataVolumes: resourceCCEDataVolume(d),
 			PublicIP: nodes.PublicIPSpec{
@@ -493,7 +551,7 @@ func resourceCCENodeV3Create(d *schema.ResourceData, meta interface{}) error {
 					},
 				},
 			},
-			BillingMode: d.Get("billing_mode").(int),
+			BillingMode: billingMode,
 			Count:       1,
 			NodeNicSpec: nodes.NodeNicSpec{
 				PrimaryNic: nodes.PrimaryNic{
@@ -511,18 +569,29 @@ func resourceCCENodeV3Create(d *schema.ResourceData, meta interface{}) error {
 	if v, ok := d.GetOk("fixed_ip"); ok {
 		createOpts.Spec.NodeNicSpec.PrimaryNic.FixedIps = []string{v.(string)}
 	}
-
-	clusterid := d.Get("cluster_id").(string)
-	stateCluster := &resource.StateChangeConf{
-		Target:     []string{"Available"},
-		Refresh:    waitForClusterAvailable(nodeClient, clusterid),
-		Timeout:    d.Timeout(schema.TimeoutCreate),
-		Delay:      15 * time.Second,
-		MinTimeout: 5 * time.Second,
+	if v, ok := d.GetOk("runtime"); ok {
+		createOpts.Spec.RunTime = &nodes.RunTimeSpec{
+			Name: v.(string),
+		}
 	}
-	_, err = stateCluster.WaitForState()
 
 	log.Printf("[DEBUG] Create Options: %#v", createOpts)
+	// Add loginSpec here so it wouldn't go in the above log entry
+	var loginSpec nodes.LoginSpec
+	if hasFilledOpt(d, "key_pair") {
+		loginSpec = nodes.LoginSpec{
+			SshKey: d.Get("key_pair").(string),
+		}
+	} else if hasFilledOpt(d, "password") {
+		loginSpec = nodes.LoginSpec{
+			UserPassword: nodes.UserPassword{
+				Username: "root",
+				Password: d.Get("password").(string),
+			},
+		}
+	}
+	createOpts.Spec.Login = loginSpec
+
 	s, err := nodes.Create(nodeClient, clusterid, createOpts).Extract()
 	if err != nil {
 		if _, ok := err.(golangsdk.ErrDefault403); ok {
@@ -536,33 +605,17 @@ func resourceCCENodeV3Create(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	job, err := nodes.GetJobDetails(nodeClient, s.Status.JobID).ExtractJob()
+	nodeID, err := getResourceIDFromJob(nodeClient, s.Status.JobID)
 	if err != nil {
-		return fmt.Errorf("Error fetching HuaweiCloud Job Details: %s", err)
+		return err
 	}
-	jobResorceId := job.Spec.SubJobs[0].Metadata.ID
-
-	subjob, err := nodes.GetJobDetails(nodeClient, jobResorceId).ExtractJob()
-	if err != nil {
-		return fmt.Errorf("Error fetching HuaweiCloud Job Details: %s", err)
-	}
-
-	var nodeid string
-	for _, s := range subjob.Spec.SubJobs {
-		if s.Spec.Type == "CreateNodeVM" {
-			nodeid = s.Spec.ResourceID
-			break
-		}
-	}
-	if len(nodeid) == 0 {
-		return fmt.Errorf("Error fetching CreateNodeVM Job resource id")
-	}
+	d.SetId(nodeID)
 
 	log.Printf("[DEBUG] Waiting for CCE Node (%s) to become available", s.Metadata.Name)
 	stateConf := &resource.StateChangeConf{
 		Pending:      []string{"Build", "Installing"},
 		Target:       []string{"Active"},
-		Refresh:      waitForCceNodeActive(nodeClient, clusterid, nodeid),
+		Refresh:      waitForCceNodeActive(nodeClient, clusterid, nodeID),
 		Timeout:      d.Timeout(schema.TimeoutCreate),
 		Delay:        120 * time.Second,
 		PollInterval: 20 * time.Second,
@@ -572,12 +625,11 @@ func resourceCCENodeV3Create(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("Error creating HuaweiCloud CCE Node: %s", err)
 	}
 
-	d.SetId(nodeid)
 	return resourceCCENodeV3Read(d, meta)
 }
 
 func resourceCCENodeV3Read(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	nodeClient, err := config.CceV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud CCE Node client: %s", err)
@@ -599,10 +651,16 @@ func resourceCCENodeV3Read(d *schema.ResourceData, meta interface{}) error {
 	d.Set("flavor_id", s.Spec.Flavor)
 	d.Set("availability_zone", s.Spec.Az)
 	d.Set("os", s.Spec.Os)
-	d.Set("billing_mode", s.Spec.BillingMode)
 	d.Set("key_pair", s.Spec.Login.SshKey)
 	d.Set("subnet_id", s.Spec.NodeNicSpec.PrimaryNic.SubnetId)
 	d.Set("ecs_group_id", s.Spec.EcsGroupID)
+	d.Set("billing_mode", s.Spec.BillingMode)
+	if s.Spec.BillingMode != 0 {
+		d.Set("charging_mode", "prePaid")
+	}
+	if s.Spec.RunTime != nil {
+		d.Set("runtime", s.Spec.RunTime.Name)
+	}
 
 	var volumes []map[string]interface{}
 	for _, pairObject := range s.Spec.DataVolumes {
@@ -645,7 +703,7 @@ func resourceCCENodeV3Read(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	if resourceTags, err := tags.Get(computeClient, "cloudservers", serverId).Extract(); err == nil {
-		tagmap := tagsToMap(resourceTags.Tags)
+		tagmap := utils.TagsToMap(resourceTags.Tags)
 		// ignore "CCE-Dynamic-Provisioning-Node"
 		delete(tagmap, "CCE-Dynamic-Provisioning-Node")
 		if err := d.Set("tags", tagmap); err != nil {
@@ -659,7 +717,7 @@ func resourceCCENodeV3Read(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceCCENodeV3Update(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	nodeClient, err := config.CceV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud CCE client: %s", err)
@@ -684,7 +742,7 @@ func resourceCCENodeV3Update(d *schema.ResourceData, meta interface{}) error {
 		}
 
 		serverId := d.Get("server_id").(string)
-		tagErr := UpdateResourceTags(computeClient, d, "cloudservers", serverId)
+		tagErr := utils.UpdateResourceTags(computeClient, d, "cloudservers", serverId)
 		if tagErr != nil {
 			return fmt.Errorf("Error updating tags of cce node %s: %s", d.Id(), tagErr)
 		}
@@ -694,16 +752,50 @@ func resourceCCENodeV3Update(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceCCENodeV3Delete(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	nodeClient, err := config.CceV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud CCE client: %s", err)
 	}
+
 	clusterid := d.Get("cluster_id").(string)
+	// for prePaid node, firstly, we should unsubscribe the ecs server, and then delete it
+	if d.Get("charging_mode").(string) == "prePaid" || d.Get("billing_mode").(int) == 2 {
+		serverID := d.Get("server_id").(string)
+		publicIP := d.Get("public_ip").(string)
+
+		resourceIDs := make([]string, 0, 2)
+		if serverID != "" {
+			resourceIDs = append(resourceIDs, serverID)
+		}
+
+		// unsubscribe the eip if necessary
+		if _, ok := d.GetOk("iptype"); ok && publicIP != "" {
+			eipClient, err := config.NetworkingV1Client(GetRegion(d, config))
+			if err != nil {
+				return fmt.Errorf("Error creating networking client: %s", err)
+			}
+
+			if eipID, err := getEipIDbyAddress(eipClient, publicIP); err == nil {
+				resourceIDs = append(resourceIDs, eipID)
+			} else {
+				log.Printf("[WARN] Error fetching EIP ID of CCE Node (%s): %s", d.Id(), err)
+			}
+		}
+
+		if len(resourceIDs) > 0 {
+			if err := UnsubscribePrePaidResource(d, config, resourceIDs); err != nil {
+				return fmt.Errorf("Error unsubscribing HuaweiCloud CCE node: %s", err)
+			}
+		}
+	}
+
+	time.Sleep(60 * time.Second) //lintignore:R018
 	err = nodes.Delete(nodeClient, clusterid, d.Id()).ExtractErr()
 	if err != nil {
-		return fmt.Errorf("Error deleting HuaweiCloud CCE Cluster: %s", err)
+		return fmt.Errorf("Error deleting HuaweiCloud CCE node: %s", err)
 	}
+
 	stateConf := &resource.StateChangeConf{
 		Pending:      []string{"Deleting"},
 		Target:       []string{"Deleted"},
@@ -722,6 +814,58 @@ func resourceCCENodeV3Delete(d *schema.ResourceData, meta interface{}) error {
 	return nil
 }
 
+func getResourceIDFromJob(client *golangsdk.ServiceClient, jobID string) (string, error) {
+	// prePaid: waiting for the job to become running
+	stateJob := &resource.StateChangeConf{
+		Pending:      []string{"Initializing"},
+		Target:       []string{"Running"},
+		Refresh:      waitForJobStatus(client, jobID),
+		Timeout:      5 * time.Minute,
+		Delay:        5 * time.Second,
+		PollInterval: 3 * time.Second,
+	}
+
+	v, err := stateJob.WaitForState()
+	if err != nil {
+		return "", fmt.Errorf("Error waiting for job (%s) to become running: %s", jobID, err)
+	}
+
+	job := v.(*nodes.Job)
+	if len(job.Spec.SubJobs) == 0 {
+		return "", fmt.Errorf("Error fetching sub jobs from %s", jobID)
+	}
+
+	var subJobID string
+	var refreshJob bool
+	for _, s := range job.Spec.SubJobs {
+		// postPaid: should get details of sub job ID
+		if s.Spec.Type == "CreateNode" {
+			subJobID = s.Metadata.ID
+			refreshJob = true
+			break
+		}
+	}
+
+	if refreshJob {
+		job, err = nodes.GetJobDetails(client, subJobID).ExtractJob()
+		if err != nil {
+			return "", fmt.Errorf("Error fetching sub Job %s: %s", subJobID, err)
+		}
+	}
+
+	var nodeid string
+	for _, s := range job.Spec.SubJobs {
+		if s.Spec.Type == "CreateNodeVM" {
+			nodeid = s.Spec.ResourceID
+			break
+		}
+	}
+	if nodeid == "" {
+		return "", fmt.Errorf("Error fetching CreateNodeVM Job resource id")
+	}
+	return nodeid, nil
+}
+
 func waitForCceNodeActive(cceClient *golangsdk.ServiceClient, clusterId, nodeId string) resource.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		n, err := nodes.Get(cceClient, clusterId, nodeId).Extract()
@@ -735,7 +879,7 @@ func waitForCceNodeActive(cceClient *golangsdk.ServiceClient, clusterId, nodeId 
 
 func waitForCceNodeDelete(cceClient *golangsdk.ServiceClient, clusterId, nodeId string) resource.StateRefreshFunc {
 	return func() (interface{}, string, error) {
-		log.Printf("[DEBUG] Attempting to delete HuaweiCloud CCE Node %s.\n", nodeId)
+		log.Printf("[DEBUG] Attempting to delete HuaweiCloud CCE Node %s", nodeId)
 
 		r, err := nodes.Get(cceClient, clusterId, nodeId).Extract()
 
@@ -747,14 +891,13 @@ func waitForCceNodeDelete(cceClient *golangsdk.ServiceClient, clusterId, nodeId 
 			return r, "Deleting", err
 		}
 
-		log.Printf("[DEBUG] HuaweiCloud CCE Node %s still available.\n", nodeId)
 		return r, r.Status.Phase, nil
 	}
 }
 
 func waitForClusterAvailable(cceClient *golangsdk.ServiceClient, clusterId string) resource.StateRefreshFunc {
 	return func() (interface{}, string, error) {
-		log.Printf("[INFO] Waiting for HuaweiCloud Cluster to be available %s.\n", clusterId)
+		log.Printf("[INFO] Waiting for CCE Cluster %s to be available", clusterId)
 		n, err := clusters.Get(cceClient, clusterId).Extract()
 
 		if err != nil {
@@ -762,6 +905,17 @@ func waitForClusterAvailable(cceClient *golangsdk.ServiceClient, clusterId strin
 		}
 
 		return n, n.Status.Phase, nil
+	}
+}
+
+func waitForJobStatus(cceClient *golangsdk.ServiceClient, jobID string) resource.StateRefreshFunc {
+	return func() (interface{}, string, error) {
+		job, err := nodes.GetJobDetails(cceClient, jobID).ExtractJob()
+		if err != nil {
+			return nil, "", err
+		}
+
+		return job, job.Status.Phase, nil
 	}
 }
 
@@ -811,4 +965,24 @@ func installScriptEncode(script string) string {
 		return base64.StdEncoding.EncodeToString([]byte(script))
 	}
 	return script
+}
+
+func getEipIDbyAddress(client *golangsdk.ServiceClient, address string) (string, error) {
+	listOpts := &eips.ListOpts{
+		PublicIp: address,
+	}
+	pages, err := eips.List(client, listOpts).AllPages()
+	if err != nil {
+		return "", err
+	}
+
+	allEips, err := eips.ExtractPublicIPs(pages)
+	if err != nil {
+		return "", fmt.Errorf("Unable to retrieve eips: %s ", err)
+	}
+	if len(allEips) != 1 {
+		return "", fmt.Errorf("queried none or more results")
+	}
+
+	return allEips[0].ID, nil
 }

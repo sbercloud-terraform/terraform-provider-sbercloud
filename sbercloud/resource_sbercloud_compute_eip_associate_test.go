@@ -12,7 +12,7 @@ import (
 	"github.com/huaweicloud/golangsdk"
 	"github.com/huaweicloud/golangsdk/openstack/compute/v2/servers"
 	"github.com/huaweicloud/golangsdk/openstack/networking/v1/eips"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
 func TestAccComputeV2EIPAssociate_basic(t *testing.T) {
@@ -74,7 +74,7 @@ func TestAccComputeV2EIPAssociate_fixedIP(t *testing.T) {
 }
 
 func testAccCheckComputeV2EIPAssociateDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*huaweicloud.Config)
+	config := testAccProvider.Meta().(*config.Config)
 	computeClient, err := config.ComputeV2Client(SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating Sbercloud compute client: %s", err)
@@ -131,7 +131,7 @@ func parseComputeFloatingIPAssociateId(id string) (string, string, string, error
 func testAccCheckComputeV2EIPAssociateAssociated(
 	eip *eips.PublicIp, instance *servers.Server, n int) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		config := testAccProvider.Meta().(*huaweicloud.Config)
+		config := testAccProvider.Meta().(*config.Config)
 		computeClient, err := config.ComputeV2Client(SBC_REGION_NAME)
 
 		newInstance, err := servers.Get(computeClient, instance.ID).Extract()

@@ -6,10 +6,18 @@ import (
 	"sort"
 	"time"
 
-	"github.com/huaweicloud/golangsdk/openstack/imageservice/v2/images"
-
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
+	"github.com/huaweicloud/golangsdk/openstack/imageservice/v2/images"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
+
+var iamgeValidSortKeys = []string{
+	"name", "container_format", "disk_format", "status", "id", "size",
+}
+var imageValidVisibilities = []string{
+	"public", "private", "community", "shared",
+}
 
 func DataSourceImagesImageV2() *schema.Resource {
 	return &schema.Resource{
@@ -30,7 +38,7 @@ func DataSourceImagesImageV2() *schema.Resource {
 			"visibility": {
 				Type:         schema.TypeString,
 				Optional:     true,
-				ValidateFunc: dataSourceImagesImageV2Visibility,
+				ValidateFunc: validation.StringInSlice(imageValidVisibilities, false),
 			},
 
 			"owner": {
@@ -52,14 +60,16 @@ func DataSourceImagesImageV2() *schema.Resource {
 				Type:         schema.TypeString,
 				Optional:     true,
 				Default:      "name",
-				ValidateFunc: dataSourceImagesImageV2SortKey,
+				ValidateFunc: validation.StringInSlice(iamgeValidSortKeys, false),
 			},
 
 			"sort_direction": {
-				Type:         schema.TypeString,
-				Optional:     true,
-				Default:      "asc",
-				ValidateFunc: dataSourceImagesImageV2SortDirection,
+				Type:     schema.TypeString,
+				Optional: true,
+				Default:  "asc",
+				ValidateFunc: validation.StringInSlice([]string{
+					"asc", "desc",
+				}, false),
 			},
 
 			"tag": {
@@ -78,54 +88,52 @@ func DataSourceImagesImageV2() *schema.Resource {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
-
 			"disk_format": {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
-
 			"min_disk_gb": {
 				Type:     schema.TypeInt,
 				Computed: true,
 			},
-
 			"min_ram_mb": {
 				Type:     schema.TypeInt,
 				Computed: true,
 			},
-
 			"protected": {
 				Type:     schema.TypeBool,
 				Computed: true,
 			},
-
 			"checksum": {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
-
 			"size_bytes": {
 				Type:     schema.TypeInt,
 				Computed: true,
 			},
-
 			"metadata": {
 				Type:     schema.TypeMap,
 				Computed: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
-
-			"updated_at": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
-
 			"file": {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
-
 			"schema": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"status": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"created_at": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"updated_at": {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
@@ -135,7 +143,7 @@ func DataSourceImagesImageV2() *schema.Resource {
 
 // dataSourceImagesImageV2Read performs the image lookup.
 func dataSourceImagesImageV2Read(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	imageClient, err := config.ImageV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud image client: %s", err)
@@ -210,10 +218,11 @@ func dataSourceImagesImageV2Attributes(d *schema.ResourceData, image *images.Ima
 	if err := d.Set("metadata", image.Metadata); err != nil {
 		return fmt.Errorf("[DEBUG] Error saving metadata to state for HuaweiCloud image (%s): %s", d.Id(), err)
 	}
-	d.Set("created_at", image.CreatedAt.Format(time.RFC3339))
-	d.Set("updated_at", image.UpdatedAt.Format(time.RFC3339))
 	d.Set("file", image.File)
 	d.Set("schema", image.Schema)
+	d.Set("status", image.Status)
+	d.Set("created_at", image.CreatedAt.Format(time.RFC3339))
+	d.Set("updated_at", image.UpdatedAt.Format(time.RFC3339))
 
 	return nil
 }
@@ -233,43 +242,4 @@ func mostRecentImage(images []images.Image) images.Image {
 	sortedImages := images
 	sort.Sort(imageSort(sortedImages))
 	return sortedImages[len(sortedImages)-1]
-}
-
-var sortkeys = [6]string{"name", "container_format", "disk_format", "status", "id", "size"}
-
-func dataSourceImagesImageV2SortKey(v interface{}, k string) (ws []string, errors []error) {
-	value := v.(string)
-	for _, key := range sortkeys {
-		if value == key {
-			return
-		}
-	}
-
-	err := fmt.Errorf("%s must be one of %s", k, sortkeys)
-	errors = append(errors, err)
-	return
-}
-
-func dataSourceImagesImageV2SortDirection(v interface{}, k string) (ws []string, errors []error) {
-	value := v.(string)
-	if value != "asc" && value != "desc" {
-		err := fmt.Errorf("%s must be either asc or desc", k)
-		errors = append(errors, err)
-	}
-	return
-}
-
-var visibilities = [4]string{"public", "private", "community", "shared"}
-
-func dataSourceImagesImageV2Visibility(v interface{}, k string) (ws []string, errors []error) {
-	value := v.(string)
-	for _, key := range visibilities {
-		if value == key {
-			return
-		}
-	}
-
-	err := fmt.Errorf("%s must be one of %s", k, visibilities)
-	errors = append(errors, err)
-	return
 }

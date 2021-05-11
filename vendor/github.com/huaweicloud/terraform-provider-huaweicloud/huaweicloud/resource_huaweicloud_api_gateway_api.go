@@ -8,6 +8,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/huaweicloud/golangsdk/openstack/apigw/apis"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
 func resourceAPIGatewayAPI() *schema.Resource {
@@ -178,12 +180,14 @@ func resourceAPIGatewayAPI() *schema.Resource {
 							Required: true,
 						},
 						"location": {
-							Type:     schema.TypeString,
-							Required: true,
+							Type:             schema.TypeString,
+							Required:         true,
+							DiffSuppressFunc: utils.SuppressCaseDiffs,
 						},
 						"type": {
-							Type:     schema.TypeString,
-							Required: true,
+							Type:             schema.TypeString,
+							Required:         true,
+							DiffSuppressFunc: utils.SuppressCaseDiffs,
 						},
 						"required": {
 							Type:     schema.TypeBool,
@@ -210,20 +214,22 @@ func resourceAPIGatewayAPI() *schema.Resource {
 							Required: true,
 						},
 						"location": {
-							Type:     schema.TypeString,
-							Required: true,
+							Type:             schema.TypeString,
+							Required:         true,
+							DiffSuppressFunc: utils.SuppressCaseDiffs,
 						},
 						"value": {
 							Type:     schema.TypeString,
 							Required: true,
 						},
 						"type": {
-							Type:     schema.TypeString,
-							Optional: true,
-							Default:  "Request",
+							Type:             schema.TypeString,
+							Optional:         true,
+							Default:          "REQUEST",
+							DiffSuppressFunc: utils.SuppressCaseDiffs,
 							ValidateFunc: validation.StringInSlice([]string{
-								"Request", "Constant", "System",
-							}, false),
+								"REQUEST", "CONSTANT", "SYSTEM",
+							}, true),
 						},
 						"description": {
 							Type:     schema.TypeString,
@@ -263,8 +269,8 @@ func resourceAPIGatewayAPI() *schema.Resource {
 }
 
 func resourceAPIGatewayAPICreate(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
-	apigwClient, err := config.apiGatewayV1Client(GetRegion(d, config))
+	config := meta.(*config.Config)
+	apigwClient, err := config.ApiGatewayV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud api gateway client: %s", err)
 	}
@@ -287,15 +293,15 @@ func resourceAPIGatewayAPICreate(d *schema.ResourceData, meta interface{}) error
 }
 
 func resourceAPIGatewayAPIRead(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
-	apigwClient, err := config.apiGatewayV1Client(GetRegion(d, config))
+	config := meta.(*config.Config)
+	apigwClient, err := config.ApiGatewayV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud api gateway client: %s", err)
 	}
 
 	v, err := apis.Get(apigwClient, d.Id()).Extract()
 	if err != nil {
-		return fmt.Errorf("Error retrieving HuaweiCloud api gateway api: %s", err)
+		return CheckDeleted(d, err, "API GateWay api")
 	}
 
 	log.Printf("[DEBUG] Retrieved api gateway api %s: %+v", d.Id(), v)
@@ -314,6 +320,7 @@ func resourceAPIGatewayAPIRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("backend_type", v.BackendType)
 	d.Set("example_success_response", v.ResultNormalSample)
 	d.Set("example_failure_response", v.ResultFailureSample)
+	d.Set("cors", v.Cors)
 
 	var requestParameters []map[string]interface{}
 	for _, val := range v.ReqParams {
@@ -389,8 +396,8 @@ func resourceAPIGatewayAPIRead(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceAPIGatewayAPIUpdate(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
-	apigwClient, err := config.apiGatewayV1Client(GetRegion(d, config))
+	config := meta.(*config.Config)
+	apigwClient, err := config.ApiGatewayV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud api gateway client: %s", err)
 	}
@@ -410,8 +417,8 @@ func resourceAPIGatewayAPIUpdate(d *schema.ResourceData, meta interface{}) error
 }
 
 func resourceAPIGatewayAPIDelete(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
-	apigwClient, err := config.apiGatewayV1Client(GetRegion(d, config))
+	config := meta.(*config.Config)
+	apigwClient, err := config.ApiGatewayV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud api gateway client: %s", err)
 	}
@@ -442,6 +449,7 @@ func buildApiParameter(d *schema.ResourceData) (*apis.CreateOpts, error) {
 		Tags:                apiTags,
 		ResultNormalSample:  d.Get("example_success_response").(string),
 		ResultFailureSample: d.Get("example_failure_response").(string),
+		Cors:                d.Get("cors").(bool),
 	}
 
 	switch backendType {

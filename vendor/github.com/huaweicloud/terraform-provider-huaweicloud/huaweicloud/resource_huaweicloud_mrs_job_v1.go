@@ -9,6 +9,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/huaweicloud/golangsdk"
 	"github.com/huaweicloud/golangsdk/openstack/mrs/v1/job"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
 func resourceMRSJobV1() *schema.Resource {
@@ -125,7 +127,7 @@ func JobStateRefreshFunc(client *golangsdk.ServiceClient, jobID string) resource
 }
 
 func resourceMRSJobV1Create(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	client, err := config.MrsV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud MRS client: %s", err)
@@ -173,7 +175,7 @@ func resourceMRSJobV1Create(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceMRSJobV1Read(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	client, err := config.MrsV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud  MRS client: %s", err)
@@ -216,7 +218,7 @@ func resourceMRSJobV1Read(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceMRSJobV1Delete(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	client, err := config.MrsV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud client: %s", err)
@@ -235,7 +237,7 @@ func resourceMRSJobV1Delete(d *schema.ResourceData, meta interface{}) error {
 		return nil
 	})
 	if err != nil {
-		if isResourceNotFound(err) {
+		if utils.IsResourceNotFound(err) {
 			log.Printf("[INFO] deleting an unavailable MRS Job: %s", rId)
 			return nil
 		}

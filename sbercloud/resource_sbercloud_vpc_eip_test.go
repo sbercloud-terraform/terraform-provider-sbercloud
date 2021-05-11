@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 
 	"github.com/huaweicloud/golangsdk/openstack/networking/v1/eips"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
 func TestAccVpcV1EIP_basic(t *testing.T) {
@@ -55,7 +55,7 @@ func TestAccVpcV1EIP_share(t *testing.T) {
 }
 
 func testAccCheckVpcV1EIPDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*huaweicloud.Config)
+	config := testAccProvider.Meta().(*config.Config)
 	networkingClient, err := config.NetworkingV1Client(SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating EIP Client: %s", err)
@@ -86,7 +86,7 @@ func testAccCheckVpcV1EIPExists(n string, eip *eips.PublicIp) resource.TestCheck
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*huaweicloud.Config)
+		config := testAccProvider.Meta().(*config.Config)
 		networkingClient, err := config.NetworkingV1Client(SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating networking client: %s", err)
