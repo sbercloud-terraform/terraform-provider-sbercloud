@@ -1,3 +1,11 @@
+## 1.1.0 (Unreleased)
+
+FEATURES:
+
+* **New Data Source:** `sbercloud_sfs_file_system`
+* **New Resource:** `sbercloud_sfs_access_rule`
+* **New Resource:** `sbercloud_sfs_file_system`
+
 ## 1.0.0 (December 29, 2020)
 
 FEATURES:
