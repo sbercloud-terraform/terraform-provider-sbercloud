@@ -166,6 +166,7 @@ func Provider() terraform.ResourceProvider {
 			"sbercloud_obs_bucket_policy":         huaweicloud.ResourceObsBucketPolicy(),
 			"sbercloud_sfs_access_rule":           huaweicloud.ResourceSFSAccessRuleV2(),
 			"sbercloud_sfs_file_system":           huaweicloud.ResourceSFSFileSystemV2(),
+			"sbercloud_sfs_turbo":                 huaweicloud.ResourceSFSTurbo(),
 			"sbercloud_vpc":                       huaweicloud.ResourceVirtualPrivateCloudV1(),
 			"sbercloud_vpc_bandwidth":             huaweicloud.ResourceVpcBandWidthV2(),
 			"sbercloud_vpc_eip":                   huaweicloud.ResourceVpcEIPV1(),
