@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 	"github.com/huaweicloud/golangsdk/openstack/sfs_turbo/v1/shares"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
 func TestAccSFSTurbo_basic(t *testing.T) {
@@ -52,7 +52,7 @@ func TestAccSFSTurbo_basic(t *testing.T) {
 }
 
 func testAccCheckSFSTurboDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*huaweicloud.Config)
+	config := testAccProvider.Meta().(*config.Config)
 	sfsClient, err := config.SfsV1Client(SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating Sbercloud sfs turbo client: %s", err)
@@ -83,7 +83,7 @@ func testAccCheckSFSTurboExists(n string, share *shares.Turbo) resource.TestChec
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*huaweicloud.Config)
+		config := testAccProvider.Meta().(*config.Config)
 		sfsClient, err := config.SfsV1Client(SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating Sbercloud sfs turbo client: %s", err)
