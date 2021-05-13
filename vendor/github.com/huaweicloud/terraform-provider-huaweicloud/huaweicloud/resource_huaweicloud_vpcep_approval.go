@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/huaweicloud/golangsdk"
 	"github.com/huaweicloud/golangsdk/openstack/vpcep/v1/services"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
 const (
@@ -80,7 +81,7 @@ func ResourceVPCEndpointApproval() *schema.Resource {
 }
 
 func resourceVPCEndpointApprovalCreate(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	vpcepClient, err := config.VPCEPClient(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating Huaweicloud VPC endpoint client: %s", err)
@@ -107,7 +108,7 @@ func resourceVPCEndpointApprovalCreate(d *schema.ResourceData, meta interface{})
 }
 
 func resourceVPCEndpointApprovalRead(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	vpcepClient, err := config.VPCEPClient(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating Huaweicloud VPC endpoint client: %s", err)
@@ -122,7 +123,7 @@ func resourceVPCEndpointApprovalRead(d *schema.ResourceData, meta interface{}) e
 }
 
 func resourceVPCEndpointApprovalUpdate(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	vpcepClient, err := config.VPCEPClient(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating Huaweicloud VPC endpoint client: %s", err)
@@ -150,7 +151,7 @@ func resourceVPCEndpointApprovalUpdate(d *schema.ResourceData, meta interface{})
 }
 
 func resourceVPCEndpointApprovalDelete(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	vpcepClient, err := config.VPCEPClient(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating Huaweicloud VPC endpoint client: %s", err)
@@ -194,7 +195,7 @@ func doConnectionAction(d *schema.ResourceData, client *golangsdk.ServiceClient,
 		stateConf := &resource.StateChangeConf{
 			Pending:    []string{"creating", "pendingAcceptance"},
 			Target:     []string{targetStatus},
-			Refresh:    waitForVPCEndpointStatus(client, epID),
+			Refresh:    waitForVPCEndpointConnected(client, serviceID, epID),
 			Timeout:    d.Timeout(schema.TimeoutCreate),
 			Delay:      3 * time.Second,
 			MinTimeout: 3 * time.Second,
@@ -209,4 +210,23 @@ func doConnectionAction(d *schema.ResourceData, client *golangsdk.ServiceClient,
 	}
 
 	return nil
+}
+
+func waitForVPCEndpointConnected(vpcepClient *golangsdk.ServiceClient, serviceId, endpointId string) resource.StateRefreshFunc {
+	return func() (interface{}, string, error) {
+		listOpts := services.ListConnOpts{
+			EndpointID: endpointId,
+		}
+		connections, err := services.ListConnections(vpcepClient, serviceId, listOpts)
+		if err != nil {
+			if _, ok := err.(golangsdk.ErrDefault404); ok {
+				return connections, "deleted", nil
+			}
+			return connections, "error", err
+		}
+		if len(connections) == 1 && connections[0].EndpointID == endpointId {
+			return connections, connections[0].Status, nil
+		}
+		return connections, "deleted", nil
+	}
 }

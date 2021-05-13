@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 
 	"github.com/huaweicloud/golangsdk/openstack/networking/v2/extensions/lbaas_v2/monitors"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
 func ResourceMonitorV2() *schema.Resource {
@@ -32,23 +33,15 @@ func ResourceMonitorV2() *schema.Resource {
 				ForceNew: true,
 			},
 
-			"pool_id": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
-			},
-
 			"name": {
 				Type:     schema.TypeString,
 				Optional: true,
 			},
 
-			"tenant_id": {
-				Type:       schema.TypeString,
-				Optional:   true,
-				Computed:   true,
-				ForceNew:   true,
-				Deprecated: "tenant_id is deprecated",
+			"pool_id": {
+				Type:     schema.TypeString,
+				Required: true,
+				ForceNew: true,
 			},
 
 			"type": {
@@ -70,6 +63,11 @@ func ResourceMonitorV2() *schema.Resource {
 			"max_retries": {
 				Type:     schema.TypeInt,
 				Required: true,
+			},
+
+			"port": {
+				Type:     schema.TypeInt,
+				Optional: true,
 			},
 
 			"url_path": {
@@ -95,12 +93,20 @@ func ResourceMonitorV2() *schema.Resource {
 				Default:  true,
 				Optional: true,
 			},
+
+			"tenant_id": {
+				Type:       schema.TypeString,
+				Optional:   true,
+				Computed:   true,
+				ForceNew:   true,
+				Deprecated: "tenant_id is deprecated",
+			},
 		},
 	}
 }
 
 func resourceMonitorV2Create(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	lbClient, err := config.ElbV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud elb client: %s", err)
@@ -118,6 +124,7 @@ func resourceMonitorV2Create(d *schema.ResourceData, meta interface{}) error {
 		HTTPMethod:    d.Get("http_method").(string),
 		ExpectedCodes: d.Get("expected_codes").(string),
 		Name:          d.Get("name").(string),
+		MonitorPort:   d.Get("port").(int),
 		AdminStateUp:  &adminStateUp,
 	}
 
@@ -155,7 +162,7 @@ func resourceMonitorV2Create(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceMonitorV2Read(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	lbClient, err := config.ElbV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud elb client: %s", err)
@@ -179,12 +186,15 @@ func resourceMonitorV2Read(d *schema.ResourceData, meta interface{}) error {
 	d.Set("admin_state_up", monitor.AdminStateUp)
 	d.Set("name", monitor.Name)
 	d.Set("region", GetRegion(d, config))
+	if monitor.MonitorPort != 0 {
+		d.Set("port", monitor.MonitorPort)
+	}
 
 	return nil
 }
 
 func resourceMonitorV2Update(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	lbClient, err := config.ElbV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud elb client: %s", err)
@@ -212,6 +222,9 @@ func resourceMonitorV2Update(d *schema.ResourceData, meta interface{}) error {
 	}
 	if d.HasChange("name") {
 		updateOpts.Name = d.Get("name").(string)
+	}
+	if d.HasChange("port") {
+		updateOpts.MonitorPort = d.Get("port").(int)
 	}
 	if d.HasChange("http_method") {
 		updateOpts.HTTPMethod = d.Get("http_method").(string)
@@ -247,7 +260,7 @@ func resourceMonitorV2Update(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceMonitorV2Delete(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	lbClient, err := config.ElbV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud elb client: %s", err)

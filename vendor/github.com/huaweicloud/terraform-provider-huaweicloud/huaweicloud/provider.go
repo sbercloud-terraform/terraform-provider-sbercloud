@@ -9,6 +9,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/mutexkv"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/deprecated"
 )
 
 const defaultCloud string = "myhuaweicloud.com"
@@ -51,6 +53,14 @@ func Provider() terraform.ResourceProvider {
 					"HW_SECRET_KEY",
 					"OS_SECRET_KEY",
 				}, nil),
+			},
+
+			"security_token": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				Description:  descriptions["security_token"],
+				RequiredWith: []string{"access_key"},
+				DefaultFunc:  schema.EnvDefaultFunc("HW_SECURITY_TOKEN", nil),
 			},
 
 			"domain_id": {
@@ -250,12 +260,12 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_availability_zones":          DataSourceAvailabilityZones(),
 			"huaweicloud_cce_cluster":                 DataSourceCCEClusterV3(),
 			"huaweicloud_cce_node":                    DataSourceCCENodeV3(),
+			"huaweicloud_cce_node_pool":               DataSourceCCENodePoolV3(),
 			"huaweicloud_cdm_flavors":                 dataSourceCdmFlavorV1(),
 			"huaweicloud_compute_flavors":             DataSourceEcsFlavors(),
 			"huaweicloud_compute_instance":            DataSourceComputeInstance(),
 			"huaweicloud_csbs_backup":                 dataSourceCSBSBackupV1(),
 			"huaweicloud_csbs_backup_policy":          dataSourceCSBSBackupPolicyV1(),
-			"huaweicloud_cts_tracker":                 dataSourceCTSTrackerV1(),
 			"huaweicloud_dcs_az":                      dataSourceDcsAZV1(),
 			"huaweicloud_dcs_maintainwindow":          dataSourceDcsMaintainWindowV1(),
 			"huaweicloud_dcs_product":                 dataSourceDcsProductV1(),
@@ -284,7 +294,7 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_networking_secgroup":         DataSourceNetworkingSecGroupV2(),
 			"huaweicloud_obs_bucket_object":           DataSourceObsBucketObject(),
 			"huaweicloud_rds_flavors":                 dataSourceRdsFlavorV3(),
-			"huaweicloud_sfs_file_system":             dataSourceSFSFileSystemV2(),
+			"huaweicloud_sfs_file_system":             DataSourceSFSFileSystemV2(),
 			"huaweicloud_vbs_backup_policy":           dataSourceVBSBackupPolicyV2(),
 			"huaweicloud_vbs_backup":                  dataSourceVBSBackupV2(),
 			"huaweicloud_vpc":                         DataSourceVirtualPrivateCloudVpcV1(),
@@ -304,7 +314,7 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_kms_key_v1":                dataSourceKmsKeyV1(),
 			"huaweicloud_kms_data_key_v1":           dataSourceKmsDataKeyV1(),
 			"huaweicloud_rds_flavors_v3":            dataSourceRdsFlavorV3(),
-			"huaweicloud_sfs_file_system_v2":        dataSourceSFSFileSystemV2(),
+			"huaweicloud_sfs_file_system_v2":        DataSourceSFSFileSystemV2(),
 			"huaweicloud_vpc_v1":                    DataSourceVirtualPrivateCloudVpcV1(),
 			"huaweicloud_vpc_ids_v1":                dataSourceVirtualPrivateCloudVpcIdsV1(),
 			"huaweicloud_vpc_peering_connection_v2": dataSourceVpcPeeringConnectionV2(),
@@ -321,7 +331,6 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_dms_maintainwindow_v1":     dataSourceDmsMaintainWindowV1(),
 			"huaweicloud_vbs_backup_policy_v2":      dataSourceVBSBackupPolicyV2(),
 			"huaweicloud_vbs_backup_v2":             dataSourceVBSBackupV2(),
-			"huaweicloud_cts_tracker_v1":            dataSourceCTSTrackerV1(),
 			"huaweicloud_antiddos_v1":               dataSourceAntiDdosV1(),
 			"huaweicloud_dcs_az_v1":                 dataSourceDcsAZV1(),
 			"huaweicloud_dcs_maintainwindow_v1":     dataSourceDcsMaintainWindowV1(),
@@ -337,7 +346,7 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_rts_stack_v1":                  dataSourceRTSStackV1(),
 			"huaweicloud_rts_stack_resource_v1":         dataSourceRTSStackResourcesV1(),
 			"huaweicloud_rts_software_config_v1":        dataSourceRtsSoftwareConfigV1(),
-			"huaweicloud_rds_flavors_v1":                dataSourceRdsFlavorV1(),
+			"huaweicloud_cts_tracker":                   deprecated.DataSourceCTSTrackerV1(),
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
@@ -346,6 +355,10 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_as_configuration":                ResourceASConfiguration(),
 			"huaweicloud_as_group":                        ResourceASGroup(),
 			"huaweicloud_as_policy":                       ResourceASPolicy(),
+			"huaweicloud_bms_instance":                    ResourceBmsInstance(),
+			"huaweicloud_bcs_instance":                    resourceBCSInstanceV2(),
+			"huaweicloud_cbr_policy":                      resourceCBRPolicyV3(),
+			"huaweicloud_cbr_vault":                       resourceCBRVaultV3(),
 			"huaweicloud_cce_cluster":                     ResourceCCEClusterV3(),
 			"huaweicloud_cce_node":                        ResourceCCENodeV3(),
 			"huaweicloud_cce_addon":                       ResourceCCEAddonV3(),
@@ -368,7 +381,6 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_csbs_backup_policy":              resourceCSBSBackupPolicyV1(),
 			"huaweicloud_css_cluster":                     resourceCssClusterV1(),
 			"huaweicloud_css_snapshot":                    resourceCssSnapshot(),
-			"huaweicloud_cts_tracker":                     resourceCTSTrackerV1(),
 			"huaweicloud_dcs_instance":                    ResourceDcsInstanceV1(),
 			"huaweicloud_dds_instance":                    resourceDdsInstanceV3(),
 			"huaweicloud_dis_stream":                      resourceDisStreamV2(),
@@ -380,6 +392,7 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_dns_recordset":                   ResourceDNSRecordSetV2(),
 			"huaweicloud_dns_zone":                        ResourceDNSZoneV2(),
 			"huaweicloud_dws_cluster":                     resourceDwsCluster(),
+			"huaweicloud_elb_loadbalancer":                ResourceLoadBalancerV3(),
 			"huaweicloud_evs_snapshot":                    ResourceEvsSnapshotV2(),
 			"huaweicloud_evs_volume":                      ResourceEvsStorageVolumeV3(),
 			"huaweicloud_fgs_function":                    resourceFgsFunctionV2(),
@@ -439,11 +452,12 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_rds_instance":                    resourceRdsInstanceV3(),
 			"huaweicloud_rds_parametergroup":              resourceRdsConfigurationV3(),
 			"huaweicloud_rds_read_replica_instance":       resourceRdsReadReplicaInstance(),
-			"huaweicloud_sfs_access_rule":                 resourceSFSAccessRuleV2(),
-			"huaweicloud_sfs_file_system":                 resourceSFSFileSystemV2(),
+			"huaweicloud_sfs_access_rule":                 ResourceSFSAccessRuleV2(),
+			"huaweicloud_sfs_file_system":                 ResourceSFSFileSystemV2(),
 			"huaweicloud_sfs_turbo":                       ResourceSFSTurbo(),
 			"huaweicloud_smn_topic":                       resourceTopic(),
 			"huaweicloud_smn_subscription":                resourceSubscription(),
+			"huaweicloud_swr_organization":                resourceSWROrganization(),
 			"huaweicloud_vbs_backup":                      resourceVBSBackupV2(),
 			"huaweicloud_vbs_backup_policy":               resourceVBSBackupPolicyV2(),
 			"huaweicloud_vpc":                             ResourceVirtualPrivateCloudV1(),
@@ -501,8 +515,8 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_nat_gateway_v2":                     ResourceNatGatewayV2(),
 			"huaweicloud_nat_snat_rule_v2":                   ResourceNatSnatRuleV2(),
 			"huaweicloud_nat_dnat_rule_v2":                   ResourceNatDnatRuleV2(),
-			"huaweicloud_sfs_access_rule_v2":                 resourceSFSAccessRuleV2(),
-			"huaweicloud_sfs_file_system_v2":                 resourceSFSFileSystemV2(),
+			"huaweicloud_sfs_access_rule_v2":                 ResourceSFSAccessRuleV2(),
+			"huaweicloud_sfs_file_system_v2":                 ResourceSFSFileSystemV2(),
 			"huaweicloud_iam_agency":                         resourceIAMAgencyV3(),
 			"huaweicloud_iam_agency_v3":                      resourceIAMAgencyV3(),
 			"huaweicloud_vpc_v1":                             ResourceVirtualPrivateCloudV1(),
@@ -522,7 +536,6 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_csbs_backup_policy_v1":              resourceCSBSBackupPolicyV1(),
 			"huaweicloud_vbs_backup_policy_v2":               resourceVBSBackupPolicyV2(),
 			"huaweicloud_vbs_backup_v2":                      resourceVBSBackupV2(),
-			"huaweicloud_cts_tracker_v1":                     resourceCTSTrackerV1(),
 			"huaweicloud_maas_task":                          resourceMaasTaskV1(),
 			"huaweicloud_maas_task_v1":                       resourceMaasTaskV1(),
 			"huaweicloud_identity_project_v3":                ResourceIdentityProjectV3(),
@@ -561,13 +574,9 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_compute_secgroup_v2":                ResourceComputeSecGroupV2(),
 			"huaweicloud_compute_floatingip_v2":              ResourceComputeFloatingIPV2(),
 			"huaweicloud_compute_floatingip_associate_v2":    ResourceComputeFloatingIPAssociateV2(),
-			"huaweicloud_elb_loadbalancer":                   resourceELBLoadBalancer(),
-			"huaweicloud_elb_listener":                       resourceELBListener(),
-			"huaweicloud_elb_healthcheck":                    resourceELBHealthCheck(),
-			"huaweicloud_elb_backendecs":                     resourceELBBackendECS(),
-			"huaweicloud_rds_instance_v1":                    resourceRdsInstance(),
 			"huaweicloud_rts_stack_v1":                       resourceRTSStackV1(),
 			"huaweicloud_rts_software_config_v1":             resourceSoftwareConfigV1(),
+			"huaweicloud_cts_tracker":                        deprecated.ResourceCTSTrackerV1(),
 		},
 	}
 
@@ -611,6 +620,10 @@ func init() {
 		"domain_id": "The ID of the Domain to scope to.",
 
 		"domain_name": "The name of the Domain to scope to.",
+
+		"access_key":     "The access key of the HuaweiCloud to use.",
+		"secret_key":     "The secret key of the HuaweiCloud to use.",
+		"security_token": "The security token to authenticate with a temporary security credential.",
 
 		"insecure": "Trust self-signed certificates.",
 
@@ -664,7 +677,7 @@ func configureProvider(d *schema.ResourceData, terraformVersion string) (interfa
 		delegated_project = region
 	}
 
-	config := Config{
+	config := config.Config{
 		AccessKey:           d.Get("access_key").(string),
 		SecretKey:           d.Get("secret_key").(string),
 		CACertFile:          d.Get("cacert_file").(string),
@@ -676,6 +689,7 @@ func configureProvider(d *schema.ResourceData, terraformVersion string) (interfa
 		Insecure:            d.Get("insecure").(bool),
 		Password:            d.Get("password").(string),
 		Token:               d.Get("token").(string),
+		SecurityToken:       d.Get("security_token").(string),
 		Region:              region,
 		TenantID:            tenantID,
 		TenantName:          tenantName,

@@ -1,13 +1,11 @@
 package instances
 
 import (
-	"fmt"
-
 	"github.com/huaweicloud/golangsdk"
 	"github.com/huaweicloud/golangsdk/pagination"
 )
 
-type CreateRdsOpts struct {
+type CreateOpts struct {
 	Name                string          `json:"name"  required:"true"`
 	Datastore           *Datastore      `json:"datastore" required:"true"`
 	Ha                  *Ha             `json:"ha,omitempty"`
@@ -26,6 +24,7 @@ type CreateRdsOpts struct {
 	SecurityGroupId     string          `json:"security_group_id" required:"true"`
 	ChargeInfo          *ChargeInfo     `json:"charge_info,omitempty"`
 	TimeZone            string          `json:"time_zone,omitempty"`
+	FixedIp             string          `json:"data_vip,omitempty"`
 }
 
 type CreateReplicaOpts struct {
@@ -72,7 +71,7 @@ type CreateRdsBuilder interface {
 	ToInstancesCreateMap() (map[string]interface{}, error)
 }
 
-func (opts CreateRdsOpts) ToInstancesCreateMap() (map[string]interface{}, error) {
+func (opts CreateOpts) ToInstancesCreateMap() (map[string]interface{}, error) {
 	b, err := golangsdk.BuildRequestBody(opts, "")
 	if err != nil {
 		return nil, err
@@ -88,16 +87,12 @@ func Create(client *golangsdk.ServiceClient, opts CreateRdsBuilder) (r CreateRes
 	}
 
 	_, r.Err = client.Post(createURL(client), b, &r.Body, &golangsdk.RequestOpts{
-		OkCodes: []int{202},
+		OkCodes: []int{200, 202},
 	})
 	return
 }
 
-type CreateReplicaBuilder interface {
-	ToCreateReplicaMap() (map[string]interface{}, error)
-}
-
-func (opts CreateReplicaOpts) ToCreateReplicaMap() (map[string]interface{}, error) {
+func (opts CreateReplicaOpts) ToInstancesCreateMap() (map[string]interface{}, error) {
 	b, err := golangsdk.BuildRequestBody(opts, "")
 	if err != nil {
 		return nil, err
@@ -105,8 +100,8 @@ func (opts CreateReplicaOpts) ToCreateReplicaMap() (map[string]interface{}, erro
 	return b, nil
 }
 
-func CreateReplica(client *golangsdk.ServiceClient, opts CreateReplicaBuilder) (r CreateResult) {
-	b, err := opts.ToCreateReplicaMap()
+func CreateReplica(client *golangsdk.ServiceClient, opts CreateRdsBuilder) (r CreateResult) {
+	b, err := opts.ToInstancesCreateMap()
 	if err != nil {
 		r.Err = err
 		return
@@ -119,7 +114,7 @@ func CreateReplica(client *golangsdk.ServiceClient, opts CreateReplicaBuilder) (
 	return
 }
 
-type DeleteInstance struct {
+type DeleteOpts struct {
 	InstanceId string `json:"instance_id" required:"true"`
 }
 
@@ -127,7 +122,7 @@ type DeleteInstanceBuilder interface {
 	ToInstancesDeleteMap() (map[string]interface{}, error)
 }
 
-func (opts DeleteInstance) ToInstancesDeleteMap() (map[string]interface{}, error) {
+func (opts DeleteOpts) ToInstancesDeleteMap() (map[string]interface{}, error) {
 	b, err := golangsdk.BuildRequestBody(&opts, "")
 	if err != nil {
 		return nil, err
@@ -135,72 +130,18 @@ func (opts DeleteInstance) ToInstancesDeleteMap() (map[string]interface{}, error
 	return b, nil
 }
 
-func Delete(client *golangsdk.ServiceClient, instanceId string) (r DeleteInstanceRdsResult) {
+func Delete(client *golangsdk.ServiceClient, instanceId string) (r DeleteResult) {
 
 	url := deleteURL(client, instanceId)
 
-	_, r.Err = client.Delete(url, &golangsdk.RequestOpts{JSONResponse: &r.Body, MoreHeaders: map[string]string{"Content-Type": "application/json"}})
-	return
-}
-
-type RestartRdsInstanceOpts struct {
-	Restart string `json:"restart" required:"true"`
-}
-
-type RestartRdsInstanceBuilder interface {
-	ToRestartRdsInstanceMap() (map[string]interface{}, error)
-}
-
-func (opts RestartRdsInstanceOpts) ToRestartRdsInstanceMap() (map[string]interface{}, error) {
-	b, err := golangsdk.BuildRequestBody(&opts, "")
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-
-func Restart(client *golangsdk.ServiceClient, opts RestartRdsInstanceBuilder, instanceId string) (r RestartRdsInstanceResult) {
-	b, err := opts.ToRestartRdsInstanceMap()
-	if err != nil {
-		r.Err = err
-		return
-	}
-	fmt.Println("restart Rds instance body = ", b)
-	_, r.Err = client.Post(updateURL(client, instanceId, "action"), b, &r.Body, &golangsdk.RequestOpts{
-		OkCodes: []int{202},
+	_, r.Err = client.Delete(url, &golangsdk.RequestOpts{
+		JSONResponse: &r.Body,
+		MoreHeaders:  map[string]string{"Content-Type": "application/json"},
 	})
 	return
 }
 
-type RenameRdsInstanceOpts struct {
-	Name string `json:"name" required:"true"`
-}
-
-type RenameRdsInstanceBuilder interface {
-	ToRenameRdsInstanceMap() (map[string]interface{}, error)
-}
-
-func (opts RenameRdsInstanceOpts) ToRenameRdsInstanceMap() (map[string]interface{}, error) {
-	b, err := golangsdk.BuildRequestBody(&opts, "")
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-
-func Rename(client *golangsdk.ServiceClient, opts RenameRdsInstanceBuilder, instanceId string) (r golangsdk.Result) {
-	b, err := opts.ToRenameRdsInstanceMap()
-	if err != nil {
-		r.Err = err
-		return
-	}
-	_, r.Err = client.Put(updateURL(client, instanceId, "name"), b, nil, &golangsdk.RequestOpts{
-		OkCodes: []int{200, 202},
-	})
-	return
-}
-
-type ListRdsInstanceOpts struct {
+type ListOpts struct {
 	Id            string `q:"id"`
 	Name          string `q:"name"`
 	Type          string `q:"type"`
@@ -215,7 +156,7 @@ type ListRdsBuilder interface {
 	ToRdsListDetailQuery() (string, error)
 }
 
-func (opts ListRdsInstanceOpts) ToRdsListDetailQuery() (string, error) {
+func (opts ListOpts) ToRdsListDetailQuery() (string, error) {
 	q, err := golangsdk.BuildQueryString(opts)
 	if err != nil {
 		return "", err
@@ -243,6 +184,59 @@ func List(client *golangsdk.ServiceClient, opts ListRdsBuilder) pagination.Pager
 	return pageRdsList
 }
 
+type ActionInstanceBuilder interface {
+	ToActionInstanceMap() (map[string]interface{}, error)
+}
+
+func toActionInstanceMap(opts ActionInstanceBuilder) (map[string]interface{}, error) {
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+type RestartInstanceOpts struct {
+	Restart string `json:"restart" required:"true"`
+}
+
+func (opts RestartInstanceOpts) ToActionInstanceMap() (map[string]interface{}, error) {
+	return toActionInstanceMap(opts)
+}
+
+func Restart(client *golangsdk.ServiceClient, opts ActionInstanceBuilder, instanceId string) (r RestartResult) {
+	b, err := opts.ToActionInstanceMap()
+	if err != nil {
+		r.Err = err
+		return
+	}
+
+	_, r.Err = client.Post(updateURL(client, instanceId, "action"), b, &r.Body, &golangsdk.RequestOpts{
+		OkCodes: []int{202},
+	})
+	return
+}
+
+type RenameInstanceOpts struct {
+	Name string `json:"name" required:"true"`
+}
+
+func (opts RenameInstanceOpts) ToActionInstanceMap() (map[string]interface{}, error) {
+	return toActionInstanceMap(opts)
+}
+
+func Rename(client *golangsdk.ServiceClient, opts ActionInstanceBuilder, instanceId string) (r RenameResult) {
+	b, err := opts.ToActionInstanceMap()
+	if err != nil {
+		r.Err = err
+		return
+	}
+	_, r.Err = client.Put(updateURL(client, instanceId, "name"), b, nil, &golangsdk.RequestOpts{
+		OkCodes: []int{200, 202},
+	})
+	return
+}
+
 type SingleToHaRdsOpts struct {
 	SingleToHa *SingleToHaRds `json:"single_to_ha" required:"true"`
 }
@@ -252,20 +246,12 @@ type SingleToHaRds struct {
 	Password      string `json:"password,omitempty"`
 }
 
-type SingleToRdsHaBuilder interface {
-	ToSingleToRdsHaMap() (map[string]interface{}, error)
+func (opts SingleToHaRdsOpts) ToActionInstanceMap() (map[string]interface{}, error) {
+	return toActionInstanceMap(opts)
 }
 
-func (opts SingleToHaRdsOpts) ToSingleToRdsHaMap() (map[string]interface{}, error) {
-	b, err := golangsdk.BuildRequestBody(&opts, "")
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-
-func SingleToHa(client *golangsdk.ServiceClient, opts SingleToRdsHaBuilder, instanceId string) (r SingleToHaRdsInstanceResult) {
-	b, err := opts.ToSingleToRdsHaMap()
+func SingleToHa(client *golangsdk.ServiceClient, opts ActionInstanceBuilder, instanceId string) (r SingleToHaResult) {
+	b, err := opts.ToActionInstanceMap()
 	if err != nil {
 		r.Err = err
 		return
@@ -285,20 +271,12 @@ type ResizeFlavorOpts struct {
 	ResizeFlavor *SpecCode `json:"resize_flavor" required:"true"`
 }
 
-type ResizeFlavorBuilder interface {
-	ResizeFlavorMap() (map[string]interface{}, error)
+func (opts ResizeFlavorOpts) ToActionInstanceMap() (map[string]interface{}, error) {
+	return toActionInstanceMap(opts)
 }
 
-func (opts ResizeFlavorOpts) ResizeFlavorMap() (map[string]interface{}, error) {
-	b, err := golangsdk.BuildRequestBody(&opts, "")
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-
-func Resize(client *golangsdk.ServiceClient, opts ResizeFlavorBuilder, instanceId string) (r ResizeFlavorResult) {
-	b, err := opts.ResizeFlavorMap()
+func Resize(client *golangsdk.ServiceClient, opts ActionInstanceBuilder, instanceId string) (r ResizeFlavorResult) {
+	b, err := opts.ToActionInstanceMap()
 	if err != nil {
 		r.Err = err
 		return
@@ -310,7 +288,7 @@ func Resize(client *golangsdk.ServiceClient, opts ResizeFlavorBuilder, instanceI
 	return
 }
 
-type EnlargeVolumeRdsOpts struct {
+type EnlargeVolumeOpts struct {
 	EnlargeVolume *EnlargeVolumeSize `json:"enlarge_volume" required:"true"`
 }
 
@@ -318,20 +296,12 @@ type EnlargeVolumeSize struct {
 	Size int `json:"size" required:"true"`
 }
 
-type EnlargeVolumeBuilder interface {
-	ToEnlargeVolumeMap() (map[string]interface{}, error)
+func (opts EnlargeVolumeOpts) ToActionInstanceMap() (map[string]interface{}, error) {
+	return toActionInstanceMap(opts)
 }
 
-func (opts EnlargeVolumeRdsOpts) ToEnlargeVolumeMap() (map[string]interface{}, error) {
-	b, err := golangsdk.BuildRequestBody(&opts, "")
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-
-func EnlargeVolume(client *golangsdk.ServiceClient, opts EnlargeVolumeBuilder, instanceId string) (r EnlargeVolumeResult) {
-	b, err := opts.ToEnlargeVolumeMap()
+func EnlargeVolume(client *golangsdk.ServiceClient, opts ActionInstanceBuilder, instanceId string) (r EnlargeVolumeResult) {
+	b, err := opts.ToActionInstanceMap()
 	if err != nil {
 		r.Err = err
 		return
@@ -421,4 +391,36 @@ func ListSlowLog(client *golangsdk.ServiceClient, opts DbSlowLogBuilder, instanc
 	rdsheader := map[string]string{"Content-Type": "application/json"}
 	pageRdsList.Headers = rdsheader
 	return pageRdsList
+}
+
+type RDSJobOpts struct {
+	JobID string `q:"id"`
+}
+
+type RDSJobBuilder interface {
+	ToRDSJobQuery() (string, error)
+}
+
+func (opts RDSJobOpts) ToRDSJobQuery() (string, error) {
+	q, err := golangsdk.BuildQueryString(opts)
+	if err != nil {
+		return "", err
+	}
+	return q.String(), err
+}
+
+func GetRDSJob(client *golangsdk.ServiceClient, opts RDSJobBuilder) (r RDSJobResult) {
+	url := jobURL(client)
+	if opts != nil {
+		query, err := opts.ToRDSJobQuery()
+		if err != nil {
+			r.Err = err
+			return
+		}
+		url += query
+	}
+	_, r.Err = client.Get(url, &r.Body, &golangsdk.RequestOpts{
+		MoreHeaders: map[string]string{"Content-Type": "application/json", "X-Language": "en-us"},
+	})
+	return
 }

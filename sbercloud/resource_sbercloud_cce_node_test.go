@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 
 	"github.com/huaweicloud/golangsdk/openstack/cce/v3/nodes"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
 func TestAccCCENodeV3_basic(t *testing.T) {
@@ -62,7 +62,7 @@ func TestAccCCENodeV3_basic(t *testing.T) {
 }
 
 func testAccCheckCCENodeV3Destroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*huaweicloud.Config)
+	config := testAccProvider.Meta().(*config.Config)
 	cceClient, err := config.CceV3Client(SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud CCE client: %s", err)
@@ -106,7 +106,7 @@ func testAccCheckCCENodeV3Exists(n string, cluster string, node *nodes.Nodes) re
 			return fmt.Errorf("Cluster id is not set")
 		}
 
-		config := testAccProvider.Meta().(*huaweicloud.Config)
+		config := testAccProvider.Meta().(*config.Config)
 		cceClient, err := config.CceV3Client(SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating HuaweiCloud CCE client: %s", err)

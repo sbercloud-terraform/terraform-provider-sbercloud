@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
 // This is a global MutexKV for use within this plugin.
@@ -117,6 +118,7 @@ func Provider() terraform.ResourceProvider {
 			"sbercloud_networking_port":     huaweicloud.DataSourceNetworkingPortV2(),
 			"sbercloud_networking_secgroup": huaweicloud.DataSourceNetworkingSecGroupV2(),
 			"sbercloud_obs_bucket_object":   huaweicloud.DataSourceObsBucketObject(),
+			"sbercloud_sfs_file_system":     huaweicloud.DataSourceSFSFileSystemV2(),
 			"sbercloud_vpc":                 huaweicloud.DataSourceVirtualPrivateCloudVpcV1(),
 			"sbercloud_vpc_bandwidth":       huaweicloud.DataSourceBandWidth(),
 			"sbercloud_vpc_subnet":          huaweicloud.DataSourceVpcSubnetV1(),
@@ -162,6 +164,8 @@ func Provider() terraform.ResourceProvider {
 			"sbercloud_obs_bucket":                huaweicloud.ResourceObsBucket(),
 			"sbercloud_obs_bucket_object":         huaweicloud.ResourceObsBucketObject(),
 			"sbercloud_obs_bucket_policy":         huaweicloud.ResourceObsBucketPolicy(),
+			"sbercloud_sfs_access_rule":           huaweicloud.ResourceSFSAccessRuleV2(),
+			"sbercloud_sfs_file_system":           huaweicloud.ResourceSFSFileSystemV2(),
 			"sbercloud_sfs_turbo":                 huaweicloud.ResourceSFSTurbo(),
 			"sbercloud_vpc":                       huaweicloud.ResourceVirtualPrivateCloudV1(),
 			"sbercloud_vpc_bandwidth":             huaweicloud.ResourceVpcBandWidthV2(),
@@ -222,7 +226,7 @@ func configureProvider(d *schema.ResourceData, terraformVersion string) (interfa
 		project_name = d.Get("region").(string)
 	}
 
-	config := huaweicloud.Config{
+	config := config.Config{
 		AccessKey:           d.Get("access_key").(string),
 		SecretKey:           d.Get("secret_key").(string),
 		DomainName:          d.Get("account_name").(string),

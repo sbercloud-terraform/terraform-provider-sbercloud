@@ -28,7 +28,11 @@ import (
 	"github.com/huaweicloud/golangsdk/openstack/ecs/v1/cloudservers"
 	"github.com/huaweicloud/golangsdk/openstack/networking/v1/subnets"
 	"github.com/huaweicloud/golangsdk/openstack/networking/v2/extensions/security/groups"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
+
+var novaConflicts = []string{"block_device", "metadata"}
 
 func ResourceComputeInstanceV2() *schema.Resource {
 	return &schema.Resource{
@@ -159,7 +163,7 @@ func ResourceComputeInstanceV2() *schema.Resource {
 				Optional:      true,
 				ForceNew:      true,
 				Computed:      true,
-				ConflictsWith: []string{"block_device", "metadata"},
+				ConflictsWith: novaConflicts,
 				ValidateFunc: validation.StringInSlice([]string{
 					"SATA", "SAS", "SSD", "GPSSD",
 				}, true),
@@ -168,14 +172,13 @@ func ResourceComputeInstanceV2() *schema.Resource {
 				Type:          schema.TypeInt,
 				Optional:      true,
 				Computed:      true,
-				ConflictsWith: []string{"block_device", "metadata"},
+				ConflictsWith: novaConflicts,
 			},
 			"data_disks": {
 				Type:          schema.TypeList,
 				Optional:      true,
 				ForceNew:      true,
-				ConflictsWith: []string{"block_device", "metadata"},
-				MinItems:      1,
+				ConflictsWith: novaConflicts,
 				MaxItems:      23,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
@@ -253,44 +256,20 @@ func ResourceComputeInstanceV2() *schema.Resource {
 				Optional:      true,
 				ForceNew:      true,
 				Computed:      true,
-				ConflictsWith: []string{"block_device", "metadata"},
+				ConflictsWith: novaConflicts,
 			},
 			"delete_disks_on_termination": {
 				Type:          schema.TypeBool,
 				Optional:      true,
-				ConflictsWith: []string{"block_device", "metadata"},
+				ConflictsWith: novaConflicts,
 			},
-			"charging_mode": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
-				ForceNew: true,
-				ValidateFunc: validation.StringInSlice([]string{
-					"prePaid", "postPaid",
-				}, false),
-				ConflictsWith: []string{"block_device", "metadata"},
-			},
-			"period_unit": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
-				ValidateFunc: validation.StringInSlice([]string{
-					"month", "year",
-				}, false),
-				ConflictsWith: []string{"block_device", "metadata"},
-			},
-			"period": {
-				Type:          schema.TypeInt,
-				Optional:      true,
-				ForceNew:      true,
-				ConflictsWith: []string{"block_device", "metadata"},
-			},
-			"auto_renew": {
-				Type:          schema.TypeString,
-				Optional:      true,
-				ForceNew:      true,
-				ConflictsWith: []string{"block_device", "metadata"},
-			},
+
+			// charge info: charging_mode, period_unit, period, auto_renew
+			"charging_mode": schemeChargingMode(novaConflicts),
+			"period_unit":   schemaPeriodUnit(novaConflicts),
+			"period":        schemaPeriod(novaConflicts),
+			"auto_renew":    schemaAutoRenew(novaConflicts),
+
 			"user_id": { // required if in prePaid charging mode with key_pair.
 				Type:     schema.TypeString,
 				Optional: true,
@@ -304,7 +283,7 @@ func ResourceComputeInstanceV2() *schema.Resource {
 			"tags": {
 				Type:         schema.TypeMap,
 				Optional:     true,
-				ValidateFunc: validateECSTagValue,
+				ValidateFunc: utils.ValidateECSTagValue,
 				Elem:         &schema.Schema{Type: schema.TypeString},
 			},
 			"volume_attached": {
@@ -415,7 +394,7 @@ func ResourceComputeInstanceV2() *schema.Resource {
 }
 
 func resourceComputeInstanceV2Create(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	computeClient, err := config.ComputeV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud compute client: %s", err)
@@ -475,18 +454,22 @@ func resourceComputeInstanceV2Create(d *schema.ResourceData, meta interface{}) e
 			Nics:             resourceInstanceNicsV2(d),
 			RootVolume:       resourceInstanceRootVolumeV1(d),
 			DataVolumes:      resourceInstanceDataVolumesV1(d),
-			AdminPass:        d.Get("admin_pass").(string),
 			UserData:         []byte(d.Get("user_data").(string)),
 		}
 
 		var extendParam cloudservers.ServerExtendParam
 		if d.Get("charging_mode") == "prePaid" {
+			if err := validatePrePaidChargeInfo(d); err != nil {
+				return err
+			}
+
 			extendParam.ChargingMode = d.Get("charging_mode").(string)
 			extendParam.PeriodType = d.Get("period_unit").(string)
 			extendParam.PeriodNum = d.Get("period").(int)
 			extendParam.IsAutoPay = "true"
 			extendParam.IsAutoRenew = d.Get("auto_renew").(string)
 		}
+
 		epsID := GetEnterpriseProjectID(d, config)
 		if epsID != "" {
 			extendParam.EnterpriseProjectId = epsID
@@ -514,6 +497,8 @@ func resourceComputeInstanceV2Create(d *schema.ResourceData, meta interface{}) e
 		}
 
 		log.Printf("[DEBUG] ECS Create Options: %#v", createOpts)
+		// Add password here so it wouldn't go in the above log entry
+		createOpts.AdminPass = d.Get("admin_pass").(string)
 
 		var job_id string
 		if d.Get("charging_mode") == "prePaid" {
@@ -639,7 +624,7 @@ func resourceComputeInstanceV2Create(d *schema.ResourceData, meta interface{}) e
 	// Set tags
 	if hasFilledOpt(d, "tags") {
 		tagRaw := d.Get("tags").(map[string]interface{})
-		taglist := expandResourceTags(tagRaw)
+		taglist := utils.ExpandResourceTags(tagRaw)
 		tagErr := tags.Create(ecsClient, "cloudservers", d.Id(), taglist).ExtractErr()
 		if tagErr != nil {
 			log.Printf("[WARN] Error setting tags of instance:%s, err=%s", d.Id(), err)
@@ -650,7 +635,7 @@ func resourceComputeInstanceV2Create(d *schema.ResourceData, meta interface{}) e
 }
 
 func resourceComputeInstanceV2Read(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	computeClient, err := config.ComputeV2Client(GetRegion(d, config))
 	ecsClient, err := config.ComputeV1Client(GetRegion(d, config))
 	blockStorageClient, err := config.BlockStorageV3Client(GetRegion(d, config))
@@ -788,7 +773,7 @@ func resourceComputeInstanceV2Read(d *schema.ResourceData, meta interface{}) err
 
 	// Set instance tags
 	if resourceTags, err := tags.Get(ecsClient, "cloudservers", d.Id()).Extract(); err == nil {
-		tagmap := tagsToMap(resourceTags.Tags)
+		tagmap := utils.TagsToMap(resourceTags.Tags)
 		if err := d.Set("tags", tagmap); err != nil {
 			return fmt.Errorf("Error saving tags to state for compute instance (%s): %s", d.Id(), err)
 		}
@@ -800,7 +785,7 @@ func resourceComputeInstanceV2Read(d *schema.ResourceData, meta interface{}) err
 }
 
 func resourceComputeInstanceV2Update(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	computeClient, err := config.ComputeV2Client(GetRegion(d, config))
 	ecsClient, err := config.ComputeV1Client(GetRegion(d, config))
 	ecsV11Client, err := config.ComputeV11Client(GetRegion(d, config))
@@ -938,7 +923,7 @@ func resourceComputeInstanceV2Update(d *schema.ResourceData, meta interface{}) e
 			return fmt.Errorf("Error creating HuaweiCloud compute v1 client: %s", err)
 		}
 
-		tagErr := UpdateResourceTags(ecsClient, d, "cloudservers", d.Id())
+		tagErr := utils.UpdateResourceTags(ecsClient, d, "cloudservers", d.Id())
 		if tagErr != nil {
 			return fmt.Errorf("Error updating tags of instance:%s, err:%s", d.Id(), err)
 		}
@@ -982,7 +967,7 @@ func resourceComputeInstanceV2Update(d *schema.ResourceData, meta interface{}) e
 }
 
 func resourceComputeInstanceV2Delete(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	ecsClient, err := config.ComputeV1Client(GetRegion(d, config))
 	computeClient, err := config.ComputeV2Client(GetRegion(d, config))
 	if err != nil {
@@ -1058,7 +1043,7 @@ func resourceComputeInstanceV2Delete(d *schema.ResourceData, meta interface{}) e
 }
 
 func resourceComputeInstanceV2ImportState(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	ecsClient, err := config.ComputeV1Client(GetRegion(d, config))
 	if err != nil {
 		return nil, fmt.Errorf("Error creating HuaweiCloud compute client: %s", err)

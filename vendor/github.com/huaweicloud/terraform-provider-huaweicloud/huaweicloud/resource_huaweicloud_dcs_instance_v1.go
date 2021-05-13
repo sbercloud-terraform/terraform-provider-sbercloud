@@ -13,6 +13,8 @@ import (
 	"github.com/huaweicloud/golangsdk/openstack/common/tags"
 	"github.com/huaweicloud/golangsdk/openstack/dcs/v1/instances"
 	"github.com/huaweicloud/golangsdk/openstack/dcs/v2/whitelists"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
 func ResourceDcsInstanceV1() *schema.Resource {
@@ -68,6 +70,7 @@ func ResourceDcsInstanceV1() *schema.Resource {
 			"access_user": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Computed: true,
 				ForceNew: true,
 			},
 			"vpc_id": {
@@ -107,30 +110,69 @@ func ResourceDcsInstanceV1() *schema.Resource {
 				Computed: true,
 			},
 			"save_days": {
-				Type:     schema.TypeInt,
-				Required: true,
-				ForceNew: true,
+				Type:       schema.TypeInt,
+				Optional:   true,
+				ForceNew:   true,
+				Deprecated: "Please use `backup_policy` instead",
 			},
 			"backup_type": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Type:       schema.TypeString,
+				Optional:   true,
+				ForceNew:   true,
+				Deprecated: "Please use `backup_policy` instead",
 			},
 			"begin_at": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Type:         schema.TypeString,
+				Optional:     true,
+				ForceNew:     true,
+				RequiredWith: []string{"period_type", "backup_at", "save_days", "backup_type"},
+				Deprecated:   "Please use `backup_policy` instead",
 			},
 			"period_type": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Type:         schema.TypeString,
+				Optional:     true,
+				ForceNew:     true,
+				RequiredWith: []string{"begin_at", "backup_at", "save_days", "backup_type"},
+				Deprecated:   "Please use `backup_policy` instead",
 			},
 			"backup_at": {
-				Type:     schema.TypeList,
-				Required: true,
-				Elem:     &schema.Schema{Type: schema.TypeInt},
-				ForceNew: true,
+				Type:         schema.TypeList,
+				Optional:     true,
+				ForceNew:     true,
+				RequiredWith: []string{"period_type", "begin_at", "save_days", "backup_type"},
+				Deprecated:   "Please use `backup_policy` instead",
+				Elem:         &schema.Schema{Type: schema.TypeInt},
+			},
+			"backup_policy": {
+				Type:          schema.TypeList,
+				Optional:      true,
+				ConflictsWith: []string{"backup_type", "begin_at", "period_type", "backup_at", "save_days"},
+				MaxItems:      1,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"save_days": {
+							Type:     schema.TypeInt,
+							Optional: true,
+						},
+						"backup_type": {
+							Type:     schema.TypeString,
+							Optional: true,
+						},
+						"begin_at": {
+							Type:     schema.TypeString,
+							Required: true,
+						},
+						"period_type": {
+							Type:     schema.TypeString,
+							Required: true,
+						},
+						"backup_at": {
+							Type:     schema.TypeList,
+							Required: true,
+							Elem:     &schema.Schema{Type: schema.TypeInt},
+						},
+					},
+				},
 			},
 			"whitelist_enable": {
 				Type:     schema.TypeBool,
@@ -197,10 +239,14 @@ func ResourceDcsInstanceV1() *schema.Resource {
 				Computed: true,
 			},
 			"max_memory": {
-				Type:     schema.TypeString,
+				Type:     schema.TypeInt,
 				Computed: true,
 			},
 			"user_id": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"user_name": {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
@@ -214,6 +260,52 @@ func ResourceDcsInstanceV1() *schema.Resource {
 			},
 		},
 	}
+}
+
+func formatAts(src []interface{}) []int {
+	res := make([]int, len(src))
+	for i, at := range src {
+		res[i] = at.(int)
+	}
+	return res
+}
+
+func getInstanceBackupPolicy(d *schema.ResourceData) *instances.InstanceBackupPolicy {
+	var instanceBackupPolicy *instances.InstanceBackupPolicy
+	if _, ok := d.GetOk("backup_policy"); !ok { // deprecated branch
+		if v, ok := d.GetOk("backup_at"); ok {
+			backupAts := v.([]interface{})
+			return &instances.InstanceBackupPolicy{
+				SaveDays:   d.Get("save_days").(int),
+				BackupType: d.Get("backup_type").(string),
+				PeriodicalBackupPlan: instances.PeriodicalBackupPlan{
+					BeginAt:    d.Get("begin_at").(string),
+					PeriodType: d.Get("period_type").(string),
+					BackupAt:   formatAts(backupAts),
+				},
+			}
+		} else {
+			return nil
+		}
+	}
+
+	backupPolicyList := d.Get("backup_policy").([]interface{})
+	if len(backupPolicyList) == 0 {
+		return nil
+	}
+	backupPolicy := backupPolicyList[0].(map[string]interface{})
+	backupAts := backupPolicy["backup_at"].([]interface{})
+	instanceBackupPolicy = &instances.InstanceBackupPolicy{
+		SaveDays:   backupPolicy["save_days"].(int),
+		BackupType: backupPolicy["backup_type"].(string),
+		PeriodicalBackupPlan: instances.PeriodicalBackupPlan{
+			BeginAt:    backupPolicy["begin_at"].(string),
+			PeriodType: backupPolicy["period_type"].(string),
+			BackupAt:   formatAts(backupAts),
+		},
+	}
+
+	return instanceBackupPolicy
 }
 
 func resourceDcsInstancesCheck(d *schema.ResourceData) error {
@@ -233,28 +325,6 @@ func resourceDcsInstancesCheck(d *schema.ResourceData) error {
 	}
 
 	return nil
-}
-
-func getInstanceBackupPolicy(d *schema.ResourceData) *instances.InstanceBackupPolicy {
-	backupAts := d.Get("backup_at").([]interface{})
-	ats := make([]int, len(backupAts))
-	for i, at := range backupAts {
-		ats[i] = at.(int)
-	}
-
-	periodicalBackupPlan := instances.PeriodicalBackupPlan{
-		BeginAt:    d.Get("begin_at").(string),
-		PeriodType: d.Get("period_type").(string),
-		BackupAt:   ats,
-	}
-
-	instanceBackupPolicy := &instances.InstanceBackupPolicy{
-		SaveDays:             d.Get("save_days").(int),
-		BackupType:           d.Get("backup_type").(string),
-		PeriodicalBackupPlan: periodicalBackupPlan,
-	}
-
-	return instanceBackupPolicy
 }
 
 func getDcsInstanceWhitelist(d *schema.ResourceData) whitelists.WhitelistOpts {
@@ -298,8 +368,8 @@ func flattenDcsInstanceWhitelist(object *whitelists.Whitelist) interface{} {
 }
 
 func resourceDcsInstancesV1Create(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
-	dcsV1Client, err := config.dcsV1Client(GetRegion(d, config))
+	config := meta.(*config.Config)
+	dcsV1Client, err := config.DcsV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud dcs instance v1 client: %s", err)
 	}
@@ -308,9 +378,9 @@ func resourceDcsInstancesV1Create(d *schema.ResourceData, meta interface{}) erro
 		return err
 	}
 
-	no_password_access := "true"
+	noPasswordAccess := "true"
 	if d.Get("access_user").(string) != "" || d.Get("password").(string) != "" {
-		no_password_access = "false"
+		noPasswordAccess = "false"
 	}
 	createOpts := &instances.CreateOps{
 		Name:                  d.Get("name").(string),
@@ -318,8 +388,7 @@ func resourceDcsInstancesV1Create(d *schema.ResourceData, meta interface{}) erro
 		Engine:                d.Get("engine").(string),
 		EngineVersion:         d.Get("engine_version").(string),
 		Capacity:              d.Get("capacity").(float64),
-		NoPasswordAccess:      no_password_access,
-		Password:              d.Get("password").(string),
+		NoPasswordAccess:      noPasswordAccess,
 		AccessUser:            d.Get("access_user").(string),
 		VPCID:                 d.Get("vpc_id").(string),
 		SecurityGroupID:       d.Get("security_group_id").(string),
@@ -334,6 +403,9 @@ func resourceDcsInstancesV1Create(d *schema.ResourceData, meta interface{}) erro
 	}
 
 	log.Printf("[DEBUG] Create Options: %#v", createOpts)
+	// Add password here so it wouldn't go in the above log entry
+	createOpts.Password = d.Get("password").(string)
+
 	v, err := instances.Create(dcsV1Client, createOpts).Extract()
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud instance: %s", err)
@@ -359,7 +431,7 @@ func resourceDcsInstancesV1Create(d *schema.ResourceData, meta interface{}) erro
 	d.SetId(v.InstanceID)
 
 	// set whitelist
-	dcsV2Client, err := config.dcsV2Client(GetRegion(d, config))
+	dcsV2Client, err := config.DcsV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud dcs instance v2 client: %s", err)
 	}
@@ -376,7 +448,7 @@ func resourceDcsInstancesV1Create(d *schema.ResourceData, meta interface{}) erro
 	//set tags
 	tagRaw := d.Get("tags").(map[string]interface{})
 	if len(tagRaw) > 0 {
-		taglist := expandResourceTags(tagRaw)
+		taglist := utils.ExpandResourceTags(tagRaw)
 		if tagErr := tags.Create(dcsV2Client, "dcs", v.InstanceID, taglist).ExtractErr(); tagErr != nil {
 			return fmt.Errorf("Error setting tags of DCS instance %s: %s", v.InstanceID, tagErr)
 		}
@@ -386,9 +458,9 @@ func resourceDcsInstancesV1Create(d *schema.ResourceData, meta interface{}) erro
 }
 
 func resourceDcsInstancesV1Read(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 
-	dcsV1Client, err := config.dcsV1Client(GetRegion(d, config))
+	dcsV1Client, err := config.DcsV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud dcs instance v1 client: %s", err)
 	}
@@ -437,7 +509,7 @@ func resourceDcsInstancesV1Read(d *schema.ResourceData, meta interface{}) error 
 	}
 	d.Set("capacity", capacity)
 
-	dcsV2Client, err := config.dcsV2Client(GetRegion(d, config))
+	dcsV2Client, err := config.DcsV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud dcs instance v2 client: %s", err)
 	}
@@ -456,7 +528,7 @@ func resourceDcsInstancesV1Read(d *schema.ResourceData, meta interface{}) error 
 
 	// set tags
 	if resourceTags, err := tags.Get(dcsV2Client, "instances", d.Id()).Extract(); err == nil {
-		tagmap := tagsToMap(resourceTags.Tags)
+		tagmap := utils.TagsToMap(resourceTags.Tags)
 		if err := d.Set("tags", tagmap); err != nil {
 			return fmt.Errorf("[DEBUG] Error saving tag to state for DCS instance (%s): %s", d.Id(), err)
 		}
@@ -468,26 +540,27 @@ func resourceDcsInstancesV1Read(d *schema.ResourceData, meta interface{}) error 
 }
 
 func resourceDcsInstancesV1Update(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 
 	if err := resourceDcsInstancesCheck(d); err != nil {
 		return err
 	}
 
 	//lintignore:R019
-	if d.HasChanges("name", "description", "security_group_id", "maintain_begin", "maintain_end") {
-		dcsV1Client, err := config.dcsV1Client(GetRegion(d, config))
+	if d.HasChanges("name", "description", "security_group_id", "maintain_begin", "maintain_end", "backup_policy") {
+		dcsV1Client, err := config.DcsV1Client(GetRegion(d, config))
 		if err != nil {
 			return fmt.Errorf("Error creating HuaweiCloud dcs instance v1 client: %s", err)
 		}
 
 		description := d.Get("description").(string)
 		updateOpts := instances.UpdateOpts{
-			Name:            d.Get("name").(string),
-			Description:     &description,
-			MaintainBegin:   d.Get("maintain_begin").(string),
-			MaintainEnd:     d.Get("maintain_end").(string),
-			SecurityGroupID: d.Get("security_group_id").(string),
+			Name:                 d.Get("name").(string),
+			Description:          &description,
+			MaintainBegin:        d.Get("maintain_begin").(string),
+			MaintainEnd:          d.Get("maintain_end").(string),
+			SecurityGroupID:      d.Get("security_group_id").(string),
+			InstanceBackupPolicy: getInstanceBackupPolicy(d),
 		}
 
 		err = instances.Update(dcsV1Client, d.Id(), updateOpts).Err
@@ -497,7 +570,7 @@ func resourceDcsInstancesV1Update(d *schema.ResourceData, meta interface{}) erro
 	}
 
 	if d.HasChanges("whitelists", "tags") {
-		dcsV2Client, err := config.dcsV2Client(GetRegion(d, config))
+		dcsV2Client, err := config.DcsV2Client(GetRegion(d, config))
 		if err != nil {
 			return fmt.Errorf("Error creating HuaweiCloud dcs instance v2 client: %s", err)
 		}
@@ -513,7 +586,7 @@ func resourceDcsInstancesV1Update(d *schema.ResourceData, meta interface{}) erro
 		}
 
 		// update tags
-		tagErr := UpdateResourceTags(dcsV2Client, d, "dcs", d.Id())
+		tagErr := utils.UpdateResourceTags(dcsV2Client, d, "dcs", d.Id())
 		if tagErr != nil {
 			return fmt.Errorf("Error updating tags of DCS instance:%s, err:%s", d.Id(), tagErr)
 		}
@@ -523,8 +596,8 @@ func resourceDcsInstancesV1Update(d *schema.ResourceData, meta interface{}) erro
 }
 
 func resourceDcsInstancesV1Delete(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
-	dcsV1Client, err := config.dcsV1Client(GetRegion(d, config))
+	config := meta.(*config.Config)
+	dcsV1Client, err := config.DcsV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud dcs instance v1 client: %s", err)
 	}

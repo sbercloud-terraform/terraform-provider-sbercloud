@@ -7,7 +7,7 @@ import (
 
 	"github.com/huaweicloud/golangsdk"
 	"github.com/huaweicloud/golangsdk/openstack/ims/v2/cloudimages"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
@@ -72,7 +72,7 @@ func getCloudimage(client *golangsdk.ServiceClient, id string) (*cloudimages.Ima
 }
 
 func testAccCheckImsImageDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*huaweicloud.Config)
+	config := testAccProvider.Meta().(*config.Config)
 	imageClient, err := config.ImageV2Client(SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating Sbercloud Image: %s", err)
@@ -103,7 +103,7 @@ func testAccCheckImsImageExists(n string, image *cloudimages.Image) resource.Tes
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*huaweicloud.Config)
+		config := testAccProvider.Meta().(*config.Config)
 		imageClient, err := config.ImageV2Client(SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating Sbercloud Image: %s", err)

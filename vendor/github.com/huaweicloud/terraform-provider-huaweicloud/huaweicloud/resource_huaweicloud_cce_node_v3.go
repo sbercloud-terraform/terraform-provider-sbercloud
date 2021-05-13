@@ -16,6 +16,9 @@ import (
 	"github.com/huaweicloud/golangsdk/openstack/cce/v3/clusters"
 	"github.com/huaweicloud/golangsdk/openstack/cce/v3/nodes"
 	"github.com/huaweicloud/golangsdk/openstack/common/tags"
+	"github.com/huaweicloud/golangsdk/openstack/networking/v1/eips"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
 func ResourceCCENodeV3() *schema.Resource {
@@ -197,6 +200,15 @@ func ResourceCCENodeV3() *schema.Resource {
 					"iptype", "bandwidth_size", "sharetype",
 				},
 			},
+			"runtime": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
+				ValidateFunc: validation.StringInSlice([]string{
+					"docker", "containerd",
+				}, false),
+			},
 			"ecs_group_id": {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -267,38 +279,10 @@ func ResourceCCENodeV3() *schema.Resource {
 			},
 
 			// charge info: charging_mode, period_unit, period, auto_renew
-			"charging_mode": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
-				ValidateFunc: validation.StringInSlice([]string{
-					"prePaid", "postPaid",
-				}, false),
-			},
-			"period_unit": {
-				Type:         schema.TypeString,
-				Optional:     true,
-				ForceNew:     true,
-				RequiredWith: []string{"period"},
-				ValidateFunc: validation.StringInSlice([]string{
-					"month", "year",
-				}, false),
-			},
-			"period": {
-				Type:         schema.TypeInt,
-				Optional:     true,
-				ForceNew:     true,
-				RequiredWith: []string{"period_unit"},
-				ValidateFunc: validation.IntBetween(1, 9),
-			},
-			"auto_renew": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
-				ValidateFunc: validation.StringInSlice([]string{
-					"true", "false",
-				}, false),
-			},
+			"charging_mode": schemeChargingMode(nil),
+			"period_unit":   schemaPeriodUnit(nil),
+			"period":        schemaPeriod(nil),
+			"auto_renew":    schemaAutoRenew(nil),
 
 			"extend_param": {
 				Type:     schema.TypeMap,
@@ -387,7 +371,7 @@ func resourceCCENodeK8sTags(d *schema.ResourceData) map[string]string {
 
 func resourceCCENodeTags(d *schema.ResourceData) []tags.ResourceTag {
 	tagRaw := d.Get("tags").(map[string]interface{})
-	return expandResourceTags(tagRaw)
+	return utils.ExpandResourceTags(tagRaw)
 }
 
 func resourceCCERootVolume(d *schema.ResourceData) nodes.VolumeSpec {
@@ -460,10 +444,21 @@ func resourceCCEExtendParam(d *schema.ResourceData) map[string]interface{} {
 	}
 
 	// assemble the charge info
-	if d.Get("charging_mode").(string) == "prePaid" || d.Get("billing_mode").(int) == 2 {
+	var isPrePaid bool
+	var billingMode int
+
+	if v, ok := d.GetOk("charging_mode"); ok && v.(string) == "prePaid" {
+		isPrePaid = true
+	}
+	if v, ok := d.GetOk("billing_mode"); ok {
+		billingMode = v.(int)
+	}
+	if isPrePaid || billingMode == 2 {
 		extendParam["chargingMode"] = 2
 		extendParam["isAutoPay"] = "true"
+		extendParam["isAutoRenew"] = "false"
 	}
+
 	if v, ok := d.GetOk("period_unit"); ok {
 		extendParam["periodType"] = v.(string)
 	}
@@ -472,8 +467,6 @@ func resourceCCEExtendParam(d *schema.ResourceData) map[string]interface{} {
 	}
 	if v, ok := d.GetOk("auto_renew"); ok {
 		extendParam["isAutoRenew"] = v.(string)
-	} else if extendParam["chargingMode"] == 2 {
-		extendParam["isAutoRenew"] = "false"
 	}
 
 	if v, ok := d.GetOk("ecs_performance_type"); ok {
@@ -502,37 +495,36 @@ func resourceCCEExtendParam(d *schema.ResourceData) map[string]interface{} {
 }
 
 func resourceCCENodeV3Create(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	nodeClient, err := config.CceV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud CCE Node client: %s", err)
 	}
 
-	var loginSpec nodes.LoginSpec
-	if hasFilledOpt(d, "key_pair") {
-		loginSpec = nodes.LoginSpec{SshKey: d.Get("key_pair").(string)}
-	} else if hasFilledOpt(d, "password") {
-		loginSpec = nodes.LoginSpec{
-			UserPassword: nodes.UserPassword{
-				Username: "root",
-				Password: d.Get("password").(string),
-			},
+	// validation
+	billingMode := 0
+	if d.Get("charging_mode").(string) == "prePaid" || d.Get("billing_mode").(int) == 2 {
+		billingMode = 2
+		if err := validatePrePaidChargeInfo(d); err != nil {
+			return err
 		}
 	}
-
 	// eipCount must be specified when bandwidth_size parameters was set
 	eipCount := 0
 	if _, ok := d.GetOk("bandwidth_size"); ok {
 		eipCount = 1
 	}
 
-	billingMode := 0
-	if d.Get("charging_mode").(string) == "prePaid" || d.Get("billing_mode").(int) == 2 {
-		billingMode = 2
+	// wait for the cce cluster to become available
+	clusterid := d.Get("cluster_id").(string)
+	stateCluster := &resource.StateChangeConf{
+		Target:     []string{"Available"},
+		Refresh:    waitForClusterAvailable(nodeClient, clusterid),
+		Timeout:    d.Timeout(schema.TimeoutCreate),
+		Delay:      5 * time.Second,
+		MinTimeout: 5 * time.Second,
 	}
-	if _, ok := d.GetOk("period_unit"); !ok && billingMode == 2 {
-		return fmt.Errorf("period_unit and period must be required for prePaid charging mode")
-	}
+	_, err = stateCluster.WaitForState()
 
 	createOpts := nodes.CreateOpts{
 		Kind:       "Node",
@@ -545,7 +537,6 @@ func resourceCCENodeV3Create(d *schema.ResourceData, meta interface{}) error {
 			Flavor:      d.Get("flavor_id").(string),
 			Az:          d.Get("availability_zone").(string),
 			Os:          d.Get("os").(string),
-			Login:       loginSpec,
 			RootVolume:  resourceCCERootVolume(d),
 			DataVolumes: resourceCCEDataVolume(d),
 			PublicIP: nodes.PublicIPSpec{
@@ -578,18 +569,29 @@ func resourceCCENodeV3Create(d *schema.ResourceData, meta interface{}) error {
 	if v, ok := d.GetOk("fixed_ip"); ok {
 		createOpts.Spec.NodeNicSpec.PrimaryNic.FixedIps = []string{v.(string)}
 	}
-
-	clusterid := d.Get("cluster_id").(string)
-	stateCluster := &resource.StateChangeConf{
-		Target:     []string{"Available"},
-		Refresh:    waitForClusterAvailable(nodeClient, clusterid),
-		Timeout:    d.Timeout(schema.TimeoutCreate),
-		Delay:      15 * time.Second,
-		MinTimeout: 5 * time.Second,
+	if v, ok := d.GetOk("runtime"); ok {
+		createOpts.Spec.RunTime = &nodes.RunTimeSpec{
+			Name: v.(string),
+		}
 	}
-	_, err = stateCluster.WaitForState()
 
 	log.Printf("[DEBUG] Create Options: %#v", createOpts)
+	// Add loginSpec here so it wouldn't go in the above log entry
+	var loginSpec nodes.LoginSpec
+	if hasFilledOpt(d, "key_pair") {
+		loginSpec = nodes.LoginSpec{
+			SshKey: d.Get("key_pair").(string),
+		}
+	} else if hasFilledOpt(d, "password") {
+		loginSpec = nodes.LoginSpec{
+			UserPassword: nodes.UserPassword{
+				Username: "root",
+				Password: d.Get("password").(string),
+			},
+		}
+	}
+	createOpts.Spec.Login = loginSpec
+
 	s, err := nodes.Create(nodeClient, clusterid, createOpts).Extract()
 	if err != nil {
 		if _, ok := err.(golangsdk.ErrDefault403); ok {
@@ -627,7 +629,7 @@ func resourceCCENodeV3Create(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceCCENodeV3Read(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	nodeClient, err := config.CceV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud CCE Node client: %s", err)
@@ -655,6 +657,9 @@ func resourceCCENodeV3Read(d *schema.ResourceData, meta interface{}) error {
 	d.Set("billing_mode", s.Spec.BillingMode)
 	if s.Spec.BillingMode != 0 {
 		d.Set("charging_mode", "prePaid")
+	}
+	if s.Spec.RunTime != nil {
+		d.Set("runtime", s.Spec.RunTime.Name)
 	}
 
 	var volumes []map[string]interface{}
@@ -698,7 +703,7 @@ func resourceCCENodeV3Read(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	if resourceTags, err := tags.Get(computeClient, "cloudservers", serverId).Extract(); err == nil {
-		tagmap := tagsToMap(resourceTags.Tags)
+		tagmap := utils.TagsToMap(resourceTags.Tags)
 		// ignore "CCE-Dynamic-Provisioning-Node"
 		delete(tagmap, "CCE-Dynamic-Provisioning-Node")
 		if err := d.Set("tags", tagmap); err != nil {
@@ -712,7 +717,7 @@ func resourceCCENodeV3Read(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceCCENodeV3Update(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	nodeClient, err := config.CceV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud CCE client: %s", err)
@@ -737,7 +742,7 @@ func resourceCCENodeV3Update(d *schema.ResourceData, meta interface{}) error {
 		}
 
 		serverId := d.Get("server_id").(string)
-		tagErr := UpdateResourceTags(computeClient, d, "cloudservers", serverId)
+		tagErr := utils.UpdateResourceTags(computeClient, d, "cloudservers", serverId)
 		if tagErr != nil {
 			return fmt.Errorf("Error updating tags of cce node %s: %s", d.Id(), tagErr)
 		}
@@ -747,7 +752,7 @@ func resourceCCENodeV3Update(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceCCENodeV3Delete(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	nodeClient, err := config.CceV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud CCE client: %s", err)
@@ -757,13 +762,35 @@ func resourceCCENodeV3Delete(d *schema.ResourceData, meta interface{}) error {
 	// for prePaid node, firstly, we should unsubscribe the ecs server, and then delete it
 	if d.Get("charging_mode").(string) == "prePaid" || d.Get("billing_mode").(int) == 2 {
 		serverID := d.Get("server_id").(string)
+		publicIP := d.Get("public_ip").(string)
+
+		resourceIDs := make([]string, 0, 2)
 		if serverID != "" {
-			if err := UnsubscribePrePaidResource(d, config, []string{serverID}); err != nil {
+			resourceIDs = append(resourceIDs, serverID)
+		}
+
+		// unsubscribe the eip if necessary
+		if _, ok := d.GetOk("iptype"); ok && publicIP != "" {
+			eipClient, err := config.NetworkingV1Client(GetRegion(d, config))
+			if err != nil {
+				return fmt.Errorf("Error creating networking client: %s", err)
+			}
+
+			if eipID, err := getEipIDbyAddress(eipClient, publicIP); err == nil {
+				resourceIDs = append(resourceIDs, eipID)
+			} else {
+				log.Printf("[WARN] Error fetching EIP ID of CCE Node (%s): %s", d.Id(), err)
+			}
+		}
+
+		if len(resourceIDs) > 0 {
+			if err := UnsubscribePrePaidResource(d, config, resourceIDs); err != nil {
 				return fmt.Errorf("Error unsubscribing HuaweiCloud CCE node: %s", err)
 			}
 		}
 	}
 
+	time.Sleep(60 * time.Second) //lintignore:R018
 	err = nodes.Delete(nodeClient, clusterid, d.Id()).ExtractErr()
 	if err != nil {
 		return fmt.Errorf("Error deleting HuaweiCloud CCE node: %s", err)
@@ -852,7 +879,7 @@ func waitForCceNodeActive(cceClient *golangsdk.ServiceClient, clusterId, nodeId 
 
 func waitForCceNodeDelete(cceClient *golangsdk.ServiceClient, clusterId, nodeId string) resource.StateRefreshFunc {
 	return func() (interface{}, string, error) {
-		log.Printf("[DEBUG] Attempting to delete HuaweiCloud CCE Node %s.\n", nodeId)
+		log.Printf("[DEBUG] Attempting to delete HuaweiCloud CCE Node %s", nodeId)
 
 		r, err := nodes.Get(cceClient, clusterId, nodeId).Extract()
 
@@ -864,14 +891,13 @@ func waitForCceNodeDelete(cceClient *golangsdk.ServiceClient, clusterId, nodeId 
 			return r, "Deleting", err
 		}
 
-		log.Printf("[DEBUG] HuaweiCloud CCE Node %s still available.\n", nodeId)
 		return r, r.Status.Phase, nil
 	}
 }
 
 func waitForClusterAvailable(cceClient *golangsdk.ServiceClient, clusterId string) resource.StateRefreshFunc {
 	return func() (interface{}, string, error) {
-		log.Printf("[INFO] Waiting for HuaweiCloud Cluster to be available %s.\n", clusterId)
+		log.Printf("[INFO] Waiting for CCE Cluster %s to be available", clusterId)
 		n, err := clusters.Get(cceClient, clusterId).Extract()
 
 		if err != nil {
@@ -939,4 +965,24 @@ func installScriptEncode(script string) string {
 		return base64.StdEncoding.EncodeToString([]byte(script))
 	}
 	return script
+}
+
+func getEipIDbyAddress(client *golangsdk.ServiceClient, address string) (string, error) {
+	listOpts := &eips.ListOpts{
+		PublicIp: address,
+	}
+	pages, err := eips.List(client, listOpts).AllPages()
+	if err != nil {
+		return "", err
+	}
+
+	allEips, err := eips.ExtractPublicIPs(pages)
+	if err != nil {
+		return "", fmt.Errorf("Unable to retrieve eips: %s ", err)
+	}
+	if len(allEips) != 1 {
+		return "", fmt.Errorf("queried none or more results")
+	}
+
+	return allEips[0].ID, nil
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/huaweicloud/golangsdk/openstack/autoscaling/v1/groups"
 	"github.com/huaweicloud/golangsdk/openstack/autoscaling/v1/instances"
 	"github.com/huaweicloud/golangsdk/openstack/autoscaling/v1/tags"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
 func ResourceASGroup() *schema.Resource {
@@ -169,6 +170,21 @@ func ResourceASGroup() *schema.Resource {
 				Optional:    true,
 				Default:     "no",
 			},
+			"tags": {
+				Type:     schema.TypeMap,
+				Optional: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
+			},
+			"enable": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Default:  true,
+			},
+			"enterprise_project_id": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+			},
 			"instances": {
 				Type:        schema.TypeList,
 				Computed:    true,
@@ -182,16 +198,6 @@ func ResourceASGroup() *schema.Resource {
 			"status": {
 				Type:     schema.TypeString,
 				Computed: true,
-			},
-			"tags": {
-				Type:     schema.TypeMap,
-				Optional: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-			},
-			"enable": {
-				Type:     schema.TypeBool,
-				Optional: true,
-				Default:  true,
 			},
 		},
 	}
@@ -413,7 +419,7 @@ func checkASGroupInstancesRemoved(asClient *golangsdk.ServiceClient, groupID str
 }
 
 func resourceASGroupCreate(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	asClient, err := config.AutoscalingV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud autoscaling client: %s", err)
@@ -468,6 +474,7 @@ func resourceASGroupCreate(d *schema.ResourceData, meta interface{}) error {
 		InstanceTerminatePolicy:   d.Get("instance_terminate_policy").(string),
 		Notifications:             getAllNotifications(d),
 		IsDeletePublicip:          d.Get("delete_publicip").(bool),
+		EnterpriseProjectID:       GetEnterpriseProjectID(d, config),
 	}
 
 	log.Printf("[DEBUG] Create Options: %#v", createOpts)
@@ -508,7 +515,7 @@ func resourceASGroupCreate(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceASGroupRead(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	asClient, err := config.AutoscalingV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud autoscaling client: %s", err)
@@ -565,6 +572,7 @@ func resourceASGroupRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("instance_terminate_policy", asg.InstanceTerminatePolicy)
 	d.Set("scaling_configuration_id", asg.ConfigurationID)
 	d.Set("delete_publicip", asg.DeletePublicip)
+	d.Set("enterprise_project_id", asg.EnterpriseProjectID)
 	if len(asg.Notifications) >= 1 {
 		d.Set("notifications", asg.Notifications)
 	}
@@ -606,7 +614,7 @@ func resourceASGroupRead(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceASGroupUpdate(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	asClient, err := config.AutoscalingV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud autoscaling client: %s", err)
@@ -652,6 +660,7 @@ func resourceASGroupUpdate(d *schema.ResourceData, meta interface{}) error {
 		InstanceTerminatePolicy:   d.Get("instance_terminate_policy").(string),
 		Notifications:             getAllNotifications(d),
 		IsDeletePublicip:          d.Get("delete_publicip").(bool),
+		EnterpriseProjectID:       GetEnterpriseProjectID(d, config),
 	}
 
 	log.Printf("[DEBUG] AS Group update options: %#v", updateOpts)
@@ -701,7 +710,7 @@ func resourceASGroupUpdate(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceASGroupDelete(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	asClient, err := config.AutoscalingV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud autoscaling client: %s", err)

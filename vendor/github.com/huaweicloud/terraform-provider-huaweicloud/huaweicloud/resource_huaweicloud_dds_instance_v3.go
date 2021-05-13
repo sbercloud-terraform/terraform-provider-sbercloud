@@ -11,6 +11,8 @@ import (
 	"github.com/huaweicloud/golangsdk"
 	"github.com/huaweicloud/golangsdk/openstack/common/tags"
 	"github.com/huaweicloud/golangsdk/openstack/dds/v3/instances"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
 func resourceDdsInstanceV3() *schema.Resource {
@@ -150,7 +152,6 @@ func resourceDdsInstanceV3() *schema.Resource {
 			"backup_strategy": {
 				Type:     schema.TypeList,
 				Optional: true,
-				ForceNew: true,
 				Computed: true,
 				MaxItems: 1,
 				Elem: &schema.Resource{
@@ -260,13 +261,14 @@ func resourceDdsBackupStrategy(d *schema.ResourceData) instances.BackupStrategy 
 	var backupStrategy instances.BackupStrategy
 	backupStrategyRaw := d.Get("backup_strategy").([]interface{})
 	log.Printf("[DEBUG] backupStrategyRaw: %+v", backupStrategyRaw)
+	startTime := "00:00-01:00"
+	keepDays := 7
 	if len(backupStrategyRaw) == 1 {
-		backupStrategy.StartTime = backupStrategyRaw[0].(map[string]interface{})["start_time"].(string)
-		backupStrategy.KeepDays = backupStrategyRaw[0].(map[string]interface{})["keep_days"].(int)
-	} else {
-		backupStrategy.StartTime = "00:00-01:00"
-		backupStrategy.KeepDays = 7
+		startTime = backupStrategyRaw[0].(map[string]interface{})["start_time"].(string)
+		keepDays = backupStrategyRaw[0].(map[string]interface{})["keep_days"].(int)
 	}
+	backupStrategy.StartTime = startTime
+	backupStrategy.KeepDays = &keepDays
 	log.Printf("[DEBUG] backupStrategy: %+v", backupStrategy)
 	return backupStrategy
 }
@@ -301,8 +303,8 @@ func DdsInstanceStateRefreshFunc(client *golangsdk.ServiceClient, instanceID str
 }
 
 func resourceDdsInstanceV3Create(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
-	client, err := config.ddsV3Client(GetRegion(d, config))
+	config := meta.(*config.Config)
+	client, err := config.DdsV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud DDS client: %s ", err)
 	}
@@ -315,7 +317,6 @@ func resourceDdsInstanceV3Create(d *schema.ResourceData, meta interface{}) error
 		VpcId:            d.Get("vpc_id").(string),
 		SubnetId:         d.Get("subnet_id").(string),
 		SecurityGroupId:  d.Get("security_group_id").(string),
-		Password:         d.Get("password").(string),
 		DiskEncryptionId: d.Get("disk_encryption_id").(string),
 		Mode:             d.Get("mode").(string),
 		Flavor:           resourceDdsFlavors(d),
@@ -327,6 +328,8 @@ func resourceDdsInstanceV3Create(d *schema.ResourceData, meta interface{}) error
 		createOpts.Ssl = "0"
 	}
 	log.Printf("[DEBUG] Create Options: %#v", createOpts)
+	// Add password here so it wouldn't go in the above log entry
+	createOpts.Password = d.Get("password").(string)
 
 	instance, err := instances.Create(client, createOpts).Extract()
 	if err != nil {
@@ -354,7 +357,7 @@ func resourceDdsInstanceV3Create(d *schema.ResourceData, meta interface{}) error
 	//set tags
 	tagRaw := d.Get("tags").(map[string]interface{})
 	if len(tagRaw) > 0 {
-		taglist := expandResourceTags(tagRaw)
+		taglist := utils.ExpandResourceTags(tagRaw)
 		if tagErr := tags.Create(client, "instances", instance.Id, taglist).ExtractErr(); tagErr != nil {
 			return fmt.Errorf("Error setting tags of DDS instance %s: %s", instance.Id, tagErr)
 		}
@@ -364,8 +367,8 @@ func resourceDdsInstanceV3Create(d *schema.ResourceData, meta interface{}) error
 }
 
 func resourceDdsInstanceV3Read(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
-	client, err := config.ddsV3Client(GetRegion(d, config))
+	config := meta.(*config.Config)
+	client, err := config.DdsV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud DDS client: %s", err)
 	}
@@ -434,7 +437,7 @@ func resourceDdsInstanceV3Read(d *schema.ResourceData, meta interface{}) error {
 
 	// save tags
 	if resourceTags, err := tags.Get(client, "instances", d.Id()).Extract(); err == nil {
-		tagmap := tagsToMap(resourceTags.Tags)
+		tagmap := utils.TagsToMap(resourceTags.Tags)
 		if err := d.Set("tags", tagmap); err != nil {
 			return fmt.Errorf("Error saving tags to state for DDS instance (%s): %s", d.Id(), err)
 		}
@@ -446,8 +449,8 @@ func resourceDdsInstanceV3Read(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceDdsInstanceV3Update(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
-	client, err := config.ddsV3Client(GetRegion(d, config))
+	config := meta.(*config.Config)
+	client, err := config.DdsV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud DDS client: %s ", err)
 	}
@@ -497,6 +500,18 @@ func resourceDdsInstanceV3Update(d *schema.ResourceData, meta interface{}) error
 		opts = append(opts, opt)
 	}
 
+	if d.HasChange("backup_strategy") {
+		backupStrategy := resourceDdsBackupStrategy(d)
+		backupStrategy.Period = "1,2,3,4,5,6,7"
+		opt := instances.UpdateOpt{
+			Param:  "backup_policy",
+			Value:  backupStrategy,
+			Action: "backups/policy",
+			Method: "put",
+		}
+		opts = append(opts, opt)
+	}
+
 	r := instances.Update(client, d.Id(), opts)
 	if r.Err != nil {
 		return fmt.Errorf("Error updating instance from result: %s ", r.Err)
@@ -519,7 +534,7 @@ func resourceDdsInstanceV3Update(d *schema.ResourceData, meta interface{}) error
 	}
 
 	if d.HasChange("tags") {
-		tagErr := UpdateResourceTags(client, d, "instances", d.Id())
+		tagErr := utils.UpdateResourceTags(client, d, "instances", d.Id())
 		if tagErr != nil {
 			return fmt.Errorf("Error updating tags of DDS instance:%s, err:%s", d.Id(), tagErr)
 		}
@@ -529,8 +544,8 @@ func resourceDdsInstanceV3Update(d *schema.ResourceData, meta interface{}) error
 }
 
 func resourceDdsInstanceV3Delete(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
-	client, err := config.ddsV3Client(GetRegion(d, config))
+	config := meta.(*config.Config)
+	client, err := config.DdsV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud DDS client: %s ", err)
 	}

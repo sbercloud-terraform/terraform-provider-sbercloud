@@ -8,9 +8,13 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/huaweicloud/golangsdk"
 	"github.com/huaweicloud/golangsdk/openstack/cce/v3/nodepools"
 	"github.com/huaweicloud/golangsdk/openstack/cce/v3/nodes"
+	"github.com/huaweicloud/golangsdk/openstack/common/tags"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
 func ResourceCCENodePool() *schema.Resource {
@@ -166,6 +170,7 @@ func ResourceCCENodePool() *schema.Resource {
 						},
 					}},
 			},
+			"tags": tagsSchema(),
 			"billing_mode": {
 				Type:     schema.TypeInt,
 				Computed: true,
@@ -200,6 +205,15 @@ func ResourceCCENodePool() *schema.Resource {
 						return ""
 					}
 				},
+			},
+			"runtime": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
+				ValidateFunc: validation.StringInSlice([]string{
+					"docker", "containerd",
+				}, false),
 			},
 			"extend_param": {
 				Type:     schema.TypeMap,
@@ -240,27 +254,30 @@ func ResourceCCENodePool() *schema.Resource {
 	}
 }
 
+func resourceCCENodePoolTags(d *schema.ResourceData) []tags.ResourceTag {
+	tagRaw := d.Get("tags").(map[string]interface{})
+	return utils.ExpandResourceTags(tagRaw)
+}
+
 func resourceCCENodePoolCreate(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	nodePoolClient, err := config.CceV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud CCE Node Pool client: %s", err)
 	}
 
-	var loginSpec nodes.LoginSpec
-	if hasFilledOpt(d, "key_pair") {
-		loginSpec = nodes.LoginSpec{SshKey: d.Get("key_pair").(string)}
-	} else if hasFilledOpt(d, "password") {
-		loginSpec = nodes.LoginSpec{
-			UserPassword: nodes.UserPassword{
-				Username: "root",
-				Password: d.Get("password").(string),
-			},
-		}
+	// wait for the cce cluster to become available
+	clusterid := d.Get("cluster_id").(string)
+	stateCluster := &resource.StateChangeConf{
+		Target:     []string{"Available"},
+		Refresh:    waitForClusterAvailable(nodePoolClient, clusterid),
+		Timeout:    d.Timeout(schema.TimeoutCreate),
+		Delay:      5 * time.Second,
+		MinTimeout: 5 * time.Second,
 	}
+	_, err = stateCluster.WaitForState()
 
 	initialNodeCount := d.Get("initial_node_count").(int)
-
 	createOpts := nodepools.CreateOpts{
 		Kind:       "NodePool",
 		ApiVersion: "v3",
@@ -273,7 +290,6 @@ func resourceCCENodePoolCreate(d *schema.ResourceData, meta interface{}) error {
 				Flavor:      d.Get("flavor_id").(string),
 				Az:          d.Get("availability_zone").(string),
 				Os:          d.Get("os").(string),
-				Login:       loginSpec,
 				RootVolume:  resourceCCERootVolume(d),
 				DataVolumes: resourceCCEDataVolume(d),
 				K8sTags:     resourceCCENodeK8sTags(d),
@@ -286,6 +302,7 @@ func resourceCCENodePoolCreate(d *schema.ResourceData, meta interface{}) error {
 				},
 				ExtendParam: resourceCCEExtendParam(d),
 				Taints:      resourceCCETaint(d),
+				UserTags:    resourceCCENodePoolTags(d),
 			},
 			Autoscaling: nodepools.AutoscalingSpec{
 				Enable:                d.Get("scall_enable").(bool),
@@ -298,17 +315,29 @@ func resourceCCENodePoolCreate(d *schema.ResourceData, meta interface{}) error {
 		},
 	}
 
-	clusterid := d.Get("cluster_id").(string)
-	stateCluster := &resource.StateChangeConf{
-		Target:     []string{"Available"},
-		Refresh:    waitForClusterAvailable(nodePoolClient, clusterid),
-		Timeout:    d.Timeout(schema.TimeoutCreate),
-		Delay:      15 * time.Second,
-		MinTimeout: 5 * time.Second,
+	if v, ok := d.GetOk("runtime"); ok {
+		createOpts.Spec.NodeTemplate.RunTime = &nodes.RunTimeSpec{
+			Name: v.(string),
+		}
 	}
-	_, err = stateCluster.WaitForState()
 
 	log.Printf("[DEBUG] Create Options: %#v", createOpts)
+	// Add loginSpec here so it wouldn't go in the above log entry
+	var loginSpec nodes.LoginSpec
+	if hasFilledOpt(d, "key_pair") {
+		loginSpec = nodes.LoginSpec{
+			SshKey: d.Get("key_pair").(string),
+		}
+	} else if hasFilledOpt(d, "password") {
+		loginSpec = nodes.LoginSpec{
+			UserPassword: nodes.UserPassword{
+				Username: "root",
+				Password: d.Get("password").(string),
+			},
+		}
+	}
+	createOpts.Spec.NodeTemplate.Login = loginSpec
+
 	s, err := nodepools.Create(nodePoolClient, clusterid, createOpts).Extract()
 	if err != nil {
 		if _, ok := err.(golangsdk.ErrDefault403); ok {
@@ -346,7 +375,7 @@ func resourceCCENodePoolCreate(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceCCENodePoolRead(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	nodePoolClient, err := config.CceV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud CCE Node Pool client: %s", err)
@@ -375,6 +404,9 @@ func resourceCCENodePoolRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("max_node_count", s.Spec.Autoscaling.MaxNodeCount)
 	d.Set("scale_down_cooldown_time", s.Spec.Autoscaling.ScaleDownCooldownTime)
 	d.Set("priority", s.Spec.Autoscaling.Priority)
+	if s.Spec.NodeTemplate.RunTime != nil {
+		d.Set("runtime", s.Spec.NodeTemplate.RunTime.Name)
+	}
 
 	labels := map[string]string{}
 	for key, val := range s.Spec.NodeTemplate.K8sTags {
@@ -412,19 +444,37 @@ func resourceCCENodePoolRead(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("[DEBUG] Error saving root Volume to state for HuaweiCloud Node Pool (%s): %s", d.Id(), err)
 	}
 
+	tagmap := utils.TagsToMap(s.Spec.NodeTemplate.UserTags)
+	// ignore "CCE-Dynamic-Provisioning-Node"
+	delete(tagmap, "CCE-Dynamic-Provisioning-Node")
+	if err := d.Set("tags", tagmap); err != nil {
+		return fmt.Errorf("Error saving tags to state for CCE Node Pool(%s): %s", d.Id(), err)
+	}
+
 	d.Set("status", s.Status.Phase)
 
 	return nil
 }
 
 func resourceCCENodePoolUpdate(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	nodePoolClient, err := config.CceV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud CCE client: %s", err)
 	}
 
 	initialNodeCount := d.Get("initial_node_count").(int)
+	var loginSpec nodes.LoginSpec
+	if hasFilledOpt(d, "key_pair") {
+		loginSpec = nodes.LoginSpec{SshKey: d.Get("key_pair").(string)}
+	} else if hasFilledOpt(d, "password") {
+		loginSpec = nodes.LoginSpec{
+			UserPassword: nodes.UserPassword{
+				Username: "root",
+				Password: d.Get("password").(string),
+			},
+		}
+	}
 
 	updateOpts := nodepools.UpdateOpts{
 		Kind:       "NodePool",
@@ -440,6 +490,15 @@ func resourceCCENodePoolUpdate(d *schema.ResourceData, meta interface{}) error {
 				MaxNodeCount:          d.Get("max_node_count").(int),
 				ScaleDownCooldownTime: d.Get("scale_down_cooldown_time").(int),
 				Priority:              d.Get("priority").(int),
+			},
+			NodeTemplate: nodes.Spec{
+				Flavor:      d.Get("flavor_id").(string),
+				Az:          d.Get("availability_zone").(string),
+				Login:       loginSpec,
+				RootVolume:  resourceCCERootVolume(d),
+				DataVolumes: resourceCCEDataVolume(d),
+				Count:       1,
+				UserTags:    resourceCCENodePoolTags(d),
 			},
 			Type: d.Get("type").(string),
 		},
@@ -468,7 +527,7 @@ func resourceCCENodePoolUpdate(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceCCENodePoolDelete(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	nodePoolClient, err := config.CceV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud CCE client: %s", err)

@@ -1,3 +1,11 @@
+## 1.1.0 (Unreleased)
+
+FEATURES:
+
+* **New Data Source:** `sbercloud_sfs_file_system` ([#33](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/33))
+* **New Resource:** `sbercloud_sfs_access_rule` ([#33](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/33))
+* **New Resource:** `sbercloud_sfs_file_system` ([#33](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/33))
+
 ## 1.0.0 (December 29, 2020)
 
 FEATURES:

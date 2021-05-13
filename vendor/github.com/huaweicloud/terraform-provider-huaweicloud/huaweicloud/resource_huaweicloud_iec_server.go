@@ -14,6 +14,7 @@ import (
 	"github.com/huaweicloud/golangsdk/openstack/ecs/v1/cloudservers"
 	"github.com/huaweicloud/golangsdk/openstack/iec/v1/common"
 	"github.com/huaweicloud/golangsdk/openstack/iec/v1/servers"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
 func resourceIecServer() *schema.Resource {
@@ -279,7 +280,7 @@ func resourceServerCoverage(d *schema.ResourceData) common.Coverage {
 }
 
 func resourceIecServerV1Create(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	iecClient, err := config.IECV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud IEC client: %s", err)
@@ -290,7 +291,6 @@ func resourceIecServerV1Create(d *schema.ResourceData, meta interface{}) error {
 		Name:           d.Get("name").(string),
 		ImageRef:       d.Get("image_id").(string),
 		FlavorRef:      d.Get("flavor_id").(string),
-		AdminPass:      d.Get("admin_pass").(string),
 		NetConfig:      resourceNetworkConfig(d),
 		SecurityGroups: resourceServerSecGroups(d),
 		RootVolume:     resourceServerRootVolume(d),
@@ -307,6 +307,9 @@ func resourceIecServerV1Create(d *schema.ResourceData, meta interface{}) error {
 		Coverage:     resourceServerCoverage(d),
 	}
 	log.Printf("[DEBUG] Create IEC servers options: %#v", createOpts)
+	// Add password here so it wouldn't go in the above log entry
+	createOpts.AdminPass = d.Get("admin_pass").(string)
+
 	resp, err := servers.CreateServer(iecClient, createOpts)
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud IEC server: %s", err)
@@ -352,7 +355,7 @@ func resourceIecServerV1Create(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceIecServerV1Read(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	iecClient, err := config.IECV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud IEC client: %s", err)
@@ -392,7 +395,7 @@ func resourceIecServerV1Read(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceIecServerV1Update(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	iecClient, err := config.IECV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud IEC client: %s", err)
@@ -418,7 +421,7 @@ func resourceIecServerV1Update(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceIecServerV1Delete(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	iecClient, err := config.IECV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud IEC client: %s", err)

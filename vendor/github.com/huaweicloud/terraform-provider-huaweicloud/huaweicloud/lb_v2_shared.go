@@ -8,11 +8,13 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 
 	"github.com/huaweicloud/golangsdk"
+	loadbalancers_v2 "github.com/huaweicloud/golangsdk/openstack/elb/v2/loadbalancers"
 	"github.com/huaweicloud/golangsdk/openstack/networking/v2/extensions/lbaas_v2/l7policies"
 	"github.com/huaweicloud/golangsdk/openstack/networking/v2/extensions/lbaas_v2/listeners"
 	"github.com/huaweicloud/golangsdk/openstack/networking/v2/extensions/lbaas_v2/loadbalancers"
 	"github.com/huaweicloud/golangsdk/openstack/networking/v2/extensions/lbaas_v2/monitors"
 	"github.com/huaweicloud/golangsdk/openstack/networking/v2/extensions/lbaas_v2/pools"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
 // lbPendingStatuses are the valid statuses a LoadBalancer will be in while
@@ -92,7 +94,53 @@ func waitForLBV2LoadBalancer(networkingClient *golangsdk.ServiceClient, id strin
 	return nil
 }
 
-func resourceLBV2LoadBalancerRefreshFunc(networkingClient *golangsdk.ServiceClient, id string) resource.StateRefreshFunc {
+// for v2 api
+func waitForLBV2LoadBalancer_v2(networkingClient *golangsdk.ServiceClient,
+	id string, target string, pending []string, timeout time.Duration) error {
+
+	log.Printf("[DEBUG] Waiting for loadbalancer %s to become %s", id, target)
+
+	stateConf := &resource.StateChangeConf{
+		Target:     []string{target},
+		Pending:    pending,
+		Refresh:    resourceLBV2LoadBalancerRefreshFunc_v2(networkingClient, id),
+		Timeout:    timeout,
+		Delay:      5 * time.Second,
+		MinTimeout: 1 * time.Second,
+	}
+
+	_, err := stateConf.WaitForState()
+	if err != nil {
+		if _, ok := err.(golangsdk.ErrDefault404); ok {
+			switch target {
+			case "DELETED":
+				return nil
+			default:
+				return fmt.Errorf("Error: loadbalancer %s not found: %s", id, err)
+			}
+		}
+		return fmt.Errorf("Error waiting for loadbalancer %s to become %s: %s", id, target, err)
+	}
+
+	return nil
+}
+
+func resourceLBV2LoadBalancerRefreshFunc_v2(networkingClient *golangsdk.ServiceClient,
+	id string) resource.StateRefreshFunc {
+
+	return func() (interface{}, string, error) {
+		lb, err := loadbalancers_v2.Get(networkingClient, id).Extract()
+		if err != nil {
+			return nil, "", err
+		}
+
+		return lb, lb.ProvisioningStatus, nil
+	}
+}
+
+func resourceLBV2LoadBalancerRefreshFunc(networkingClient *golangsdk.ServiceClient,
+	id string) resource.StateRefreshFunc {
+
 	return func() (interface{}, string, error) {
 		lb, err := loadbalancers.Get(networkingClient, id).Extract()
 		if err != nil {
@@ -259,7 +307,7 @@ func resourceLBV2LoadBalancerStatusRefreshFuncNeutron(lbClient *golangsdk.Servic
 			return nil, "", fmt.Errorf("Unable to get statuses from the Load Balancer %s statuses tree: %s", lbID, err)
 		}
 
-		if !strSliceContains(lbSkipLBStatuses, statuses.Loadbalancer.ProvisioningStatus) {
+		if !utils.StrSliceContains(lbSkipLBStatuses, statuses.Loadbalancer.ProvisioningStatus) {
 			return statuses.Loadbalancer, statuses.Loadbalancer.ProvisioningStatus, nil
 		}
 
@@ -348,7 +396,7 @@ func resourceLBV2L7PolicyRefreshFunc(lbClient *golangsdk.ServiceClient, lbID str
 			if err != nil {
 				return lb, status, err
 			}
-			if !strSliceContains(lbSkipLBStatuses, status) {
+			if !utils.StrSliceContains(lbSkipLBStatuses, status) {
 				return lb, status, nil
 			}
 
@@ -432,7 +480,7 @@ func resourceLBV2L7RuleRefreshFunc(lbClient *golangsdk.ServiceClient, lbID strin
 			if err != nil {
 				return lb, status, err
 			}
-			if !strSliceContains(lbSkipLBStatuses, status) {
+			if !utils.StrSliceContains(lbSkipLBStatuses, status) {
 				return lb, status, nil
 			}
 

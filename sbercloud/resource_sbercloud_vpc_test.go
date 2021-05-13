@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 
 	"github.com/huaweicloud/golangsdk/openstack/networking/v1/vpcs"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
 func TestAccVpcV1_basic(t *testing.T) {
@@ -54,7 +54,7 @@ func TestAccVpcV1_basic(t *testing.T) {
 }
 
 func testAccCheckVpcV1Destroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*huaweicloud.Config)
+	config := testAccProvider.Meta().(*config.Config)
 	vpcClient, err := config.NetworkingV1Client(SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating huaweicloud vpc client: %s", err)
@@ -85,7 +85,7 @@ func testAccCheckVpcV1Exists(n string, vpc *vpcs.Vpc) resource.TestCheckFunc {
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*huaweicloud.Config)
+		config := testAccProvider.Meta().(*config.Config)
 		vpcClient, err := config.NetworkingV1Client(SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating huaweicloud vpc client: %s", err)

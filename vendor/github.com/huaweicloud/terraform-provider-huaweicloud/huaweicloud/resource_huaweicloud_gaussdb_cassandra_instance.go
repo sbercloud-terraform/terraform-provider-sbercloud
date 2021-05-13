@@ -14,6 +14,8 @@ import (
 	"github.com/huaweicloud/golangsdk/openstack/geminidb/v3/backups"
 	"github.com/huaweicloud/golangsdk/openstack/geminidb/v3/configurations"
 	"github.com/huaweicloud/golangsdk/openstack/geminidb/v3/instances"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
 func resourceGeminiDBInstanceV3() *schema.Resource {
@@ -153,32 +155,7 @@ func resourceGeminiDBInstanceV3() *schema.Resource {
 				Type:     schema.TypeBool,
 				Optional: true,
 			},
-			"charging_mode": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
-				ValidateFunc: validation.StringInSlice([]string{
-					"prePaid", "postPaid",
-				}, false),
-			},
-			"period_unit": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
-				ValidateFunc: validation.StringInSlice([]string{
-					"month", "year",
-				}, false),
-			},
-			"period": {
-				Type:     schema.TypeInt,
-				Optional: true,
-				ForceNew: true,
-			},
-			"auto_renew": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
-			},
+
 			"private_ips": {
 				Type:     schema.TypeList,
 				Computed: true,
@@ -230,6 +207,13 @@ func resourceGeminiDBInstanceV3() *schema.Resource {
 					},
 				},
 			},
+
+			// charge info: charging_mode, period_unit, period, auto_renew
+			"charging_mode": schemeChargingMode(nil),
+			"period_unit":   schemaPeriodUnit(nil),
+			"period":        schemaPeriod(nil),
+			"auto_renew":    schemaAutoRenew(nil),
+
 			"tags": tagsSchema(),
 		},
 	}
@@ -293,7 +277,7 @@ func GeminiDBInstanceStateRefreshFunc(client *golangsdk.ServiceClient, instanceI
 }
 
 func resourceGeminiDBInstanceV3Create(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	client, err := config.GeminiDBV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud GeminiDB client: %s ", err)
@@ -331,7 +315,6 @@ func resourceGeminiDBInstanceV3Create(d *schema.ResourceData, meta interface{}) 
 		SecurityGroupId:     d.Get("security_group_id").(string),
 		ConfigurationId:     d.Get("configuration_id").(string),
 		EnterpriseProjectId: GetEnterpriseProjectID(d, config),
-		Password:            d.Get("password").(string),
 		Mode:                "Cluster",
 		Flavor:              resourceGeminiDBFlavor(d),
 		DataStore:           resourceGeminiDBDataStore(d),
@@ -343,6 +326,10 @@ func resourceGeminiDBInstanceV3Create(d *schema.ResourceData, meta interface{}) 
 
 	// PrePaid
 	if d.Get("charging_mode") == "prePaid" {
+		if err := validatePrePaidChargeInfo(d); err != nil {
+			return err
+		}
+
 		chargeInfo := &instances.ChargeInfoOpt{
 			ChargingMode: d.Get("charging_mode").(string),
 			PeriodType:   d.Get("period_unit").(string),
@@ -353,6 +340,8 @@ func resourceGeminiDBInstanceV3Create(d *schema.ResourceData, meta interface{}) 
 		createOpts.ChargeInfo = chargeInfo
 	}
 	log.Printf("[DEBUG] Create Options: %#v", createOpts)
+	// Add password here so it wouldn't go in the above log entry
+	createOpts.Password = d.Get("password").(string)
 
 	instance, err := instances.Create(client, createOpts).Extract()
 	if err != nil {
@@ -380,7 +369,7 @@ func resourceGeminiDBInstanceV3Create(d *schema.ResourceData, meta interface{}) 
 	//set tags
 	tagRaw := d.Get("tags").(map[string]interface{})
 	if len(tagRaw) > 0 {
-		taglist := expandResourceTags(tagRaw)
+		taglist := utils.ExpandResourceTags(tagRaw)
 		if tagErr := tags.Create(client, "instances", d.Id(), taglist).ExtractErr(); tagErr != nil {
 			return fmt.Errorf("Error setting tags of GeminiDB %s: %s", d.Id(), tagErr)
 		}
@@ -393,7 +382,7 @@ func resourceGeminiDBInstanceV3Create(d *schema.ResourceData, meta interface{}) 
 }
 
 func resourceGeminiDBInstanceV3Read(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	client, err := config.GeminiDBV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud GeminiDB client: %s", err)
@@ -480,7 +469,7 @@ func resourceGeminiDBInstanceV3Read(d *schema.ResourceData, meta interface{}) er
 
 	//save geminidb tags
 	if resourceTags, err := tags.Get(client, "instances", d.Id()).Extract(); err == nil {
-		tagmap := tagsToMap(resourceTags.Tags)
+		tagmap := utils.TagsToMap(resourceTags.Tags)
 		if err := d.Set("tags", tagmap); err != nil {
 			return fmt.Errorf("Error saving tags to state for geminidb (%s): %s", d.Id(), err)
 		}
@@ -492,7 +481,7 @@ func resourceGeminiDBInstanceV3Read(d *schema.ResourceData, meta interface{}) er
 }
 
 func resourceGeminiDBInstanceV3Delete(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	client, err := config.GeminiDBV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud GeminiDB client: %s ", err)
@@ -531,14 +520,14 @@ func resourceGeminiDBInstanceV3Delete(d *schema.ResourceData, meta interface{}) 
 }
 
 func resourceGeminiDBInstanceV3Update(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	client, err := config.GeminiDBV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating Huaweicloud Vpc: %s", err)
 	}
 	//update tags
 	if d.HasChange("tags") {
-		tagErr := UpdateResourceTags(client, d, "instances", d.Id())
+		tagErr := utils.UpdateResourceTags(client, d, "instances", d.Id())
 		if tagErr != nil {
 			return fmt.Errorf("Error updating tags of GeminiDB %q: %s", d.Id(), tagErr)
 		}

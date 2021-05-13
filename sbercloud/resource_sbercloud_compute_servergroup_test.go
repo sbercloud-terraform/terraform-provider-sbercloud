@@ -10,7 +10,7 @@ import (
 
 	"github.com/huaweicloud/golangsdk/openstack/compute/v2/extensions/servergroups"
 	"github.com/huaweicloud/golangsdk/openstack/compute/v2/servers"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
 func TestAccComputeV2ServerGroup_basic(t *testing.T) {
@@ -60,7 +60,7 @@ func TestAccComputeV2ServerGroup_affinity(t *testing.T) {
 }
 
 func testAccCheckComputeV2ServerGroupDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*huaweicloud.Config)
+	config := testAccProvider.Meta().(*config.Config)
 	computeClient, err := config.ComputeV2Client(SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating Sbercloud compute client: %s", err)
@@ -91,7 +91,7 @@ func testAccCheckComputeV2ServerGroupExists(n string, kp *servergroups.ServerGro
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*huaweicloud.Config)
+		config := testAccProvider.Meta().(*config.Config)
 		computeClient, err := config.ComputeV2Client(SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating Sbercloud compute client: %s", err)

@@ -255,7 +255,7 @@ github.com/hashicorp/terraform-svchost/auth
 github.com/hashicorp/terraform-svchost/disco
 # github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d
 github.com/hashicorp/yamux
-# github.com/huaweicloud/golangsdk v0.0.0-20210323020602-6d5ee0030244
+# github.com/huaweicloud/golangsdk v0.0.0-20210507120834-b552827e340b
 github.com/huaweicloud/golangsdk
 github.com/huaweicloud/golangsdk/internal
 github.com/huaweicloud/golangsdk/openstack
@@ -268,9 +268,13 @@ github.com/huaweicloud/golangsdk/openstack/autoscaling/v1/groups
 github.com/huaweicloud/golangsdk/openstack/autoscaling/v1/instances
 github.com/huaweicloud/golangsdk/openstack/autoscaling/v1/policies
 github.com/huaweicloud/golangsdk/openstack/autoscaling/v1/tags
+github.com/huaweicloud/golangsdk/openstack/bcs/v2/blockchains
 github.com/huaweicloud/golangsdk/openstack/blockstorage/extensions/volumeactions
 github.com/huaweicloud/golangsdk/openstack/blockstorage/v2/volumes
+github.com/huaweicloud/golangsdk/openstack/bms/v1/baremetalservers
 github.com/huaweicloud/golangsdk/openstack/bss/v2/orders
+github.com/huaweicloud/golangsdk/openstack/cbr/v3/policies
+github.com/huaweicloud/golangsdk/openstack/cbr/v3/vaults
 github.com/huaweicloud/golangsdk/openstack/cce/v3/addons
 github.com/huaweicloud/golangsdk/openstack/cce/v3/clusters
 github.com/huaweicloud/golangsdk/openstack/cce/v3/nodepools
@@ -317,6 +321,8 @@ github.com/huaweicloud/golangsdk/openstack/ecs/v1/auto_recovery
 github.com/huaweicloud/golangsdk/openstack/ecs/v1/block_devices
 github.com/huaweicloud/golangsdk/openstack/ecs/v1/cloudservers
 github.com/huaweicloud/golangsdk/openstack/ecs/v1/flavors
+github.com/huaweicloud/golangsdk/openstack/elb/v2/loadbalancers
+github.com/huaweicloud/golangsdk/openstack/elb/v3/loadbalancers
 github.com/huaweicloud/golangsdk/openstack/eps/v1/enterpriseprojects
 github.com/huaweicloud/golangsdk/openstack/evs/v2/snapshots
 github.com/huaweicloud/golangsdk/openstack/evs/v2/tags
@@ -367,11 +373,6 @@ github.com/huaweicloud/golangsdk/openstack/networking/v1/security/securitygroups
 github.com/huaweicloud/golangsdk/openstack/networking/v1/subnets
 github.com/huaweicloud/golangsdk/openstack/networking/v1/vpcs
 github.com/huaweicloud/golangsdk/openstack/networking/v2/bandwidths
-github.com/huaweicloud/golangsdk/openstack/networking/v2/extensions/elb
-github.com/huaweicloud/golangsdk/openstack/networking/v2/extensions/elb/backendecs
-github.com/huaweicloud/golangsdk/openstack/networking/v2/extensions/elb/healthcheck
-github.com/huaweicloud/golangsdk/openstack/networking/v2/extensions/elb/listeners
-github.com/huaweicloud/golangsdk/openstack/networking/v2/extensions/elb/loadbalancers
 github.com/huaweicloud/golangsdk/openstack/networking/v2/extensions/extradhcpopts
 github.com/huaweicloud/golangsdk/openstack/networking/v2/extensions/fwaas_v2/firewall_groups
 github.com/huaweicloud/golangsdk/openstack/networking/v2/extensions/fwaas_v2/policies
@@ -404,9 +405,6 @@ github.com/huaweicloud/golangsdk/openstack/networking/v2/subnets
 github.com/huaweicloud/golangsdk/openstack/obs
 github.com/huaweicloud/golangsdk/openstack/opengauss/v3/backups
 github.com/huaweicloud/golangsdk/openstack/opengauss/v3/instances
-github.com/huaweicloud/golangsdk/openstack/rds/v1/datastores
-github.com/huaweicloud/golangsdk/openstack/rds/v1/flavors
-github.com/huaweicloud/golangsdk/openstack/rds/v1/instances
 github.com/huaweicloud/golangsdk/openstack/rds/v3/backups
 github.com/huaweicloud/golangsdk/openstack/rds/v3/configurations
 github.com/huaweicloud/golangsdk/openstack/rds/v3/datastores
@@ -420,6 +418,7 @@ github.com/huaweicloud/golangsdk/openstack/sfs/v2/shares
 github.com/huaweicloud/golangsdk/openstack/sfs_turbo/v1/shares
 github.com/huaweicloud/golangsdk/openstack/smn/v2/subscriptions
 github.com/huaweicloud/golangsdk/openstack/smn/v2/topics
+github.com/huaweicloud/golangsdk/openstack/swr/v2/namespaces
 github.com/huaweicloud/golangsdk/openstack/taurusdb/v3/backups
 github.com/huaweicloud/golangsdk/openstack/taurusdb/v3/configurations
 github.com/huaweicloud/golangsdk/openstack/taurusdb/v3/instances
@@ -430,8 +429,11 @@ github.com/huaweicloud/golangsdk/openstack/vbs/v2/tags
 github.com/huaweicloud/golangsdk/openstack/vpcep/v1/endpoints
 github.com/huaweicloud/golangsdk/openstack/vpcep/v1/services
 github.com/huaweicloud/golangsdk/pagination
-# github.com/huaweicloud/terraform-provider-huaweicloud v1.22.3-0.20210325093634-f44e24d59cc2
+# github.com/huaweicloud/terraform-provider-huaweicloud v1.24.1-0.20210510091958-a78a3eaca2f5
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/deprecated
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils
 # github.com/imdario/mergo v0.3.9
 github.com/imdario/mergo
 # github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99

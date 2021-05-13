@@ -14,6 +14,8 @@ import (
 	"github.com/huaweicloud/golangsdk/openstack/mrs/v1/cluster"
 	"github.com/huaweicloud/golangsdk/openstack/networking/v1/subnets"
 	"github.com/huaweicloud/golangsdk/openstack/networking/v1/vpcs"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
 func resourceMRSClusterV1() *schema.Resource {
@@ -413,7 +415,7 @@ func ClusterStateRefreshFunc(client *golangsdk.ServiceClient, clusterID string) 
 }
 
 func resourceClusterV1Create(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	region := GetRegion(d, config)
 
 	client, err := config.MrsV1Client(region)
@@ -442,33 +444,34 @@ func resourceClusterV1Create(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	createOpts := &cluster.CreateOpts{
-		DataCenter:          region,
-		BillingType:         d.Get("billing_type").(int),
-		MasterNodeNum:       d.Get("master_node_num").(int),
-		MasterNodeSize:      d.Get("master_node_size").(string),
-		CoreNodeNum:         d.Get("core_node_num").(int),
-		CoreNodeSize:        d.Get("core_node_size").(string),
-		AvailableZoneID:     d.Get("available_zone_id").(string),
-		ClusterName:         d.Get("cluster_name").(string),
-		ClusterVersion:      d.Get("cluster_version").(string),
-		ClusterType:         d.Get("cluster_type").(int),
-		VpcID:               d.Get("vpc_id").(string),
-		SubnetID:            d.Get("subnet_id").(string),
-		Vpc:                 vpc.Name,
-		SubnetName:          subnet.Name,
-		VolumeType:          d.Get("volume_type").(string),
-		VolumeSize:          d.Get("volume_size").(int),
-		SafeMode:            d.Get("safe_mode").(int),
-		LoginMode:           loginMode,
-		NodePublicCertName:  d.Get("node_public_cert_name").(string),
-		ClusterMasterSecret: d.Get("node_password").(string),
-		ClusterAdminSecret:  d.Get("cluster_admin_secret").(string),
-		LogCollection:       d.Get("log_collection").(int),
-		ComponentList:       getAllClusterComponents(d),
-		AddJobs:             getAllClusterJobs(d),
+		DataCenter:         region,
+		BillingType:        d.Get("billing_type").(int),
+		MasterNodeNum:      d.Get("master_node_num").(int),
+		MasterNodeSize:     d.Get("master_node_size").(string),
+		CoreNodeNum:        d.Get("core_node_num").(int),
+		CoreNodeSize:       d.Get("core_node_size").(string),
+		AvailableZoneID:    d.Get("available_zone_id").(string),
+		ClusterName:        d.Get("cluster_name").(string),
+		ClusterVersion:     d.Get("cluster_version").(string),
+		ClusterType:        d.Get("cluster_type").(int),
+		VpcID:              d.Get("vpc_id").(string),
+		SubnetID:           d.Get("subnet_id").(string),
+		Vpc:                vpc.Name,
+		SubnetName:         subnet.Name,
+		VolumeType:         d.Get("volume_type").(string),
+		VolumeSize:         d.Get("volume_size").(int),
+		SafeMode:           d.Get("safe_mode").(int),
+		LoginMode:          loginMode,
+		NodePublicCertName: d.Get("node_public_cert_name").(string),
+		LogCollection:      d.Get("log_collection").(int),
+		ComponentList:      getAllClusterComponents(d),
+		AddJobs:            getAllClusterJobs(d),
 	}
 
 	log.Printf("[DEBUG] Create Options: %#v", createOpts)
+	// Add password here so it wouldn't go in the above log entry
+	createOpts.ClusterMasterSecret = d.Get("node_password").(string)
+	createOpts.ClusterAdminSecret = d.Get("cluster_admin_secret").(string)
 
 	clusterCreate, err := cluster.Create(client, createOpts).Extract()
 	if err != nil {
@@ -495,7 +498,7 @@ func resourceClusterV1Create(d *schema.ResourceData, meta interface{}) error {
 	// create tags
 	tagRaw := d.Get("tags").(map[string]interface{})
 	if len(tagRaw) > 0 {
-		taglist := expandResourceTags(tagRaw)
+		taglist := utils.ExpandResourceTags(tagRaw)
 		if tagErr := tags.Create(client, "clusters", d.Id(), taglist).ExtractErr(); tagErr != nil {
 			return fmt.Errorf("Error setting tags of MRS cluster %s: %s", d.Id(), tagErr)
 		}
@@ -505,7 +508,7 @@ func resourceClusterV1Create(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceClusterV1Read(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	client, err := config.MrsV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud MRS client: %s", err)
@@ -611,7 +614,7 @@ func resourceClusterV1Read(d *schema.ResourceData, meta interface{}) error {
 
 	// set tags
 	if resourceTags, err := tags.Get(client, "clusters", d.Id()).Extract(); err == nil {
-		tagmap := tagsToMap(resourceTags.Tags)
+		tagmap := utils.TagsToMap(resourceTags.Tags)
 		d.Set("tags", tagmap)
 	} else {
 		log.Printf("[WARN] fetching tags of MRS cluster failed: %s", err)
@@ -621,14 +624,14 @@ func resourceClusterV1Read(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceClusterV1Update(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	client, err := config.MrsV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud MRS client: %s", err)
 	}
 
 	// update tags
-	tagErr := UpdateResourceTags(client, d, "clusters", d.Id())
+	tagErr := utils.UpdateResourceTags(client, d, "clusters", d.Id())
 	if tagErr != nil {
 		return fmt.Errorf("Error updating tags of MRS cluster:%s, err:%s", d.Id(), tagErr)
 	}
@@ -637,7 +640,7 @@ func resourceClusterV1Update(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceClusterV1Delete(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	client, err := config.MrsV1Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud MRS client: %s", err)
@@ -646,7 +649,7 @@ func resourceClusterV1Delete(d *schema.ResourceData, meta interface{}) error {
 	rId := d.Id()
 	clusterGet, err := cluster.Get(client, d.Id()).Extract()
 	if err != nil {
-		if isResourceNotFound(err) {
+		if utils.IsResourceNotFound(err) {
 			log.Printf("[INFO] getting an unavailable Cluster: %s", rId)
 			return nil
 		}

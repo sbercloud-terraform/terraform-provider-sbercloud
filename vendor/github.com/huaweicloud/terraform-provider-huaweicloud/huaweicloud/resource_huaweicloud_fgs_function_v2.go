@@ -1,6 +1,9 @@
 package huaweicloud
 
 import (
+	"crypto/sha1"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"strings"
@@ -8,6 +11,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/huaweicloud/golangsdk/openstack/fgs/v2/function"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
 func resourceFgsFunctionV2() *schema.Resource {
@@ -42,9 +46,17 @@ func resourceFgsFunctionV2() *schema.Resource {
 				ForceNew: true,
 			},
 			"package": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Type:          schema.TypeString,
+				Optional:      true,
+				ForceNew:      true,
+				ConflictsWith: []string{"app"},
+				Deprecated:    "use app instead",
+			},
+			"app": {
+				Type:          schema.TypeString,
+				Optional:      true,
+				ForceNew:      true,
+				ConflictsWith: []string{"package"},
 			},
 			"code_type": {
 				Type:     schema.TypeString,
@@ -88,33 +100,66 @@ func resourceFgsFunctionV2() *schema.Resource {
 				ForceNew: true,
 			},
 			"xrole": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
+				Type:          schema.TypeString,
+				Optional:      true,
+				ForceNew:      true,
+				ConflictsWith: []string{"agency"},
+				Deprecated:    "use agency instead",
+			},
+			"agency": {
+				Type:          schema.TypeString,
+				Optional:      true,
+				ForceNew:      true,
+				ConflictsWith: []string{"xrole"},
 			},
 			"func_code": {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
+				StateFunc: func(v interface{}) string {
+					switch v.(type) {
+					case string:
+						return funcCodeHashSum(v.(string))
+					default:
+						return ""
+					}
+				},
 			},
 		},
 	}
 }
 
 func resourceFgsFunctionV2Create(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	fgsClient, err := config.FgsV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud FGS V2 client: %s", err)
 	}
 
-	func_code := function.FunctionCodeOpts{
-		File: d.Get("func_code").(string),
+	// check app and package
+	app, app_ok := d.GetOk("app")
+	pak, pak_ok := d.GetOk("package")
+	if !app_ok && !pak_ok {
+		return fmt.Errorf("One of app or package must be configured")
+	}
+	pack_v := ""
+	if app_ok {
+		pack_v = app.(string)
+	} else {
+		pack_v = pak.(string)
+	}
+
+	// get value from agency or xrole
+	agency_v := ""
+	if v, ok := d.GetOk("agency"); ok {
+		agency_v = v.(string)
+	} else if v, ok := d.GetOk("xrole"); ok {
+		agency_v = v.(string)
 	}
 
 	createOpts := function.CreateOpts{
 		FuncName:     d.Get("name").(string),
-		Package:      d.Get("package").(string),
+		Package:      pack_v,
 		CodeType:     d.Get("code_type").(string),
 		CodeUrl:      d.Get("code_url").(string),
 		Description:  d.Get("description").(string),
@@ -124,8 +169,15 @@ func resourceFgsFunctionV2Create(d *schema.ResourceData, meta interface{}) error
 		Runtime:      d.Get("runtime").(string),
 		Timeout:      d.Get("timeout").(int),
 		UserData:     d.Get("user_data").(string),
-		Xrole:        d.Get("xrole").(string),
-		FuncCode:     func_code,
+		Xrole:        agency_v,
+	}
+
+	if v, ok := d.GetOk("func_code"); ok {
+		funcCode := funcCodeEncode(v.(string))
+		func_code := function.FunctionCodeOpts{
+			File: funcCode,
+		}
+		createOpts.FuncCode = func_code
 	}
 
 	log.Printf("[DEBUG] Create Options: %#v", createOpts)
@@ -140,7 +192,7 @@ func resourceFgsFunctionV2Create(d *schema.ResourceData, meta interface{}) error
 }
 
 func resourceFgsFunctionV2Read(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	fgsClient, err := config.FgsV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud FGS V2 client: %s", err)
@@ -154,7 +206,6 @@ func resourceFgsFunctionV2Read(d *schema.ResourceData, meta interface{}) error {
 	log.Printf("[DEBUG] Retrieved Function %s: %+v", d.Id(), f)
 
 	d.Set("name", f.FuncName)
-	d.Set("package", f.Package)
 	d.Set("code_type", f.CodeType)
 	d.Set("code_url", f.CodeUrl)
 	d.Set("description", f.Description)
@@ -164,13 +215,24 @@ func resourceFgsFunctionV2Read(d *schema.ResourceData, meta interface{}) error {
 	d.Set("runtime", f.Runtime)
 	d.Set("timeout", f.Timeout)
 	d.Set("user_data", f.UserData)
-	d.Set("xrole", f.Xrole)
+
+	if _, ok := d.GetOk("app"); ok {
+		d.Set("app", f.Package)
+	} else {
+		d.Set("package", f.Package)
+	}
+
+	if _, ok := d.GetOk("agency"); ok {
+		d.Set("agency", f.Xrole)
+	} else {
+		d.Set("xrole", f.Xrole)
+	}
 
 	return nil
 }
 
 func resourceFgsFunctionV2Delete(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*Config)
+	config := meta.(*config.Config)
 	fgsClient, err := config.FgsV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud FGS V2 client: %s", err)
@@ -187,4 +249,24 @@ func resourceFgsFunctionV2Delete(d *schema.ResourceData, meta interface{}) error
 	}
 	d.SetId("")
 	return nil
+}
+
+func funcCodeHashSum(script string) string {
+	// Check whether the func_code is not Base64 encoded.
+	// Always calculate hash of base64 decoded value since we
+	// check against double-encoding when setting it
+	v, base64DecodeError := base64.StdEncoding.DecodeString(script)
+	if base64DecodeError != nil {
+		v = []byte(script)
+	}
+
+	hash := sha1.Sum(v)
+	return hex.EncodeToString(hash[:])
+}
+
+func funcCodeEncode(script string) string {
+	if _, err := base64.StdEncoding.DecodeString(script); err != nil {
+		return base64.StdEncoding.EncodeToString([]byte(script))
+	}
+	return script
 }
