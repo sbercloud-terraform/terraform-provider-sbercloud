@@ -161,6 +161,9 @@ func Provider() terraform.ResourceProvider {
 			"sbercloud_nat_dnat_rule":             huaweicloud.ResourceNatDnatRuleV2(),
 			"sbercloud_nat_gateway":               huaweicloud.ResourceNatGatewayV2(),
 			"sbercloud_nat_snat_rule":             huaweicloud.ResourceNatSnatRuleV2(),
+			"sbercloud_networking_eip_associate":  huaweicloud.ResourceNetworkingFloatingIPAssociateV2(),
+			"sbercloud_networking_secgroup":       huaweicloud.ResourceNetworkingSecGroupV2(),
+			"sbercloud_networking_secgroup_rule":  huaweicloud.ResourceNetworkingSecGroupRuleV2(),
 			"sbercloud_obs_bucket":                huaweicloud.ResourceObsBucket(),
 			"sbercloud_obs_bucket_object":         huaweicloud.ResourceObsBucketObject(),
 			"sbercloud_obs_bucket_policy":         huaweicloud.ResourceObsBucketPolicy(),
@@ -173,8 +176,6 @@ func Provider() terraform.ResourceProvider {
 			"sbercloud_vpc_route":                 huaweicloud.ResourceVPCRouteV2(),
 			"sbercloud_vpc_peering_connection":    huaweicloud.ResourceVpcPeeringConnectionV2(),
 			"sbercloud_vpc_subnet":                huaweicloud.ResourceVpcSubnetV1(),
-			"sbercloud_networking_secgroup":       huaweicloud.ResourceNetworkingSecGroupV2(),
-			"sbercloud_networking_secgroup_rule":  huaweicloud.ResourceNetworkingSecGroupRuleV2(),
 			// Legacy
 			"sbercloud_identity_role_assignment_v3":  huaweicloud.ResourceIdentityRoleAssignmentV3(),
 			"sbercloud_identity_user_v3":             huaweicloud.ResourceIdentityUserV3(),
