@@ -14,7 +14,7 @@ data "sbercloud_compute_flavors" "flavor_name" {
 
 # Get the subnet where ECS will be created
 data "sbercloud_vpc_subnet" "subnet_01" {
-  name = "public-01"
+  name = "place_the_name_of_your_existing_subnet_here"
 }
 
 # Create ECS
@@ -24,7 +24,7 @@ resource "sbercloud_compute_instance" "ecs_01" {
   flavor_id         = data.sbercloud_compute_flavors.flavor_name.ids[0]
   security_groups   = ["default", "sg-ssh"]
   availability_zone = "ru-moscow-1b"
-  key_pair          = "KeyPair-01-SBC"
+  key_pair          = "place_the_name_of_your_existing_key_pair_here"
 
   system_disk_type = "SAS"
   system_disk_size = 16
