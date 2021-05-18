@@ -1,10 +1,21 @@
 ## Example: Basic ECS Instance
 
-This example provisions a basic ECS instance with the following attributes:
-- availability zone: AZ1 ("ru-moscow-1a")
-- flavor: s6.large.2
+This example provisions an ECS instance with the following attributes:
+- availability zone: AZ2 ("ru-moscow-1b")
+- flavor: c6.large.2
 - OS: Ubuntu 20.04
-- security group: "default"
-- one EVS disk of "High I/O" type (SAS) and 16 GB size
+- 2 security groups: "default", "sg-ssh"
+- one system EVS disk of "High I/O" type (SAS) and 16 GB size
+- one data EVS disk of "High I/O" type (SAS) and 32 GB size
 
 The example expects that one already has a key pair and a subnet.  
+
+Please note the **sbercloud_compute_flavors** data source.  
+It gets the right flavor name based on the performance type, vCPU and RAM amount required.  
+The following performance types are available:
+- "normal": General-purpose
+- "computingv3": Dedicated general-purpose
+- "highmem": Memory-optimized
+- "diskintensive": Disk-intensive
+- "gpu": GPU-accelerated
+
