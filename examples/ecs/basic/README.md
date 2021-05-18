@@ -8,5 +8,3 @@ This example provisions a basic ECS instance with the following attributes:
 - one EVS disk of "High I/O" type (SAS) and 16 GB size
 
 The example expects that one already has a key pair and a subnet.  
-
-The example will also put the tag: "created_by" = "terraform". This is optional.
