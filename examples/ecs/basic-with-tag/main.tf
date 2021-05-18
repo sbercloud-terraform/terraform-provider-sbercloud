@@ -6,7 +6,7 @@ data "sbercloud_images_image" "ubuntu_image" {
 
 # Get the subnet where ECS will be created
 data "sbercloud_vpc_subnet" "subnet_01" {
-  name = "put_here_the_name_of_your_existing_subnet"
+  name = "place_the_name_of_your_existing_subnet_here"
 }
 
 # Create ECS
@@ -16,7 +16,7 @@ resource "sbercloud_compute_instance" "ecs_01" {
   flavor_id         = "s6.large.2"
   security_groups   = ["default"]
   availability_zone = "ru-moscow-1a"
-  key_pair          = "put_here_the_name_of_your_existing_key_pair"
+  key_pair          = "place_the_name_of_your_existing_key_pair_here"
 
   system_disk_type = "SAS"
   system_disk_size = 16
