@@ -24,8 +24,4 @@ resource "sbercloud_compute_instance" "ecs_01" {
   network {
     uuid = data.sbercloud_vpc_subnet.subnet_01.id
   }
-
-  tags = {
-    created_by = "terraform"
-  }
 }
