@@ -4,17 +4,6 @@ data "sbercloud_images_image" "ubuntu_image" {
   most_recent = true
 }
 
-# Get the list of availability zones
-data "sbercloud_availability_zones" "list_of_az" {}
-
-# Get the flavor name
-data "sbercloud_compute_flavors" "flavor_name" {
-  availability_zone = data.sbercloud_availability_zones.list_of_az.names[0]
-  performance_type  = "normal"
-  cpu_core_count    = 2
-  memory_size       = 4
-}
-
 # Get the subnet where ECS will be created
 data "sbercloud_vpc_subnet" "subnet_01" {
   name = "place_the_name_of_your_existing_subnet_here"
@@ -30,9 +19,9 @@ resource "sbercloud_compute_keypair" "keypair_01" {
 resource "sbercloud_compute_instance" "ecs_01" {
   name              = "terraform-ecs"
   image_id          = data.sbercloud_images_image.ubuntu_image.id
-  flavor_id         = data.sbercloud_compute_flavors.flavor_name.ids[0]
+  flavor_id         = "s6.large.2"
   security_groups   = ["sg-ssh"]
-  availability_zone = data.sbercloud_availability_zones.list_of_az.names[0]
+  availability_zone = "ru-moscow-1a"
   key_pair          = sbercloud_compute_keypair.keypair_01.name
 
   system_disk_type = "SAS"
