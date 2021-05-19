@@ -136,6 +136,7 @@ func Provider() terraform.ResourceProvider {
 			"sbercloud_cce_node":                  huaweicloud.ResourceCCENodeV3(),
 			"sbercloud_dns_recordset":             huaweicloud.ResourceDNSRecordSetV2(),
 			"sbercloud_dns_zone":                  huaweicloud.ResourceDNSZoneV2(),
+			"sbercloud_identity_agency":           huaweicloud.ResourceIAMAgencyV3(),
 			"sbercloud_identity_role_assignment":  huaweicloud.ResourceIdentityRoleAssignmentV3(),
 			"sbercloud_identity_user":             huaweicloud.ResourceIdentityUserV3(),
 			"sbercloud_identity_group":            huaweicloud.ResourceIdentityGroupV3(),

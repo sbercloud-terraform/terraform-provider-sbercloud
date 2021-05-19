@@ -255,7 +255,7 @@ github.com/hashicorp/terraform-svchost/auth
 github.com/hashicorp/terraform-svchost/disco
 # github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d
 github.com/hashicorp/yamux
-# github.com/huaweicloud/golangsdk v0.0.0-20210511031538-124f151770d5
+# github.com/huaweicloud/golangsdk v0.0.0-20210517025840-92b32656bde0
 github.com/huaweicloud/golangsdk
 github.com/huaweicloud/golangsdk/internal
 github.com/huaweicloud/golangsdk/openstack
@@ -279,6 +279,7 @@ github.com/huaweicloud/golangsdk/openstack/cce/v3/addons
 github.com/huaweicloud/golangsdk/openstack/cce/v3/clusters
 github.com/huaweicloud/golangsdk/openstack/cce/v3/nodepools
 github.com/huaweicloud/golangsdk/openstack/cce/v3/nodes
+github.com/huaweicloud/golangsdk/openstack/cce/v3/templates
 github.com/huaweicloud/golangsdk/openstack/cci/v1/networks
 github.com/huaweicloud/golangsdk/openstack/cdn/v1/domains
 github.com/huaweicloud/golangsdk/openstack/cloudeyeservice/alarmrule
@@ -323,6 +324,7 @@ github.com/huaweicloud/golangsdk/openstack/ecs/v1/cloudservers
 github.com/huaweicloud/golangsdk/openstack/ecs/v1/flavors
 github.com/huaweicloud/golangsdk/openstack/elb/v2/loadbalancers
 github.com/huaweicloud/golangsdk/openstack/elb/v3/flavors
+github.com/huaweicloud/golangsdk/openstack/elb/v3/listeners
 github.com/huaweicloud/golangsdk/openstack/elb/v3/loadbalancers
 github.com/huaweicloud/golangsdk/openstack/eps/v1/enterpriseprojects
 github.com/huaweicloud/golangsdk/openstack/evs/v2/snapshots
@@ -430,7 +432,7 @@ github.com/huaweicloud/golangsdk/openstack/vbs/v2/tags
 github.com/huaweicloud/golangsdk/openstack/vpcep/v1/endpoints
 github.com/huaweicloud/golangsdk/openstack/vpcep/v1/services
 github.com/huaweicloud/golangsdk/pagination
-# github.com/huaweicloud/terraform-provider-huaweicloud v1.24.1-0.20210512003528-5fa7995bc0f7
+# github.com/huaweicloud/terraform-provider-huaweicloud v1.24.3-0.20210519013004-0424585c2a68
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/deprecated
