@@ -1,4 +1,4 @@
-## Example: Basic ECS Instance
+## Example: ECS Instance of c6 flavor, with 2 security groups and 2 disks
 
 This example provisions an ECS instance with the following attributes:
 - availability zone: AZ2 ("ru-moscow-1b")
