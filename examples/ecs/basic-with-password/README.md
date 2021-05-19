@@ -2,7 +2,6 @@
 
 ### Requirements
 
-- root password has been salted as described [here](https://support.hc.sbercloud.ru/en-us/api/cce/cce_02_0242.html) 
 - subnet is created in SberCloud.Advanced
 
 ### Description
@@ -13,7 +12,8 @@ This example provisions an ECS instance with the following attributes:
 - OS: Ubuntu 20.04
 - 1 security group: "sg-ssh"
 - one system EVS disk of "High I/O" type (SAS) and 16 GB size
+- authentication mode is login/password (by default, the "root" user is used for Linux ECS)
 
 ### Notes 
 
-None.
+If the password authentication is used, one can't do user data injection into ECS.
