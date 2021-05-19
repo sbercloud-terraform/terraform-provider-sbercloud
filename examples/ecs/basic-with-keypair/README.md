@@ -1,4 +1,4 @@
-## Example: Key Pair creation and then basic ECS instance
+## Example: Key Pair creation and then basic ECS instance using this key pair
 
 This example provisions an ECS instance with the following attributes:
 - availability zone: AZ1 ("ru-moscow-1a")
