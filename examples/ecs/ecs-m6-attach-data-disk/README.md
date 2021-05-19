@@ -1,5 +1,12 @@
 ## Example: ECS Instance of m6 flavor. Attaching data disk
 
+### Requirements
+
+- key pair exists in SberCloud.Advanced
+- subnet exists in SberCloud.Advanced
+
+### Description
+
 This example provisions an ECS instance with the following attributes:
 - availability zone: AZ1 ("ru-moscow-1a")
 - flavor: m6.xlarge.8
@@ -11,7 +18,7 @@ Then an EVS disk is created and attached to the ECS:
 - disk type: Ultra-high I/O (SSD)
 - size: 64 GB
 
-The example expects that one already has a key pair and a subnet.  
+### Notes
 
 Please note the **sbercloud_compute_flavors** data source.  
 It gets the right flavor name based on the performance type, vCPU and RAM amount required.  
