@@ -1,3 +1,9 @@
+# Declare all required input variables
+variable "root_password" {
+  description = "Root password for ECS"
+  sensitive   = true
+}
+
 # Get the latest Ubuntu image
 data "sbercloud_images_image" "ubuntu_image" {
   name        = "Ubuntu 20.04 server 64bit"
@@ -16,7 +22,7 @@ resource "sbercloud_compute_instance" "ecs_01" {
   flavor_id         = "s6.large.2"
   security_groups   = ["sg-ssh"]
   availability_zone = "ru-moscow-1a"
-  admin_pass        = "place_your_root_password_here"
+  admin_pass        = var.root_password
 
   system_disk_type = "SAS"
   system_disk_size = 16
