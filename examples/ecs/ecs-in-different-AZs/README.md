@@ -14,7 +14,7 @@ This example provisions ECS instances in different AZs:
 - 1 security group: "default"
 - one system EVS disk of "High I/O" type (SAS) and 16 GB size. 
 
-Availability Zone name is defined automatically for each ECS
+Availability Zone name is defined automatically for each ECS at the creation time.
 
 ### Notes
 
@@ -22,7 +22,7 @@ Please note how the list of availability zones is obtained.
 
 Then the length of the list of availability zones is declared as a local variable.
 
-Please note the "count = 4" line. This is the number of ECS to be created. Terraform [count meta-argument](https://www.terraform.io/docs/language/meta-arguments/count.html) allows creating several similar resources from one block.  
+Please note the "count = 4" line inside the "sbercloud_compute_instance" resource. This is the number of ECS to be created. Terraform [count meta-argument](https://www.terraform.io/docs/language/meta-arguments/count.html) allows creating several similar resources from one just block.  
 
 Later the code refers to the current iteration with **count.index**. Current iteration is used to set a unique name for each ECS.  
 
