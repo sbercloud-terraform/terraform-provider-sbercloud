@@ -32,9 +32,9 @@ $ make build
 
 Using the provider
 ----------------------
-Please see the documentation at [provider usage](website/docs/index.html.markdown).
+Please see the documentation at [Terraform Registry](https://registry.terraform.io/providers/sbercloud-terraform/sbercloud/latest/docs).
 
-Or you can browse the documentation within this repo [here](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/tree/master/website/docs).
+Or you can browse the documentation within this repo [here](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/tree/master/docs).
 
 Developing the Provider
 ---------------------------
