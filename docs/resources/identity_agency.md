@@ -37,7 +37,7 @@ resource "sbercloud_identity_agency" "agency" {
   project_role {
     project = "ru-moscow-1"
     roles = [
-      "SFS FullAccess",
+      "SFS Administrator",
     ]
   }
   domain_roles = [
