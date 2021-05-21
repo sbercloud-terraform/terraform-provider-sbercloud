@@ -6,7 +6,7 @@ None.
 
 ### Description
 
-This example provisions basic VPC instance with two subnets.
+This example provisions basic VPC with two subnets.
 
 ### Notes
 
