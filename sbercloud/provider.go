@@ -161,6 +161,8 @@ func Provider() terraform.ResourceProvider {
 			"sbercloud_nat_dnat_rule":             huaweicloud.ResourceNatDnatRuleV2(),
 			"sbercloud_nat_gateway":               huaweicloud.ResourceNatGatewayV2(),
 			"sbercloud_nat_snat_rule":             huaweicloud.ResourceNatSnatRuleV2(),
+			"sbercloud_network_acl":               huaweicloud.ResourceNetworkACL(),
+			"sbercloud_network_acl_rule":          huaweicloud.ResourceNetworkACLRule(),
 			"sbercloud_networking_eip_associate":  huaweicloud.ResourceNetworkingFloatingIPAssociateV2(),
 			"sbercloud_networking_secgroup":       huaweicloud.ResourceNetworkingSecGroupV2(),
 			"sbercloud_networking_secgroup_rule":  huaweicloud.ResourceNetworkingSecGroupRuleV2(),
