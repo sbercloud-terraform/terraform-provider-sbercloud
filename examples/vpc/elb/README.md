@@ -2,7 +2,6 @@
 
 ### Requirements
 
-- VPC exists in SberCloud.Advanced
 - subnet exists in SberCloud.Advanced
 - key pair exists in SberCloud.Advanced
 
