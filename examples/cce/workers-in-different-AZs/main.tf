@@ -1,9 +1,9 @@
-# Get the VPC where NAT gateway will be created
+# Get the VPC where CCE cluster will be created
 data "sbercloud_vpc" "vpc_01" {
   name = "put_here_the_name_of_your_existing_vpc"
 }
 
-# Get the subnet where NAT gateway will be created
+# Get the subnet where CCE cluster will be created
 data "sbercloud_vpc_subnet" "subnet_01" {
   name = "put_here_the_name_of_your_existing_subnet"
 }
