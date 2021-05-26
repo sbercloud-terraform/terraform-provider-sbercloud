@@ -1,6 +1,11 @@
+# Set local variable: the number of ECS in the backend group
+locals {
+  number_of_ecs_in_backend = 2
+}
+
 # Get the subnet where ELB will be created
 data "sbercloud_vpc_subnet" "subnet_01" {
-  name = "place_here_the_name_of_your_existing_subnet"
+  name = "subnet-tf"
 }
 
 # Get the latest Ubuntu image
@@ -11,14 +16,14 @@ data "sbercloud_images_image" "ubuntu_image" {
 
 # Create two ECS
 resource "sbercloud_compute_instance" "ecs_01" {
-  count = 2
+  count = local.number_of_ecs_in_backend
 
   name              = "ecs-terraform-${count.index}"
   image_id          = data.sbercloud_images_image.ubuntu_image.id
   flavor_id         = "s6.large.2"
   security_groups   = ["default"]
   availability_zone = "ru-moscow-1a"
-  key_pair          = "place_here_the_name_of_your_existing_key_pair"
+  key_pair          = "KeyPair-01-SBC"
   system_disk_type = "SAS"
   system_disk_size = 16
 
@@ -82,7 +87,7 @@ resource "sbercloud_lb_monitor" "elb_health_check" {
 
 # Add both ECS to the backend server group
 resource "sbercloud_lb_member" "backend_server" {
-  count = 2
+  count = local.number_of_ecs_in_backend
 
   address = sbercloud_compute_instance.ecs_01[count.index].access_ip_v4
 
