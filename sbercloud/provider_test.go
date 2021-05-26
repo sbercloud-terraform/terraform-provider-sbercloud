@@ -15,7 +15,10 @@ var (
 	SBC_REGION_NAME                = os.Getenv("SBC_REGION_NAME")
 	SBC_ACCOUNT_NAME               = os.Getenv("SBC_ACCOUNT_NAME")
 	SBC_ADMIN                      = os.Getenv("SBC_ADMIN")
+	SBC_DOMAIN_ID                  = os.Getenv("SBC_DOMAIN_ID")
+	SBC_DOMAIN_NAME                = os.Getenv("SBC_DOMAIN_NAME")
 	SBC_ENTERPRISE_PROJECT_ID_TEST = os.Getenv("SBC_ENTERPRISE_PROJECT_ID_TEST")
+	SBC_PROJECT_ID                 = os.Getenv("SBC_PROJECT_ID")
 )
 
 var testAccProviders map[string]terraform.ResourceProvider

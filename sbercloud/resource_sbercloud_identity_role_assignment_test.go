@@ -5,11 +5,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-sdk/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
-
 	"github.com/huaweicloud/golangsdk/openstack/identity/v3/groups"
-	"github.com/huaweicloud/golangsdk/openstack/identity/v3/projects"
 	"github.com/huaweicloud/golangsdk/openstack/identity/v3/roles"
 	"github.com/huaweicloud/golangsdk/pagination"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -23,7 +22,9 @@ func extractRoleAssignmentID(roleAssignmentID string) (string, string, string, s
 func TestAccIdentityV3RoleAssignment_basic(t *testing.T) {
 	var role roles.Role
 	var group groups.Group
-	var project projects.Project
+	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
+	resourceName := "sbercloud_identity_role_assignment.role_assignment_1"
+
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck: func() {
 			testAccPreCheck(t)
@@ -33,15 +34,21 @@ func TestAccIdentityV3RoleAssignment_basic(t *testing.T) {
 		CheckDestroy: testAccCheckIdentityV3RoleAssignmentDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccIdentityV3RoleAssignment_basic,
+				Config: testAccIdentityV3RoleAssignment_project(rName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckIdentityV3RoleAssignmentExists("sbercloud_identity_role_assignment.role_assignment_1", &role, &group, &project),
-					resource.TestCheckResourceAttrPtr(
-						"sbercloud_identity_role_assignment.role_assignment_1", "project_id", &project.ID),
-					resource.TestCheckResourceAttrPtr(
-						"sbercloud_identity_role_assignment.role_assignment_1", "group_id", &group.ID),
-					resource.TestCheckResourceAttrPtr(
-						"sbercloud_identity_role_assignment.role_assignment_1", "role_id", &role.ID),
+					testAccCheckIdentityV3RoleAssignmentExists(resourceName, &role, &group),
+					resource.TestCheckResourceAttrPtr(resourceName, "group_id", &group.ID),
+					resource.TestCheckResourceAttrPtr(resourceName, "role_id", &role.ID),
+					resource.TestCheckResourceAttr(resourceName, "project_id", SBC_PROJECT_ID),
+				),
+			},
+			{
+				Config: testAccIdentityV3RoleAssignment_domain(rName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckIdentityV3RoleAssignmentExists(resourceName, &role, &group),
+					resource.TestCheckResourceAttrPtr(resourceName, "group_id", &group.ID),
+					resource.TestCheckResourceAttrPtr(resourceName, "role_id", &role.ID),
+					resource.TestCheckResourceAttr(resourceName, "domain_id", SBC_DOMAIN_ID),
 				),
 			},
 		},
@@ -69,7 +76,7 @@ func testAccCheckIdentityV3RoleAssignmentDestroy(s *terraform.State) error {
 	return nil
 }
 
-func testAccCheckIdentityV3RoleAssignmentExists(n string, role *roles.Role, group *groups.Group, project *projects.Project) resource.TestCheckFunc {
+func testAccCheckIdentityV3RoleAssignmentExists(n string, role *roles.Role, group *groups.Group) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
@@ -117,11 +124,6 @@ func testAccCheckIdentityV3RoleAssignmentExists(n string, role *roles.Role, grou
 			return err
 		}
 
-		p, err := projects.Get(identityClient, projectID).Extract()
-		if err != nil {
-			return fmt.Errorf("Project not found")
-		}
-		*project = *p
 		g, err := groups.Get(identityClient, groupID).Extract()
 		if err != nil {
 			return fmt.Errorf("Group not found")
@@ -137,19 +139,38 @@ func testAccCheckIdentityV3RoleAssignmentExists(n string, role *roles.Role, grou
 	}
 }
 
-const testAccIdentityV3RoleAssignment_basic = `
-resource "sbercloud_identity_group" "group_1" {
-  name = "group_1"
+func testAccIdentityV3RoleAssignment_project(rName string) string {
+	return fmt.Sprintf(`
+data "sbercloud_identity_role" "role_1" {
+  name = "rds_adm"
 }
 
-data "sbercloud_identity_role" "role_1" {
-  name = "ims_adm"
+resource "sbercloud_identity_group" "group_1" {
+  name = "%s"
 }
 
 resource "sbercloud_identity_role_assignment" "role_assignment_1" {
-  group_id = "${sbercloud_identity_group.group_1.id}"
-  #project_id = "09338f629380276a2f95c0180c2bdb72"
-  project_id = "0910fc31530026f82fd0c018a303517e"
-  role_id = "${data.sbercloud_identity_role.role_1.id}"
+  role_id    = data.sbercloud_identity_role.role_1.id
+  group_id   = sbercloud_identity_group.group_1.id
+  project_id = "%s"
 }
-`
+`, rName, SBC_PROJECT_ID)
+}
+
+func testAccIdentityV3RoleAssignment_domain(rName string) string {
+	return fmt.Sprintf(`
+data "sbercloud_identity_role" "role_1" {
+  name = "secu_admin"
+}
+
+resource "sbercloud_identity_group" "group_1" {
+  name = "%s"
+}
+
+resource "sbercloud_identity_role_assignment" "role_assignment_1" {
+  role_id    = data.sbercloud_identity_role.role_1.id
+  group_id   = sbercloud_identity_group.group_1.id
+  domain_id = "%s"
+}
+`, rName, SBC_DOMAIN_ID)
+}

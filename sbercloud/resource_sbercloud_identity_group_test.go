@@ -32,8 +32,6 @@ func TestAccIdentityV3Group_basic(t *testing.T) {
 						"sbercloud_identity_group.group_1", "name", &group.Name),
 					resource.TestCheckResourceAttrPtr(
 						"sbercloud_identity_group.group_1", "description", &group.Description),
-					resource.TestCheckResourceAttrPtr(
-						"sbercloud_identity_group.group_1", "domain_id", &group.DomainID),
 				),
 			},
 			{
@@ -44,8 +42,6 @@ func TestAccIdentityV3Group_basic(t *testing.T) {
 						"sbercloud_identity_group.group_1", "name", &group.Name),
 					resource.TestCheckResourceAttrPtr(
 						"sbercloud_identity_group.group_1", "description", &group.Description),
-					resource.TestCheckResourceAttrPtr(
-						"sbercloud_identity_group.group_1", "domain_id", &group.DomainID),
 				),
 			},
 		},

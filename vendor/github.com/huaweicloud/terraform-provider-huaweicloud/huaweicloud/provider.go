@@ -258,6 +258,7 @@ func Provider() terraform.ResourceProvider {
 		DataSourcesMap: map[string]*schema.Resource{
 			"huaweicloud_antiddos":                    dataSourceAntiDdosV1(),
 			"huaweicloud_availability_zones":          DataSourceAvailabilityZones(),
+			"huaweicloud_cce_addon_template":          DataSourceCCEAddonTemplateV3(),
 			"huaweicloud_cce_cluster":                 DataSourceCCEClusterV3(),
 			"huaweicloud_cce_node":                    DataSourceCCENodeV3(),
 			"huaweicloud_cce_node_pool":               DataSourceCCENodePoolV3(),
@@ -394,6 +395,7 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_dns_recordset":                   ResourceDNSRecordSetV2(),
 			"huaweicloud_dns_zone":                        ResourceDNSZoneV2(),
 			"huaweicloud_dws_cluster":                     resourceDwsCluster(),
+			"huaweicloud_elb_listener":                    ResourceListenerV3(),
 			"huaweicloud_elb_loadbalancer":                ResourceLoadBalancerV3(),
 			"huaweicloud_evs_snapshot":                    ResourceEvsSnapshotV2(),
 			"huaweicloud_evs_volume":                      ResourceEvsStorageVolumeV3(),
@@ -403,7 +405,7 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_gaussdb_opengauss_instance":      resourceOpenGaussInstance(),
 			"huaweicloud_ges_graph":                       resourceGesGraphV1(),
 			"huaweicloud_identity_acl":                    resourceIdentityACL(),
-			"huaweicloud_identity_agency":                 resourceIAMAgencyV3(),
+			"huaweicloud_identity_agency":                 ResourceIAMAgencyV3(),
 			"huaweicloud_identity_group":                  ResourceIdentityGroupV3(),
 			"huaweicloud_identity_group_membership":       ResourceIdentityGroupMembershipV3(),
 			"huaweicloud_identity_project":                ResourceIdentityProjectV3(),
@@ -519,8 +521,8 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_nat_dnat_rule_v2":                   ResourceNatDnatRuleV2(),
 			"huaweicloud_sfs_access_rule_v2":                 ResourceSFSAccessRuleV2(),
 			"huaweicloud_sfs_file_system_v2":                 ResourceSFSFileSystemV2(),
-			"huaweicloud_iam_agency":                         resourceIAMAgencyV3(),
-			"huaweicloud_iam_agency_v3":                      resourceIAMAgencyV3(),
+			"huaweicloud_iam_agency":                         ResourceIAMAgencyV3(),
+			"huaweicloud_iam_agency_v3":                      ResourceIAMAgencyV3(),
 			"huaweicloud_vpc_v1":                             ResourceVirtualPrivateCloudV1(),
 			"huaweicloud_vpc_bandwidth_v2":                   ResourceVpcBandWidthV2(),
 			"huaweicloud_vpc_eip_v1":                         ResourceVpcEIPV1(),
@@ -717,10 +719,6 @@ func configureProvider(d *schema.ResourceData, terraformVersion string) (interfa
 
 	if err := config.LoadAndValidate(); err != nil {
 		return nil, err
-	}
-
-	if config.HwClient != nil && config.HwClient.ProjectID != "" {
-		config.RegionProjectIDMap[config.Region] = config.HwClient.ProjectID
 	}
 
 	return &config, nil
