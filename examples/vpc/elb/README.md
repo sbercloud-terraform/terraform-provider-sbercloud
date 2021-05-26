@@ -1,4 +1,4 @@
-## Example: Elastic Load Balancer (ELB) with 2 ECS in the backend servers group
+## Example: Elastic Load Balancer (ELB) with several ECS in the backend servers group
 
 ### Requirements
 
@@ -7,7 +7,8 @@
 
 ### Description
 
-This example creates two ECS, which will be behind the load balancer, in the backend servers group.  
+This example creates several ECS, which will be behind the load balancer, in the backend servers group.  
+The exact number of ECS is defined by a local variable "number_of_ecs_in_backend".  
 For more details on the ECS creation see corresponding examples.  
 
 Next, it creates EIP with the following attributes:
@@ -32,7 +33,7 @@ Then it created a health check policy for servers in the backend with the follow
 - number of seconds to wait for a probe reply: 5 seconds
 - number of allowed ping failures before changing the backend host status to "unhealth": 3
 
-Finally, it adds both ECS into the backend servers group with the following attributes:
+Finally, it adds all ECS into the backend servers group with the following attributes:
 - backend protocol port: 80
 
 ### Notes
