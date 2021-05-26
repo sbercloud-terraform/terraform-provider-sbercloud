@@ -12,6 +12,7 @@ This example provisions a basic CCE cluster with the following attributes:
 - Kubernetes version: latest available
 - number of master nodes: 3
 - master nodes are spread over several AZs
+- cluster size: up to 50 worker nodes
 - network model: tunnel
 
 Also this example provisions one worker node. The process of creating workers is very similar to ECS.
