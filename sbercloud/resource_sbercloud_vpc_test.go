@@ -31,7 +31,6 @@ func TestAccVpcV1_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
 					resource.TestCheckResourceAttr(resourceName, "cidr", "192.168.0.0/16"),
 					resource.TestCheckResourceAttr(resourceName, "status", "OK"),
-					resource.TestCheckResourceAttr(resourceName, "shared", "false"),
 					resource.TestCheckResourceAttr(resourceName, "tags.foo", "bar"),
 					resource.TestCheckResourceAttr(resourceName, "tags.key", "value"),
 				),
@@ -53,11 +52,36 @@ func TestAccVpcV1_basic(t *testing.T) {
 	})
 }
 
+func TestAccVpcV1_WithEpsId(t *testing.T) {
+	var vpc vpcs.Vpc
+
+	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
+	resourceName := "sbercloud_vpc.test"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheckEpsID(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckVpcV1Destroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccVpcV1_epsId(rName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckVpcV1Exists(resourceName, &vpc),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttr(resourceName, "cidr", "192.168.0.0/16"),
+					resource.TestCheckResourceAttr(resourceName, "status", "OK"),
+					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", SBC_ENTERPRISE_PROJECT_ID_TEST),
+				),
+			},
+		},
+	})
+}
+
 func testAccCheckVpcV1Destroy(s *terraform.State) error {
 	config := testAccProvider.Meta().(*config.Config)
 	vpcClient, err := config.NetworkingV1Client(SBC_REGION_NAME)
 	if err != nil {
-		return fmt.Errorf("Error creating huaweicloud vpc client: %s", err)
+		return fmt.Errorf("Error creating SberCloud vpc client: %s", err)
 	}
 
 	for _, rs := range s.RootModule().Resources {
@@ -88,7 +112,7 @@ func testAccCheckVpcV1Exists(n string, vpc *vpcs.Vpc) resource.TestCheckFunc {
 		config := testAccProvider.Meta().(*config.Config)
 		vpcClient, err := config.NetworkingV1Client(SBC_REGION_NAME)
 		if err != nil {
-			return fmt.Errorf("Error creating huaweicloud vpc client: %s", err)
+			return fmt.Errorf("Error creating SberCloud vpc client: %s", err)
 		}
 
 		found, err := vpcs.Get(vpcClient, rs.Primary.ID).Extract()
@@ -132,4 +156,14 @@ resource "sbercloud_vpc" "test" {
   }
 }
 `, rName)
+}
+
+func testAccVpcV1_epsId(rName string) string {
+	return fmt.Sprintf(`
+resource "sbercloud_vpc" "test" {
+  name = "%s"
+  cidr = "192.168.0.0/16"
+  enterprise_project_id = "%s"
+}
+`, rName, SBC_ENTERPRISE_PROJECT_ID_TEST)
 }
