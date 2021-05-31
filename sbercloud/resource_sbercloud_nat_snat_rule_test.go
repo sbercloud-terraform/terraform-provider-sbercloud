@@ -106,16 +106,16 @@ resource "sbercloud_vpc_eip" "eip_1" {
 }
 
 resource "sbercloud_nat_gateway" "nat_1" {
-  name                = "nat-gateway-basic-%s"
-  description         = "test for terraform"
-  spec                = "1"
-  internal_network_id = sbercloud_vpc_subnet.subnet_1.id
-  router_id           = sbercloud_vpc.vpc_1.id
+  name        = "nat-gateway-basic-%s"
+  description = "test for terraform"
+  spec        = "1"
+  vpc_id      = sbercloud_vpc.vpc_1.id
+  subnet_id   = sbercloud_vpc_subnet.subnet_1.id
 }
 
 resource "sbercloud_nat_snat_rule" "snat_1" {
   nat_gateway_id = sbercloud_nat_gateway.nat_1.id
-  network_id     = sbercloud_vpc_subnet.subnet_1.id
+  subnet_id      = sbercloud_vpc_subnet.subnet_1.id
   floating_ip_id = sbercloud_vpc_eip.eip_1.id
 }
 	`, testAccNatPreCondition(suffix), suffix)

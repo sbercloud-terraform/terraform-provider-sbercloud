@@ -48,6 +48,26 @@ func TestAccNatGateway_basic(t *testing.T) {
 	})
 }
 
+func TestAccNatGateway_withEpsId(t *testing.T) {
+	randSuffix := acctest.RandString(5)
+	resourceName := "sbercloud_nat_gateway.nat_1"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t); testAccPreCheckEpsID(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckNatV2GatewayDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccNatV2Gateway_epsId(randSuffix),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckNatV2GatewayExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", SBC_ENTERPRISE_PROJECT_ID_TEST),
+				),
+			},
+		},
+	})
+}
+
 func testAccCheckNatV2GatewayDestroy(s *terraform.State) error {
 	config := testAccProvider.Meta().(*config.Config)
 	natClient, err := config.NatGatewayClient(SBC_REGION_NAME)
@@ -121,11 +141,11 @@ func testAccNatV2Gateway_basic(suffix string) string {
 %s
 
 resource "sbercloud_nat_gateway" "nat_1" {
-  name                = "nat-gateway-basic-%s"
-  description         = "test for terraform"
-  spec                = "1"
-  internal_network_id = sbercloud_vpc_subnet.subnet_1.id
-  router_id           = sbercloud_vpc.vpc_1.id
+  name        = "nat-gateway-basic-%s"
+  description = "test for terraform"
+  spec        = "1"
+  vpc_id      = sbercloud_vpc.vpc_1.id
+  subnet_id   = sbercloud_vpc_subnet.subnet_1.id
 }
 	`, testAccNatPreCondition(suffix), suffix)
 }
@@ -135,12 +155,26 @@ func testAccNatV2Gateway_update(suffix string) string {
 %s
 
 resource "sbercloud_nat_gateway" "nat_1" {
-  name                = "nat-gateway-updated-%s"
-  description         = "test for terraform updated"
-  spec                = "2"
-  internal_network_id = sbercloud_vpc_subnet.subnet_1.id
-  router_id           = sbercloud_vpc.vpc_1.id
-
+  name        = "nat-gateway-updated-%s"
+  description = "test for terraform updated"
+  spec        = "2"
+  vpc_id      = sbercloud_vpc.vpc_1.id
+  subnet_id   = sbercloud_vpc_subnet.subnet_1.id
 }
 	`, testAccNatPreCondition(suffix), suffix)
+}
+
+func testAccNatV2Gateway_epsId(suffix string) string {
+	return fmt.Sprintf(`
+%s
+
+resource "sbercloud_nat_gateway" "nat_1" {
+  name                  = "nat-gateway-eps-%s"
+  description           = "test for terraform"
+  spec                  = "1"
+  vpc_id                = sbercloud_vpc.vpc_1.id
+  subnet_id             = sbercloud_vpc_subnet.subnet_1.id
+  enterprise_project_id = "%s"
+}
+	`, testAccNatPreCondition(suffix), suffix, SBC_ENTERPRISE_PROJECT_ID_TEST)
 }
