@@ -1,8 +1,27 @@
-## 1.1.0 (Unreleased)
+## 1.2.0 (Unreleased)
 
 FEATURES:
 
+* **New Data Source:** `sbercloud_cce_node_pool` ([#43](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/43))
+* **New Data Source:** `sbercloud_rds_flavors` ([#45](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/45))
+* **New Resource:** `sbercloud_network_acl` ([#38](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/38))
+* **New Resource:** `sbercloud_network_acl_rule` ([#38](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/38))
+* **New Resource:** `sbercloud_identity_agency` ([#39](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/39))
+* **New Resource:** `sbercloud_cce_node_pool` ([#43](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/43))
+* **New Resource:** `sbercloud_rds_instance` ([#45](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/45))
+* **New Resource:** `sbercloud_rds_parametergroup` ([#45](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/45))
+* **New Resource:** `sbercloud_rds_read_replica_instance` ([#45](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/45))
+
+## 1.1.0 (May 17, 2021)
+
+FEATURES:
+
+* **New Data Source:** `sbercloud_nat_gateway` ([#27](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/27))
 * **New Data Source:** `sbercloud_sfs_file_system` ([#33](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/33))
+* **New Resource:** `sbercloud_nat_gateway` ([#27](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/27))
+* **New Resource:** `sbercloud_nat_dnat_rule` ([#27](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/27))
+* **New Resource:** `sbercloud_nat_snat_rule` ([#27](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/27))
+* **New Resource:** `sbercloud_sfs_turbo` ([#29](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/29))
 * **New Resource:** `sbercloud_sfs_access_rule` ([#33](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/33))
 * **New Resource:** `sbercloud_sfs_file_system` ([#33](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/33))
 * **New Resource:** `sbercloud_networking_eip_associate` ([#34](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/34))
