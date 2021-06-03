@@ -28,7 +28,7 @@ func TestAccObsBucketObject_source(t *testing.T) {
 	}
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
+		PreCheck:     func() { testAccPreCheckOBS(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckObsBucketObjectDestroy,
 		Steps: []resource.TestStep{
@@ -44,6 +44,14 @@ func TestAccObsBucketObject_source(t *testing.T) {
 						"sbercloud_obs_bucket_object.object", "storage_class", "STANDARD"),
 				),
 			},
+			{
+				// update with encryption
+				Config: testAccObsBucketObjectConfig_withSSE(rInt, tmpFile.Name()),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(
+						"sbercloud_obs_bucket_object.object", "encryption", "true"),
+				),
+			},
 		},
 	})
 }
@@ -52,7 +60,7 @@ func TestAccObsBucketObject_content(t *testing.T) {
 	rInt := acctest.RandInt()
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
+		PreCheck:     func() { testAccPreCheckOBS(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckObsBucketObjectDestroy,
 		Steps: []resource.TestStep{
@@ -187,4 +195,20 @@ resource "sbercloud_obs_bucket_object" "object" {
         content = "some_bucket_content"
 }
 `, randInt)
+}
+
+func testAccObsBucketObjectConfig_withSSE(randInt int, source string) string {
+	return fmt.Sprintf(`
+resource "sbercloud_obs_bucket" "object_bucket" {
+	bucket = "tf-object-test-bucket-%d"
+}
+
+resource "sbercloud_obs_bucket_object" "object" {
+	bucket = sbercloud_obs_bucket.object_bucket.bucket
+	key = "test-key"
+	source = "%s"
+	content_type = "binary/octet-stream"
+	encryption = true
+}
+`, randInt, source)
 }

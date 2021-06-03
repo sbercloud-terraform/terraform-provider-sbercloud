@@ -12,13 +12,15 @@ import (
 )
 
 var (
-	SBC_REGION_NAME                = os.Getenv("SBC_REGION_NAME")
+	SBC_ACCESS_KEY                 = os.Getenv("SBC_ACCESS_KEY")
 	SBC_ACCOUNT_NAME               = os.Getenv("SBC_ACCOUNT_NAME")
 	SBC_ADMIN                      = os.Getenv("SBC_ADMIN")
 	SBC_DOMAIN_ID                  = os.Getenv("SBC_DOMAIN_ID")
 	SBC_DOMAIN_NAME                = os.Getenv("SBC_DOMAIN_NAME")
 	SBC_ENTERPRISE_PROJECT_ID_TEST = os.Getenv("SBC_ENTERPRISE_PROJECT_ID_TEST")
 	SBC_PROJECT_ID                 = os.Getenv("SBC_PROJECT_ID")
+	SBC_REGION_NAME                = os.Getenv("SBC_REGION_NAME")
+	SBC_SECRET_KEY                 = os.Getenv("SBC_SECRET_KEY")
 )
 
 var testAccProviders map[string]terraform.ResourceProvider
@@ -50,6 +52,12 @@ func testAccPreCheckAdminOnly(t *testing.T) {
 func testAccPreCheckEpsID(t *testing.T) {
 	if SBC_ENTERPRISE_PROJECT_ID_TEST == "" {
 		t.Skip("This environment does not support EPS_ID tests")
+	}
+}
+
+func testAccPreCheckOBS(t *testing.T) {
+	if SBC_ACCESS_KEY == "" || SBC_SECRET_KEY == "" {
+		t.Skip("SBC_ACCESS_KEY and SBC_SECRET_KEY must be set for OBS acceptance tests")
 	}
 }
 
