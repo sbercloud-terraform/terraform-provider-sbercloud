@@ -93,6 +93,11 @@ var allServiceCatalog = map[string]ServiceCatalog{
 	},
 	"cciv1": {
 		Name:             "cci",
+		Version:          "api/v1",
+		WithOutProjectID: true,
+	},
+	"cciv1_bata": {
+		Name:             "cci",
 		Version:          "apis/networking.cci.io/v1beta1",
 		WithOutProjectID: true,
 	},
@@ -320,11 +325,12 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Version: "v2",
 	},
 
-	// catalog for edge / IoT
+	// catalog for IEC which is a global service
 	"iec": {
 		Name:             "iecs",
 		Version:          "v1",
 		Scope:            "global",
+		Admin:            true,
 		WithOutProjectID: true,
 	},
 
