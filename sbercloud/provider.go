@@ -131,6 +131,8 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
+			"sbercloud_api_gateway_api":           huaweicloud.ResourceAPIGatewayAPI(),
+			"sbercloud_api_gateway_group":         huaweicloud.ResourceAPIGatewayGroup(),
 			"sbercloud_as_configuration":          huaweicloud.ResourceASConfiguration(),
 			"sbercloud_as_group":                  huaweicloud.ResourceASGroup(),
 			"sbercloud_as_policy":                 huaweicloud.ResourceASPolicy(),
