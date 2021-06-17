@@ -1,4 +1,4 @@
-package huaweicloud
+package sbercloud
 
 import (
 	"fmt"
@@ -24,8 +24,6 @@ func ResourceDmsInstancesV1() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},
-		DeprecationMessage: "use huaweicloud_dms_kafka_instance or huaweicloud_dms_rabbitmq_instance instead",
-
 		Schema: map[string]*schema.Schema{
 			"region": {
 				Type:     schema.TypeString,
@@ -36,6 +34,7 @@ func ResourceDmsInstancesV1() *schema.Resource {
 			"name": {
 				Type:     schema.TypeString,
 				Required: true,
+				ForceNew: true,
 			},
 			"description": {
 				Type:     schema.TypeString,
@@ -169,7 +168,7 @@ func resourceDmsInstancesV1Create(d *schema.ResourceData, meta interface{}) erro
 	config := meta.(*config.Config)
 	dmsV1Client, err := config.DmsV1Client(GetRegion(d, config))
 	if err != nil {
-		return fmt.Errorf("Error creating HuaweiCloud dms instance client: %s", err)
+		return fmt.Errorf("Error creating SberCloud dms instance client: %s", err)
 	}
 
 	ssl_enable := false
@@ -202,7 +201,7 @@ func resourceDmsInstancesV1Create(d *schema.ResourceData, meta interface{}) erro
 
 	v, err := instances.Create(dmsV1Client, createOpts).Extract()
 	if err != nil {
-		return fmt.Errorf("Error creating HuaweiCloud instance: %s", err)
+		return fmt.Errorf("Error creating SberCloud instance: %s", err)
 	}
 	log.Printf("[INFO] instance ID: %s", v.InstanceID)
 
@@ -229,13 +228,13 @@ func resourceDmsInstancesV1Create(d *schema.ResourceData, meta interface{}) erro
 	if len(tagRaw) > 0 {
 		dmsV2Client, err := config.DmsV2Client(GetRegion(d, config))
 		if err != nil {
-			return fmt.Errorf("Error creating HuaweiCloud dms instance v2 client: %s", err)
+			return fmt.Errorf("Error creating SberCloud dms instance v2 client: %s", err)
 		}
 
 		taglist := utils.ExpandResourceTags(tagRaw)
 		engine := d.Get("engine").(string)
 		if tagErr := tags.Create(dmsV2Client, engine, v.InstanceID, taglist).ExtractErr(); tagErr != nil {
-			return fmt.Errorf("Error setting tags of dms instance %s: %s", v.InstanceID, tagErr)
+			log.Printf("[WARN] fetching tags of DMS instance failed: %s", tagErr)
 		}
 	}
 
@@ -247,7 +246,7 @@ func resourceDmsInstancesV1Read(d *schema.ResourceData, meta interface{}) error 
 
 	dmsV1Client, err := config.DmsV1Client(GetRegion(d, config))
 	if err != nil {
-		return fmt.Errorf("Error creating HuaweiCloud dms instance client: %s", err)
+		return fmt.Errorf("Error creating SberCloud dms instance client: %s", err)
 	}
 	v, err := instances.Get(dmsV1Client, d.Id()).Extract()
 	if err != nil {
@@ -286,7 +285,7 @@ func resourceDmsInstancesV1Read(d *schema.ResourceData, meta interface{}) error 
 	// set tags
 	dmsV2Client, err := config.DmsV2Client(GetRegion(d, config))
 	if err != nil {
-		return fmt.Errorf("Error creating HuaweiCloud dms instance v2 client: %s", err)
+		return fmt.Errorf("Error creating SberCloud dms instance v2 client: %s", err)
 	}
 
 	engine := d.Get("engine").(string)
@@ -309,7 +308,7 @@ func resourceDmsInstancesV1Update(d *schema.ResourceData, meta interface{}) erro
 	if d.HasChanges("name", "description", "maintain_begin", "maintain_end", "security_group_id") {
 		dmsV1Client, err := config.DmsV1Client(GetRegion(d, config))
 		if err != nil {
-			return fmt.Errorf("Error updating HuaweiCloud dms instance client: %s", err)
+			return fmt.Errorf("Error updating SberCloud dms instance client: %s", err)
 		}
 
 		var updateOpts instances.UpdateOpts
@@ -335,14 +334,14 @@ func resourceDmsInstancesV1Update(d *schema.ResourceData, meta interface{}) erro
 
 		err = instances.Update(dmsV1Client, d.Id(), updateOpts).Err
 		if err != nil {
-			return fmt.Errorf("Error updating HuaweiCloud Dms Instance: %s", err)
+			return fmt.Errorf("Error updating SberCloud Dms Instance: %s", err)
 		}
 	}
 
 	if d.HasChange("tags") {
 		dmsV2Client, err := config.DmsV2Client(GetRegion(d, config))
 		if err != nil {
-			return fmt.Errorf("Error updating HuaweiCloud dms instance v2 client: %s", err)
+			return fmt.Errorf("Error updating SberCloud dms instance v2 client: %s", err)
 		}
 		// update tags
 		engine := d.Get("engine").(string)
@@ -359,7 +358,7 @@ func resourceDmsInstancesV1Delete(d *schema.ResourceData, meta interface{}) erro
 	config := meta.(*config.Config)
 	dmsV1Client, err := config.DmsV1Client(GetRegion(d, config))
 	if err != nil {
-		return fmt.Errorf("Error creating HuaweiCloud dms instance client: %s", err)
+		return fmt.Errorf("Error creating SberCloud dms instance client: %s", err)
 	}
 
 	_, err = instances.Get(dmsV1Client, d.Id()).Extract()
@@ -369,7 +368,7 @@ func resourceDmsInstancesV1Delete(d *schema.ResourceData, meta interface{}) erro
 
 	err = instances.Delete(dmsV1Client, d.Id()).ExtractErr()
 	if err != nil {
-		return fmt.Errorf("Error deleting HuaweiCloud instance: %s", err)
+		return fmt.Errorf("Error deleting SberCloud instance: %s", err)
 	}
 
 	// Wait for the instance to delete before moving on.
@@ -408,4 +407,15 @@ func DmsInstancesV1StateRefreshFunc(client *golangsdk.ServiceClient, instanceID 
 
 		return v, v.Status, nil
 	}
+}
+
+func getAllAvailableZones(d *schema.ResourceData) []string {
+	rawZones := d.Get("available_zones").([]interface{})
+	zones := make([]string, len(rawZones))
+	for i, raw := range rawZones {
+		zones[i] = raw.(string)
+	}
+	log.Printf("[DEBUG] getAvailableZones: %#v", zones)
+
+	return zones
 }

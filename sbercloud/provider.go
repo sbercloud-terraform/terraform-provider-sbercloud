@@ -126,6 +126,9 @@ func Provider() terraform.ResourceProvider {
 			"sbercloud_vpc_subnet":          huaweicloud.DataSourceVpcSubnetV1(),
 			"sbercloud_vpc_subnet_ids":      huaweicloud.DataSourceVpcSubnetIdsV1(),
 			"sbercloud_vpc_route":           huaweicloud.DataSourceVPCRouteV2(),
+			"sbercloud_dms_az":              huaweicloud.DataSourceDmsAZV1(),
+			"sbercloud_dms_product":         huaweicloud.DataSourceDmsProductV1(),
+			"sbercloud_dms_maintainwindow":  huaweicloud.DataSourceDmsMaintainWindowV1(),
 			// Legacy
 			"sbercloud_identity_role_v3": huaweicloud.DataSourceIdentityRoleV3(),
 		},
@@ -185,6 +188,7 @@ func Provider() terraform.ResourceProvider {
 			"sbercloud_vpc_route":                 huaweicloud.ResourceVPCRouteV2(),
 			"sbercloud_vpc_peering_connection":    huaweicloud.ResourceVpcPeeringConnectionV2(),
 			"sbercloud_vpc_subnet":                huaweicloud.ResourceVpcSubnetV1(),
+			"sbercloud_dms_instance":              ResourceDmsInstancesV1(),
 			// Legacy
 			"sbercloud_identity_role_assignment_v3":  huaweicloud.ResourceIdentityRoleAssignmentV3(),
 			"sbercloud_identity_user_v3":             huaweicloud.ResourceIdentityUserV3(),
