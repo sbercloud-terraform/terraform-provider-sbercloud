@@ -87,6 +87,10 @@ func resourceGaussDBInstance() *schema.Resource {
 				Optional: true,
 				Default:  1,
 			},
+			"volume_size": {
+				Type:     schema.TypeInt,
+				Optional: true,
+			},
 			"time_zone": {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -208,10 +212,35 @@ func resourceGaussDBInstance() *schema.Resource {
 			},
 
 			// charge info: charging_mode, period_unit, period, auto_renew
-			"charging_mode": schemeChargingMode(nil),
-			"period_unit":   schemaPeriodUnit(nil),
-			"period":        schemaPeriod(nil),
-			"auto_renew":    schemaAutoRenew(nil),
+			// make ForceNew false here but do nothing in update method!
+			"charging_mode": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ValidateFunc: validation.StringInSlice([]string{
+					"prePaid", "postPaid",
+				}, false),
+			},
+			"period_unit": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				RequiredWith: []string{"period"},
+				ValidateFunc: validation.StringInSlice([]string{
+					"month", "year",
+				}, false),
+			},
+			"period": {
+				Type:         schema.TypeInt,
+				Optional:     true,
+				RequiredWith: []string{"period_unit"},
+				ValidateFunc: validation.IntBetween(1, 9),
+			},
+			"auto_renew": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ValidateFunc: validation.StringInSlice([]string{
+					"true", "false",
+				}, false),
+			},
 		},
 	}
 }
@@ -306,6 +335,13 @@ func resourceGaussDBInstanceCreate(d *schema.ResourceData, meta interface{}) err
 			return fmt.Errorf("missing master_availability_zone in a multi availability zone mode")
 		}
 		createOpts.MasterAZ = v.(string)
+	}
+
+	if hasFilledOpt(d, "volume_size") {
+		volume := &instances.VolumeOpt{
+			Size: d.Get("volume_size").(int),
+		}
+		createOpts.Volume = volume
 	}
 
 	// PrePaid
@@ -433,6 +469,7 @@ func resourceGaussDBInstanceRead(d *schema.ResourceData, meta interface{}) error
 	// set nodes
 	flavor := ""
 	slave_count := 0
+	volume_size := 0
 	nodesList := make([]map[string]interface{}, 0, 1)
 	for _, raw := range instance.Nodes {
 		node := map[string]interface{}{
@@ -445,6 +482,9 @@ func resourceGaussDBInstanceRead(d *schema.ResourceData, meta interface{}) error
 		if len(raw.PrivateIps) > 0 {
 			node["private_read_ip"] = raw.PrivateIps[0]
 		}
+		if raw.Volume.Size > 0 {
+			volume_size = raw.Volume.Size
+		}
 		nodesList = append(nodesList, node)
 		if raw.Type == "slave" && raw.Status == "ACTIVE" {
 			slave_count += 1
@@ -455,6 +495,7 @@ func resourceGaussDBInstanceRead(d *schema.ResourceData, meta interface{}) error
 	}
 	d.Set("nodes", nodesList)
 	d.Set("read_replicas", slave_count)
+	d.Set("volume_size", volume_size)
 	if flavor != "" {
 		log.Printf("[DEBUG] Node Flavor: %s", flavor)
 		d.Set("flavor", flavor)
@@ -589,6 +630,19 @@ func resourceGaussDBInstanceUpdate(d *schema.ResourceData, meta interface{}) err
 		}
 	}
 
+	if d.HasChange("volume_size") {
+		extendOpts := instances.ExtendVolumeOpts{
+			Size:      d.Get("volume_size").(int),
+			IsAutoPay: "true",
+		}
+		log.Printf("[DEBUG] Extending Volume: %#v", extendOpts)
+
+		err = instances.ExtendVolume(client, d.Id(), extendOpts).ExtractErr()
+		if err != nil {
+			return fmt.Errorf("Error extending volume: %s", err)
+		}
+	}
+
 	if d.HasChange("backup_strategy") {
 		var updateOpts backups.UpdateOpts
 		backupRaw := d.Get("backup_strategy").([]interface{})
@@ -619,7 +673,11 @@ func resourceGaussDBInstanceDelete(d *schema.ResourceData, meta interface{}) err
 	instanceId := d.Id()
 	if d.Get("charging_mode") == "prePaid" {
 		if err := UnsubscribePrePaidResource(d, config, []string{instanceId}); err != nil {
-			return fmt.Errorf("Error unsubscribe HuaweiCloud GaussDB instance: %s", err)
+			// try to delete the instance directly if unsubscribing failed
+			res := instances.Delete(client, instanceId)
+			if res.Err != nil {
+				return CheckDeleted(d, res.Err, "GaussDB instance")
+			}
 		}
 	} else {
 		result := instances.Delete(client, instanceId)
