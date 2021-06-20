@@ -5,5 +5,5 @@ go 1.12
 require (
 	github.com/hashicorp/terraform-plugin-sdk v1.16.0
 	github.com/huaweicloud/golangsdk v0.0.0-20210608085437-ebb866377c9f
-	github.com/huaweicloud/terraform-provider-huaweicloud v1.25.1-0.20210609070537-1fd4db7c5fa3
+	github.com/huaweicloud/terraform-provider-huaweicloud v1.25.1-0.20210619095359-6e47a1621478
 )
