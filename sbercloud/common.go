@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/huaweicloud/golangsdk"
 	"github.com/huaweicloud/golangsdk/openstack/bss/v2/orders"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -44,4 +45,15 @@ func UnsubscribePrePaidResource(d *schema.ResourceData, config *config.Config, r
 	}
 	_, err = orders.Unsubscribe(bssV2Client, unsubscribeOpts).Extract()
 	return err
+}
+
+// CheckDeleted checks the error to see if it's a 404 (Not Found) and, if so,
+// sets the resource ID to the empty string instead of throwing an error.
+func CheckDeleted(d *schema.ResourceData, err error, msg string) error {
+	if _, ok := err.(golangsdk.ErrDefault404); ok {
+		d.SetId("")
+		return nil
+	}
+
+	return fmt.Errorf("%s: %s", msg, err)
 }
