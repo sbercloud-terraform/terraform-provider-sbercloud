@@ -215,10 +215,10 @@ github.com/hashicorp/terraform-svchost v0.0.0-20191011084731-65d371908596/go.mod
 github.com/hashicorp/yamux v0.0.0-20180604194846-3520598351bb/go.mod h1:+NfK9FKeTrX5uv1uIXGdwYDTeHna2qgaIlx54MXqjAM=
 github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d h1:kJCB4vdITiW1eC1vq2e6IsrXKrZit1bv/TDYFGMp4BQ=
 github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d/go.mod h1:+NfK9FKeTrX5uv1uIXGdwYDTeHna2qgaIlx54MXqjAM=
-github.com/huaweicloud/golangsdk v0.0.0-20210528023633-c90ae4249a71 h1:o2s9CcW277XbOQp0EolTCWHrNdBUHCjuu0aKtAedF/k=
-github.com/huaweicloud/golangsdk v0.0.0-20210528023633-c90ae4249a71/go.mod h1:fcOI5u+0f62JtJd7zkCch/Z57BNC6bhqb32TKuiF4r0=
-github.com/huaweicloud/terraform-provider-huaweicloud v1.25.0 h1:lvu+pOszi1xfxRJfvv7E/WuwCnXyQQmwsy+WQpdEj+I=
-github.com/huaweicloud/terraform-provider-huaweicloud v1.25.0/go.mod h1:YsDUNAbBhC8wQesWhQQBfm4UdktmknQx6yefEDlDr14=
+github.com/huaweicloud/golangsdk v0.0.0-20210608085437-ebb866377c9f h1:uvvd7F4iujOwAP0E0W7H91IrgBt5KI0xE7A6HCwGTj0=
+github.com/huaweicloud/golangsdk v0.0.0-20210608085437-ebb866377c9f/go.mod h1:fcOI5u+0f62JtJd7zkCch/Z57BNC6bhqb32TKuiF4r0=
+github.com/huaweicloud/terraform-provider-huaweicloud v1.25.1-0.20210619095359-6e47a1621478 h1:Jy+e4uKEi4Y1qZeBm9yvk/WZhE8UUZelQnVhxEHGRh8=
+github.com/huaweicloud/terraform-provider-huaweicloud v1.25.1-0.20210619095359-6e47a1621478/go.mod h1:r1A5lH+ZCwIujJLbcTjvw+v1duaLx/jCik/oyTOyC+o=
 github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
 github.com/imdario/mergo v0.3.9 h1:UauaLniWCFHWd+Jp9oCEkTBj8VO/9DKg3PV3VCNMDIg=
 github.com/imdario/mergo v0.3.9/go.mod h1:2EnlNZ0deacrJVfApfmtdGgDfMuh/nq6Ok1EcJh5FfA=
