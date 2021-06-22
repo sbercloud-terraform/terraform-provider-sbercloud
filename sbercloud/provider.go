@@ -155,6 +155,7 @@ func Provider() terraform.ResourceProvider {
 			"sbercloud_identity_group":            huaweicloud.ResourceIdentityGroupV3(),
 			"sbercloud_identity_group_membership": huaweicloud.ResourceIdentityGroupMembershipV3(),
 			"sbercloud_images_image":              huaweicloud.ResourceImsImage(),
+			"sbercloud_fgs_function":              huaweicloud.ResourceFgsFunctionV2(),
 			"sbercloud_compute_instance":          huaweicloud.ResourceComputeInstanceV2(),
 			"sbercloud_compute_interface_attach":  huaweicloud.ResourceComputeInterfaceAttachV2(),
 			"sbercloud_compute_keypair":           huaweicloud.ResourceComputeKeypairV2(),
