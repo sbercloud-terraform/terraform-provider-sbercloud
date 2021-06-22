@@ -1,4 +1,27 @@
-## 1.2.0 (Unreleased)
+## 1.3.0 (June 22, 2021)
+
+FEATURES:
+
+* **New Data Source:** `sbercloud_dcs_az` ([#54](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/54))
+* **New Data Source:** `sbercloud_dcs_maintainwindow` ([#54](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/54))
+* **New Data Source:** `sbercloud_dcs_product` ([#54](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/54))
+* **New Data Source:** `sbercloud_kms_data_key` ([#56](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/56))
+* **New Data Source:** `sbercloud_kms_key` ([#56](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/56))
+* **New Data Source:** `sbercloud_dms_az` ([#57](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/57))
+* **New Data Source:** `sbercloud_dms_product` ([#57](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/57))
+* **New Data Source:** `sbercloud_dms_maintainwindow` ([#57](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/57))
+* **New Data Source:** `sbercloud_dds_flavors` ([#63](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/63))
+* **New Resource:** `sbercloud_api_gateway_api` ([#52](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/52))
+* **New Resource:** `sbercloud_api_gateway_group` ([#52](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/52))
+* **New Resource:** `sbercloud_dcs_instance` ([#54](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/54))
+* **New Resource:** `sbercloud_kms_key` ([#56](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/56))
+* **New Resource:** `sbercloud_smn_subscription` ([#58](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/58))
+* **New Resource:** `sbercloud_smn_topic` ([#58](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/58))
+* **New Resource:** `sbercloud_dms_instance` ([#57](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/57))
+* **New Resource:** `sbercloud_fgs_function` ([#60](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/60))
+* **New Resource:** `sbercloud_dds_instance` ([#63](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/63))
+
+## 1.2.0 (June 04, 2021)
 
 FEATURES:
 
