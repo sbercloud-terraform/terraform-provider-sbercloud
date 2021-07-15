@@ -3,7 +3,6 @@ package huaweicloud
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/hashcode"
@@ -15,6 +14,8 @@ import (
 	volumes_v2 "github.com/huaweicloud/golangsdk/openstack/blockstorage/v2/volumes"
 	"github.com/huaweicloud/golangsdk/openstack/evs/v3/volumes"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
 )
 
 func ResourceEvsStorageVolumeV3() *schema.Resource {
@@ -154,7 +155,7 @@ func resourceEvsVolumeV3Create(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*config.Config)
 	blockStorageClient, err := config.BlockStorageV3Client(GetRegion(d, config))
 	if err != nil {
-		return fmt.Errorf("Error creating HuaweiCloud EVS storage client: %s", err)
+		return fmtp.Errorf("Error creating HuaweiCloud EVS storage client: %s", err)
 	}
 	// compatiable with job
 	blockStorageClient.Endpoint = blockStorageClient.ResourceBase
@@ -186,15 +187,15 @@ func resourceEvsVolumeV3Create(d *schema.ResourceData, meta interface{}) error {
 		createOpts.Metadata = m
 	}
 
-	log.Printf("[DEBUG] Create Options: %#v", createOpts)
+	logp.Printf("[DEBUG] Create Options: %#v", createOpts)
 	v, err := volumes.Create(blockStorageClient, createOpts).ExtractJobResponse()
 	if err != nil {
-		return fmt.Errorf("Error creating HuaweiCloud EVS volume: %s", err)
+		return fmtp.Errorf("Error creating HuaweiCloud EVS volume: %s", err)
 	}
-	log.Printf("[INFO] Volume Job ID: %s", v.JobID)
+	logp.Printf("[INFO] Volume Job ID: %s", v.JobID)
 
 	// Wait for the volume to become available.
-	log.Printf("[DEBUG] Waiting for volume to become available")
+	logp.Printf("[DEBUG] Waiting for volume to become available")
 	err = volumes.WaitForJobSuccess(blockStorageClient, int(d.Timeout(schema.TimeoutCreate)/time.Second), v.JobID)
 	if err != nil {
 		return err
@@ -205,7 +206,7 @@ func resourceEvsVolumeV3Create(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 	if _, ok := entity.(string); !ok {
-		return fmt.Errorf("error retrieving volume ID from job entity")
+		return fmtp.Errorf("error retrieving volume ID from job entity")
 	}
 
 	// Store the ID now
@@ -217,7 +218,7 @@ func resourceEvsVolumeV3Read(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*config.Config)
 	blockStorageClient, err := config.BlockStorageV3Client(GetRegion(d, config))
 	if err != nil {
-		return fmt.Errorf("Error creating HuaweiCloud EVS storage client: %s", err)
+		return fmtp.Errorf("Error creating HuaweiCloud EVS storage client: %s", err)
 	}
 
 	v, err := volumes.Get(blockStorageClient, d.Id()).Extract()
@@ -225,7 +226,7 @@ func resourceEvsVolumeV3Read(d *schema.ResourceData, meta interface{}) error {
 		return CheckDeleted(d, err, "volume")
 	}
 
-	log.Printf("[DEBUG] Retrieved volume %s: %+v", d.Id(), v)
+	logp.Printf("[DEBUG] Retrieved volume %s: %+v", d.Id(), v)
 
 	d.Set("name", v.Name)
 	d.Set("size", v.Size)
@@ -252,7 +253,7 @@ func resourceEvsVolumeV3Read(d *schema.ResourceData, meta interface{}) error {
 		tags[key] = val
 	}
 	if err := d.Set("tags", tags); err != nil {
-		return fmt.Errorf("[DEBUG] Error saving tags to state for HuaweiCloud evs storage (%s): %s", d.Id(), err)
+		return fmtp.Errorf("[DEBUG] Error saving tags to state for HuaweiCloud evs storage (%s): %s", d.Id(), err)
 	}
 
 	// set attachments
@@ -262,10 +263,10 @@ func resourceEvsVolumeV3Read(d *schema.ResourceData, meta interface{}) error {
 		attachments[i]["id"] = attachment.ID
 		attachments[i]["instance_id"] = attachment.ServerID
 		attachments[i]["device"] = attachment.Device
-		log.Printf("[DEBUG] attachment: %v", attachment)
+		logp.Printf("[DEBUG] attachment: %v", attachment)
 	}
 	if err := d.Set("attachment", attachments); err != nil {
-		return fmt.Errorf("[DEBUG] Error saving attachment to state for HuaweiCloud evs storage (%s): %s", d.Id(), err)
+		return fmtp.Errorf("[DEBUG] Error saving attachment to state for HuaweiCloud evs storage (%s): %s", d.Id(), err)
 	}
 
 	return nil
@@ -276,7 +277,7 @@ func resourceEvsVolumeV3Update(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*config.Config)
 	blockStorageClient, err := config.BlockStorageV2Client(GetRegion(d, config))
 	if err != nil {
-		return fmt.Errorf("Error creating HuaweiCloud block storage client: %s", err)
+		return fmtp.Errorf("Error creating HuaweiCloud block storage client: %s", err)
 	}
 
 	if d.HasChanges("name", "description") {
@@ -286,7 +287,7 @@ func resourceEvsVolumeV3Update(d *schema.ResourceData, meta interface{}) error {
 		}
 		_, err = volumes_v2.Update(blockStorageClient, d.Id(), updateOpts).Extract()
 		if err != nil {
-			return fmt.Errorf("Error updating HuaweiCloud volume: %s", err)
+			return fmtp.Errorf("Error updating HuaweiCloud volume: %s", err)
 		}
 	}
 
@@ -301,7 +302,7 @@ func resourceEvsVolumeV3Update(d *schema.ResourceData, meta interface{}) error {
 
 		err = volumeactions.ExtendSize(blockStorageClient, d.Id(), extendOpts).ExtractErr()
 		if err != nil {
-			return fmt.Errorf("Error extending huaweicloud_evs_volume %s size: %s", d.Id(), err)
+			return fmtp.Errorf("Error extending huaweicloud_evs_volume %s size: %s", d.Id(), err)
 		}
 
 		stateConf := &resource.StateChangeConf{
@@ -315,7 +316,7 @@ func resourceEvsVolumeV3Update(d *schema.ResourceData, meta interface{}) error {
 
 		_, err := stateConf.WaitForState()
 		if err != nil {
-			return fmt.Errorf(
+			return fmtp.Errorf(
 				"Error waiting for huaweicloud_evs_volume %s to become ready: %s", d.Id(), err)
 		}
 	}

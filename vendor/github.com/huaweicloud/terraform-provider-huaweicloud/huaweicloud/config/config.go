@@ -461,7 +461,7 @@ func (c *Config) newServiceClientByEndpoint(client *golangsdk.ProviderClient, sr
 func (c *Config) getDomainID() (string, error) {
 	identityClient, err := c.IdentityV3Client(c.Region)
 	if err != nil {
-		return "", fmt.Errorf("Error creating HuaweiCloud identity client: %s", err)
+		return "", fmt.Errorf("Error creating IAM client: %s", err)
 	}
 	// ResourceBase: https://iam.{CLOUD}/v3/auth/
 	identityClient.ResourceBase += "auth/"
@@ -839,4 +839,8 @@ func (c *Config) OrchestrationV1Client(region string) (*golangsdk.ServiceClient,
 
 func (c *Config) MlsV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("mls", region)
+}
+
+func (c *Config) ScmV3Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("scm", region)
 }
