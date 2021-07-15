@@ -157,6 +157,7 @@ func Provider() terraform.ResourceProvider {
 			"sbercloud_dcs_instance":              huaweicloud.ResourceDcsInstanceV1(),
 			"sbercloud_dds_instance":              huaweicloud.ResourceDdsInstanceV3(),
 			"sbercloud_dms_instance":              ResourceDmsInstancesV1(),
+			"sbercloud_dli_queue":                 huaweicloud.ResourceDliQueueV1(),
 			"sbercloud_dns_recordset":             huaweicloud.ResourceDNSRecordSetV2(),
 			"sbercloud_dns_zone":                  huaweicloud.ResourceDNSZoneV2(),
 			"sbercloud_evs_snapshot":              huaweicloud.ResourceEvsSnapshotV2(),
