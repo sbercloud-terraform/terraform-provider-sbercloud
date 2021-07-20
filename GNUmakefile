@@ -6,7 +6,7 @@ PKG_NAME=sbercloud
 default: build
 
 build: fmtcheck
-	go install
+	go install -ldflags="-X 'github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils.PackageName=$(PKG_NAME)'"
 
 test: fmtcheck
 	go test -i $(TEST) || exit 1
