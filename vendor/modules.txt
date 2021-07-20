@@ -264,7 +264,7 @@ github.com/hashicorp/terraform-svchost/auth
 github.com/hashicorp/terraform-svchost/disco
 # github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d
 github.com/hashicorp/yamux
-# github.com/huaweicloud/golangsdk v0.0.0-20210608085437-ebb866377c9f
+# github.com/huaweicloud/golangsdk v0.0.0-20210621093751-3dd439dd31e3
 github.com/huaweicloud/golangsdk
 github.com/huaweicloud/golangsdk/internal
 github.com/huaweicloud/golangsdk/openstack
@@ -436,6 +436,7 @@ github.com/huaweicloud/golangsdk/openstack/rts/v1/softwareconfig
 github.com/huaweicloud/golangsdk/openstack/rts/v1/stackresources
 github.com/huaweicloud/golangsdk/openstack/rts/v1/stacks
 github.com/huaweicloud/golangsdk/openstack/rts/v1/stacktemplates
+github.com/huaweicloud/golangsdk/openstack/scm/v3/certificates
 github.com/huaweicloud/golangsdk/openstack/sfs/v2/shares
 github.com/huaweicloud/golangsdk/openstack/sfs_turbo/v1/shares
 github.com/huaweicloud/golangsdk/openstack/smn/v2/subscriptions
@@ -451,11 +452,13 @@ github.com/huaweicloud/golangsdk/openstack/vbs/v2/tags
 github.com/huaweicloud/golangsdk/openstack/vpcep/v1/endpoints
 github.com/huaweicloud/golangsdk/openstack/vpcep/v1/services
 github.com/huaweicloud/golangsdk/pagination
-# github.com/huaweicloud/terraform-provider-huaweicloud v1.25.1-0.20210619095359-6e47a1621478
+# github.com/huaweicloud/terraform-provider-huaweicloud v1.25.2-0.20210629062920-6f6ae914c3ea
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/deprecated
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp
 # github.com/imdario/mergo v0.3.9
 github.com/imdario/mergo
 # github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99

@@ -2,13 +2,14 @@ package huaweicloud
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 
 	"github.com/huaweicloud/golangsdk/openstack/iec/v1/ports"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
 )
 
 func DataSourceIECPort() *schema.Resource {
@@ -60,7 +61,7 @@ func dataSourceIECPortRead(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*config.Config)
 	iecClient, err := config.IECV1Client(GetRegion(d, config))
 	if err != nil {
-		return fmt.Errorf("Error creating HuaweiCloud IEC client: %s", err)
+		return fmtp.Errorf("Error creating HuaweiCloud IEC client: %s", err)
 	}
 
 	listOpts := ports.ListOpts{
@@ -76,21 +77,21 @@ func dataSourceIECPortRead(d *schema.ResourceData, meta interface{}) error {
 
 	allPorts, err := ports.List(iecClient, listOpts).Extract()
 	if err != nil {
-		return fmt.Errorf("Unable to retrieve huaweicloud IEC port: %s", err)
+		return fmtp.Errorf("Unable to retrieve huaweicloud IEC port: %s", err)
 	}
 
 	total := len(allPorts.Ports)
 	if total < 1 {
-		return fmt.Errorf("Your query returned no results. " +
+		return fmtp.Errorf("Your query returned no results. " +
 			"Please change your search criteria and try again.")
 	}
 	if total > 1 {
-		return fmt.Errorf("Your query returned more than one result. " +
+		return fmtp.Errorf("Your query returned more than one result. " +
 			"Please try a more specific search criteria.")
 	}
 
 	port := allPorts.Ports[0]
-	log.Printf("[DEBUG] Retrieved IEC port %s: %+v", port.ID, port)
+	logp.Printf("[DEBUG] Retrieved IEC port %s: %+v", port.ID, port)
 	d.SetId(port.ID)
 
 	d.Set("region", GetRegion(d, config))

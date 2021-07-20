@@ -8,6 +8,7 @@ import (
 	"github.com/huaweicloud/golangsdk"
 	"github.com/huaweicloud/golangsdk/openstack/swr/v2/namespaces"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
 )
 
 func resourceSWROrganization() *schema.Resource {
@@ -58,7 +59,7 @@ func resourceSWROrganizationCreate(d *schema.ResourceData, meta interface{}) err
 	swrClient, err := config.SwrV2Client(GetRegion(d, config))
 
 	if err != nil {
-		return fmt.Errorf("Unable to create HuaweiCloud SWR client : %s", err)
+		return fmtp.Errorf("Unable to create HuaweiCloud SWR client : %s", err)
 	}
 
 	name := d.Get("name").(string)
@@ -69,7 +70,7 @@ func resourceSWROrganizationCreate(d *schema.ResourceData, meta interface{}) err
 	err = namespaces.Create(swrClient, createOpts).ExtractErr()
 
 	if err != nil {
-		return fmt.Errorf("Error creating HuaweiCloud SWR Organization: %s", err)
+		return fmtp.Errorf("Error creating HuaweiCloud SWR Organization: %s", err)
 	}
 
 	d.SetId(name)
@@ -81,7 +82,7 @@ func resourceSWROrganizationRead(d *schema.ResourceData, meta interface{}) error
 	config := meta.(*config.Config)
 	swrClient, err := config.SwrV2Client(GetRegion(d, config))
 	if err != nil {
-		return fmt.Errorf("Error creating HuaweiCloud SWR client: %s", err)
+		return fmtp.Errorf("Error creating HuaweiCloud SWR client: %s", err)
 	}
 
 	n, err := namespaces.Get(swrClient, d.Id()).Extract()
@@ -91,7 +92,7 @@ func resourceSWROrganizationRead(d *schema.ResourceData, meta interface{}) error
 			return nil
 		}
 
-		return fmt.Errorf("Error retrieving HuaweiCloud SWR: %s", err)
+		return fmtp.Errorf("Error retrieving HuaweiCloud SWR: %s", err)
 	}
 
 	permission := "Unknown"
@@ -119,12 +120,12 @@ func resourceSWROrganizationDelete(d *schema.ResourceData, meta interface{}) err
 	config := meta.(*config.Config)
 	swrClient, err := config.SwrV2Client(GetRegion(d, config))
 	if err != nil {
-		return fmt.Errorf("Error creating HuaweiCloud SWR Client: %s", err)
+		return fmtp.Errorf("Error creating HuaweiCloud SWR Client: %s", err)
 	}
 
 	err = namespaces.Delete(swrClient, d.Id()).ExtractErr()
 	if err != nil {
-		return fmt.Errorf("Error deleting HuaweiCloud SWR Organization: %s", err)
+		return fmtp.Errorf("Error deleting HuaweiCloud SWR Organization: %s", err)
 	}
 
 	d.SetId("")
