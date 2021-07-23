@@ -146,6 +146,7 @@ func Provider() terraform.ResourceProvider {
 			"sbercloud_as_configuration":          huaweicloud.ResourceASConfiguration(),
 			"sbercloud_as_group":                  huaweicloud.ResourceASGroup(),
 			"sbercloud_as_policy":                 huaweicloud.ResourceASPolicy(),
+			"sbercloud_css_cluster":               huaweicloud.ResourceCssClusterV1(),
 			"sbercloud_cce_cluster":               huaweicloud.ResourceCCEClusterV3(),
 			"sbercloud_cce_node":                  huaweicloud.ResourceCCENodeV3(),
 			"sbercloud_cce_node_pool":             huaweicloud.ResourceCCENodePool(),
