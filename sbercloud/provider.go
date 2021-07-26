@@ -170,6 +170,7 @@ func Provider() terraform.ResourceProvider {
 			"sbercloud_evs_snapshot":              huaweicloud.ResourceEvsSnapshotV2(),
 			"sbercloud_evs_volume":                huaweicloud.ResourceEvsStorageVolumeV3(),
 			"sbercloud_fgs_function":              huaweicloud.ResourceFgsFunctionV2(),
+			"sbercloud_ges_graph":                 huaweicloud.ResourceGesGraphV1(),
 			"sbercloud_identity_agency":           huaweicloud.ResourceIAMAgencyV3(),
 			"sbercloud_identity_role_assignment":  huaweicloud.ResourceIdentityRoleAssignmentV3(),
 			"sbercloud_identity_user":             huaweicloud.ResourceIdentityUserV3(),
