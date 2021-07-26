@@ -156,6 +156,7 @@ func Provider() terraform.ResourceProvider {
 			"sbercloud_compute_servergroup":       huaweicloud.ResourceComputeServerGroupV2(),
 			"sbercloud_compute_eip_associate":     huaweicloud.ResourceComputeFloatingIPAssociateV2(),
 			"sbercloud_compute_volume_attach":     huaweicloud.ResourceComputeVolumeAttachV2(),
+			"sbercloud_ces_alarmrule":             huaweicloud.ResourceAlarmRule(),
 			"sbercloud_dcs_instance":              huaweicloud.ResourceDcsInstanceV1(),
 			"sbercloud_dds_instance":              huaweicloud.ResourceDdsInstanceV3(),
 			"sbercloud_dis_stream":                huaweicloud.ResourceDisStreamV2(),
