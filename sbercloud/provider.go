@@ -192,7 +192,7 @@ func Provider() terraform.ResourceProvider {
 			"sbercloud_obs_bucket":                huaweicloud.ResourceObsBucket(),
 			"sbercloud_obs_bucket_object":         huaweicloud.ResourceObsBucketObject(),
 			"sbercloud_obs_bucket_policy":         huaweicloud.ResourceObsBucketPolicy(),
-			"sbercloud_rds_instance":              ResourceRdsInstanceV3(),
+			"sbercloud_rds_instance":              huaweicloud.ResourceRdsInstanceV3(),
 			"sbercloud_rds_parametergroup":        huaweicloud.ResourceRdsConfigurationV3(),
 			"sbercloud_rds_read_replica_instance": huaweicloud.ResourceRdsReadReplicaInstance(),
 			"sbercloud_sfs_access_rule":           huaweicloud.ResourceSFSAccessRuleV2(),
