@@ -2,11 +2,13 @@ package sbercloud
 
 import (
 	"fmt"
+	"log"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+	"github.com/huaweicloud/golangsdk"
 
 	"github.com/huaweicloud/golangsdk/openstack/rds/v3/instances"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -171,6 +173,39 @@ func testAccCheckRdsInstanceV3Exists(name string, instance *instances.RdsInstanc
 		instance = found
 		return nil
 	}
+}
+
+func getRdsInstanceByID(client *golangsdk.ServiceClient, instanceID string) (*instances.RdsInstanceResponse, error) {
+	listOpts := instances.ListOpts{
+		Id: instanceID,
+	}
+	pages, err := instances.List(client, listOpts).AllPages()
+	if err != nil {
+		return nil, fmt.Errorf("An error occured while querying rds instance %s: %s", instanceID, err)
+	}
+
+	resp, err := instances.ExtractRdsInstances(pages)
+	if err != nil {
+		return nil, err
+	}
+
+	instanceList := resp.Instances
+	if len(instanceList) == 0 {
+		// return an empty rds instance
+		log.Printf("[WARN] can not find the specified rds instance %s", instanceID)
+		instance := new(instances.RdsInstanceResponse)
+		return instance, nil
+	}
+
+	if len(instanceList) > 1 {
+		return nil, fmt.Errorf("retrieving more than one rds instance by %s", instanceID)
+	}
+	if instanceList[0].Id != instanceID {
+		return nil, fmt.Errorf("the id of rds instance was expected %s, but got %s",
+			instanceID, instanceList[0].Id)
+	}
+
+	return &instanceList[0], nil
 }
 
 func testAccRdsInstanceV3_base(name string) string {

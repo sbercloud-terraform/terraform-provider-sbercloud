@@ -14,6 +14,8 @@ terraform-provider-sbercloud
 *.json
 *.yaml
 .terraform/
+.terraform.lock.hcl
+.terraform.tfstate.lock.info
 
 # Test binary, built with `go test -c`
 *.test
