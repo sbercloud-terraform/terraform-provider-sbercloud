@@ -152,7 +152,7 @@ func genClient(c *Config, ao golangsdk.AuthOptionsProvider) (*golangsdk.Provider
 	}
 
 	// Set UserAgent
-	client.UserAgent.Prepend("terraform-provider-huaweicloud")
+	client.UserAgent.Prepend("terraform-provider-iac")
 
 	config, err := generateTLSConfig(c)
 	if err != nil {
@@ -766,6 +766,10 @@ func (c *Config) GesV1Client(region string) (*golangsdk.ServiceClient, error) {
 // ********** client for Application **********
 func (c *Config) ApiGatewayV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("apig", region)
+}
+
+func (c *Config) ApigV2Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("apig_v2", region)
 }
 
 func (c *Config) BcsV2Client(region string) (*golangsdk.ServiceClient, error) {

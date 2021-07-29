@@ -10,7 +10,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/apig"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/deprecated"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/elb"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/lb"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/waf"
 )
 
 const defaultCloud string = "myhuaweicloud.com"
@@ -223,7 +227,7 @@ func Provider() terraform.ResourceProvider {
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
 					"HW_AUTH_URL",
 					"OS_AUTH_URL",
-				}, fmt.Sprintf("https://iam.%s:443/v3", defaultCloud)),
+				}, nil),
 			},
 
 			"cloud": {
@@ -300,6 +304,8 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_kms_key":                     DataSourceKmsKeyV1(),
 			"huaweicloud_kms_data_key":                DataSourceKmsDataKeyV1(),
 			"huaweicloud_lb_loadbalancer":             DataSourceELBV2Loadbalancer(),
+			"huaweicloud_lb_certificate":              lb.DataSourceLBCertificateV2(),
+			"huaweicloud_elb_certificate":             elb.DataSourceELBCertificateV3(),
 			"huaweicloud_nat_gateway":                 DataSourceNatGatewayV2(),
 			"huaweicloud_networking_port":             DataSourceNetworkingPortV2(),
 			"huaweicloud_networking_secgroup":         DataSourceNetworkingSecGroupV2(),
@@ -318,6 +324,8 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_vpc_subnet":                  DataSourceVpcSubnetV1(),
 			"huaweicloud_vpc_subnet_ids":              DataSourceVpcSubnetIdsV1(),
 			"huaweicloud_vpcep_public_services":       DataSourceVPCEPPublicServices(),
+			"huaweicloud_waf_certificate":             waf.DataSourceWafCertificateV1(),
+
 			// Legacy
 			"huaweicloud_images_image_v2":           DataSourceImagesImageV2(),
 			"huaweicloud_networking_port_v2":        DataSourceNetworkingPortV2(),
@@ -363,6 +371,12 @@ func Provider() terraform.ResourceProvider {
 		ResourcesMap: map[string]*schema.Resource{
 			"huaweicloud_api_gateway_api":                 ResourceAPIGatewayAPI(),
 			"huaweicloud_api_gateway_group":               ResourceAPIGatewayGroup(),
+			"huaweicloud_apig_instance":                   apig.ResourceApigInstanceV2(),
+			"huaweicloud_apig_application":                apig.ResourceApigApplicationV2(),
+			"huaweicloud_apig_environment":                apig.ResourceApigEnvironmentV2(),
+			"huaweicloud_apig_group":                      apig.ResourceApigGroupV2(),
+			"huaweicloud_apig_response":                   apig.ResourceApigResponseV2(),
+			"huaweicloud_apig_vpc_channel":                apig.ResourceApigVpcChannelV2(),
 			"huaweicloud_as_configuration":                ResourceASConfiguration(),
 			"huaweicloud_as_group":                        ResourceASGroup(),
 			"huaweicloud_as_lifecycle_hook":               ResourceASLifecycleHook(),
@@ -500,6 +514,13 @@ func Provider() terraform.ResourceProvider {
 			"huaweicloud_vpnaas_service":                  ResourceVpnServiceV2(),
 			"huaweicloud_vpnaas_site_connection":          ResourceVpnSiteConnectionV2(),
 			"huaweicloud_scm_certificate":                 resourceScmCertificateV3(),
+			"huaweicloud_waf_certificate":                 waf.ResourceWafCertificateV1(),
+			"huaweicloud_waf_domain":                      waf.ResourceWafDomainV1(),
+			"huaweicloud_waf_policy":                      waf.ResourceWafPolicyV1(),
+			"huaweicloud_waf_rule_blacklist":              waf.ResourceWafRuleBlackListV1(),
+			"huaweicloud_waf_rule_data_masking":           waf.ResourceWafRuleDataMaskingV1(),
+			"huaweicloud_waf_rule_web_tamper_protection":  waf.ResourceWafRuleWebTamperProtectionV1(),
+
 			// Legacy
 			"huaweicloud_compute_instance_v2":                ResourceComputeInstanceV2(),
 			"huaweicloud_compute_interface_attach_v2":        ResourceComputeInterfaceAttachV2(),
@@ -675,8 +696,9 @@ func init() {
 }
 
 func configureProvider(d *schema.ResourceData, terraformVersion string) (interface{}, error) {
-	var tenantName, tenantID, delegated_project string
+	var tenantName, tenantID, delegated_project, identityEndpoint string
 	region := d.Get("region").(string)
+	cloud := d.Get("cloud").(string)
 
 	// project_name is prior to tenant_name
 	// if neither of them was set, use region as the default project
@@ -702,6 +724,18 @@ func configureProvider(d *schema.ResourceData, terraformVersion string) (interfa
 		delegated_project = region
 	}
 
+	// use auth_url as identityEndpoint if provided
+	if v, ok := d.GetOk("auth_url"); ok {
+		identityEndpoint = v.(string)
+	} else {
+		// use cloud as basis for identityEndpoint
+		if cloud == defaultCloud {
+			identityEndpoint = fmt.Sprintf("https://iam.%s:443/v3", cloud)
+		} else {
+			identityEndpoint = fmt.Sprintf("https://iam.%s.%s:443/v3", region, cloud)
+		}
+	}
+
 	config := config.Config{
 		AccessKey:           d.Get("access_key").(string),
 		SecretKey:           d.Get("secret_key").(string),
@@ -710,7 +744,7 @@ func configureProvider(d *schema.ResourceData, terraformVersion string) (interfa
 		ClientKeyFile:       d.Get("key").(string),
 		DomainID:            d.Get("domain_id").(string),
 		DomainName:          d.Get("domain_name").(string),
-		IdentityEndpoint:    d.Get("auth_url").(string),
+		IdentityEndpoint:    identityEndpoint,
 		Insecure:            d.Get("insecure").(bool),
 		Password:            d.Get("password").(string),
 		Token:               d.Get("token").(string),
@@ -723,7 +757,7 @@ func configureProvider(d *schema.ResourceData, terraformVersion string) (interfa
 		AgencyName:          d.Get("agency_name").(string),
 		AgencyDomainName:    d.Get("agency_domain_name").(string),
 		DelegatedProject:    delegated_project,
-		Cloud:               d.Get("cloud").(string),
+		Cloud:               cloud,
 		MaxRetries:          d.Get("max_retries").(int),
 		EnterpriseProjectID: d.Get("enterprise_project_id").(string),
 		TerraformVersion:    terraformVersion,

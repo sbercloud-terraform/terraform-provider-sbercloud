@@ -264,7 +264,7 @@ github.com/hashicorp/terraform-svchost/auth
 github.com/hashicorp/terraform-svchost/disco
 # github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d
 github.com/hashicorp/yamux
-# github.com/huaweicloud/golangsdk v0.0.0-20210621093751-3dd439dd31e3
+# github.com/huaweicloud/golangsdk v0.0.0-20210722084309-4039dc70b08a
 github.com/huaweicloud/golangsdk
 github.com/huaweicloud/golangsdk/internal
 github.com/huaweicloud/golangsdk/openstack
@@ -272,6 +272,12 @@ github.com/huaweicloud/golangsdk/openstack/antiddos/v1/antiddos
 github.com/huaweicloud/golangsdk/openstack/aom/v1/icagents
 github.com/huaweicloud/golangsdk/openstack/apigw/apis
 github.com/huaweicloud/golangsdk/openstack/apigw/groups
+github.com/huaweicloud/golangsdk/openstack/apigw/v2/apigroups
+github.com/huaweicloud/golangsdk/openstack/apigw/v2/applications
+github.com/huaweicloud/golangsdk/openstack/apigw/v2/channels
+github.com/huaweicloud/golangsdk/openstack/apigw/v2/environments
+github.com/huaweicloud/golangsdk/openstack/apigw/v2/instances
+github.com/huaweicloud/golangsdk/openstack/apigw/v2/responses
 github.com/huaweicloud/golangsdk/openstack/autoscaling/v1/configurations
 github.com/huaweicloud/golangsdk/openstack/autoscaling/v1/groups
 github.com/huaweicloud/golangsdk/openstack/autoscaling/v1/instances
@@ -336,6 +342,7 @@ github.com/huaweicloud/golangsdk/openstack/ecs/v1/block_devices
 github.com/huaweicloud/golangsdk/openstack/ecs/v1/cloudservers
 github.com/huaweicloud/golangsdk/openstack/ecs/v1/flavors
 github.com/huaweicloud/golangsdk/openstack/ecs/v1/powers
+github.com/huaweicloud/golangsdk/openstack/elb/v2/certificates
 github.com/huaweicloud/golangsdk/openstack/elb/v2/loadbalancers
 github.com/huaweicloud/golangsdk/openstack/elb/v3/certificates
 github.com/huaweicloud/golangsdk/openstack/elb/v3/flavors
@@ -451,11 +458,22 @@ github.com/huaweicloud/golangsdk/openstack/vbs/v2/policies
 github.com/huaweicloud/golangsdk/openstack/vbs/v2/tags
 github.com/huaweicloud/golangsdk/openstack/vpcep/v1/endpoints
 github.com/huaweicloud/golangsdk/openstack/vpcep/v1/services
+github.com/huaweicloud/golangsdk/openstack/waf/v1/certificates
+github.com/huaweicloud/golangsdk/openstack/waf_hw/v1/datamasking_rules
+github.com/huaweicloud/golangsdk/openstack/waf_hw/v1/domains
+github.com/huaweicloud/golangsdk/openstack/waf_hw/v1/policies
+github.com/huaweicloud/golangsdk/openstack/waf_hw/v1/webtamperprotection_rules
+github.com/huaweicloud/golangsdk/openstack/waf_hw/v1/whiteblackip_rules
 github.com/huaweicloud/golangsdk/pagination
-# github.com/huaweicloud/terraform-provider-huaweicloud v1.25.2-0.20210629062920-6f6ae914c3ea
+# github.com/huaweicloud/terraform-provider-huaweicloud v1.26.1
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/apig
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/deprecated
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/elb
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/lb
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/waf
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp

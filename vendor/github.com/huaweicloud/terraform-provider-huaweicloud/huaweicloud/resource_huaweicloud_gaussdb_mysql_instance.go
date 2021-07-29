@@ -27,6 +27,14 @@ func resourceGaussDBInstance() *schema.Resource {
 			State: schema.ImportStatePassthrough,
 		},
 
+		CustomizeDiff: func(d *schema.ResourceDiff, v interface{}) error {
+			if d.HasChange("proxy_node_num") {
+				d.SetNewComputed("proxy_address")
+				d.SetNewComputed("proxy_port")
+			}
+			return nil
+		},
+
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(60 * time.Minute),
 			Update: schema.DefaultTimeout(60 * time.Minute),
@@ -155,9 +163,25 @@ func resourceGaussDBInstance() *schema.Resource {
 					},
 				},
 			},
+			"proxy_flavor": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+			"proxy_node_num": {
+				Type:     schema.TypeInt,
+				Optional: true,
+			},
 			"force_import": {
 				Type:     schema.TypeBool,
 				Optional: true,
+			},
+			"proxy_address": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"proxy_port": {
+				Type:     schema.TypeInt,
+				Computed: true,
 			},
 			"status": {
 				Type:     schema.TypeString,
@@ -407,6 +431,23 @@ func resourceGaussDBInstanceCreate(d *schema.ResourceData, meta interface{}) err
 		}
 	}
 
+	if hasFilledOpt(d, "proxy_flavor") {
+		proxyOpts := instances.ProxyOpts{
+			Flavor:  d.Get("proxy_flavor").(string),
+			NodeNum: d.Get("proxy_node_num").(int),
+		}
+		logp.Printf("[DEBUG] Enable proxy: %#v", proxyOpts)
+
+		n, err := instances.EnableProxy(client, id, proxyOpts).ExtractJobResponse()
+		if err != nil {
+			return fmtp.Errorf("Error enabling proxy: %s", err)
+		}
+
+		if err := instances.WaitForJobSuccess(client, int(d.Timeout(schema.TimeoutCreate)/time.Second), n.JobID); err != nil {
+			return err
+		}
+	}
+
 	// This is a workaround to avoid db connection issue
 	time.Sleep(360 * time.Second) //lintignore:R018
 
@@ -512,6 +553,17 @@ func resourceGaussDBInstanceRead(d *schema.ResourceData, meta interface{}) error
 	}
 	backupStrategyList[0] = backupStrategy
 	d.Set("backup_strategy", backupStrategyList)
+
+	// set proxy
+	proxy, err := instances.GetProxy(client, instanceID).Extract()
+	if err != nil {
+		logp.Printf("[DEBUG] Instance %s Proxy not enabled: %s", instanceID, err)
+	} else {
+		d.Set("proxy_flavor", proxy.Flavor)
+		d.Set("proxy_node_num", proxy.NodeNum)
+		d.Set("proxy_address", proxy.Address)
+		d.Set("proxy_port", proxy.Port)
+	}
 
 	return nil
 }
@@ -739,6 +791,34 @@ func resourceGaussDBInstanceUpdate(d *schema.ResourceData, meta interface{}) err
 		err = backups.Update(client, d.Id(), updateOpts).ExtractErr()
 		if err != nil {
 			return fmtp.Errorf("Error updating backup_strategy: %s", err)
+		}
+	}
+
+	if d.HasChanges("proxy_flavor", "proxy_node_num") {
+		if hasFilledOpt(d, "proxy_flavor") {
+			proxyOpts := instances.ProxyOpts{
+				Flavor:  d.Get("proxy_flavor").(string),
+				NodeNum: d.Get("proxy_node_num").(int),
+			}
+			logp.Printf("[DEBUG] Enable proxy: %#v", proxyOpts)
+
+			ep, err := instances.EnableProxy(client, d.Id(), proxyOpts).ExtractJobResponse()
+			if err != nil {
+				return fmtp.Errorf("Error enabling proxy: %s", err)
+			}
+
+			if err = instances.WaitForJobSuccess(client, int(d.Timeout(schema.TimeoutUpdate)/time.Second), ep.JobID); err != nil {
+				return err
+			}
+		} else {
+			dp, err := instances.DeleteProxy(client, d.Id()).ExtractJobResponse()
+			if err != nil {
+				return fmtp.Errorf("Error disabling proxy: %s", err)
+			}
+
+			if err = instances.WaitForJobSuccess(client, int(d.Timeout(schema.TimeoutUpdate)/time.Second), dp.JobID); err != nil {
+				return err
+			}
 		}
 	}
 
