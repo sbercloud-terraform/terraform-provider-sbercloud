@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
+
 	"github.com/hashicorp/terraform-plugin-sdk/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
@@ -12,7 +14,7 @@ import (
 )
 
 func TestAccDDSV3Instance_basic(t *testing.T) {
-	var instance instances.Instance
+	var instance instances.InstanceResponse
 	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
 	resourceName := "sbercloud_dds_instance.instance"
 
@@ -42,12 +44,36 @@ func TestAccDDSV3Instance_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "backup_strategy.0.keep_days", "7"),
 				),
 			},
+			{
+				Config: testAccDDSInstanceV3Config_updateFlavorNum(rName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDDSV3InstanceExists(resourceName, &instance),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					testAccCheckDDSV3InstanceFlavor(&instance, "shard", "num", 3),
+				),
+			},
+			{
+				Config: testAccDDSInstanceV3Config_updateFlavorSize(rName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDDSV3InstanceExists(resourceName, &instance),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					testAccCheckDDSV3InstanceFlavor(&instance, "shard", "size", "30"),
+				),
+			},
+			{
+				Config: testAccDDSInstanceV3Config_updateFlavorSpecCode(rName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckDDSV3InstanceExists(resourceName, &instance),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					testAccCheckDDSV3InstanceFlavor(&instance, "mongos", "spec_code", "dds.mongodb.c6.large.4.mongos"),
+				),
+			},
 		},
 	})
 }
 
 func TestAccDDSV3Instance_withEpsId(t *testing.T) {
-	var instance instances.Instance
+	var instance instances.InstanceResponse
 	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
 	resourceName := "sbercloud_dds_instance.instance"
 
@@ -72,7 +98,7 @@ func testAccCheckDDSV3InstanceDestroy(s *terraform.State) error {
 	config := testAccProvider.Meta().(*config.Config)
 	client, err := config.DdsV3Client(SBC_REGION_NAME)
 	if err != nil {
-		return fmt.Errorf("Error creating SberCloud DDS client: %s", err)
+		return fmtp.Errorf("Error creating SberCloud DDS client: %s", err)
 	}
 
 	for _, rs := range s.RootModule().Resources {
@@ -93,28 +119,28 @@ func testAccCheckDDSV3InstanceDestroy(s *terraform.State) error {
 		}
 
 		if instances.TotalCount > 0 {
-			return fmt.Errorf("Instance still exists. ")
+			return fmtp.Errorf("Instance still exists. ")
 		}
 	}
 
 	return nil
 }
 
-func testAccCheckDDSV3InstanceExists(n string, instance *instances.Instance) resource.TestCheckFunc {
+func testAccCheckDDSV3InstanceExists(n string, instance *instances.InstanceResponse) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
-			return fmt.Errorf("Not found: %s. ", n)
+			return fmtp.Errorf("Not found: %s. ", n)
 		}
 
 		if rs.Primary.ID == "" {
-			return fmt.Errorf("No ID is set. ")
+			return fmtp.Errorf("No ID is set. ")
 		}
 
 		config := testAccProvider.Meta().(*config.Config)
 		client, err := config.DdsV3Client(SBC_REGION_NAME)
 		if err != nil {
-			return fmt.Errorf("Error creating SberCloud DDS client: %s ", err)
+			return fmtp.Errorf("Error creating SberCloud DDS client: %s ", err)
 		}
 
 		opts := instances.ListInstanceOpts{
@@ -129,9 +155,74 @@ func testAccCheckDDSV3InstanceExists(n string, instance *instances.Instance) res
 			return err
 		}
 		if instances.TotalCount == 0 {
-			return fmt.Errorf("dds instance not found.")
+			return fmtp.Errorf("dds instance not found.")
 		}
 
+		insts := instances.Instances
+		found := insts[0]
+		*instance = found
+
+		return nil
+	}
+}
+
+func testAccCheckDDSV3InstanceFlavor(instance *instances.InstanceResponse, groupType, key string, v interface{}) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		if key == "num" {
+			if groupType == "mongos" {
+				for _, group := range instance.Groups {
+					if group.Type == "mongos" {
+						if len(group.Nodes) != v.(int) {
+							return fmtp.Errorf(
+								"Error updating SberCloud DDS instance: num of mongos nodes expect %d, but got %d",
+								v.(int), len(group.Nodes))
+						}
+						return nil
+					}
+				}
+			} else {
+				groupIDs := make([]string, 0)
+				for _, group := range instance.Groups {
+					if group.Type == "shard" {
+						groupIDs = append(groupIDs, group.Id)
+					}
+				}
+				if len(groupIDs) != v.(int) {
+					return fmtp.Errorf(
+						"Error updating SberCloud DDS instance: num of shard groups expect %d, but got %d",
+						v.(int), len(groupIDs))
+				}
+				return nil
+			}
+		}
+
+		if key == "size" {
+			for _, group := range instance.Groups {
+				if group.Type == groupType {
+					if group.Volume.Size != v.(string) {
+						return fmtp.Errorf(
+							"Error updating SberCloud DDS instance: size expect %s, but got %s",
+							v.(string), group.Volume.Size)
+					}
+					return nil
+				}
+			}
+		}
+
+		if key == "spec_code" {
+			for _, group := range instance.Groups {
+				if group.Type == groupType {
+					for _, node := range group.Nodes {
+						if node.SpecCode != v.(string) {
+							return fmtp.Errorf(
+								"Error updating SberCloud DDS instance: spec_code expect %s, but got %s",
+								v.(string), node.SpecCode)
+						}
+					}
+					return nil
+				}
+			}
+		}
 		return nil
 	}
 }
@@ -240,6 +331,195 @@ resource "sbercloud_dds_instance" "instance" {
     num       = 2
     storage   = "ULTRAHIGH"
     size      = 10
+    spec_code = "dds.mongodb.c6.large.2.shard"
+  }
+  flavor {
+    type      = "config"
+    num       = 1
+    storage   = "ULTRAHIGH"
+    size      = 20
+    spec_code = "dds.mongodb.c6.large.2.config"
+  }
+
+  backup_strategy {
+    start_time = "00:00-01:00"
+    keep_days  = "7"
+  }
+
+  tags = {
+	foo   = "bar"
+    owner = "terraform"
+  }
+}`, rName, rName)
+}
+
+func testAccDDSInstanceV3Config_updateFlavorNum(rName string) string {
+	return fmt.Sprintf(`
+data "sbercloud_availability_zones" "test" {}
+
+data "sbercloud_vpc" "test" {
+  name = "vpc-default"
+}
+
+data "sbercloud_vpc_subnet" "test" {
+  name = "subnet-default"
+}
+
+resource "sbercloud_networking_secgroup" "secgroup_acc" {
+  name = "%s"
+}
+
+resource "sbercloud_dds_instance" "instance" {
+  name              = "%s"
+  availability_zone = data.sbercloud_availability_zones.test.names[0]
+  vpc_id            = data.sbercloud_vpc.test.id
+  subnet_id         = data.sbercloud_vpc_subnet.test.id
+  security_group_id = sbercloud_networking_secgroup.secgroup_acc.id
+  password          = "Test@123"
+  mode              = "Sharding"
+
+  datastore {
+    type           = "DDS-Community"
+    version        = "3.4"
+    storage_engine = "wiredTiger"
+  }
+
+  flavor {
+    type      = "mongos"
+    num       = 2
+    spec_code = "dds.mongodb.c6.large.2.mongos"
+  }
+  flavor {
+    type      = "shard"
+    num       = 3
+    storage   = "ULTRAHIGH"
+    size      = 10
+    spec_code = "dds.mongodb.c6.large.2.shard"
+  }
+  flavor {
+    type      = "config"
+    num       = 1
+    storage   = "ULTRAHIGH"
+    size      = 20
+    spec_code = "dds.mongodb.c6.large.2.config"
+  }
+
+  backup_strategy {
+    start_time = "00:00-01:00"
+    keep_days  = "7"
+  }
+
+  tags = {
+	foo   = "bar"
+    owner = "terraform"
+  }
+}`, rName, rName)
+}
+
+func testAccDDSInstanceV3Config_updateFlavorSize(rName string) string {
+	return fmt.Sprintf(`
+data "sbercloud_availability_zones" "test" {}
+
+data "sbercloud_vpc" "test" {
+  name = "vpc-default"
+}
+
+data "sbercloud_vpc_subnet" "test" {
+  name = "subnet-default"
+}
+
+resource "sbercloud_networking_secgroup" "secgroup_acc" {
+  name = "%s"
+}
+
+resource "sbercloud_dds_instance" "instance" {
+  name              = "%s"
+  availability_zone = data.sbercloud_availability_zones.test.names[0]
+  vpc_id            = data.sbercloud_vpc.test.id
+  subnet_id         = data.sbercloud_vpc_subnet.test.id
+  security_group_id = sbercloud_networking_secgroup.secgroup_acc.id
+  password          = "Test@123"
+  mode              = "Sharding"
+
+  datastore {
+    type           = "DDS-Community"
+    version        = "3.4"
+    storage_engine = "wiredTiger"
+  }
+
+  flavor {
+    type      = "mongos"
+    num       = 2
+    spec_code = "dds.mongodb.c6.large.2.mongos"
+  }
+  flavor {
+    type      = "shard"
+    num       = 3
+    storage   = "ULTRAHIGH"
+    size      = 30
+    spec_code = "dds.mongodb.c6.large.2.shard"
+  }
+  flavor {
+    type      = "config"
+    num       = 1
+    storage   = "ULTRAHIGH"
+    size      = 20
+    spec_code = "dds.mongodb.c6.large.2.config"
+  }
+
+  backup_strategy {
+    start_time = "00:00-01:00"
+    keep_days  = "7"
+  }
+
+  tags = {
+	foo   = "bar"
+    owner = "terraform"
+  }
+}`, rName, rName)
+}
+
+func testAccDDSInstanceV3Config_updateFlavorSpecCode(rName string) string {
+	return fmt.Sprintf(`
+data "sbercloud_availability_zones" "test" {}
+
+data "sbercloud_vpc" "test" {
+  name = "vpc-default"
+}
+
+data "sbercloud_vpc_subnet" "test" {
+  name = "subnet-default"
+}
+
+resource "sbercloud_networking_secgroup" "secgroup_acc" {
+  name = "%s"
+}
+
+resource "sbercloud_dds_instance" "instance" {
+  name              = "%s"
+  availability_zone = data.sbercloud_availability_zones.test.names[0]
+  vpc_id            = data.sbercloud_vpc.test.id
+  subnet_id         = data.sbercloud_vpc_subnet.test.id
+  security_group_id = sbercloud_networking_secgroup.secgroup_acc.id
+  password          = "Test@123"
+  mode              = "Sharding"
+
+  datastore {
+    type           = "DDS-Community"
+    version        = "3.4"
+    storage_engine = "wiredTiger"
+  }
+
+  flavor {
+    type      = "mongos"
+    num       = 2
+    spec_code = "dds.mongodb.c6.large.4.mongos"
+  }
+  flavor {
+    type      = "shard"
+    num       = 3
+    storage   = "ULTRAHIGH"
+    size      = 30
     spec_code = "dds.mongodb.c6.large.2.shard"
   }
   flavor {

@@ -2,11 +2,13 @@ package utils
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/hashcode"
 	"github.com/huaweicloud/golangsdk"
@@ -224,4 +226,16 @@ func IsResourceNotFound(err error) bool {
 	}
 	_, ok := err.(golangsdk.ErrDefault404)
 	return ok
+}
+
+// Method FormatTimeStampRFC3339 is used to unify the time format to RFC-3339 and return a time string.
+func FormatTimeStampRFC3339(timestamp int64) string {
+	createTime := time.Unix(timestamp, 0)
+	return createTime.Format(time.RFC3339)
+}
+
+// Method EncodeBase64String is used to encode a string by base64.
+func EncodeBase64String(str string) string {
+	strByte := []byte(str)
+	return base64.StdEncoding.EncodeToString(strByte)
 }
