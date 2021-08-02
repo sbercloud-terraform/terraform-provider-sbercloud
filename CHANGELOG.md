@@ -1,3 +1,27 @@
+## 1.4.0 (August 02, 2021)
+
+FEATURES:
+
+* **New Data Source:** `sbercloud_dis_partition` ([#68](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/68))
+* **New Data Source:** `sbercloud_cdm_flavors` ([#69](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/69))
+* **New Resource:** `sbercloud_dis_stream` ([#68](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/68))
+* **New Resource:** `sbercloud_cdm_cluster` ([#69](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/69))
+* **New Resource:** `sbercloud_dli_queue` ([#72](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/72))
+* **New Resource:** `sbercloud_dws_cluster` ([#73](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/73))
+* **New Resource:** `sbercloud_ges_graph` ([#75](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/75))
+* **New Resource:** `sbercloud_ces_alarmrule` ([#77](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/77))
+* **New Resource:** `sbercloud_css_cluster` ([#78](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/78))
+
+ENHANCEMENTS:
+
+* Update GNUmakefile to make log message configurable ([#80](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/80))
+* Update go to `1.16` in setup-go action to enable darwin/arm64 builds ([#81](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/81))
+* Add support of scale up and class changing for the `sbercloud_dds_instance` resource ([#91](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/91))
+
+BUG FIXES:
+
+* Fix an issue when the `sbercloud_rds_instance` resource cannot be created with empty database port value ([#90](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/90))
+
 ## 1.3.0 (June 22, 2021)
 
 FEATURES:
