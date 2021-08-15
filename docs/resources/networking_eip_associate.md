@@ -9,7 +9,7 @@ Associates an EIP to a port.
 ## Example Usage
 
 ```hcl
-resource "sbercloud_networking_port" "myport" {
+data "sbercloud_networking_port" "myport" {
   network_id = "a5bbd213-e1d3-49b6-aed1-9df60ea94b9a"
 }
 
@@ -27,7 +27,7 @@ resource "sbercloud_vpc_eip" "myeip" {
 
 resource "sbercloud_networking_eip_associate" "associated" {
   public_ip = sbercloud_vpc_eip.myeip.address
-  port_id   = sbercloud_networking_port.myport.id
+  port_id   = data.sbercloud_networking_port.myport.id
 }
 ```
 
