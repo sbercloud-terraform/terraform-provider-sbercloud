@@ -3,8 +3,8 @@ package huaweicloud
 import (
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
 	"github.com/huaweicloud/golangsdk"
 	"github.com/huaweicloud/golangsdk/openstack/networking/v1/subnets"
@@ -48,13 +48,11 @@ func ResourceNetworkACL() *schema.Resource {
 			"inbound_rules": {
 				Type:     schema.TypeList,
 				Optional: true,
-				MaxItems: 10,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
 			"outbound_rules": {
 				Type:     schema.TypeList,
 				Optional: true,
-				MaxItems: 10,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
 			"subnets": {

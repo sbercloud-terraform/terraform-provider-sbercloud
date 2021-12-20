@@ -46,6 +46,7 @@ type CreateTaurusDBOpts struct {
 	MasterAZ            string             `json:"master_availability_zone,omitempty"`
 	ConfigurationId     string             `json:"configuration_id,omitempty"`
 	EnterpriseProjectId string             `json:"enterprise_project_id,omitempty"`
+	DedicatedResourceId string             `json:"dedicated_resource_id,omitempty"`
 	LowerCaseTableNames *int               `json:"lower_case_table_names,omitempty"`
 	DataStore           DataStoreOpt       `json:"datastore" required:"true"`
 	BackupStrategy      *BackupStrategyOpt `json:"backup_strategy,omitempty"`
@@ -373,6 +374,37 @@ func EnableProxy(client *golangsdk.ServiceClient, instanceId string, opts ProxyB
 	return
 }
 
+type EnlargeProxyOpts struct {
+	NodeNum int `json:"node_num" required:"true"`
+}
+
+type EnlargeProxyBuilder interface {
+	ToEnlargeProxyMap() (map[string]interface{}, error)
+}
+
+func (opts EnlargeProxyOpts) ToEnlargeProxyMap() (map[string]interface{}, error) {
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func EnlargeProxy(client *golangsdk.ServiceClient, instanceId string, opts EnlargeProxyBuilder) (r JobResult) {
+	b, err := opts.ToEnlargeProxyMap()
+	if err != nil {
+		r.Err = err
+		return
+	}
+
+	_, r.Err = client.Post(proxyEnlargeURL(client, instanceId), b, &r.Body, &golangsdk.RequestOpts{
+		OkCodes:     []int{201},
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+
+	return
+}
+
 func DeleteProxy(client *golangsdk.ServiceClient, instanceId string) (r JobResult) {
 	url := proxyURL(client, instanceId)
 
@@ -392,4 +424,14 @@ func GetProxy(client *golangsdk.ServiceClient, instanceId string) (r GetProxyRes
 	})
 
 	return
+}
+
+func ListDeh(client *golangsdk.ServiceClient) pagination.Pager {
+	pageList := pagination.NewPager(client, listDehURL(client), func(r pagination.PageResult) pagination.Page {
+		return DehResourcePage{pagination.SinglePageBase(r)}
+	})
+	// Headers supplies additional HTTP headers to populate on each paged request
+	pageList.Headers = map[string]string{"Content-Type": "application/json"}
+
+	return pageList
 }

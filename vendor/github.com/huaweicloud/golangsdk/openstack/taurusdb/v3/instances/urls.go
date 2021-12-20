@@ -42,10 +42,18 @@ func proxyURL(c *golangsdk.ServiceClient, instanceID string) string {
 	return c.ServiceURL("instances", instanceID, "proxy")
 }
 
+func proxyEnlargeURL(c *golangsdk.ServiceClient, instanceID string) string {
+	return c.ServiceURL("instances", instanceID, "proxy/enlarge")
+}
+
 func actionURL(c *golangsdk.ServiceClient, instanceID string) string {
 	return c.ServiceURL("instances", instanceID, "action")
 }
 
 func jobURL(sc *golangsdk.ServiceClient, jobId string) string {
 	return sc.ServiceURL("jobs?id=" + jobId)
+}
+
+func listDehURL(c *golangsdk.ServiceClient) string {
+	return c.ServiceURL("dedicated-resources")
 }

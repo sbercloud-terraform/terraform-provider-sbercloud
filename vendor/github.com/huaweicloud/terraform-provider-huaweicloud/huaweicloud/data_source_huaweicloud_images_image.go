@@ -7,8 +7,8 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/huaweicloud/golangsdk/openstack/imageservice/v2/images"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
@@ -206,7 +206,6 @@ func dataSourceImagesImageV2Attributes(d *schema.ResourceData, image *images.Ima
 
 	d.SetId(image.ID)
 	d.Set("name", image.Name)
-	d.Set("tags", image.Tags)
 	d.Set("container_format", image.ContainerFormat)
 	d.Set("disk_format", image.DiskFormat)
 	d.Set("min_disk_gb", image.MinDiskGigabytes)

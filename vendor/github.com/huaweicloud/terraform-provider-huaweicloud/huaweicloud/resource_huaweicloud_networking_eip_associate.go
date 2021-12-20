@@ -1,7 +1,7 @@
 package huaweicloud
 
 import (
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
 	"github.com/huaweicloud/golangsdk"
 	"github.com/huaweicloud/golangsdk/openstack/networking/v2/extensions/layer3/floatingips"
@@ -70,7 +70,7 @@ func resourceNetworkingFloatingIPAssociateV2Create(d *schema.ResourceData, meta 
 
 	d.SetId(floatingIPID)
 
-	return resourceNetworkFloatingIPV2Read(d, meta)
+	return resourceNetworkingFloatingIPAssociateV2Read(d, meta)
 }
 
 func resourceNetworkingFloatingIPAssociateV2Read(d *schema.ResourceData, meta interface{}) error {

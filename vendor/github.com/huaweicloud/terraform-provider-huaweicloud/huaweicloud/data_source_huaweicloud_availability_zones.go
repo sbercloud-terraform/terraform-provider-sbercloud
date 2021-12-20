@@ -3,13 +3,13 @@ package huaweicloud
 import (
 	"sort"
 
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/hashcode"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/huaweicloud/golangsdk/openstack/compute/v2/extensions/availabilityzones"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/hashcode"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
 )
 
 func DataSourceAvailabilityZones() *schema.Resource {
@@ -21,18 +21,18 @@ func DataSourceAvailabilityZones() *schema.Resource {
 				Optional: true,
 				Computed: true,
 			},
+			"state": {
+				Type:         schema.TypeString,
+				Default:      "available",
+				Optional:     true,
+				ValidateFunc: validation.StringInSlice([]string{"available", "unavailable"}, false),
+			},
 			"names": {
 				Type:     schema.TypeList,
 				Computed: true,
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
-			},
-			"state": {
-				Type:         schema.TypeString,
-				Default:      "available",
-				Optional:     true,
-				ValidateFunc: validation.StringInSlice([]string{"available", "unavailable"}, true),
 			},
 		},
 	}

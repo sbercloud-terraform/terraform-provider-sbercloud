@@ -25,6 +25,7 @@ type Cluster struct {
 	Deploymentid          string            `json:"deploymentId"`
 	Remark                string            `json:"remark"`
 	Orderid               string            `json:"orderId"`
+	AvailabilityZone      string            `json:"azCode"`
 	Azid                  string            `json:"azId"`
 	Azname                string            `json:"azName"`
 	Masternodeproductid   string            `json:"masterNodeProductId"`
@@ -110,6 +111,39 @@ type ClusterResult struct {
 	Msg       string `json:"msg"`
 }
 
+type HostListResult struct {
+	Hosts []Host `json:"hosts"`
+	Total int    `json:"total"`
+}
+
+type Host struct {
+	// VM ID
+	Id string `json:"id"`
+	// VM IP address
+	Ip string `json:"ip"`
+	// VM flavor ID
+	Flavor string `json:"flavor"`
+	// VM type
+	// Currently, MasterNode, CoreNode, and TaskNode are supported.
+	Type string `json:"type"`
+	// VM name
+	Name string `json:"name"`
+	// Current VM state
+	Status string `json:"status"`
+	// Memory
+	Mem string `json:"mem"`
+	// Number of CPU cores
+	Cpu string `json:"cpu"`
+	// OS disk capacity
+	RootVolumeSize string `json:"root_volume_size"`
+	// Data disk type
+	DataVolumeType string `json:"data_volume_type"`
+	// Data disk capacity
+	DataVolumeSize int `json:"data_volume_size"`
+	// Number of data disks
+	DataVolumeCount int `json:"data_volume_count"`
+}
+
 type CreateResult struct {
 	golangsdk.Result
 }
@@ -132,6 +166,26 @@ func (r GetResult) Extract() (*Cluster, error) {
 
 func (r GetResult) ExtractInto(v interface{}) error {
 	return r.Result.ExtractIntoStructPtr(v, "cluster")
+}
+
+// UpdateResult represents a result of the Update method.
+type UpdateResult struct {
+	golangsdk.Result
+}
+
+// UpdateResp is an object struct that represents an result of node group resize operation.
+type UpdateResp struct {
+	// Operation result
+	// succeeded: The operation is successful.
+	// Table 8 describes the error codes returned upon operation failures.
+	Result string `json:"result"`
+}
+
+// Extract is a method which to extract the response of the resize operation.
+func (r UpdateResult) Extract() (*UpdateResp, error) {
+	var s UpdateResp
+	err := r.ExtractInto(&s)
+	return &s, err
 }
 
 type DeleteResult struct {

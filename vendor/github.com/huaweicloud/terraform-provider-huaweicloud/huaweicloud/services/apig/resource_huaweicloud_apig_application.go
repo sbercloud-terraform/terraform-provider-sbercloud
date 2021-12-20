@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/huaweicloud/golangsdk"
 	"github.com/huaweicloud/golangsdk/openstack/apigw/v2/applications"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -73,6 +73,14 @@ func ResourceApigApplicationV2() *schema.Resource {
 				}, false),
 			},
 			"registraion_time": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"app_key": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"app_secret": {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
@@ -171,6 +179,8 @@ func setApigApplicationParamters(d *schema.ResourceData, config *config.Config, 
 		d.Set("description", resp.Description),
 		d.Set("registraion_time", resp.RegistraionTime),
 		d.Set("update_time", resp.UpdateTime),
+		d.Set("app_key", resp.AppKey),
+		d.Set("app_secret", resp.AppSecret),
 		setApigApplicationCodes(d, config, resp),
 	)
 	if mErr.ErrorOrNil() != nil {

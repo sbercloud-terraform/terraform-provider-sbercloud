@@ -5,12 +5,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/huaweicloud/golangsdk"
 	"github.com/huaweicloud/golangsdk/openstack/common/tags"
 	"github.com/huaweicloud/golangsdk/openstack/rds/v3/backups"
 	"github.com/huaweicloud/golangsdk/openstack/rds/v3/instances"
+	"github.com/huaweicloud/golangsdk/openstack/rds/v3/securities"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
@@ -88,7 +89,6 @@ func ResourceRdsInstanceV3() *schema.Resource {
 							Type:     schema.TypeInt,
 							Optional: true,
 							Computed: true,
-							ForceNew: true,
 						},
 						"user_name": {
 							Type:     schema.TypeString,
@@ -136,7 +136,6 @@ func ResourceRdsInstanceV3() *schema.Resource {
 			"security_group_id": {
 				Type:     schema.TypeString,
 				Required: true,
-				ForceNew: true,
 			},
 
 			"backup_strategy": {
@@ -185,6 +184,11 @@ func ResourceRdsInstanceV3() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
+			},
+
+			"ssl_enable": {
+				Type:     schema.TypeBool,
+				Optional: true,
 			},
 
 			"tags": tagsSchema(),
@@ -267,6 +271,15 @@ func buildRdsInstanceV3DBPort(d *schema.ResourceData) string {
 	return ""
 }
 
+func isMySQLDatabase(d *schema.ResourceData) bool {
+	dbType := d.Get("db.0.type").(string)
+	// Database type is not case sensitive.
+	if strings.ToLower(dbType) == "mysql" {
+		return true
+	}
+	return false
+}
+
 func resourceRdsInstanceV3Create(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*config.Config)
 	region := GetRegion(d, config)
@@ -341,6 +354,17 @@ func resourceRdsInstanceV3Create(d *schema.ResourceData, meta interface{}) error
 		}
 	}
 
+	if d.Get("ssl_enable").(bool) == true {
+		if isMySQLDatabase(d) {
+			err = configRdsInstanceSSL(d, client, d.Id())
+			if err != nil {
+				return err
+			}
+		} else {
+			return fmtp.Errorf("Only MySQL database support SSL enable and disable")
+		}
+	}
+
 	tagRaw := d.Get("tags").(map[string]interface{})
 	if len(tagRaw) > 0 {
 		taglist := utils.ExpandResourceTags(tagRaw)
@@ -373,15 +397,12 @@ func resourceRdsInstanceV3Read(d *schema.ResourceData, meta interface{}) error {
 	d.Set("region", instance.Region)
 	d.Set("name", instance.Name)
 	d.Set("status", instance.Status)
-	d.Set("port", instance.Port)
-	d.Set("type", instance.Type)
 	d.Set("created", instance.Created)
 	d.Set("ha_replication_mode", instance.Ha.ReplicationMode)
 	d.Set("vpc_id", instance.VpcId)
 	d.Set("subnet_id", instance.SubnetId)
 	d.Set("security_group_id", instance.SecurityGroupId)
 	d.Set("flavor", instance.FlavorRef)
-	d.Set("disk_encryption_id", instance.DiskEncryptionId)
 	d.Set("time_zone", instance.TimeZone)
 	d.Set("enterprise_project_id", instance.EnterpriseProjectId)
 	d.Set("charging_mode", instance.ChargeInfo.ChargeMode)
@@ -478,12 +499,13 @@ func resourceRdsInstanceV3Update(d *schema.ResourceData, meta interface{}) error
 	// Since the instance will throw an exception when making an API interface call in 'BACKING UP' state,
 	// wait for the instance state to be updated to 'ACTIVE' before calling the interface.
 	stateConf := &resource.StateChangeConf{
-		Pending:    []string{"BACKING UP", "ACTIVE"},
-		Target:     []string{"ACTIVE"},
-		Refresh:    rdsInstanceStateRefreshFunc(client, instanceID),
-		Timeout:    d.Timeout(schema.TimeoutDefault),
-		Delay:      10 * time.Second,
-		MinTimeout: 3 * time.Second,
+		Target:       []string{"ACTIVE"},
+		Refresh:      rdsInstanceStateRefreshFunc(client, instanceID),
+		Timeout:      d.Timeout(schema.TimeoutDefault),
+		Delay:        5 * time.Second,
+		PollInterval: 5 * time.Second,
+		// Provide 10 seconds to check whether the instance is 'ACTIVE' or is about to enter 'BACKING UP'.
+		ContinuousTargetOccurence: 3,
 	}
 	if _, err = stateConf.WaitForState(); err != nil {
 		return fmtp.Errorf("Error waiting for RDS instance (%s) become active state: %s", instanceID, err)
@@ -502,6 +524,18 @@ func resourceRdsInstanceV3Update(d *schema.ResourceData, meta interface{}) error
 	}
 
 	if err := updateRdsInstanceBackpStrategy(d, client, instanceID); err != nil {
+		return fmtp.Errorf("[ERROR] %s", err)
+	}
+
+	if err := updateRdsInstanceDBPort(d, client, instanceID); err != nil {
+		return fmtp.Errorf("[ERROR] %s", err)
+	}
+
+	if err := updateRdsInstanceSecurityGroup(d, client, instanceID); err != nil {
+		return fmtp.Errorf("[ERROR] %s", err)
+	}
+
+	if err := updateRdsInstanceSSLConfig(d, client, instanceID); err != nil {
 		return fmtp.Errorf("[ERROR] %s", err)
 	}
 
@@ -656,7 +690,7 @@ func updateRdsInstanceName(d *schema.ResourceData, client *golangsdk.ServiceClie
 	}
 
 	stateConf := &resource.StateChangeConf{
-		Pending:    []string{"MODIFYING", "ACTIVE"},
+		Pending:    []string{"MODIFYING"},
 		Target:     []string{"ACTIVE"},
 		Refresh:    rdsInstanceStateRefreshFunc(client, instanceID),
 		Timeout:    d.Timeout(schema.TimeoutUpdate),
@@ -758,6 +792,75 @@ func updateRdsInstanceBackpStrategy(d *schema.ResourceData, client *golangsdk.Se
 		return fmtp.Errorf("Error waiting for RDS instance (%s) backup to be updated: %s ", instanceID, err)
 	}
 
+	return nil
+}
+
+func updateRdsInstanceDBPort(d *schema.ResourceData, client *golangsdk.ServiceClient, instanceID string) error {
+	if !d.HasChange("db.0.port") {
+		return nil
+	}
+
+	udpateOpts := securities.PortOpts{
+		Port: d.Get("db.0.port").(int),
+	}
+	logp.Printf("[DEBUG] Update opts of Database port: %+v", udpateOpts)
+	_, err := securities.UpdatePort(client, instanceID, udpateOpts).Extract()
+	if err != nil {
+		return fmtp.Errorf("Error updating instance database port: %s ", err)
+	}
+	// for prePaid charge mode
+	stateConf := &resource.StateChangeConf{
+		Pending:    []string{"MODIFYING DATABASE PORT"},
+		Target:     []string{"ACTIVE"},
+		Refresh:    rdsInstanceStateRefreshFunc(client, instanceID),
+		Timeout:    d.Timeout(schema.TimeoutCreate),
+		Delay:      5 * time.Second,
+		MinTimeout: 3 * time.Second,
+	}
+	if _, err = stateConf.WaitForState(); err != nil {
+		return fmtp.Errorf("Error waiting for RDS instance (%s) creation completed: %s", instanceID, err)
+	}
+
+	return nil
+}
+
+func updateRdsInstanceSecurityGroup(d *schema.ResourceData, client *golangsdk.ServiceClient, instanceID string) error {
+	if !d.HasChange("security_group_id") {
+		return nil
+	}
+
+	udpateOpts := securities.SecGroupOpts{
+		SecurityGroupId: d.Get("security_group_id").(string),
+	}
+	logp.Printf("[DEBUG] Update opts of security group: %+v", udpateOpts)
+	_, err := securities.UpdateSecGroup(client, instanceID, udpateOpts).Extract()
+	if err != nil {
+		return fmtp.Errorf("Error updating instance security group: %s ", err)
+	}
+
+	return nil
+}
+
+func updateRdsInstanceSSLConfig(d *schema.ResourceData, client *golangsdk.ServiceClient, instanceID string) error {
+	if !d.HasChange("ssl_enable") {
+		return nil
+	}
+	if !isMySQLDatabase(d) {
+		return fmtp.Errorf("Only MySQL database support SSL enable and disable")
+	}
+	return configRdsInstanceSSL(d, client, instanceID)
+}
+
+func configRdsInstanceSSL(d *schema.ResourceData, client *golangsdk.ServiceClient, instanceID string) error {
+	sslEnable := d.Get("ssl_enable").(bool)
+	udpateOpts := securities.SSLOpts{
+		SSLEnable: &sslEnable,
+	}
+	logp.Printf("[DEBUG] Update opts of SSL configuration: %+v", udpateOpts)
+	err := securities.UpdateSSL(client, instanceID, udpateOpts).ExtractErr()
+	if err != nil {
+		return fmtp.Errorf("Error updating instance SSL configuration: %s ", err)
+	}
 	return nil
 }
 
