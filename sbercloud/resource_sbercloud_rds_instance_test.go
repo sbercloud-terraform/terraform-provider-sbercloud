@@ -5,12 +5,12 @@ import (
 	"log"
 	"testing"
 
+	"github.com/chnsz/golangsdk"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
-	"github.com/huaweicloud/golangsdk"
 
-	"github.com/huaweicloud/golangsdk/openstack/rds/v3/instances"
+	"github.com/chnsz/golangsdk/openstack/rds/v3/instances"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 

@@ -8,14 +8,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chnsz/golangsdk"
+	"github.com/chnsz/golangsdk/openstack/cce/v3/clusters"
+	"github.com/chnsz/golangsdk/openstack/cce/v3/nodes"
+	"github.com/chnsz/golangsdk/openstack/common/tags"
+	"github.com/chnsz/golangsdk/openstack/compute/v2/servers"
+	"github.com/chnsz/golangsdk/openstack/networking/v1/eips"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"github.com/huaweicloud/golangsdk"
-	"github.com/huaweicloud/golangsdk/openstack/cce/v3/clusters"
-	"github.com/huaweicloud/golangsdk/openstack/cce/v3/nodes"
-	"github.com/huaweicloud/golangsdk/openstack/common/tags"
-	"github.com/huaweicloud/golangsdk/openstack/networking/v1/eips"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
@@ -708,8 +709,6 @@ func resourceCCENodeV3Read(d *schema.ResourceData, meta interface{}) error {
 
 	if resourceTags, err := tags.Get(computeClient, "cloudservers", serverId).Extract(); err == nil {
 		tagmap := utils.TagsToMap(resourceTags.Tags)
-		// ignore "CCE-Dynamic-Provisioning-Node"
-		delete(tagmap, "CCE-Dynamic-Provisioning-Node")
 		if err := d.Set("tags", tagmap); err != nil {
 			return fmtp.Errorf("Error saving tags to state for CCE Node (%s): %s", serverId, err)
 		}
@@ -798,8 +797,25 @@ func resourceCCENodeV3Delete(d *schema.ResourceData, meta interface{}) error {
 			publicIP := d.Get("public_ip").(string)
 
 			resourceIDs := make([]string, 0, 2)
+			computeClient, err := config.ComputeV2Client(GetRegion(d, config))
+			if err != nil {
+				return fmtp.Errorf("Error creating HuaweiCloud compute client: %s", err)
+			}
+
+			// check whether the ecs server of the perPaid exists before unsubscribe it
+			// because resource could not be found cannot be unsubscribed
 			if serverID != "" {
-				resourceIDs = append(resourceIDs, serverID)
+				server, err := servers.Get(computeClient, serverID).Extract()
+
+				if err != nil {
+					if _, ok := err.(golangsdk.ErrDefault404); !ok {
+						return fmtp.Errorf("Error retrieving HuaweiCloud ecs intance: %s", err)
+					}
+				} else {
+					if server.Status != "DELETED" && server.Status != "SOFT_DELETED" {
+						resourceIDs = append(resourceIDs, serverID)
+					}
+				}
 			}
 
 			// unsubscribe the eip if necessary
@@ -821,12 +837,21 @@ func resourceCCENodeV3Delete(d *schema.ResourceData, meta interface{}) error {
 					return fmtp.Errorf("Error unsubscribing HuaweiCloud CCE node: %s", err)
 				}
 			}
-		}
 
-		time.Sleep(60 * time.Second) //lintignore:R018
-		err = nodes.Delete(nodeClient, clusterid, d.Id()).ExtractErr()
-		if err != nil {
-			return fmtp.Errorf("Error deleting HuaweiCloud CCE node: %s", err)
+			// wait for the ecs server of the prePaid node to be deleted
+			pending := []string{"ACTIVE", "SHUTOFF"}
+			target := []string{"DELETED", "SOFT_DELETED"}
+			deleteTimeout := d.Timeout(schema.TimeoutDelete)
+			if err := watiForServerTargetState(computeClient, serverID, pending, target, deleteTimeout); err != nil {
+				return fmtp.Errorf("State waiting timeout: %s", err)
+			}
+
+			nodes.Delete(nodeClient, clusterid, d.Id())
+		} else {
+			err = nodes.Delete(nodeClient, clusterid, d.Id()).ExtractErr()
+			if err != nil {
+				return fmtp.Errorf("Error deleting HuaweiCloud CCE node: %s", err)
+			}
 		}
 	}
 	stateConf := &resource.StateChangeConf{

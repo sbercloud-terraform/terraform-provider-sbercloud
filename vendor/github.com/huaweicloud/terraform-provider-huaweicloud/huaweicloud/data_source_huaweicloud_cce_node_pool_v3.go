@@ -6,8 +6,8 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
 
+	"github.com/chnsz/golangsdk/openstack/cce/v3/nodepools"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/huaweicloud/golangsdk/openstack/cce/v3/nodepools"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
@@ -240,8 +240,6 @@ func dataSourceCceNodePoolsV3Read(d *schema.ResourceData, meta interface{}) erro
 	}
 
 	tagmap := utils.TagsToMap(NodePool.Spec.NodeTemplate.UserTags)
-	// ignore "CCE-Dynamic-Provisioning-Node"
-	delete(tagmap, "CCE-Dynamic-Provisioning-Node")
 	if err := d.Set("tags", tagmap); err != nil {
 		return fmtp.Errorf("error saving tags to state for CCE Node Pool(%s): %s", d.Id(), err)
 	}

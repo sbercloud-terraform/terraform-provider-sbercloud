@@ -11,13 +11,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chnsz/golangsdk"
+	huaweisdk "github.com/chnsz/golangsdk/openstack"
+	"github.com/chnsz/golangsdk/openstack/identity/v3/domains"
+	"github.com/chnsz/golangsdk/openstack/identity/v3/projects"
+	"github.com/chnsz/golangsdk/openstack/obs"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/logging"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/huaweicloud/golangsdk"
-	huaweisdk "github.com/huaweicloud/golangsdk/openstack"
-	"github.com/huaweicloud/golangsdk/openstack/identity/v3/domains"
-	"github.com/huaweicloud/golangsdk/openstack/identity/v3/projects"
-	"github.com/huaweicloud/golangsdk/openstack/obs"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/pathorcontents"
 )
 
@@ -497,10 +497,8 @@ func (c *Config) getDomainID() (string, error) {
 	// ResourceBase: https://iam.{CLOUD}/v3/auth/
 	identityClient.ResourceBase += "auth/"
 
-	opts := domains.ListOpts{
-		Name: c.DomainName,
-	}
-	allPages, err := domains.List(identityClient, &opts).AllPages()
+	// the List request does not support query options
+	allPages, err := domains.List(identityClient, nil).AllPages()
 	if err != nil {
 		return "", fmt.Errorf("List domains failed, err=%s", err)
 	}
@@ -512,6 +510,10 @@ func (c *Config) getDomainID() (string, error) {
 
 	if len(all) == 0 {
 		return "", fmt.Errorf("domain was not found")
+	}
+
+	if c.DomainName != "" && c.DomainName != all[0].Name {
+		return "", fmt.Errorf("domain %s was not found, got %s", c.DomainName, all[0].Name)
 	}
 
 	return all[0].ID, nil

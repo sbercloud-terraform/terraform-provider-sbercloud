@@ -3,9 +3,9 @@ package sbercloud
 import (
 	"fmt"
 
+	"github.com/chnsz/golangsdk"
+	"github.com/chnsz/golangsdk/openstack/bss/v2/orders"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/huaweicloud/golangsdk"
-	"github.com/huaweicloud/golangsdk/openstack/bss/v2/orders"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )

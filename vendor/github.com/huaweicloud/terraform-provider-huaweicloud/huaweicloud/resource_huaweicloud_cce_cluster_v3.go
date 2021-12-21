@@ -4,13 +4,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chnsz/golangsdk"
+	"github.com/chnsz/golangsdk/openstack/aom/v1/icagents"
+	"github.com/chnsz/golangsdk/openstack/cce/v3/clusters"
+	"github.com/chnsz/golangsdk/openstack/cce/v3/nodes"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"github.com/huaweicloud/golangsdk"
-	"github.com/huaweicloud/golangsdk/openstack/aom/v1/icagents"
-	"github.com/huaweicloud/golangsdk/openstack/cce/v3/clusters"
-	"github.com/huaweicloud/golangsdk/openstack/cce/v3/nodes"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
@@ -137,9 +137,22 @@ func ResourceCCEClusterV3() *schema.Resource {
 				Default:  "rbac",
 			},
 			"authenticating_proxy_ca": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
+				Type:         schema.TypeString,
+				Optional:     true,
+				ForceNew:     true,
+				RequiredWith: []string{"authenticating_proxy_cert", "authenticating_proxy_private_key"},
+			},
+			"authenticating_proxy_cert": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				ForceNew:     true,
+				RequiredWith: []string{"authenticating_proxy_ca", "authenticating_proxy_private_key"},
+			},
+			"authenticating_proxy_private_key": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				ForceNew:     true,
+				RequiredWith: []string{"authenticating_proxy_ca", "authenticating_proxy_cert"},
 			},
 			"multi_az": {
 				Type:          schema.TypeBool,
@@ -386,7 +399,9 @@ func resourceCCEClusterV3Create(d *schema.ResourceData, meta interface{}) error 
 
 	authenticating_proxy := make(map[string]string)
 	if hasFilledOpt(d, "authenticating_proxy_ca") {
-		authenticating_proxy["ca"] = d.Get("authenticating_proxy_ca").(string)
+		authenticating_proxy["ca"] = utils.EncodeBase64IfNot(d.Get("authenticating_proxy_ca").(string))
+		authenticating_proxy["cert"] = utils.EncodeBase64IfNot(d.Get("authenticating_proxy_cert").(string))
+		authenticating_proxy["privateKey"] = utils.EncodeBase64IfNot(d.Get("authenticating_proxy_private_key").(string))
 	}
 
 	billingMode := 0

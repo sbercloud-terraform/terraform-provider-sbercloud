@@ -4,8 +4,8 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
 
+	"github.com/chnsz/golangsdk/openstack/iec/v1/publicips"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/huaweicloud/golangsdk/openstack/iec/v1/publicips"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
@@ -113,17 +113,12 @@ func dataSourceIECNetworkEipsRead(d *schema.ResourceData, meta interface{}) erro
 			"public_ip":            item.PublicIpAddress,
 			"private_ip":           item.PrivateIpAddress,
 			"port_id":              item.PortID,
+			"status":               normalizeEIPStatus(item.Status),
 			"ip_version":           item.IPVersion,
 			"bandwidth_id":         item.BandwidthID,
 			"bandwidth_name":       item.BandwidthName,
 			"bandwidth_size":       item.BandwidthSize,
 			"bandwidth_share_type": item.BandwidthShareType,
-		}
-		// "DOWN" means the publicips is active but unbound
-		if item.Status == "DOWN" {
-			val["status"] = "UNBOUND"
-		} else {
-			val["status"] = item.Status
 		}
 
 		iecEips = append(iecEips, val)
