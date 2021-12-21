@@ -3,18 +3,18 @@ package sbercloud
 import (
 	"sync"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/mutexkv"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/mutexkv"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dli"
 )
 
 // This is a global MutexKV for use within this plugin.
 var osMutexKV = mutexkv.NewMutexKV()
 
 // Provider returns a schema.Provider for SberCloud.
-func Provider() terraform.ResourceProvider {
+func Provider() *schema.Provider {
 	provider := &schema.Provider{
 		Schema: map[string]*schema.Schema{
 			"access_key": {
@@ -162,7 +162,7 @@ func Provider() terraform.ResourceProvider {
 			"sbercloud_dcs_instance":              huaweicloud.ResourceDcsInstanceV1(),
 			"sbercloud_dds_instance":              huaweicloud.ResourceDdsInstanceV3(),
 			"sbercloud_dis_stream":                huaweicloud.ResourceDisStreamV2(),
-			"sbercloud_dli_queue":                 huaweicloud.ResourceDliQueueV1(),
+			"sbercloud_dli_queue":                 dli.ResourceDliQueue(),
 			"sbercloud_dms_instance":              ResourceDmsInstancesV1(),
 			"sbercloud_dns_recordset":             huaweicloud.ResourceDNSRecordSetV2(),
 			"sbercloud_dns_zone":                  huaweicloud.ResourceDNSZoneV2(),

@@ -3,8 +3,8 @@ package huaweicloud
 import (
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
 	"github.com/huaweicloud/golangsdk"
 	iec_common "github.com/huaweicloud/golangsdk/openstack/iec/v1/common"
@@ -120,7 +120,6 @@ func resourceIecVIPV1Read(d *schema.ResourceData, meta interface{}) error {
 		return CheckDeleted(d, err, "Error retrieving Huaweicloud IEC VPC")
 	}
 
-	d.Set("name", vip.Name)
 	d.Set("subnet_id", vip.NetworkID)
 	d.Set("mac_address", vip.MacAddress)
 

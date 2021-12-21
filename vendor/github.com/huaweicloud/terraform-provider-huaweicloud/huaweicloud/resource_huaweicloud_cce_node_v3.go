@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/huaweicloud/golangsdk"
 	"github.com/huaweicloud/golangsdk/openstack/cce/v3/clusters"
 	"github.com/huaweicloud/golangsdk/openstack/cce/v3/nodes"
@@ -301,6 +301,10 @@ func ResourceCCENodeV3() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
+			},
+			"keep_ecs": {
+				Type:     schema.TypeBool,
+				Optional: true,
 			},
 			"private_ip": {
 				Type:     schema.TypeString,
@@ -606,7 +610,7 @@ func resourceCCENodeV3Create(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	nodeID, err := getResourceIDFromJob(nodeClient, s.Status.JobID)
+	nodeID, err := getResourceIDFromJob(nodeClient, s.Status.JobID, "CreateNode", "CreateNodeVM")
 	if err != nil {
 		return err
 	}
@@ -655,7 +659,6 @@ func resourceCCENodeV3Read(d *schema.ResourceData, meta interface{}) error {
 	d.Set("key_pair", s.Spec.Login.SshKey)
 	d.Set("subnet_id", s.Spec.NodeNicSpec.PrimaryNic.SubnetId)
 	d.Set("ecs_group_id", s.Spec.EcsGroupID)
-	d.Set("billing_mode", s.Spec.BillingMode)
 	if s.Spec.BillingMode != 0 {
 		d.Set("charging_mode", "prePaid")
 	}
@@ -760,43 +763,72 @@ func resourceCCENodeV3Delete(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	clusterid := d.Get("cluster_id").(string)
-	// for prePaid node, firstly, we should unsubscribe the ecs server, and then delete it
-	if d.Get("charging_mode").(string) == "prePaid" || d.Get("billing_mode").(int) == 2 {
-		serverID := d.Get("server_id").(string)
-		publicIP := d.Get("public_ip").(string)
+	// remove node without deleting ecs
+	if d.Get("keep_ecs").(bool) {
+		var removeOpts nodes.RemoveOpts
 
-		resourceIDs := make([]string, 0, 2)
-		if serverID != "" {
-			resourceIDs = append(resourceIDs, serverID)
-		}
-
-		// unsubscribe the eip if necessary
-		if _, ok := d.GetOk("iptype"); ok && publicIP != "" {
-			eipClient, err := config.NetworkingV1Client(GetRegion(d, config))
-			if err != nil {
-				return fmtp.Errorf("Error creating networking client: %s", err)
+		var loginSpec nodes.LoginSpec
+		if hasFilledOpt(d, "key_pair") {
+			loginSpec = nodes.LoginSpec{
+				SshKey: d.Get("key_pair").(string),
 			}
-
-			if eipID, err := getEipIDbyAddress(eipClient, publicIP); err == nil {
-				resourceIDs = append(resourceIDs, eipID)
-			} else {
-				logp.Printf("[WARN] Error fetching EIP ID of CCE Node (%s): %s", d.Id(), err)
+		} else if hasFilledOpt(d, "password") {
+			loginSpec = nodes.LoginSpec{
+				UserPassword: nodes.UserPassword{
+					Username: "root",
+					Password: d.Get("password").(string),
+				},
 			}
 		}
+		removeOpts.Spec.Login = loginSpec
 
-		if len(resourceIDs) > 0 {
-			if err := UnsubscribePrePaidResource(d, config, resourceIDs); err != nil {
-				return fmtp.Errorf("Error unsubscribing HuaweiCloud CCE node: %s", err)
+		nodeItem := nodes.NodeItem{
+			Uid: d.Id(),
+		}
+		removeOpts.Spec.Nodes = append(removeOpts.Spec.Nodes, nodeItem)
+
+		err = nodes.Remove(nodeClient, clusterid, removeOpts).ExtractErr()
+		if err != nil {
+			return fmtp.Errorf("Error removing HuaweiCloud CCE node: %s", err)
+		}
+	} else {
+		// for prePaid node, firstly, we should unsubscribe the ecs server, and then delete it
+		if d.Get("charging_mode").(string) == "prePaid" || d.Get("billing_mode").(int) == 2 {
+			serverID := d.Get("server_id").(string)
+			publicIP := d.Get("public_ip").(string)
+
+			resourceIDs := make([]string, 0, 2)
+			if serverID != "" {
+				resourceIDs = append(resourceIDs, serverID)
 			}
+
+			// unsubscribe the eip if necessary
+			if _, ok := d.GetOk("iptype"); ok && publicIP != "" {
+				eipClient, err := config.NetworkingV1Client(GetRegion(d, config))
+				if err != nil {
+					return fmtp.Errorf("Error creating networking client: %s", err)
+				}
+
+				if eipID, err := getEipIDbyAddress(eipClient, publicIP); err == nil {
+					resourceIDs = append(resourceIDs, eipID)
+				} else {
+					logp.Printf("[WARN] Error fetching EIP ID of CCE Node (%s): %s", d.Id(), err)
+				}
+			}
+
+			if len(resourceIDs) > 0 {
+				if err := UnsubscribePrePaidResource(d, config, resourceIDs); err != nil {
+					return fmtp.Errorf("Error unsubscribing HuaweiCloud CCE node: %s", err)
+				}
+			}
+		}
+
+		time.Sleep(60 * time.Second) //lintignore:R018
+		err = nodes.Delete(nodeClient, clusterid, d.Id()).ExtractErr()
+		if err != nil {
+			return fmtp.Errorf("Error deleting HuaweiCloud CCE node: %s", err)
 		}
 	}
-
-	time.Sleep(60 * time.Second) //lintignore:R018
-	err = nodes.Delete(nodeClient, clusterid, d.Id()).ExtractErr()
-	if err != nil {
-		return fmtp.Errorf("Error deleting HuaweiCloud CCE node: %s", err)
-	}
-
 	stateConf := &resource.StateChangeConf{
 		Pending:      []string{"Deleting"},
 		Target:       []string{"Deleted"},
@@ -815,7 +847,7 @@ func resourceCCENodeV3Delete(d *schema.ResourceData, meta interface{}) error {
 	return nil
 }
 
-func getResourceIDFromJob(client *golangsdk.ServiceClient, jobID string) (string, error) {
+func getResourceIDFromJob(client *golangsdk.ServiceClient, jobID, jobType, subJobType string) (string, error) {
 	// prePaid: waiting for the job to become running
 	stateJob := &resource.StateChangeConf{
 		Pending:      []string{"Initializing"},
@@ -840,7 +872,7 @@ func getResourceIDFromJob(client *golangsdk.ServiceClient, jobID string) (string
 	var refreshJob bool
 	for _, s := range job.Spec.SubJobs {
 		// postPaid: should get details of sub job ID
-		if s.Spec.Type == "CreateNode" {
+		if s.Spec.Type == jobType {
 			subJobID = s.Metadata.ID
 			refreshJob = true
 			break
@@ -856,13 +888,13 @@ func getResourceIDFromJob(client *golangsdk.ServiceClient, jobID string) (string
 
 	var nodeid string
 	for _, s := range job.Spec.SubJobs {
-		if s.Spec.Type == "CreateNodeVM" {
+		if s.Spec.Type == subJobType {
 			nodeid = s.Spec.ResourceID
 			break
 		}
 	}
 	if nodeid == "" {
-		return "", fmtp.Errorf("Error fetching CreateNodeVM Job resource id")
+		return "", fmtp.Errorf("Error fetching %s Job resource id", subJobType)
 	}
 	return nodeid, nil
 }
