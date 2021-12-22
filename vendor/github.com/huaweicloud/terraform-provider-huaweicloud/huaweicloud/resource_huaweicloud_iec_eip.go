@@ -4,11 +4,11 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/chnsz/golangsdk"
+	"github.com/chnsz/golangsdk/openstack/iec/v1/publicips"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"github.com/huaweicloud/golangsdk"
-	"github.com/huaweicloud/golangsdk/openstack/iec/v1/publicips"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
@@ -175,13 +175,7 @@ func resourceIecEipV1Read(d *schema.ResourceData, meta interface{}) error {
 	d.Set("bandwidth_size", n.BandwidthSize)
 	d.Set("bandwidth_share_type", n.BandwidthShareType)
 	d.Set("site_info", n.SiteInfo)
-
-	// "DOWN" means the publicips is active but unbound
-	if n.Status == "DOWN" {
-		d.Set("status", "UNBOUND")
-	} else {
-		d.Set("status", n.Status)
-	}
+	d.Set("status", normalizeEIPStatus(n.Status))
 
 	return nil
 }

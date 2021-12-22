@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/huaweicloud/golangsdk"
-	"github.com/huaweicloud/golangsdk/openstack/rts/v1/stacks"
+	"github.com/chnsz/golangsdk"
+	"github.com/chnsz/golangsdk/openstack/rts/v1/stacks"
 	"gopkg.in/yaml.v2"
 )
 
@@ -226,4 +226,12 @@ func FormatTimeStampRFC3339(timestamp int64) string {
 func EncodeBase64String(str string) string {
 	strByte := []byte(str)
 	return base64.StdEncoding.EncodeToString(strByte)
+}
+
+// Method EncodeBase64IfNot is used to encode a string by base64 if it not a base64 string.
+func EncodeBase64IfNot(str string) string {
+	if _, err := base64.StdEncoding.DecodeString(str); err != nil {
+		return base64.StdEncoding.EncodeToString([]byte(str))
+	}
+	return str
 }
