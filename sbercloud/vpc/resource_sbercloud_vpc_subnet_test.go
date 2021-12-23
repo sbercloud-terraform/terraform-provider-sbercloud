@@ -1,4 +1,4 @@
-package sbercloud
+package vpc
 
 import (
 	"fmt"
@@ -10,6 +10,8 @@ import (
 
 	"github.com/chnsz/golangsdk/openstack/networking/v1/subnets"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 )
 
 func TestAccVpcSubnetV1_basic(t *testing.T) {
@@ -20,9 +22,9 @@ func TestAccVpcSubnetV1_basic(t *testing.T) {
 	rNameUpdate := rName + "-updated"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckVpcSubnetV1Destroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckVpcSubnetV1Destroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccVpcSubnetV1_basic(rName),
@@ -31,6 +33,7 @@ func TestAccVpcSubnetV1_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
 					resource.TestCheckResourceAttr(resourceName, "cidr", "192.168.0.0/16"),
 					resource.TestCheckResourceAttr(resourceName, "gateway_ip", "192.168.0.1"),
+					resource.TestCheckResourceAttr(resourceName, "dhcp_enable", "true"),
 					resource.TestCheckResourceAttr(resourceName, "tags.foo", "bar"),
 					resource.TestCheckResourceAttr(resourceName, "tags.key", "value"),
 				),
@@ -52,10 +55,10 @@ func TestAccVpcSubnetV1_basic(t *testing.T) {
 }
 
 func testAccCheckVpcSubnetV1Destroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	subnetClient, err := config.NetworkingV1Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	subnetClient, err := config.NetworkingV1Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
-		return fmt.Errorf("Error creating huaweicloud vpc client: %s", err)
+		return fmtp.Errorf("Error creating sbercloud vpc client: %s", err)
 	}
 
 	for _, rs := range s.RootModule().Resources {
@@ -65,7 +68,7 @@ func testAccCheckVpcSubnetV1Destroy(s *terraform.State) error {
 
 		_, err := subnets.Get(subnetClient, rs.Primary.ID).Extract()
 		if err == nil {
-			return fmt.Errorf("Subnet still exists")
+			return fmtp.Errorf("Subnet still exists")
 		}
 	}
 
@@ -75,17 +78,17 @@ func testAccCheckVpcSubnetV1Exists(n string, subnet *subnets.Subnet) resource.Te
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
-			return fmt.Errorf("Not found: %s", n)
+			return fmtp.Errorf("Not found: %s", n)
 		}
 
 		if rs.Primary.ID == "" {
-			return fmt.Errorf("No ID is set")
+			return fmtp.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		subnetClient, err := config.NetworkingV1Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		subnetClient, err := config.NetworkingV1Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
-			return fmt.Errorf("Error creating huaweicloud Vpc client: %s", err)
+			return fmtp.Errorf("Error creating sbercloud Vpc client: %s", err)
 		}
 
 		found, err := subnets.Get(subnetClient, rs.Primary.ID).Extract()
@@ -94,7 +97,7 @@ func testAccCheckVpcSubnetV1Exists(n string, subnet *subnets.Subnet) resource.Te
 		}
 
 		if found.ID != rs.Primary.ID {
-			return fmt.Errorf("Subnet not found")
+			return fmtp.Errorf("Subnet not found")
 		}
 
 		*subnet = *found
@@ -103,7 +106,7 @@ func testAccCheckVpcSubnetV1Exists(n string, subnet *subnets.Subnet) resource.Te
 	}
 }
 
-func testAccVpcSubnetV1_basic(rName string) string {
+func testAccVpcSubnet_base(rName string) string {
 	return fmt.Sprintf(`
 data "sbercloud_availability_zones" "test" {}
 
@@ -111,6 +114,12 @@ resource "sbercloud_vpc" "test" {
   name = "%s"
   cidr = "192.168.0.0/16"
 }
+`, rName)
+}
+
+func testAccVpcSubnetV1_basic(rName string) string {
+	return fmt.Sprintf(`
+%s
 
 resource "sbercloud_vpc_subnet" "test" {
   name       = "%s"
@@ -125,17 +134,12 @@ resource "sbercloud_vpc_subnet" "test" {
     key = "value"
   }
 }
-`, rName, rName)
+`, testAccVpcSubnet_base(rName), rName)
 }
 
 func testAccVpcSubnetV1_update(rName string) string {
 	return fmt.Sprintf(`
-data "sbercloud_availability_zones" "test" {}
-
-resource "sbercloud_vpc" "test" {
-  name = "%s"
-  cidr = "192.168.0.0/16"
-}
+%s
 
 resource "sbercloud_vpc_subnet" "test" {
   name       = "%s"
@@ -150,5 +154,5 @@ resource "sbercloud_vpc_subnet" "test" {
     key = "value_updated"
   }
 }
-`, rName, rName)
+`, testAccVpcSubnet_base(rName), rName)
 }
