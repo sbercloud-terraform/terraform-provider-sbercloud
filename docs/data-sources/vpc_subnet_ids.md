@@ -2,9 +2,7 @@
 subcategory: "Virtual Private Cloud (VPC)"
 ---
 
-# sbercloud\_vpc\_subnet\_ids
-
-`sbercloud_vpc_subnet_ids` provides a list of subnet ids for a vpc_id
+# sbercloud_vpc_subnet_ids
 
 This resource can be useful for getting back a list of subnet ids for a vpc.
 
@@ -12,28 +10,29 @@ This resource can be useful for getting back a list of subnet ids for a vpc.
 
 The following example shows outputing all cidr blocks for every subnet id in a vpc.
 
- ```hcl
+```hcl
 data "sbercloud_vpc_subnet_ids" "subnet_ids" {
   vpc_id = var.vpc_id
 }
 
 data "sbercloud_vpc_subnet" "subnet" {
   count = length(data.sbercloud_vpc_subnet_ids.subnet_ids.ids)
-  id    = tolist(data.sbercloud_vpc_subnet_ids.subnet_ids.ids)[count.index]
- }
+  id    = data.sbercloud_vpc_subnet_ids.subnet_ids.ids[count.index]
+}
 
 output "subnet_cidr_blocks" {
   value = [for s in data.sbercloud_vpc_subnet.subnet: "${s.name}: ${s.id}: ${s.cidr}"]
 }
- ```
+```
 
 ## Argument Reference
 
 The following arguments are supported:
 
-* `region` - (Optional, String) The region in which to obtain the subnet ids. If omitted, the provider-level region will be used.
+* `region` - (Optional, String) The region in which to obtain the subnet ids. If omitted, the provider-level region will
+  be used.
 
-* `vpc_id` (Required) - Specifies the VPC ID used as the query filter.
+* `vpc_id` - (Required, String) Specifies the VPC ID used as the query filter.
 
 ## Attributes Reference
 
