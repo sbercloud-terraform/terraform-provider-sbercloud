@@ -94,23 +94,28 @@ func ResourceCCENodeV3() *schema.Resource {
 						"size": {
 							Type:     schema.TypeInt,
 							Required: true,
+							ForceNew: true,
 						},
 						"volumetype": {
 							Type:     schema.TypeString,
 							Required: true,
+							ForceNew: true,
 						},
 						"hw_passthrough": {
 							Type:     schema.TypeBool,
 							Optional: true,
+							ForceNew: true,
 						},
 						"extend_param": {
 							Type:       schema.TypeString,
 							Optional:   true,
+							ForceNew:   true,
 							Deprecated: "use extend_params instead",
 						},
 						"extend_params": {
 							Type:     schema.TypeMap,
 							Optional: true,
+							ForceNew: true,
 							Computed: true,
 							Elem:     &schema.Schema{Type: schema.TypeString},
 						},
@@ -125,25 +130,35 @@ func ResourceCCENodeV3() *schema.Resource {
 						"size": {
 							Type:     schema.TypeInt,
 							Required: true,
+							ForceNew: true,
 						},
 						"volumetype": {
 							Type:     schema.TypeString,
 							Required: true,
+							ForceNew: true,
 						},
 						"hw_passthrough": {
 							Type:     schema.TypeBool,
 							Optional: true,
+							ForceNew: true,
 						},
 						"extend_param": {
 							Type:       schema.TypeString,
 							Optional:   true,
+							ForceNew:   true,
 							Deprecated: "use extend_params instead",
 						},
 						"extend_params": {
 							Type:     schema.TypeMap,
 							Optional: true,
+							ForceNew: true,
 							Computed: true,
 							Elem:     &schema.Schema{Type: schema.TypeString},
+						},
+						"kms_key_id": {
+							Type:     schema.TypeString,
+							Optional: true,
+							ForceNew: true,
 						},
 					}},
 			},
@@ -156,14 +171,17 @@ func ResourceCCENodeV3() *schema.Resource {
 						"key": {
 							Type:     schema.TypeString,
 							Required: true,
+							ForceNew: true,
 						},
 						"value": {
 							Type:     schema.TypeString,
 							Required: true,
+							ForceNew: true,
 						},
 						"effect": {
 							Type:     schema.TypeString,
 							Required: true,
+							ForceNew: true,
 						},
 					}},
 			},
@@ -404,6 +422,13 @@ func resourceCCEDataVolume(d *schema.ResourceData) []nodes.VolumeSpec {
 			HwPassthrough: rawMap["hw_passthrough"].(bool),
 			ExtendParam:   rawMap["extend_params"].(map[string]interface{}),
 		}
+		if rawMap["kms_key_id"].(string) != "" {
+			metadata := nodes.VolumeMetadata{
+				SystemEncrypted: "1",
+				SystemCmkid:     rawMap["kms_key_id"].(string),
+			}
+			volumes[i].Metadata = &metadata
+		}
 	}
 	return volumes
 }
@@ -600,18 +625,11 @@ func resourceCCENodeV3Create(d *schema.ResourceData, meta interface{}) error {
 
 	s, err := nodes.Create(nodeClient, clusterid, createOpts).Extract()
 	if err != nil {
-		if _, ok := err.(golangsdk.ErrDefault403); ok {
-			retryNode, err := recursiveCreate(nodeClient, createOpts, clusterid, 403)
-			if err == "fail" {
-				return fmtp.Errorf("Error creating HuaweiCloud Node")
-			}
-			s = retryNode
-		} else {
-			return fmtp.Errorf("Error creating HuaweiCloud Node: %s", err)
-		}
+		return fmtp.Errorf("Error creating HuaweiCloud Node: %s", err)
 	}
 
-	nodeID, err := getResourceIDFromJob(nodeClient, s.Status.JobID, "CreateNode", "CreateNodeVM")
+	nodeID, err := getResourceIDFromJob(nodeClient, s.Status.JobID, "CreateNode", "CreateNodeVM",
+		d.Timeout(schema.TimeoutCreate))
 	if err != nil {
 		return err
 	}
@@ -623,7 +641,7 @@ func resourceCCENodeV3Create(d *schema.ResourceData, meta interface{}) error {
 		Target:       []string{"Active"},
 		Refresh:      waitForCceNodeActive(nodeClient, clusterid, nodeID),
 		Timeout:      d.Timeout(schema.TimeoutCreate),
-		Delay:        120 * time.Second,
+		Delay:        20 * time.Second,
 		PollInterval: 20 * time.Second,
 	}
 	_, err = stateConf.WaitForState()
@@ -675,6 +693,9 @@ func resourceCCENodeV3Read(d *schema.ResourceData, meta interface{}) error {
 		volume["hw_passthrough"] = pairObject.HwPassthrough
 		volume["extend_params"] = pairObject.ExtendParam
 		volume["extend_param"] = ""
+		if pairObject.Metadata != nil {
+			volume["kms_key_id"] = pairObject.Metadata.SystemCmkid
+		}
 		volumes = append(volumes, volume)
 	}
 	if err := d.Set("data_volumes", volumes); err != nil {
@@ -842,7 +863,7 @@ func resourceCCENodeV3Delete(d *schema.ResourceData, meta interface{}) error {
 			pending := []string{"ACTIVE", "SHUTOFF"}
 			target := []string{"DELETED", "SOFT_DELETED"}
 			deleteTimeout := d.Timeout(schema.TimeoutDelete)
-			if err := watiForServerTargetState(computeClient, serverID, pending, target, deleteTimeout); err != nil {
+			if err := waitForServerTargetState(computeClient, serverID, pending, target, deleteTimeout); err != nil {
 				return fmtp.Errorf("State waiting timeout: %s", err)
 			}
 
@@ -872,20 +893,26 @@ func resourceCCENodeV3Delete(d *schema.ResourceData, meta interface{}) error {
 	return nil
 }
 
-func getResourceIDFromJob(client *golangsdk.ServiceClient, jobID, jobType, subJobType string) (string, error) {
-	// prePaid: waiting for the job to become running
+func getResourceIDFromJob(client *golangsdk.ServiceClient, jobID, jobType, subJobType string,
+	timeout time.Duration) (string, error) {
+
 	stateJob := &resource.StateChangeConf{
-		Pending:      []string{"Initializing"},
-		Target:       []string{"Running", "Success"},
+		Pending:      []string{"Initializing", "Running"},
+		Target:       []string{"Success"},
 		Refresh:      waitForJobStatus(client, jobID),
-		Timeout:      5 * time.Minute,
-		Delay:        20 * time.Second,
-		PollInterval: 10 * time.Second,
+		Timeout:      timeout,
+		Delay:        120 * time.Second,
+		PollInterval: 20 * time.Second,
 	}
 
 	v, err := stateJob.WaitForState()
 	if err != nil {
-		return "", fmtp.Errorf("Error waiting for job (%s) to become running: %s", jobID, err)
+		if job, ok := v.(*nodes.Job); ok {
+			return "", fmtp.Errorf("Error waiting for job (%s) to become success: %s, reason: %s",
+				jobID, err, job.Status.Reason)
+		} else {
+			return "", fmtp.Errorf("Error waiting for job (%s) to become success: %s", jobID, err)
+		}
 	}
 
 	job := v.(*nodes.Job)
@@ -975,34 +1002,6 @@ func waitForJobStatus(cceClient *golangsdk.ServiceClient, jobID string) resource
 
 		return job, job.Status.Phase, nil
 	}
-}
-
-func recursiveCreate(cceClient *golangsdk.ServiceClient, opts nodes.CreateOptsBuilder, ClusterID string, errCode int) (*nodes.Nodes, string) {
-	if errCode == 403 {
-		stateCluster := &resource.StateChangeConf{
-			Target:       []string{"Available"},
-			Refresh:      waitForClusterAvailable(cceClient, ClusterID),
-			Timeout:      15 * time.Minute,
-			Delay:        20 * time.Second,
-			PollInterval: 10 * time.Second,
-		}
-		_, stateErr := stateCluster.WaitForState()
-		if stateErr != nil {
-			logp.Printf("[INFO] Cluster Unavailable %s.\n", stateErr)
-		}
-		s, err := nodes.Create(cceClient, ClusterID, opts).Extract()
-		if err != nil {
-			//if err.(golangsdk.ErrUnexpectedResponseCode).Actual == 403 {
-			if _, ok := err.(golangsdk.ErrDefault403); ok {
-				return recursiveCreate(cceClient, opts, ClusterID, 403)
-			} else {
-				return s, "fail"
-			}
-		} else {
-			return s, "success"
-		}
-	}
-	return nil, "fail"
 }
 
 func installScriptHashSum(script string) string {

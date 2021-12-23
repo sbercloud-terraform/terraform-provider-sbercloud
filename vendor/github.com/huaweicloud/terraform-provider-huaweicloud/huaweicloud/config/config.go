@@ -15,6 +15,7 @@ import (
 	huaweisdk "github.com/chnsz/golangsdk/openstack"
 	"github.com/chnsz/golangsdk/openstack/identity/v3/domains"
 	"github.com/chnsz/golangsdk/openstack/identity/v3/projects"
+	"github.com/chnsz/golangsdk/openstack/identity/v3/users"
 	"github.com/chnsz/golangsdk/openstack/obs"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/logging"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -101,8 +102,21 @@ func (c *Config) LoadAndValidate() error {
 	if c.DomainID == "" {
 		if domainID, err := c.getDomainID(); err == nil {
 			c.DomainID = domainID
+
+			// update DomainClient.AKSKAuthOptions
+			if c.DomainClient.AKSKAuthOptions.AccessKey != "" {
+				c.DomainClient.AKSKAuthOptions.DomainID = c.DomainID
+			}
 		} else {
 			log.Printf("[WARN] get domain id failed: %s", err)
+		}
+	}
+
+	if c.UserID == "" && c.Username != "" {
+		if userID, err := c.getUserIDbyName(c.Username); err == nil {
+			c.UserID = userID
+		} else {
+			log.Printf("[WARN] get user id failed: %s", err)
 		}
 	}
 
@@ -195,8 +209,9 @@ func genClient(c *Config, ao golangsdk.AuthOptionsProvider) (*golangsdk.Provider
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if client.AKSKAuthOptions.AccessKey != "" {
 				golangsdk.ReSign(req, golangsdk.SignOptions{
-					AccessKey: client.AKSKAuthOptions.AccessKey,
-					SecretKey: client.AKSKAuthOptions.SecretKey,
+					AccessKey:  client.AKSKAuthOptions.AccessKey,
+					SecretKey:  client.AKSKAuthOptions.SecretKey,
+					RegionName: client.AKSKAuthOptions.Region,
 				})
 			}
 			return nil
@@ -289,6 +304,9 @@ func buildClientByAKSK(c *Config) error {
 		ao.IdentityEndpoint = c.IdentityEndpoint
 		ao.AccessKey = c.AccessKey
 		ao.SecretKey = c.SecretKey
+		if c.Region != "" {
+			ao.Region = c.Region
+		}
 		if c.SecurityToken != "" {
 			ao.SecurityToken = c.SecurityToken
 			ao.WithUserCatalog = true
@@ -519,6 +537,36 @@ func (c *Config) getDomainID() (string, error) {
 	return all[0].ID, nil
 }
 
+func (c *Config) getUserIDbyName(name string) (string, error) {
+	identityClient, err := c.IdentityV3Client(c.Region)
+	if err != nil {
+		return "", fmt.Errorf("Error creating IAM client: %s", err)
+	}
+
+	opts := users.ListOpts{
+		Name: name,
+	}
+	allPages, err := users.List(identityClient, opts).AllPages()
+	if err != nil {
+		return "", fmt.Errorf("query IAM user %s failed, err=%s", name, err)
+	}
+
+	all, err := users.ExtractUsers(allPages)
+	if err != nil {
+		return "", fmt.Errorf("Extract users failed, err=%s", err)
+	}
+
+	if len(all) == 0 {
+		return "", fmt.Errorf("IAM user %s was not found", name)
+	}
+
+	if name != "" && name != all[0].Name {
+		return "", fmt.Errorf("IAM user %s was not found, got %s", name, all[0].Name)
+	}
+
+	return all[0].ID, nil
+}
+
 // loadUserProjects will query the region-projectId pair and store it into RegionProjectIDMap
 func (c *Config) loadUserProjects(client *golangsdk.ProviderClient, region string) error {
 
@@ -611,6 +659,10 @@ func (c *Config) ImageV2Client(region string) (*golangsdk.ServiceClient, error) 
 	return c.NewServiceClient("ims", region)
 }
 
+func (c *Config) CceV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("ccev1", region)
+}
+
 func (c *Config) CceV3Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("cce", region)
 }
@@ -697,23 +749,19 @@ func (c *Config) NatGatewayClient(region string) (*golangsdk.ServiceClient, erro
 	return c.NewServiceClient("nat", region)
 }
 
-func (c *Config) ElasticLBClient(region string) (*golangsdk.ServiceClient, error) {
-	return c.NewServiceClient("elb", region)
-}
-
-// client for v2.0 api
+// ElbV2Client is the client for elb v2.0 (openstack) api
 func (c *Config) ElbV2Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("elbv2", region)
 }
 
-// client for v3 api
+// ElbV3Client is the client for elb v3 api
 func (c *Config) ElbV3Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("elbv3", region)
 }
 
-// client for v2 api
+// LoadBalancerClient is the client for elb v2 api
 func (c *Config) LoadBalancerClient(region string) (*golangsdk.ServiceClient, error) {
-	return c.NewServiceClient("loadbalancer", region)
+	return c.NewServiceClient("elb", region)
 }
 
 func (c *Config) FwV2Client(region string) (*golangsdk.ServiceClient, error) {
@@ -776,12 +824,24 @@ func (c *Config) DwsV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("dws", region)
 }
 
+func (c *Config) DwsV2Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("dwsV2", region)
+}
+
 func (c *Config) DliV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("dli", region)
 }
 
+func (c *Config) DliV2Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("dliv2", region)
+}
+
 func (c *Config) DisV2Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("disv2", region)
+}
+
+func (c *Config) DisV3Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("disv3", region)
 }
 
 func (c *Config) CssV1Client(region string) (*golangsdk.ServiceClient, error) {
@@ -848,6 +908,10 @@ func (c *Config) DdsV3Client(region string) (*golangsdk.ServiceClient, error) {
 
 func (c *Config) GeminiDBV3Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("geminidb", region)
+}
+
+func (c *Config) GeminiDBV31Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("geminidbv31", region)
 }
 
 func (c *Config) OpenGaussV3Client(region string) (*golangsdk.ServiceClient, error) {

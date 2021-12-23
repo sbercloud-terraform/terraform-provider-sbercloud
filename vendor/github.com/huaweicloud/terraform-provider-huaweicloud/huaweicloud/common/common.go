@@ -10,11 +10,18 @@ The difference between common package and utils:
 package common
 
 import (
+	"context"
+	"strconv"
+	"time"
+
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/bss/v2/orders"
+	"github.com/chnsz/golangsdk/openstack/networking/v1/eips"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
 )
@@ -41,6 +48,31 @@ func GetEnterpriseProjectID(d *schema.ResourceData, config *config.Config) strin
 	return config.EnterpriseProjectID
 }
 
+// GetEipIDbyAddress returns the EIP ID of address when success.
+func GetEipIDbyAddress(client *golangsdk.ServiceClient, address string) (string, error) {
+	listOpts := &eips.ListOpts{
+		PublicIp: address,
+	}
+	pages, err := eips.List(client, listOpts).AllPages()
+	if err != nil {
+		return "", err
+	}
+
+	allEips, err := eips.ExtractPublicIPs(pages)
+	if err != nil {
+		return "", fmtp.Errorf("Unable to retrieve eips: %s ", err)
+	}
+
+	total := len(allEips)
+	if total == 0 {
+		return "", fmtp.Errorf("queried none results with %s", address)
+	} else if total > 1 {
+		return "", fmtp.Errorf("queried more results with %s", address)
+	}
+
+	return allEips[0].ID, nil
+}
+
 // CheckDeleted checks the error to see if it's a 404 (Not Found) and, if so,
 // sets the resource ID to the empty string instead of throwing an error.
 func CheckDeleted(d *schema.ResourceData, err error, msg string) error {
@@ -60,7 +92,7 @@ func CheckDeletedDiag(d *schema.ResourceData, err error, msg string) diag.Diagno
 		return nil
 	}
 
-	return diag.Errorf("%s: %s", msg, err)
+	return fmtp.DiagErrorf("%s: %s", msg, err)
 }
 
 // UnsubscribePrePaidResource impl the action of unsubscribe resource
@@ -76,4 +108,50 @@ func UnsubscribePrePaidResource(d *schema.ResourceData, config *config.Config, r
 	}
 	_, err = orders.Unsubscribe(bssV2Client, unsubscribeOpts).Extract()
 	return err
+}
+
+func CheckForRetryableError(err error) *resource.RetryError {
+	switch errCode := err.(type) {
+	case golangsdk.ErrDefault500:
+		return resource.RetryableError(err)
+	case golangsdk.ErrUnexpectedResponseCode:
+		switch errCode.Actual {
+		case 409, 503:
+			return resource.RetryableError(err)
+		default:
+			return resource.NonRetryableError(err)
+		}
+	default:
+		return resource.NonRetryableError(err)
+	}
+}
+
+func WaitOrderComplete(ctx context.Context, d *schema.ResourceData, config *config.Config, orderNum string) error {
+	bssV2Client, err := config.BssV2Client(GetRegion(d, config))
+	if err != nil {
+		return fmtp.Errorf("Error creating HuaweiCloud bss V2 client: %s", err)
+	}
+	stateConf := &resource.StateChangeConf{
+		Pending:      []string{"3"},
+		Target:       []string{"5"},
+		Refresh:      refreshOrderStatus(bssV2Client, orderNum),
+		Timeout:      d.Timeout(schema.TimeoutCreate),
+		Delay:        5 * time.Second,
+		PollInterval: 10 * time.Second,
+	}
+	_, err = stateConf.WaitForStateContext(ctx)
+	if err != nil {
+		return fmtp.Errorf("Error while waiting for the order(%s) to complete payment: %#v", d.Id(), err)
+	}
+	return nil
+}
+
+func refreshOrderStatus(c *golangsdk.ServiceClient, orderNum string) resource.StateRefreshFunc {
+	return func() (interface{}, string, error) {
+		r, err := orders.Get(c, orderNum).Extract()
+		if err != nil {
+			return nil, "Error", err
+		}
+		return r, strconv.Itoa(r.OrderInfo.Status), nil
+	}
 }
