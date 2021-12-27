@@ -1,36 +1,28 @@
 ---
-subcategory: "Virtual Private Cloud (VPC)"
+subcategory: "Deprecated"
 ---
 
-# sbercloud\_vpc\_route
+# sbercloud_vpc_route
 
-`sbercloud_vpc_route` provides details about a specific VPC route.
+!> **WARNING:** It has been deprecated, use `sbercloud_vpc_route_table` to get the route details.
+
+Provides details about a specific VPC route.
 
 ## Example Usage
 
- ```hcl
- variable "route_id" { }
-
+```hcl
 data "sbercloud_vpc_route" "vpc_route" {
-  id = var.route_id
+  vpc_id = var.vpc_id
 }
-
-resource "sbercloud_vpc_subnet" "subnet_v1" {
-  name = "test-subnet"
-  cidr = "192.168.0.0/24"
-  gateway_ip = "192.168.0.1"
-  vpc_id = data.sbercloud_vpc_route.vpc_route.vpc_id
-}
-
- ```
+```
 
 ## Argument Reference
 
-The arguments of this data source act as filters for querying the available
-routes in the current tenant. The given filters must match exactly one
-route whose data will be exported as attributes.
+The arguments of this data source act as filters for querying the available routes in the current tenant. The given
+filters must match exactly one route whose data will be exported as attributes.
 
-* `region` - (Optional, String) The region in which to obtain the vpc route. If omitted, the provider-level region will be used.
+* `region` - (Optional, String) The region in which to obtain the vpc route. If omitted, the provider-level region will
+  be used.
 
 * `id` - (Optional, String) The id of the specific route to retrieve.
 

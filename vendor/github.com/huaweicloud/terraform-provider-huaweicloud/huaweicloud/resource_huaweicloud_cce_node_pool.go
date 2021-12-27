@@ -78,23 +78,28 @@ func ResourceCCENodePool() *schema.Resource {
 						"size": {
 							Type:     schema.TypeInt,
 							Required: true,
+							ForceNew: true,
 						},
 						"volumetype": {
 							Type:     schema.TypeString,
 							Required: true,
+							ForceNew: true,
 						},
 						"hw_passthrough": {
 							Type:     schema.TypeBool,
 							Optional: true,
+							ForceNew: true,
 						},
 						"extend_param": {
 							Type:       schema.TypeString,
 							Optional:   true,
+							ForceNew:   true,
 							Deprecated: "use extend_params instead",
 						},
 						"extend_params": {
 							Type:     schema.TypeMap,
 							Optional: true,
+							ForceNew: true,
 							Elem:     &schema.Schema{Type: schema.TypeString},
 						},
 					}},
@@ -108,24 +113,34 @@ func ResourceCCENodePool() *schema.Resource {
 						"size": {
 							Type:     schema.TypeInt,
 							Required: true,
+							ForceNew: true,
 						},
 						"volumetype": {
 							Type:     schema.TypeString,
 							Required: true,
+							ForceNew: true,
 						},
 						"hw_passthrough": {
 							Type:     schema.TypeBool,
 							Optional: true,
+							ForceNew: true,
 						},
 						"extend_param": {
 							Type:       schema.TypeString,
 							Optional:   true,
+							ForceNew:   true,
 							Deprecated: "use extend_params instead",
 						},
 						"extend_params": {
 							Type:     schema.TypeMap,
 							Optional: true,
+							ForceNew: true,
 							Elem:     &schema.Schema{Type: schema.TypeString},
+						},
+						"kms_key_id": {
+							Type:     schema.TypeString,
+							Optional: true,
+							ForceNew: true,
 						},
 					}},
 			},
@@ -138,6 +153,7 @@ func ResourceCCENodePool() *schema.Resource {
 			"os": {
 				Type:     schema.TypeString,
 				Optional: true,
+				ForceNew: true,
 				Computed: true,
 			},
 			"key_pair": {
@@ -344,15 +360,7 @@ func resourceCCENodePoolCreate(d *schema.ResourceData, meta interface{}) error {
 
 	s, err := nodepools.Create(nodePoolClient, clusterid, createOpts).Extract()
 	if err != nil {
-		if _, ok := err.(golangsdk.ErrDefault403); ok {
-			retryNode, err := recursiveNodePoolCreate(nodePoolClient, createOpts, clusterid, 403)
-			if err == "fail" {
-				return fmtp.Errorf("Error creating HuaweiCloud Node Pool")
-			}
-			s = retryNode
-		} else {
-			return fmtp.Errorf("Error creating HuaweiCloud Node Pool: %s", err)
-		}
+		return fmtp.Errorf("Error creating HuaweiCloud Node Pool: %s", err)
 	}
 
 	if len(s.Metadata.Id) == 0 {
@@ -437,6 +445,9 @@ func resourceCCENodePoolRead(d *schema.ResourceData, meta interface{}) error {
 		volume["hw_passthrough"] = pairObject.HwPassthrough
 		volume["extend_params"] = pairObject.ExtendParam
 		volume["extend_param"] = ""
+		if pairObject.Metadata != nil {
+			volume["kms_key_id"] = pairObject.Metadata.SystemCmkid
+		}
 		volumes = append(volumes, volume)
 	}
 	if err := d.Set("data_volumes", volumes); err != nil {
@@ -594,33 +605,6 @@ func waitForCceNodePoolDelete(cceClient *golangsdk.ServiceClient, clusterId, nod
 		logp.Printf("[DEBUG] HuaweiCloud CCE Node Pool %s still available.\n", nodePoolId)
 		return r, r.Status.Phase, nil
 	}
-}
-
-func recursiveNodePoolCreate(cceClient *golangsdk.ServiceClient, opts nodepools.CreateOptsBuilder, ClusterID string, errCode int) (*nodepools.NodePool, string) {
-	if errCode == 403 {
-		stateCluster := &resource.StateChangeConf{
-			Target:       []string{"Available"},
-			Refresh:      waitForClusterAvailable(cceClient, ClusterID),
-			Timeout:      15 * time.Minute,
-			Delay:        15 * time.Second,
-			PollInterval: 10 * time.Second,
-		}
-		_, stateErr := stateCluster.WaitForState()
-		if stateErr != nil {
-			logp.Printf("[INFO] Cluster Unavailable %s.\n", stateErr)
-		}
-		s, err := nodepools.Create(cceClient, ClusterID, opts).Extract()
-		if err != nil {
-			if _, ok := err.(golangsdk.ErrDefault403); ok {
-				return recursiveNodePoolCreate(cceClient, opts, ClusterID, 403)
-			} else {
-				return s, "fail"
-			}
-		} else {
-			return s, "success"
-		}
-	}
-	return nil, "fail"
 }
 
 func resourceCCENodePoolV3Import(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {

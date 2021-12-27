@@ -12,6 +12,7 @@ import (
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/rts/v1/stacks"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"gopkg.in/yaml.v2"
 )
 
@@ -55,6 +56,29 @@ func ConvertStructToMap(obj interface{}, nameMap map[string]string) (map[string]
 func ExpandToStringList(v []interface{}) []string {
 	s := make([]string, 0, len(v))
 	for _, val := range v {
+		if strVal, ok := val.(string); ok && strVal != "" {
+			s = append(s, strVal)
+		}
+	}
+
+	return s
+}
+
+// ExpandToIntList takes the result for an array of intgers and returns a []int
+func ExpandToIntList(v []interface{}) []int {
+	s := make([]int, 0, len(v))
+	for _, val := range v {
+		if intVal, ok := val.(int); ok {
+			s = append(s, intVal)
+		}
+	}
+	return s
+}
+
+// ExpandToStringListBySet takes the result for a set of strings and returns a []string
+func ExpandToStringListBySet(v *schema.Set) []string {
+	s := make([]string, 0, v.Len())
+	for _, val := range v.List() {
 		if strVal, ok := val.(string); ok && strVal != "" {
 			s = append(s, strVal)
 		}

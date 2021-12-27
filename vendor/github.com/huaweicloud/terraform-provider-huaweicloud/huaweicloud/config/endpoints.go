@@ -78,6 +78,11 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Version:          "v2",
 		WithOutProjectID: true,
 	},
+	"ccev1": {
+		Name:             "cce",
+		Version:          "api/v1",
+		WithOutProjectID: true,
+	},
 	"cce": {
 		Name:    "cce",
 		Version: "api/v3/projects",
@@ -164,11 +169,6 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Name:    "nat",
 		Version: "v2",
 	},
-	"elb": {
-		Name:             "elb",
-		Version:          "v1.0",
-		WithOutProjectID: true,
-	},
 	"elbv2": {
 		Name:             "elb",
 		Version:          "v2.0",
@@ -178,7 +178,7 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Name:    "elb",
 		Version: "v3",
 	},
-	"loadbalancer": {
+	"elb": {
 		Name:    "elb",
 		Version: "v2",
 	},
@@ -219,6 +219,10 @@ var allServiceCatalog = map[string]ServiceCatalog{
 	"geminidb": {
 		Name:    "gaussdb-nosql",
 		Version: "v3",
+	},
+	"geminidbv31": {
+		Name:    "gaussdb-nosql",
+		Version: "v3.1",
 	},
 	"gaussdb": {
 		Name:    "gaussdb",
@@ -282,13 +286,25 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Name:    "dws",
 		Version: "v1.0",
 	},
+	"dwsV2": {
+		Name:    "dws",
+		Version: "v2",
+	},
 	"dli": {
 		Name:    "dli",
 		Version: "v1.0",
 	},
+	"dliv2": {
+		Name:    "dli",
+		Version: "v2.0",
+	},
 	"disv2": {
 		Name:    "dis",
 		Version: "v2",
+	},
+	"disv3": {
+		Name:    "dis",
+		Version: "v3",
 	},
 	"css": {
 		Name:    "css",

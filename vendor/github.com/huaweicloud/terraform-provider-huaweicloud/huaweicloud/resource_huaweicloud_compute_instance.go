@@ -18,13 +18,14 @@ import (
 	"github.com/chnsz/golangsdk/openstack/compute/v2/extensions/secgroups"
 	"github.com/chnsz/golangsdk/openstack/compute/v2/extensions/startstop"
 	"github.com/chnsz/golangsdk/openstack/compute/v2/flavors"
-	"github.com/chnsz/golangsdk/openstack/compute/v2/images"
 	"github.com/chnsz/golangsdk/openstack/compute/v2/servers"
 	"github.com/chnsz/golangsdk/openstack/ecs/v1/block_devices"
 	"github.com/chnsz/golangsdk/openstack/ecs/v1/cloudservers"
 	"github.com/chnsz/golangsdk/openstack/ecs/v1/powers"
+	"github.com/chnsz/golangsdk/openstack/ims/v2/cloudimages"
 	"github.com/chnsz/golangsdk/openstack/networking/v1/subnets"
 	"github.com/chnsz/golangsdk/openstack/networking/v2/extensions/security/groups"
+	"github.com/chnsz/golangsdk/openstack/networking/v2/ports"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -117,6 +118,7 @@ func ResourceComputeInstanceV2() *schema.Resource {
 				Type:          schema.TypeSet,
 				Optional:      true,
 				Computed:      true,
+				Description:   "schema: Computed",
 				ConflictsWith: []string{"security_group_ids"},
 				Elem:          &schema.Schema{Type: schema.TypeString},
 				Set:           schema.HashString,
@@ -136,16 +138,18 @@ func ResourceComputeInstanceV2() *schema.Resource {
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"uuid": {
-							Type:     schema.TypeString,
-							Optional: true,
-							ForceNew: true,
-							Computed: true,
+							Type:        schema.TypeString,
+							Optional:    true,
+							ForceNew:    true,
+							Computed:    true,
+							Description: "schema: Required",
 						},
 						"port": {
-							Type:     schema.TypeString,
-							Optional: true,
-							ForceNew: true,
-							Computed: true,
+							Type:        schema.TypeString,
+							Optional:    true,
+							ForceNew:    true,
+							Computed:    true,
+							Description: "schema: Computed",
 						},
 						"fixed_ip_v4": {
 							Type:     schema.TypeString,
@@ -157,6 +161,11 @@ func ResourceComputeInstanceV2() *schema.Resource {
 							Type:     schema.TypeString,
 							Optional: true,
 							ForceNew: true,
+							Computed: true,
+						},
+						"source_dest_check": {
+							Type:     schema.TypeBool,
+							Optional: true,
 							Computed: true,
 						},
 						"mac": {
@@ -294,10 +303,9 @@ func ResourceComputeInstanceV2() *schema.Resource {
 				ForceNew: true,
 			},
 			"tags": {
-				Type:         schema.TypeMap,
-				Optional:     true,
-				ValidateFunc: utils.ValidateECSTagValue,
-				Elem:         &schema.Schema{Type: schema.TypeString},
+				Type:     schema.TypeMap,
+				Optional: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
 			"power_action": {
 				Type:     schema.TypeString,
@@ -425,12 +433,24 @@ func resourceComputeInstanceV2Create(d *schema.ResourceData, meta interface{}) e
 	if err != nil {
 		return fmtp.Errorf("Error creating HuaweiCloud ecs client: %s", err)
 	}
+	imsClient, err := config.ImageV2Client(GetRegion(d, config))
+	if err != nil {
+		return fmtp.Errorf("Error creating HuaweiCloud image client: %s", err)
+	}
+	nicClient, err := config.NetworkingV2Client(GetRegion(d, config))
+	if err != nil {
+		return fmtp.Errorf("Error creating HuaweiCloud networking client: %s", err)
+	}
+
+	if err := validateComputeInstanceConfig(d, config); err != nil {
+		return err
+	}
 
 	// Determines the Image ID using the following rules:
 	// If a bootable block_device was specified, ignore the image altogether.
 	// If an image_id was specified, use it.
 	// If an image_name was specified, look up the image ID, report if error.
-	imageId, err := getImageIDFromConfig(computeClient, d)
+	imageId, err := getImageIDFromConfig(imsClient, d)
 	if err != nil {
 		return err
 	}
@@ -501,9 +521,8 @@ func resourceComputeInstanceV2Create(d *schema.ResourceData, meta interface{}) e
 		}
 
 		var metadata cloudservers.MetaData
-		if hasFilledOpt(d, "user_id") {
-			metadata.OpSvcUserId = d.Get("user_id").(string)
-		}
+		metadata.OpSvcUserId = getOpSvcUserID(d, config)
+
 		if hasFilledOpt(d, "agency_name") {
 			metadata.AgencyName = d.Get("agency_name").(string)
 		}
@@ -629,7 +648,7 @@ func resourceComputeInstanceV2Create(d *schema.ResourceData, meta interface{}) e
 		pending := []string{"BUILD"}
 		target := []string{"ACTIVE"}
 		timeout := d.Timeout(schema.TimeoutCreate)
-		if err := watiForServerTargetState(computeClient, d.Id(), pending, target, timeout); err != nil {
+		if err := waitForServerTargetState(computeClient, d.Id(), pending, target, timeout); err != nil {
 			return fmtp.Errorf("State waiting timeout: %s", err)
 		}
 	}
@@ -656,16 +675,39 @@ func resourceComputeInstanceV2Create(d *schema.ResourceData, meta interface{}) e
 		}
 	}
 
-	return resourceComputeInstanceV2Read(d, meta)
+	if err := resourceComputeInstanceV2Read(d, meta); err != nil {
+		return err
+	}
+
+	// note: as "network.port" is optional, we shoud use it after resourceComputeInstanceV2Read
+	networks := d.Get("network").([]interface{})
+	for _, v := range networks {
+		nic := v.(map[string]interface{})
+		nicPort := nic["port"].(string)
+		if nicPort == "" {
+			continue
+		}
+
+		if sourceDestCheck := nic["source_dest_check"].(bool); !sourceDestCheck {
+			if err := disableSourceDestCheck(nicClient, nicPort); err != nil {
+				return fmtp.Errorf("Error disable source dest check on port(%s) of instance(%s) failed: %s", nicPort, d.Id(), err)
+			}
+		}
+	}
+
+	return nil
 }
 
 func resourceComputeInstanceV2Read(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*config.Config)
-	computeClient, err := config.ComputeV2Client(GetRegion(d, config))
 	ecsClient, err := config.ComputeV1Client(GetRegion(d, config))
 	blockStorageClient, err := config.BlockStorageV3Client(GetRegion(d, config))
 	if err != nil {
 		return fmtp.Errorf("Error creating HuaweiCloud client: %s", err)
+	}
+	imsClient, err := config.ImageV2Client(GetRegion(d, config))
+	if err != nil {
+		return fmtp.Errorf("Error creating HuaweiCloud image client: %s", err)
 	}
 
 	server, err := cloudservers.Get(ecsClient, d.Id()).Extract()
@@ -694,7 +736,7 @@ func resourceComputeInstanceV2Read(d *schema.ResourceData, meta interface{}) err
 	d.Set("flavor_name", flavorInfo.Name)
 
 	// Set the instance's image information appropriately
-	if err := setImageInformation(d, computeClient, server.Image.ID); err != nil {
+	if err := setImageInformation(d, imsClient, server.Image.ID); err != nil {
 		return err
 	}
 
@@ -951,6 +993,18 @@ func resourceComputeInstanceV2Update(d *schema.ResourceData, meta interface{}) e
 		}
 	}
 
+	if d.HasChange("network") {
+		var err error
+		nicClient, err := config.NetworkingV2Client(GetRegion(d, config))
+		if err != nil {
+			return fmtp.Errorf("Error creating HuaweiCloud networking client: %s", err)
+		}
+
+		if err := updateSourceDestCheck(d, nicClient); err != nil {
+			return err
+		}
+	}
+
 	if d.HasChange("tags") {
 		ecsClient, err := config.ComputeV1Client(GetRegion(d, config))
 		if err != nil {
@@ -1025,7 +1079,7 @@ func resourceComputeInstanceV2Delete(d *schema.ResourceData, meta interface{}) e
 			pending := []string{"ACTIVE"}
 			target := []string{"SHUTOFF"}
 			timeout := d.Timeout(schema.TimeoutCreate)
-			if err := watiForServerTargetState(computeClient, d.Id(), pending, target, timeout); err != nil {
+			if err := waitForServerTargetState(computeClient, d.Id(), pending, target, timeout); err != nil {
 				return fmtp.Errorf("State waiting timeout: %s", err)
 			}
 		}
@@ -1061,7 +1115,7 @@ func resourceComputeInstanceV2Delete(d *schema.ResourceData, meta interface{}) e
 	pending := []string{"ACTIVE", "SHUTOFF"}
 	target := []string{"DELETED", "SOFT_DELETED"}
 	deleteTimeout := d.Timeout(schema.TimeoutDelete)
-	if err := watiForServerTargetState(computeClient, d.Id(), pending, target, deleteTimeout); err != nil {
+	if err := waitForServerTargetState(computeClient, d.Id(), pending, target, deleteTimeout); err != nil {
 		return fmtp.Errorf("State waiting timeout: %s", err)
 	}
 
@@ -1089,11 +1143,12 @@ func resourceComputeInstanceV2ImportState(d *schema.ResourceData, meta interface
 	networks := []map[string]interface{}{}
 	for _, nic := range allInstanceNics {
 		v := map[string]interface{}{
-			"uuid":        nic.NetworkID,
-			"port":        nic.PortID,
-			"fixed_ip_v4": nic.FixedIPv4,
-			"fixed_ip_v6": nic.FixedIPv6,
-			"mac":         nic.MAC,
+			"uuid":              nic.NetworkID,
+			"port":              nic.PortID,
+			"fixed_ip_v4":       nic.FixedIPv4,
+			"fixed_ip_v6":       nic.FixedIPv6,
+			"source_dest_check": nic.SourceDestCheck,
+			"mac":               nic.MAC,
 		}
 		networks = append(networks, v)
 	}
@@ -1149,6 +1204,25 @@ func resourceInstanceSecGroupIdsV1(client *golangsdk.ServiceClient, d *schema.Re
 		}
 	}
 	return secgroups, nil
+}
+
+func getOpSvcUserID(d *schema.ResourceData, config *config.Config) string {
+	if v, ok := d.GetOk("user_id"); ok {
+		return v.(string)
+	}
+	return config.UserID
+}
+
+func validateComputeInstanceConfig(d *schema.ResourceData, config *config.Config) error {
+	_, hasSSH := d.GetOk("key_pair")
+	if d.Get("charging_mode").(string) == "prePaid" && hasSSH {
+		if getOpSvcUserID(d, config) == "" {
+			return fmtp.Errorf("user_id must be specified when charging_mode is set to prePaid and " +
+				"the ECS is logged in using an SSH key")
+		}
+	}
+
+	return nil
 }
 
 func resourceInstanceSecGroupsV2(d *schema.ResourceData) []string {
@@ -1246,7 +1320,38 @@ func resourceInstanceSchedulerHintsV2(d *schema.ResourceData, schedulerHintsRaw 
 	return schedulerHints
 }
 
-func getImageIDFromConfig(computeClient *golangsdk.ServiceClient, d *schema.ResourceData) (string, error) {
+func getImage(client *golangsdk.ServiceClient, id, name string) (*cloudimages.Image, error) {
+	listOpts := &cloudimages.ListOpts{
+		ID:    id,
+		Name:  name,
+		Limit: 1,
+	}
+	allPages, err := cloudimages.List(client, listOpts).AllPages()
+	if err != nil {
+		return nil, fmtp.Errorf("Unable to query images: %s", err)
+	}
+
+	allImages, err := cloudimages.ExtractImages(allPages)
+	if err != nil {
+		return nil, fmtp.Errorf("Unable to retrieve images: %s", err)
+	}
+
+	if len(allImages) < 1 {
+		return nil, fmtp.Errorf("Unable to find images %s: Maybe not existed", id)
+	}
+
+	img := allImages[0]
+	if id != "" && img.ID != id {
+		return nil, fmtp.Errorf("Unexpected images ID")
+	}
+	if name != "" && img.Name != name {
+		return nil, fmtp.Errorf("Unexpected images Name")
+	}
+	logp.Printf("[DEBUG] Retrieved Image %s: %#v", id, img)
+	return &img, nil
+}
+
+func getImageIDFromConfig(imsClient *golangsdk.ServiceClient, d *schema.ResourceData) (string, error) {
 	// If block_device was used, an Image does not need to be specified, unless an image/local
 	// combination was used. This emulates normal boot behavior. Otherwise, ignore the image altogether.
 	if vL, ok := d.GetOk("block_device"); ok {
@@ -1267,17 +1372,17 @@ func getImageIDFromConfig(computeClient *golangsdk.ServiceClient, d *schema.Reso
 	}
 
 	if imageName := d.Get("image_name").(string); imageName != "" {
-		imageID, err := images.IDFromName(computeClient, imageName)
+		img, err := getImage(imsClient, "", imageName)
 		if err != nil {
 			return "", err
 		}
-		return imageID, nil
+		return img.ID, nil
 	}
 
 	return "", fmtp.Errorf("Neither a boot device, image ID, or image name were able to be determined.")
 }
 
-func setImageInformation(d *schema.ResourceData, computeClient *golangsdk.ServiceClient, imageID string) error {
+func setImageInformation(d *schema.ResourceData, imsClient *golangsdk.ServiceClient, imageID string) error {
 	// If block_device was used, an Image does not need to be specified, unless an image/local
 	// combination was used. This emulates normal boot behavior. Otherwise, ignore the image altogether.
 	if vL, ok := d.GetOk("block_device"); ok {
@@ -1296,15 +1401,13 @@ func setImageInformation(d *schema.ResourceData, computeClient *golangsdk.Servic
 
 	if imageID != "" {
 		d.Set("image_id", imageID)
-		if image, err := images.Get(computeClient, imageID).Extract(); err != nil {
-			if _, ok := err.(golangsdk.ErrDefault404); ok {
-				// If the image name can't be found, set the value to "Image not found".
-				// The most likely scenario is that the image no longer exists in the Image Service
-				// but the instance still has a record from when it existed.
-				d.Set("image_name", "Image not found")
-				return nil
-			}
-			return err
+		image, err := getImage(imsClient, imageID, "")
+		if err != nil {
+			// If the image name can't be found, set the value to "Image not found".
+			// The most likely scenario is that the image no longer exists in the Image Service
+			// but the instance still has a record from when it existed.
+			d.Set("image_name", "Image not found")
+			return nil
 		} else {
 			d.Set("image_name", image.Name)
 		}
@@ -1408,7 +1511,7 @@ func checkBlockDeviceConfig(d *schema.ResourceData) error {
 	return nil
 }
 
-func watiForServerTargetState(client *golangsdk.ServiceClient, ID string, pending, target []string, timeout time.Duration) error {
+func waitForServerTargetState(client *golangsdk.ServiceClient, ID string, pending, target []string, timeout time.Duration) error {
 	stateConf := &resource.StateChangeConf{
 		Pending:      pending,
 		Target:       target,
@@ -1456,5 +1559,60 @@ func doPowerAction(client *golangsdk.ServiceClient, d *schema.ResourceData, acti
 	if err := cloudservers.WaitForJobSuccess(client, int(timeout/time.Second), jobResp.JobID); err != nil {
 		return err
 	}
+	return nil
+}
+
+func disableSourceDestCheck(networkClient *golangsdk.ServiceClient, portID string) error {
+	// Update the allowed-address-pairs of the port to 1.1.1.1/0
+	// to disable the source/destination check
+	portpairs := []ports.AddressPair{
+		{
+			IPAddress: "1.1.1.1/0",
+		},
+	}
+	portUpdateOpts := ports.UpdateOpts{
+		AllowedAddressPairs: &portpairs,
+	}
+
+	_, err := ports.Update(networkClient, portID, portUpdateOpts).Extract()
+	return err
+}
+
+func enableSourceDestCheck(networkClient *golangsdk.ServiceClient, portID string) error {
+	// cancle all allowed-address-pairs to enable the source/destination check
+	portpairs := make([]ports.AddressPair, 0)
+	portUpdateOpts := ports.UpdateOpts{
+		AllowedAddressPairs: &portpairs,
+	}
+
+	_, err := ports.Update(networkClient, portID, portUpdateOpts).Extract()
+	return err
+}
+
+func updateSourceDestCheck(d *schema.ResourceData, client *golangsdk.ServiceClient) error {
+	var err error
+
+	networks := d.Get("network").([]interface{})
+	for i, v := range networks {
+		nic := v.(map[string]interface{})
+		nicPort := nic["port"].(string)
+		if nicPort == "" {
+			continue
+		}
+
+		if d.HasChange(fmt.Sprintf("network.%d.source_dest_check", i)) {
+			sourceDestCheck := nic["source_dest_check"].(bool)
+			if !sourceDestCheck {
+				err = disableSourceDestCheck(client, nicPort)
+			} else {
+				err = enableSourceDestCheck(client, nicPort)
+			}
+
+			if err != nil {
+				return fmtp.Errorf("Error updating source_dest_check on port(%s) of instance(%s) failed: %s", nicPort, d.Id(), err)
+			}
+		}
+	}
+
 	return nil
 }
