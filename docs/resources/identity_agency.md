@@ -2,13 +2,14 @@
 subcategory: "Identity and Access Management (IAM)"
 ---
 
-# sbercloud\_identity\_agency
+# sbercloud_identity_agency
 
 Manages an agency resource within SberCloud.
 
 ## Example Usage
 
-### Delegate another SBER CLOUD account to perform operations on your resources
+### Delegate another SberCloud account to perform operations on your resources
+
 ```hcl
 resource "sbercloud_identity_agency" "agency" {
   name                  = "test_agency"
@@ -28,6 +29,7 @@ resource "sbercloud_identity_agency" "agency" {
 ```
 
 ### Delegate a cloud service to access your resources in other cloud services
+
 ```hcl
 resource "sbercloud_identity_agency" "agency" {
   name                   = "test_agency"
@@ -51,26 +53,25 @@ resource "sbercloud_identity_agency" "agency" {
 The following arguments are supported:
 
 * `name` - (Required, String, ForceNew) Specifies the name of agency. The name is a string of 1 to 64 characters.
-    Changing this will create a new agency.
+  Changing this will create a new agency.
 
-* `description` - (Optional, String) Specifies the supplementary information about the agency.
-    The value is a string of 0 to 255 characters, excluding these characters: '__@#$%^&*<>\\__'.
+* `description` - (Optional, String) Specifies the supplementary information about the agency. The value is a string of
+  0 to 255 characters, excluding these characters: '__@#$%^&*<>\\__'.
 
-* `delegated_domain_name` - (Optional, String) Specifies the name of delegated user domain.
-    This parameter and `delegated_service_name` are alternative.
+* `delegated_domain_name` - (Optional, String) Specifies the name of delegated user domain. This parameter
+  and `delegated_service_name` are alternative.
 
-* `delegated_service_name` - (Optional, String) Specifies the name of delegated cloud service.
-    The value must start with *op_svc_*, for example, *op_svc_obs*.
-    This parameter and `delegated_domain_name` are alternative.
+* `delegated_service_name` - (Optional, String) Specifies the name of delegated cloud service. The value must start
+  with *op_svc_*, for example, *op_svc_obs*. This parameter and `delegated_domain_name` are alternative.
 
-* `duration` - (Optional, String) Specifies the validity period of an agency.
-    The valid value are *ONEDAY* and *FOREVER*, defaults to *FOREVER*.
+* `duration` - (Optional, String) Specifies the validity period of an agency. The valid value are *ONEDAY* and *FOREVER*
+  , defaults to *FOREVER*.
 
 * `project_role` - (Optional, List) Specifies an array of one or more roles and projects which are used to grant
-    permissions to agency on project. The structure is documented below.
+  permissions to agency on project. The structure is documented below.
 
-* `domain_roles` - (optional, List) Specifies an array of one or more role names which stand for the permissionis to
-    be granted to agency on domain.
+* `domain_roles` - (optional, List) Specifies an array of one or more role names which stand for the permissionis to be
+  granted to agency on domain.
 
 The `project_role` block supports:
 
@@ -100,7 +101,9 @@ $ terraform import sbercloud_identity_agency.agency 0b97661f9900f23f4fc2c00971ea
 ```
 
 ## Timeouts
+
 This resource provides the following timeouts configuration options:
-- `create` - Default is 10 minute.
-- `update` - Default is 10 minute.
-- `delete` - Default is 5 minute.
+
+* `create` - Default is 10 minute.
+* `update` - Default is 10 minute.
+* `delete` - Default is 5 minute.

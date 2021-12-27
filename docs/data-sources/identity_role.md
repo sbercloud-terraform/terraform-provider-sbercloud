@@ -2,7 +2,7 @@
 subcategory: "Identity and Access Management (IAM)"
 ---
 
-# sbercloud\_identity\_role
+# sbercloud_identity_role
 
 Use this data source to get the ID of an SberCloud role.
 
@@ -56,6 +56,7 @@ smn_adm | SMN Administrator
 plas_adm | Config Plas Connector
 elb_adm | ELB Administrator
 
+## Example Usage
 
 ```hcl
 data "sbercloud_identity_role" "auth_admin" {

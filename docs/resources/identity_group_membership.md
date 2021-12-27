@@ -2,12 +2,11 @@
 subcategory: "Identity and Access Management (IAM)"
 ---
 
-# sbercloud\_identity\_group\_membership
+# sbercloud_identity_group_membership
 
 Manages a User Group Membership resource within SberCloud IAM service.
 
-Note: You _must_ have admin privileges in your SberCloud cloud to use
-this resource.
+Note: You _must_ have admin privileges in your SberCloud cloud to use this resource.
 
 ## Example Usage
 
@@ -31,7 +30,8 @@ resource "sbercloud_identity_user" "user_2" {
 
 resource "sbercloud_identity_group_membership" "membership_1" {
   group = sbercloud_identity_group.group_1.id
-  users = [sbercloud_identity_user.user_1.id,
+  users = [
+    sbercloud_identity_user.user_1.id,
     sbercloud_identity_user.user_2.id
   ]
 }
@@ -41,7 +41,7 @@ resource "sbercloud_identity_group_membership" "membership_1" {
 
 The following arguments are supported:
 
-* `group` - (Required, String, ForceNew) The group ID of this membership. 
+* `group` - (Required, String, ForceNew) The group ID of this membership.
 
 * `users` - (Required, List) A List of user IDs to associate to the group.
 
@@ -50,4 +50,3 @@ The following arguments are supported:
 In addition to all arguments above, the following attributes are exported:
 
 * `id` - Specifies a resource ID in UUID format.
-
