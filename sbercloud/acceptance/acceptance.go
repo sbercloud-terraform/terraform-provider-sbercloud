@@ -21,8 +21,9 @@ import (
 var (
 	SBC_REGION_NAME = os.Getenv("SBC_REGION_NAME")
 
-	SBC_ENTERPRISE_PROJECT_ID = os.Getenv("SBC_ENTERPRISE_PROJECT_ID")
-	SBC_PROJECT_ID            = os.Getenv("SBC_PROJECT_ID")
+	SBC_ENTERPRISE_PROJECT_ID      = os.Getenv("SBC_ENTERPRISE_PROJECT_ID")
+	SBC_ENTERPRISE_PROJECT_ID_TEST = os.Getenv("SBC_ENTERPRISE_PROJECT_ID_TEST")
+	SBC_PROJECT_ID                 = os.Getenv("SBC_PROJECT_ID")
 
 	SBC_DEPRECATED_ENVIRONMENT = os.Getenv("SBC_DEPRECATED_ENVIRONMENT")
 
@@ -257,6 +258,12 @@ func TestAccPreCheckDeprecated(t *testing.T) {
 func TestAccPreCheckEpsID(t *testing.T) {
 	if SBC_ENTERPRISE_PROJECT_ID == "" {
 		t.Skip("This environment does not support Enterprise Project ID tests")
+	}
+}
+
+func TestAccPreCheckProject(t *testing.T) {
+	if SBC_ENTERPRISE_PROJECT_ID_TEST == "" {
+		t.Skip("This environment does not support project tests")
 	}
 }
 
