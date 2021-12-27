@@ -22,8 +22,13 @@ var (
 	SBC_REGION_NAME = os.Getenv("SBC_REGION_NAME")
 
 	SBC_ENTERPRISE_PROJECT_ID = os.Getenv("SBC_ENTERPRISE_PROJECT_ID")
+	SBC_PROJECT_ID            = os.Getenv("SBC_PROJECT_ID")
 
 	SBC_DEPRECATED_ENVIRONMENT = os.Getenv("SBC_DEPRECATED_ENVIRONMENT")
+
+	SBC_ADMIN       = os.Getenv("SBC_ADMIN")
+	SBC_DOMAIN_ID   = os.Getenv("SBC_DOMAIN_ID")
+	SBC_DOMAIN_NAME = os.Getenv("SBC_DOMAIN_NAME")
 )
 
 // TestAccProviderFactories is a static map containing only the main provider instance
@@ -252,6 +257,12 @@ func TestAccPreCheckDeprecated(t *testing.T) {
 func TestAccPreCheckEpsID(t *testing.T) {
 	if SBC_ENTERPRISE_PROJECT_ID == "" {
 		t.Skip("This environment does not support Enterprise Project ID tests")
+	}
+}
+
+func TestAccPreCheckAdminOnly(t *testing.T) {
+	if SBC_ADMIN == "" {
+		t.Skip("Skipping test because it requires the admin privileges")
 	}
 }
 

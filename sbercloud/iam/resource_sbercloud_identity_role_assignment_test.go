@@ -1,37 +1,34 @@
-package sbercloud
+package iam
 
 import (
 	"fmt"
-	"strings"
 	"testing"
+
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/iam"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 
 	"github.com/chnsz/golangsdk/openstack/identity/v3/groups"
 	"github.com/chnsz/golangsdk/openstack/identity/v3/roles"
 	"github.com/chnsz/golangsdk/pagination"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
-func extractRoleAssignmentID(roleAssignmentID string) (string, string, string, string) {
-	split := strings.Split(roleAssignmentID, "/")
-	return split[0], split[1], split[2], split[3]
-}
-
 func TestAccIdentityV3RoleAssignment_basic(t *testing.T) {
 	var role roles.Role
 	var group groups.Group
-	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
+	rName := acceptance.RandomAccResourceName()
 	resourceName := "sbercloud_identity_role_assignment.role_assignment_1"
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck: func() {
-			testAccPreCheck(t)
-			testAccPreCheckAdminOnly(t)
+			acceptance.TestAccPreCheck(t)
+			acceptance.TestAccPreCheckAdminOnly(t)
 		},
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckIdentityV3RoleAssignmentDestroy,
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckIdentityV3RoleAssignmentDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccIdentityV3RoleAssignment_project(rName),
@@ -39,7 +36,7 @@ func TestAccIdentityV3RoleAssignment_basic(t *testing.T) {
 					testAccCheckIdentityV3RoleAssignmentExists(resourceName, &role, &group),
 					resource.TestCheckResourceAttrPtr(resourceName, "group_id", &group.ID),
 					resource.TestCheckResourceAttrPtr(resourceName, "role_id", &role.ID),
-					resource.TestCheckResourceAttr(resourceName, "project_id", SBC_PROJECT_ID),
+					resource.TestCheckResourceAttr(resourceName, "project_id", acceptance.SBC_PROJECT_ID),
 				),
 			},
 			{
@@ -48,7 +45,7 @@ func TestAccIdentityV3RoleAssignment_basic(t *testing.T) {
 					testAccCheckIdentityV3RoleAssignmentExists(resourceName, &role, &group),
 					resource.TestCheckResourceAttrPtr(resourceName, "group_id", &group.ID),
 					resource.TestCheckResourceAttrPtr(resourceName, "role_id", &role.ID),
-					resource.TestCheckResourceAttr(resourceName, "domain_id", SBC_DOMAIN_ID),
+					resource.TestCheckResourceAttr(resourceName, "domain_id", acceptance.SBC_DOMAIN_ID),
 				),
 			},
 		},
@@ -56,10 +53,10 @@ func TestAccIdentityV3RoleAssignment_basic(t *testing.T) {
 }
 
 func testAccCheckIdentityV3RoleAssignmentDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	identityClient, err := config.IdentityV3Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	identityClient, err := config.IdentityV3Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
-		return fmt.Errorf("Error creating SberCloud identity client: %s", err)
+		return fmtp.Errorf("Error creating SberCloud identity client: %s", err)
 	}
 
 	for _, rs := range s.RootModule().Resources {
@@ -69,7 +66,7 @@ func testAccCheckIdentityV3RoleAssignmentDestroy(s *terraform.State) error {
 
 		_, err := roles.Get(identityClient, rs.Primary.ID).Extract()
 		if err == nil {
-			return fmt.Errorf("Role assignment still exists")
+			return fmtp.Errorf("Role assignment still exists")
 		}
 	}
 
@@ -80,23 +77,22 @@ func testAccCheckIdentityV3RoleAssignmentExists(n string, role *roles.Role, grou
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
-			return fmt.Errorf("Not found: %s", n)
+			return fmtp.Errorf("Not found: %s", n)
 		}
 
 		if rs.Primary.ID == "" {
-			return fmt.Errorf("No ID is set")
+			return fmtp.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		identityClient, err := config.IdentityV3Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		identityClient, err := config.IdentityV3Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
-			return fmt.Errorf("Error creating SberCloud identity client: %s", err)
+			return fmtp.Errorf("Error creating SberCloud identity client: %s", err)
 		}
 
-		domainID, projectID, groupID, roleID := extractRoleAssignmentID(rs.Primary.ID)
+		domainID, projectID, groupID, roleID := iam.ExtractRoleAssignmentID(rs.Primary.ID)
 
-		var opts roles.ListAssignmentsOpts
-		opts = roles.ListAssignmentsOpts{
+		opts := roles.ListAssignmentsOpts{
 			GroupID:        groupID,
 			ScopeDomainID:  domainID,
 			ScopeProjectID: projectID,
@@ -126,12 +122,12 @@ func testAccCheckIdentityV3RoleAssignmentExists(n string, role *roles.Role, grou
 
 		g, err := groups.Get(identityClient, groupID).Extract()
 		if err != nil {
-			return fmt.Errorf("Group not found")
+			return fmtp.Errorf("Group not found")
 		}
 		*group = *g
 		r, err := roles.Get(identityClient, assignment.ID).Extract()
 		if err != nil {
-			return fmt.Errorf("Role not found")
+			return fmtp.Errorf("Role not found")
 		}
 		*role = *r
 
@@ -154,7 +150,7 @@ resource "sbercloud_identity_role_assignment" "role_assignment_1" {
   group_id   = sbercloud_identity_group.group_1.id
   project_id = "%s"
 }
-`, rName, SBC_PROJECT_ID)
+`, rName, acceptance.SBC_PROJECT_ID)
 }
 
 func testAccIdentityV3RoleAssignment_domain(rName string) string {
@@ -172,5 +168,5 @@ resource "sbercloud_identity_role_assignment" "role_assignment_1" {
   group_id   = sbercloud_identity_group.group_1.id
   domain_id = "%s"
 }
-`, rName, SBC_DOMAIN_ID)
+`, rName, acceptance.SBC_DOMAIN_ID)
 }
