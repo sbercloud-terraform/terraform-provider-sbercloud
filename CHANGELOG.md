@@ -1,3 +1,35 @@
+## 1.5.0 (December 29, 2021)
+
+FEATURES:
+
+* **New Data Source:** `sbercloud_vpcs` ([#103](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/103))
+* **New Data Source:** `sbercloud_vpc_eip` ([#103](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/103))
+* **New Data Source:** `sbercloud_vpc_ids` ([#103](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/103))
+* **New Data Source:** `sbercloud_vpc_peering_connection` ([#103](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/103))
+* **New Data Source:** `sbercloud_vpc_route_table` ([#103](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/103))
+* **New Data Source:** `sbercloud_vpc_subnets` ([#103](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/103))
+* **New Data Source:** `sbercloud_identity_custom_role` ([#105](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/105))
+* **New Data Source:** `sbercloud_identity_group` ([#105](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/105))
+* **New Resource:** `sbercloud_vpc_peering_connection_accepter` ([#103](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/103))
+* **New Resource:** `sbercloud_vpc_route_table` ([#103](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/103))
+* **New Resource:** `sbercloud_identity_access_key` ([#105](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/105))
+* **New Resource:** `sbercloud_identity_acl` ([#105](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/105))
+* **New Resource:** `sbercloud_identity_role` ([#105](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/105))
+* **New Resource:** `sbercloud_dms_kafka_instance` ([#107](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/107))
+* **New Resource:** `sbercloud_dms_kafka_topic` ([#107](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/107))
+* **New Resource:** `sbercloud_dms_rabbitmq_instance` ([#107](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/107))
+
+ENHANCEMENTS:
+
+Upgrade to terraform-plugin-sdk v2 ([#99](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/99))
+Upgrade to new golangsdk ([#101](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/101))
+Upgrade to terraform-provider-huaweicloud `v1.31.0` ([#104](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/104))
+
+DEPRECATE:
+
+* data/sbercloud_dcs_az
+* data/sbercloud_dcs_product
+
 ## 1.4.0 (August 02, 2021)
 
 FEATURES:
