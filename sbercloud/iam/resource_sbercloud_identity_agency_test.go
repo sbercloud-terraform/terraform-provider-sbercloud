@@ -1,34 +1,49 @@
-package sbercloud
+package iam
 
 import (
 	"fmt"
 	"testing"
 
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
+
 	"github.com/chnsz/golangsdk/openstack/identity/v3/agency"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
+func getIdentityAgencyResourceFunc(c *config.Config, state *terraform.ResourceState) (interface{}, error) {
+	client, err := c.IAMV3Client(acceptance.SBC_REGION_NAME)
+	if err != nil {
+		return nil, fmtp.Errorf("Error creating SberCloud IAM client: %s", err)
+	}
+	return agency.Get(client, state.Primary.ID).Extract()
+}
+
 func TestAccIdentityAgency_basic(t *testing.T) {
 	var agency agency.Agency
-
-	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
+	rName := acceptance.RandomAccResourceName()
 	resourceName := "sbercloud_identity_agency.test"
+
+	rc := acceptance.InitResourceCheck(
+		resourceName,
+		&agency,
+		getIdentityAgencyResourceFunc,
+	)
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck: func() {
-			testAccPreCheck(t)
-			testAccPreCheckAdminOnly(t)
+			acceptance.TestAccPreCheck(t)
+			acceptance.TestAccPreCheckAdminOnly(t)
 		},
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckIdentityAgencyDestroy,
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      rc.CheckResourceDestroy(),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccIdentityAgency_basic(rName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckIdentityAgencyExists(resourceName, &agency),
+					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
 					resource.TestCheckResourceAttr(resourceName, "description", "This is a test agency"),
 					resource.TestCheckResourceAttr(resourceName, "delegated_service_name", "op_svc_evs"),
@@ -44,7 +59,7 @@ func TestAccIdentityAgency_basic(t *testing.T) {
 			{
 				Config: testAccIdentityAgency_update(rName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckIdentityAgencyExists(resourceName, &agency),
+					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
 					resource.TestCheckResourceAttr(resourceName, "description", "This is a updated test agency"),
 					resource.TestCheckResourceAttr(resourceName, "delegated_service_name", "op_svc_evs"),
@@ -58,25 +73,30 @@ func TestAccIdentityAgency_basic(t *testing.T) {
 
 func TestAccIdentityAgency_domain(t *testing.T) {
 	var agency agency.Agency
-
-	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
+	rName := acceptance.RandomAccResourceName()
 	resourceName := "sbercloud_identity_agency.test"
+
+	rc := acceptance.InitResourceCheck(
+		resourceName,
+		&agency,
+		getIdentityAgencyResourceFunc,
+	)
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck: func() {
-			testAccPreCheck(t)
-			testAccPreCheckAdminOnly(t)
+			acceptance.TestAccPreCheck(t)
+			acceptance.TestAccPreCheckAdminOnly(t)
 		},
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckIdentityAgencyDestroy,
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      rc.CheckResourceDestroy(),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccIdentityAgency_domain(rName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckIdentityAgencyExists(resourceName, &agency),
+					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
 					resource.TestCheckResourceAttr(resourceName, "description", "This is a test agency"),
-					resource.TestCheckResourceAttr(resourceName, "delegated_domain_name", SBC_DOMAIN_NAME),
+					resource.TestCheckResourceAttr(resourceName, "delegated_domain_name", acceptance.SBC_DOMAIN_NAME),
 					resource.TestCheckResourceAttr(resourceName, "duration", "FOREVER"),
 					resource.TestCheckResourceAttr(resourceName, "domain_roles.#", "1"),
 				),
@@ -89,67 +109,16 @@ func TestAccIdentityAgency_domain(t *testing.T) {
 			{
 				Config: testAccIdentityAgency_domainUpdate(rName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckIdentityAgencyExists(resourceName, &agency),
+					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
 					resource.TestCheckResourceAttr(resourceName, "description", "This is a updated test agency"),
-					resource.TestCheckResourceAttr(resourceName, "delegated_domain_name", SBC_DOMAIN_NAME),
+					resource.TestCheckResourceAttr(resourceName, "delegated_domain_name", acceptance.SBC_DOMAIN_NAME),
 					resource.TestCheckResourceAttr(resourceName, "duration", "FOREVER"),
 					resource.TestCheckResourceAttr(resourceName, "domain_roles.#", "2"),
 				),
 			},
 		},
 	})
-}
-
-func testAccCheckIdentityAgencyDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	client, err := config.IAMV3Client(SBC_REGION_NAME)
-	if err != nil {
-		return fmt.Errorf("Error creating SberCloud IAM client: %s", err)
-	}
-
-	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "sbercloud_identity_agency" {
-			continue
-		}
-
-		v, err := agency.Get(client, rs.Primary.ID).Extract()
-		if err == nil && v.ID == rs.Primary.ID {
-			return fmt.Errorf("Identity Agency <%s> still exists", rs.Primary.ID)
-		}
-	}
-
-	return nil
-}
-
-func testAccCheckIdentityAgencyExists(n string, ag *agency.Agency) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		rs, ok := s.RootModule().Resources[n]
-		if !ok {
-			return fmt.Errorf("Not found: %s", n)
-		}
-
-		if rs.Primary.ID == "" {
-			return fmt.Errorf("No ID is set")
-		}
-
-		config := testAccProvider.Meta().(*config.Config)
-		client, err := config.IAMV3Client(SBC_REGION_NAME)
-		if err != nil {
-			return fmt.Errorf("Error creating SberCloud Identity Agency: %s", err)
-		}
-
-		found, err := agency.Get(client, rs.Primary.ID).Extract()
-		if err != nil {
-			return err
-		}
-		if found.ID != rs.Primary.ID {
-			return fmt.Errorf("Identity Agency <%s> not found", rs.Primary.ID)
-		}
-		ag = found
-
-		return nil
-	}
 }
 
 func testAccIdentityAgency_basic(rName string) string {
@@ -191,7 +160,7 @@ resource "sbercloud_identity_agency" "test" {
     "DAYU Administrator",
   ]
 }
-`, rName, SBC_DOMAIN_NAME)
+`, rName, acceptance.SBC_DOMAIN_NAME)
 }
 
 func testAccIdentityAgency_domainUpdate(rName string) string {
@@ -206,5 +175,5 @@ resource "sbercloud_identity_agency" "test" {
     "VPC Administrator",
   ]
 }
-`, rName, SBC_DOMAIN_NAME)
+`, rName, acceptance.SBC_DOMAIN_NAME)
 }

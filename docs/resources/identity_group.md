@@ -2,12 +2,11 @@
 subcategory: "Identity and Access Management (IAM)"
 ---
 
-# sbercloud\_identity\_group
+# sbercloud_identity_group
 
 Manages a User Group resource within SberCloud IAM service.
 
-Note: You _must_ have admin privileges in your SberCloud cloud to use
-this resource.
+Note: You _must_ have admin privileges in your SberCloud cloud to use this resource.
 
 ## Example Usage
 
@@ -25,8 +24,6 @@ The following arguments are supported:
 * `name` - (Required, String) Specifies the name of the group.The length is less than or equal to 64 bytes.
 
 * `description` - (Optional, String) Specifies the description of the group.
-
-* `domain_id` - (Optional) The domain this group belongs to.
 
 ## Attributes Reference
 
