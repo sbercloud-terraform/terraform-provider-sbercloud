@@ -21,7 +21,7 @@ resource "sbercloud_dcs_instance" "redis_01" {
   flavor             = "redis.cluster.xu1.large.r2.8"
 
   backup_policy {
-    save_days   = 1
+    save_days   = 5
     backup_type = "auto"
     begin_at    = "02:00-03:00"
     period_type = "weekly"
