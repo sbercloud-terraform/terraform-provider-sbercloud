@@ -16,5 +16,5 @@ This example provisions a single DCS instance of Redis with the following attrib
 
 ### Notes
 
-You can get the list of flavor names by execuring [this API call](https://support.hc.sbercloud.ru/api/dcs/dcs-api-0312040.html).
+You can get the list of flavor names by execuring [this API call](https://support.hc.sbercloud.ru/api/dcs/dcs-api-0312040.html) or by looking at the DCS instance creation process in the console.
 
