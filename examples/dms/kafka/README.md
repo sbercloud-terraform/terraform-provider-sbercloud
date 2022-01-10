@@ -21,4 +21,4 @@ Also, it creates a topic called *topic_01*.
 
 ### Notes
 
-No notes so far.
+It will be a 5 nodes cluster.
