@@ -66,6 +66,6 @@ resource "sbercloud_network_acl_rule" "outbound_rules" {
 resource "sbercloud_network_acl" "nacl_01" {
   name           = "nacl-tf"
   subnets        = [data.sbercloud_vpc_subnet.subnet_01.id]
-  inbound_rules  = [for rule in sbercloud_network_acl_rule.inbound_rules : rule.id]
-  outbound_rules = [for rule in sbercloud_network_acl_rule.outbound_rules : rule.id]
+  inbound_rules  = [for rule in sbercloud_network_acl_rule.inbound_rules: rule.id]
+  outbound_rules = [for rule in sbercloud_network_acl_rule.outbound_rules: rule.id]
 }
