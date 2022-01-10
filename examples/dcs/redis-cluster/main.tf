@@ -1,6 +1,6 @@
 # Get the VPC where RDS instance will be created
 data "sbercloud_vpc" "vpc_01" {
-  name = "put_here_name_of_your_existing_VPN"
+  name = "put_here_name_of_your_existing_VPC"
 }
 
 # Get the subnet where RDS instance will be created
