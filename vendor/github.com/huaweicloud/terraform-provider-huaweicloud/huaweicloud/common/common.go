@@ -12,6 +12,7 @@ package common
 import (
 	"context"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/chnsz/golangsdk"
@@ -51,7 +52,7 @@ func GetEnterpriseProjectID(d *schema.ResourceData, config *config.Config) strin
 // GetEipIDbyAddress returns the EIP ID of address when success.
 func GetEipIDbyAddress(client *golangsdk.ServiceClient, address string) (string, error) {
 	listOpts := &eips.ListOpts{
-		PublicIp: address,
+		PublicIp: []string{address},
 	}
 	pages, err := eips.List(client, listOpts).AllPages()
 	if err != nil {
@@ -153,5 +154,14 @@ func refreshOrderStatus(c *golangsdk.ServiceClient, orderNum string) resource.St
 			return nil, "Error", err
 		}
 		return r, strconv.Itoa(r.OrderInfo.Status), nil
+	}
+}
+
+func CaseInsensitiveFunc() schema.SchemaDiffSuppressFunc {
+	return func(k, old, new string, d *schema.ResourceData) bool {
+		if strings.ToLower(old) == strings.ToLower(new) {
+			return true
+		}
+		return false
 	}
 }

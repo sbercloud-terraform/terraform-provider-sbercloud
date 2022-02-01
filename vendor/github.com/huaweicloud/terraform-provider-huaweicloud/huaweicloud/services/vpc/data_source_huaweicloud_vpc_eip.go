@@ -29,6 +29,7 @@ func DataSourceVpcEip() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 			},
+
 			"status": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -39,6 +40,14 @@ func DataSourceVpcEip() *schema.Resource {
 			},
 			"private_ip": {
 				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"ipv6_address": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"ip_version": {
+				Type:     schema.TypeInt,
 				Computed: true,
 			},
 			"bandwidth_id": {
@@ -59,14 +68,18 @@ func DataSourceVpcEip() *schema.Resource {
 
 func dataSourceVpcEipRead(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*config.Config)
-	networkingClient, err := config.NetworkingV1Client(config.GetRegion(d))
+	vpcClient, err := config.NetworkingV1Client(config.GetRegion(d))
 	if err != nil {
-		return fmtp.Errorf("Error creating networking client: %s", err)
+		return fmtp.Errorf("Error creating VPC client: %s", err)
 	}
 
-	listOpts := &eips.ListOpts{
-		PortId:   d.Get("port_id").(string),
-		PublicIp: d.Get("public_ip").(string),
+	var listOpts eips.ListOpts
+	if portId, ok := d.GetOk("port_id"); ok {
+		listOpts.PortId = []string{portId.(string)}
+	}
+
+	if publicIp, ok := d.GetOk("public_ip"); ok {
+		listOpts.PublicIp = []string{publicIp.(string)}
 	}
 
 	epsID := config.GetEnterpriseProjectID(d)
@@ -74,7 +87,7 @@ func dataSourceVpcEipRead(d *schema.ResourceData, meta interface{}) error {
 		listOpts.EnterpriseProjectId = epsID
 	}
 
-	pages, err := eips.List(networkingClient, listOpts).AllPages()
+	pages, err := eips.List(vpcClient, listOpts).AllPages()
 	if err != nil {
 		return err
 	}
@@ -100,6 +113,8 @@ func dataSourceVpcEipRead(d *schema.ResourceData, meta interface{}) error {
 	d.Set("region", config.GetRegion(d))
 	d.Set("status", NormalizeEIPStatus(Eip.Status))
 	d.Set("public_ip", Eip.PublicAddress)
+	d.Set("ipv6_address", Eip.PublicIpv6Address)
+	d.Set("ip_version", Eip.IpVersion)
 	d.Set("port_id", Eip.PortID)
 	d.Set("type", Eip.Type)
 	d.Set("private_ip", Eip.PrivateAddress)

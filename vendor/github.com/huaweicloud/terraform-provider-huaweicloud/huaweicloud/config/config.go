@@ -19,6 +19,7 @@ import (
 	"github.com/chnsz/golangsdk/openstack/obs"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/logging"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/pathorcontents"
 )
 
@@ -437,8 +438,8 @@ func (c *Config) NewServiceClient(srv, region string) (*golangsdk.ServiceClient,
 }
 
 func (c *Config) newServiceClientByName(client *golangsdk.ProviderClient, catalog ServiceCatalog, region string) (*golangsdk.ServiceClient, error) {
-	if catalog.Name == "" || catalog.Version == "" {
-		return nil, fmt.Errorf("must specify the service name and api version")
+	if catalog.Name == "" {
+		return nil, fmt.Errorf("must specify the service name")
 	}
 
 	// Custom Resource-level region only supports AK/SK authentication.
@@ -474,7 +475,10 @@ func (c *Config) newServiceClientByName(client *golangsdk.ProviderClient, catalo
 		sc.Endpoint = fmt.Sprintf("https://%s.%s.%s/", catalog.Name, region, c.Cloud)
 	}
 
-	sc.ResourceBase = sc.Endpoint + catalog.Version + "/"
+	sc.ResourceBase = sc.Endpoint
+	if catalog.Version != "" {
+		sc.ResourceBase = sc.ResourceBase + catalog.Version + "/"
+	}
 	if !catalog.WithOutProjectID {
 		sc.ResourceBase = sc.ResourceBase + projectID + "/"
 	}
@@ -497,7 +501,11 @@ func (c *Config) newServiceClientByEndpoint(client *golangsdk.ProviderClient, sr
 		ProviderClient: client,
 		Endpoint:       endpoint,
 	}
-	sc.ResourceBase = sc.Endpoint + catalog.Version + "/"
+
+	sc.ResourceBase = sc.Endpoint
+	if catalog.Version != "" {
+		sc.ResourceBase = sc.ResourceBase + catalog.Version + "/"
+	}
 	if !catalog.WithOutProjectID {
 		sc.ResourceBase = sc.ResourceBase + client.ProjectID + "/"
 	}
@@ -630,6 +638,10 @@ func (c *Config) IdentityV3Client(region string) (*golangsdk.ServiceClient, erro
 	return c.NewServiceClient("identity", region)
 }
 
+func (c *Config) IAMNoVersionClient(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("iam_no_version", region)
+}
+
 func (c *Config) CdnV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("cdn", region)
 }
@@ -696,6 +708,14 @@ func (c *Config) BmsV1Client(region string) (*golangsdk.ServiceClient, error) {
 }
 
 // ********** client for Storage **********
+func (c *Config) BlockStorageV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("evsv1", region)
+}
+
+func (c *Config) BlockStorageV21Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("evsv21", region)
+}
+
 func (c *Config) BlockStorageV2Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("volumev2", region)
 }

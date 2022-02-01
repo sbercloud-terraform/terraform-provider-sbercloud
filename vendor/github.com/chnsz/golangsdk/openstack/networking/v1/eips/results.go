@@ -29,19 +29,24 @@ func (r ApplyResult) Extract() (PublicIp, error) {
 
 //PublicIp is a struct that represents a public ip
 type PublicIp struct {
-	ID                  string `json:"id"`
-	Status              string `json:"status"`
-	Type                string `json:"type"`
-	PublicAddress       string `json:"public_ip_address"`
-	PrivateAddress      string `json:"private_ip_address"`
-	PortID              string `json:"port_id"`
-	TenantID            string `json:"tenant_id"`
-	OrderID             string `json:"order_id"`
-	CreateTime          string `json:"create_time"`
-	BandwidthID         string `json:"bandwidth_id"`
-	BandwidthSize       int    `json:"bandwidth_size"`
-	BandwidthShareType  string `json:"bandwidth_share_type"`
-	EnterpriseProjectID string `json:"enterprise_project_id"`
+	ID                       string   `json:"id"`
+	Status                   string   `json:"status"`
+	Type                     string   `json:"type"`
+	PublicAddress            string   `json:"public_ip_address"`
+	PublicIpv6Address        string   `json:"public_ipv6_address"`
+	PrivateAddress           string   `json:"private_ip_address"`
+	PortID                   string   `json:"port_id"`
+	TenantID                 string   `json:"tenant_id"`
+	OrderID                  string   `json:"order_id"`
+	CreateTime               string   `json:"create_time"`
+	BandwidthID              string   `json:"bandwidth_id"`
+	BandwidthName            string   `json:"bandwidth_name"`
+	BandwidthSize            int      `json:"bandwidth_size"`
+	BandwidthShareType       string   `json:"bandwidth_share_type"`
+	EnterpriseProjectID      string   `json:"enterprise_project_id"`
+	IpVersion                int      `json:"ip_version"`
+	Alias                    string   `json:"alias"`
+	AllowShareBandwidthTypes []string `json:"allow_share_bandwidth_types"`
 }
 
 //GetResult is a return struct of get method
