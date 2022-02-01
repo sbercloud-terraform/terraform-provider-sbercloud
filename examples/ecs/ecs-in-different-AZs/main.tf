@@ -23,7 +23,7 @@ resource "sbercloud_compute_instance" "ecs_01" {
 
   name              = "terraform-ecs-${count.index}"
   image_id          = data.sbercloud_images_image.ubuntu_image.id
-  flavor_id         = "s6.large.2"
+  flavor_id         = "c6.large.2"
   security_groups   = ["default"]
   availability_zone = data.sbercloud_availability_zones.list_of_az.names[count.index % local.number_of_az]
   key_pair          = "place_the_name_of_your_existing_key_pair_here"
