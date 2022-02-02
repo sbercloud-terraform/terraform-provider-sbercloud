@@ -1,4 +1,4 @@
-## 1.5.1 (February 2, 2022)
+## 1.5.1 (February 7, 2022)
 
 ENHANCEMENTS:
 * Add more useful examples ([#111](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/111))
