@@ -1,9 +1,7 @@
 package huaweicloud
 
 import (
-	"crypto/sha1"
-	"encoding/base64"
-	"encoding/hex"
+	"context"
 	"strconv"
 	"strings"
 	"time"
@@ -14,9 +12,12 @@ import (
 	"github.com/chnsz/golangsdk/openstack/common/tags"
 	"github.com/chnsz/golangsdk/openstack/compute/v2/servers"
 	"github.com/chnsz/golangsdk/openstack/networking/v1/eips"
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
@@ -25,12 +26,12 @@ import (
 
 func ResourceCCENodeV3() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceCCENodeV3Create,
-		Read:   resourceCCENodeV3Read,
-		Update: resourceCCENodeV3Update,
-		Delete: resourceCCENodeV3Delete,
+		CreateContext: resourceCCENodeV3Create,
+		ReadContext:   resourceCCENodeV3Read,
+		UpdateContext: resourceCCENodeV3Update,
+		DeleteContext: resourceCCENodeV3Delete,
 		Importer: &schema.ResourceImporter{
-			State: resourceCCENodeV3Import,
+			StateContext: resourceCCENodeV3Import,
 		},
 
 		Timeouts: &schema.ResourceTimeout{
@@ -162,6 +163,118 @@ func ResourceCCENodeV3() *schema.Resource {
 						},
 					}},
 			},
+			"storage": {
+				Type:     schema.TypeList,
+				Optional: true,
+				ForceNew: true,
+				MaxItems: 1,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"selectors": {
+							Type:     schema.TypeList,
+							Required: true,
+							ForceNew: true,
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{
+									"name": {
+										Type:     schema.TypeString,
+										Required: true,
+										ForceNew: true,
+									},
+									"type": {
+										Type:     schema.TypeString,
+										Optional: true,
+										ForceNew: true,
+										Default:  "evs",
+									},
+									"match_label_size": {
+										Type:     schema.TypeString,
+										Optional: true,
+										ForceNew: true,
+									},
+									"match_label_volume_type": {
+										Type:     schema.TypeString,
+										Optional: true,
+										ForceNew: true,
+									},
+									"match_label_metadata_encrypted": {
+										Type:     schema.TypeString,
+										Optional: true,
+										ForceNew: true,
+									},
+									"match_label_metadata_cmkid": {
+										Type:     schema.TypeString,
+										Optional: true,
+										ForceNew: true,
+									},
+									"match_label_count": {
+										Type:     schema.TypeString,
+										Optional: true,
+										ForceNew: true,
+									},
+								},
+							},
+						},
+						"groups": {
+							Type:     schema.TypeList,
+							Required: true,
+							ForceNew: true,
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{
+									"name": {
+										Type:     schema.TypeString,
+										Required: true,
+										ForceNew: true,
+									},
+									"cce_managed": {
+										Type:     schema.TypeBool,
+										Optional: true,
+										ForceNew: true,
+									},
+									"selector_names": {
+										Type:     schema.TypeList,
+										Required: true,
+										ForceNew: true,
+										Elem:     &schema.Schema{Type: schema.TypeString},
+									},
+									"virtual_spaces": {
+										Type:     schema.TypeList,
+										Required: true,
+										ForceNew: true,
+										Elem: &schema.Resource{
+											Schema: map[string]*schema.Schema{
+												"name": {
+													Type:     schema.TypeString,
+													Required: true,
+													ForceNew: true,
+												},
+												"size": {
+													Type:     schema.TypeString,
+													Required: true,
+													ForceNew: true,
+												},
+												"lvm_lv_type": {
+													Type:     schema.TypeString,
+													Optional: true,
+													ForceNew: true,
+												},
+												"lvm_path": {
+													Type:     schema.TypeString,
+													Optional: true,
+													ForceNew: true,
+												},
+												"runtime_lv_type": {
+													Type:     schema.TypeString,
+													Optional: true,
+													ForceNew: true,
+												},
+											},
+										}},
+								},
+							},
+						},
+					}},
+			},
 			"taints": {
 				Type:     schema.TypeList,
 				Optional: true,
@@ -258,30 +371,16 @@ func ResourceCCENodeV3() *schema.Resource {
 				ForceNew: true,
 			},
 			"preinstall": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
-				StateFunc: func(v interface{}) string {
-					switch v.(type) {
-					case string:
-						return installScriptHashSum(v.(string))
-					default:
-						return ""
-					}
-				},
+				Type:      schema.TypeString,
+				Optional:  true,
+				ForceNew:  true,
+				StateFunc: utils.DecodeHashAndHexEncode,
 			},
 			"postinstall": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
-				StateFunc: func(v interface{}) string {
-					switch v.(type) {
-					case string:
-						return installScriptHashSum(v.(string))
-					default:
-						return ""
-					}
-				},
+				Type:      schema.TypeString,
+				Optional:  true,
+				ForceNew:  true,
+				StateFunc: utils.DecodeHashAndHexEncode,
 			},
 			"labels": { //(k8s_tags)
 				Type:     schema.TypeMap,
@@ -516,20 +615,90 @@ func resourceCCEExtendParam(d *schema.ResourceData) map[string]interface{} {
 		extendParam["publicKey"] = v.(string)
 	}
 	if v, ok := d.GetOk("preinstall"); ok {
-		extendParam["alpha.cce/preInstall"] = installScriptEncode(v.(string))
+		extendParam["alpha.cce/preInstall"] = utils.TryBase64EncodeToString(v.(string))
 	}
 	if v, ok := d.GetOk("postinstall"); ok {
-		extendParam["alpha.cce/postInstall"] = installScriptEncode(v.(string))
+		extendParam["alpha.cce/postInstall"] = utils.TryBase64EncodeToString(v.(string))
 	}
 
 	return extendParam
 }
 
-func resourceCCENodeV3Create(d *schema.ResourceData, meta interface{}) error {
+func resourceCCEStorage(d *schema.ResourceData) *nodes.StorageSpec {
+	if v, ok := d.GetOk("storage"); ok {
+		var storageSpec nodes.StorageSpec
+		storageSpecRaw := v.([]interface{})
+		storageSpecRawMap := storageSpecRaw[0].(map[string]interface{})
+		storageSelectorSpecRaw := storageSpecRawMap["selectors"].([]interface{})
+		storageGroupSpecRaw := storageSpecRawMap["groups"].([]interface{})
+
+		var selectors []nodes.StorageSelectorsSpec
+		for _, s := range storageSelectorSpecRaw {
+			var selector nodes.StorageSelectorsSpec
+			sMap := s.(map[string]interface{})
+			selector.Name = sMap["name"].(string)
+			selector.StorageType = sMap["type"].(string)
+			selector.MatchLabels.Size = sMap["match_label_size"].(string)
+			selector.MatchLabels.VolumeType = sMap["match_label_volume_type"].(string)
+			selector.MatchLabels.MetadataEncrypted = sMap["match_label_metadata_encrypted"].(string)
+			selector.MatchLabels.MetadataCmkid = sMap["match_label_metadata_cmkid"].(string)
+			selector.MatchLabels.Count = sMap["match_label_count"].(string)
+
+			selectors = append(selectors, selector)
+		}
+		storageSpec.StorageSelectors = selectors
+
+		var groups []nodes.StorageGroupsSpec
+		for _, g := range storageGroupSpecRaw {
+			var group nodes.StorageGroupsSpec
+			gMap := g.(map[string]interface{})
+			group.Name = gMap["name"].(string)
+			group.CceManaged = gMap["cce_managed"].(bool)
+
+			selectorNamesRaw := gMap["selector_names"].([]interface{})
+			selectorNames := make([]string, 0, len(selectorNamesRaw))
+			for _, v := range selectorNamesRaw {
+				selectorNames = append(selectorNames, v.(string))
+			}
+			group.SelectorNames = selectorNames
+
+			virtualSpacesRaw := gMap["virtual_spaces"].([]interface{})
+			virtualSpaces := make([]nodes.VirtualSpacesSpec, 0, len(virtualSpacesRaw))
+			for _, v := range virtualSpacesRaw {
+				var virtualSpace nodes.VirtualSpacesSpec
+				virtualSpaceMap := v.(map[string]interface{})
+				virtualSpace.Name = virtualSpaceMap["name"].(string)
+				virtualSpace.Size = virtualSpaceMap["size"].(string)
+				if virtualSpaceMap["lvm_lv_type"].(string) != "" {
+					var lvmConfig nodes.LVMConfigSpec
+					lvmConfig.LvType = virtualSpaceMap["lvm_lv_type"].(string)
+					lvmConfig.Path = virtualSpaceMap["lvm_path"].(string)
+					virtualSpace.LVMConfig = &lvmConfig
+				}
+				if virtualSpaceMap["runtime_lv_type"].(string) != "" {
+					var runtimeConfig nodes.RuntimeConfigSpec
+					runtimeConfig.LvType = virtualSpaceMap["runtime_lv_type"].(string)
+					virtualSpace.RuntimeConfig = &runtimeConfig
+				}
+
+				virtualSpaces = append(virtualSpaces, virtualSpace)
+			}
+			group.VirtualSpaces = virtualSpaces
+
+			groups = append(groups, group)
+		}
+
+		storageSpec.StorageGroups = groups
+
+	}
+	return nil
+}
+
+func resourceCCENodeV3Create(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := meta.(*config.Config)
 	nodeClient, err := config.CceV3Client(GetRegion(d, config))
 	if err != nil {
-		return fmtp.Errorf("Error creating HuaweiCloud CCE Node client: %s", err)
+		return fmtp.DiagErrorf("Error creating HuaweiCloud CCE Node client: %s", err)
 	}
 
 	// validation
@@ -537,7 +706,7 @@ func resourceCCENodeV3Create(d *schema.ResourceData, meta interface{}) error {
 	if d.Get("charging_mode").(string) == "prePaid" || d.Get("billing_mode").(int) == 2 {
 		billingMode = 2
 		if err := validatePrePaidChargeInfo(d); err != nil {
-			return err
+			return diag.FromErr(err)
 		}
 	}
 	// eipCount must be specified when bandwidth_size parameters was set
@@ -555,7 +724,10 @@ func resourceCCENodeV3Create(d *schema.ResourceData, meta interface{}) error {
 		Delay:        5 * time.Second,
 		PollInterval: 5 * time.Second,
 	}
-	_, err = stateCluster.WaitForState()
+	_, err = stateCluster.WaitForStateContext(ctx)
+	if err != nil {
+		return fmtp.DiagErrorf("Error waiting for HuaweiCloud CCE cluster to be Available: %s", err)
+	}
 
 	createOpts := nodes.CreateOpts{
 		Kind:       "Node",
@@ -570,6 +742,7 @@ func resourceCCENodeV3Create(d *schema.ResourceData, meta interface{}) error {
 			Os:          d.Get("os").(string),
 			RootVolume:  resourceCCERootVolume(d),
 			DataVolumes: resourceCCEDataVolume(d),
+			Storage:     resourceCCEStorage(d),
 			PublicIP: nodes.PublicIPSpec{
 				Ids:   resourceCCEEipIDs(d),
 				Count: eipCount,
@@ -614,10 +787,14 @@ func resourceCCENodeV3Create(d *schema.ResourceData, meta interface{}) error {
 			SshKey: d.Get("key_pair").(string),
 		}
 	} else if hasFilledOpt(d, "password") {
+		password, err := utils.TryPasswordEncrypt(d.Get("password").(string))
+		if err != nil {
+			return diag.FromErr(err)
+		}
 		loginSpec = nodes.LoginSpec{
 			UserPassword: nodes.UserPassword{
 				Username: "root",
-				Password: d.Get("password").(string),
+				Password: password,
 			},
 		}
 	}
@@ -625,13 +802,13 @@ func resourceCCENodeV3Create(d *schema.ResourceData, meta interface{}) error {
 
 	s, err := nodes.Create(nodeClient, clusterid, createOpts).Extract()
 	if err != nil {
-		return fmtp.Errorf("Error creating HuaweiCloud Node: %s", err)
+		return fmtp.DiagErrorf("Error creating HuaweiCloud Node: %s", err)
 	}
 
-	nodeID, err := getResourceIDFromJob(nodeClient, s.Status.JobID, "CreateNode", "CreateNodeVM",
+	nodeID, err := getResourceIDFromJob(ctx, nodeClient, s.Status.JobID, "CreateNode", "CreateNodeVM",
 		d.Timeout(schema.TimeoutCreate))
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 	d.SetId(nodeID)
 
@@ -644,45 +821,43 @@ func resourceCCENodeV3Create(d *schema.ResourceData, meta interface{}) error {
 		Delay:        20 * time.Second,
 		PollInterval: 20 * time.Second,
 	}
-	_, err = stateConf.WaitForState()
+	_, err = stateConf.WaitForStateContext(ctx)
 	if err != nil {
-		return fmtp.Errorf("Error creating HuaweiCloud CCE Node: %s", err)
+		return fmtp.DiagErrorf("Error creating HuaweiCloud CCE Node: %s", err)
 	}
 
-	return resourceCCENodeV3Read(d, meta)
+	return resourceCCENodeV3Read(ctx, d, meta)
 }
 
-func resourceCCENodeV3Read(d *schema.ResourceData, meta interface{}) error {
+func resourceCCENodeV3Read(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := meta.(*config.Config)
 	nodeClient, err := config.CceV3Client(GetRegion(d, config))
 	if err != nil {
-		return fmtp.Errorf("Error creating HuaweiCloud CCE Node client: %s", err)
+		return fmtp.DiagErrorf("Error creating HuaweiCloud CCE Node client: %s", err)
 	}
 	clusterid := d.Get("cluster_id").(string)
 	s, err := nodes.Get(nodeClient, clusterid, d.Id()).Extract()
 
 	if err != nil {
-		if _, ok := err.(golangsdk.ErrDefault404); ok {
-			d.SetId("")
-			return nil
-		}
-
-		return fmtp.Errorf("Error retrieving HuaweiCloud Node: %s", err)
+		return common.CheckDeletedDiag(d, err, "Error retrieving HuaweiCloud CCE Node")
 	}
 
-	d.Set("region", GetRegion(d, config))
-	d.Set("name", s.Metadata.Name)
-	d.Set("flavor_id", s.Spec.Flavor)
-	d.Set("availability_zone", s.Spec.Az)
-	d.Set("os", s.Spec.Os)
-	d.Set("key_pair", s.Spec.Login.SshKey)
-	d.Set("subnet_id", s.Spec.NodeNicSpec.PrimaryNic.SubnetId)
-	d.Set("ecs_group_id", s.Spec.EcsGroupID)
+	mErr := multierror.Append(nil,
+		d.Set("region", config.GetRegion(d)),
+		d.Set("name", s.Metadata.Name),
+		d.Set("flavor_id", s.Spec.Flavor),
+		d.Set("availability_zone", s.Spec.Az),
+		d.Set("os", s.Spec.Os),
+		d.Set("key_pair", s.Spec.Login.SshKey),
+		d.Set("subnet_id", s.Spec.NodeNicSpec.PrimaryNic.SubnetId),
+		d.Set("ecs_group_id", s.Spec.EcsGroupID),
+	)
+
 	if s.Spec.BillingMode != 0 {
-		d.Set("charging_mode", "prePaid")
+		mErr = multierror.Append(mErr, d.Set("charging_mode", "prePaid"))
 	}
 	if s.Spec.RunTime != nil {
-		d.Set("runtime", s.Spec.RunTime.Name)
+		mErr = multierror.Append(mErr, d.Set("runtime", s.Spec.RunTime.Name))
 	}
 
 	var volumes []map[string]interface{}
@@ -698,9 +873,7 @@ func resourceCCENodeV3Read(d *schema.ResourceData, meta interface{}) error {
 		}
 		volumes = append(volumes, volume)
 	}
-	if err := d.Set("data_volumes", volumes); err != nil {
-		return fmtp.Errorf("[DEBUG] Error saving dataVolumes to state for HuaweiCloud Node (%s): %s", d.Id(), err)
-	}
+	mErr = multierror.Append(mErr, d.Set("data_volumes", volumes))
 
 	rootVolume := []map[string]interface{}{
 		{
@@ -711,40 +884,41 @@ func resourceCCENodeV3Read(d *schema.ResourceData, meta interface{}) error {
 			"extend_param":   "",
 		},
 	}
-	if err := d.Set("root_volume", rootVolume); err != nil {
-		return fmtp.Errorf("[DEBUG] Error saving root Volume to state for HuaweiCloud Node (%s): %s", d.Id(), err)
-	}
+	mErr = multierror.Append(mErr, d.Set("root_volume", rootVolume))
 
 	// set computed attributes
 	serverId := s.Status.ServerID
-	d.Set("server_id", serverId)
-	d.Set("private_ip", s.Status.PrivateIP)
-	d.Set("public_ip", s.Status.PublicIP)
-	d.Set("status", s.Status.Phase)
+	mErr = multierror.Append(mErr,
+		d.Set("server_id", serverId),
+		d.Set("private_ip", s.Status.PrivateIP),
+		d.Set("public_ip", s.Status.PublicIP),
+		d.Set("status", s.Status.Phase),
+	)
 
 	// fetch tags from ECS instance
 	computeClient, err := config.ComputeV1Client(GetRegion(d, config))
 	if err != nil {
-		return fmtp.Errorf("Error creating HuaweiCloud compute client: %s", err)
+		return fmtp.DiagErrorf("Error creating HuaweiCloud compute client: %s", err)
 	}
 
 	if resourceTags, err := tags.Get(computeClient, "cloudservers", serverId).Extract(); err == nil {
 		tagmap := utils.TagsToMap(resourceTags.Tags)
-		if err := d.Set("tags", tagmap); err != nil {
-			return fmtp.Errorf("Error saving tags to state for CCE Node (%s): %s", serverId, err)
-		}
+		mErr = multierror.Append(mErr, d.Set("tags", tagmap))
 	} else {
 		logp.Printf("[WARN] Error fetching tags of CCE Node (%s): %s", serverId, err)
 	}
 
+	if err = mErr.ErrorOrNil(); err != nil {
+		return fmtp.DiagErrorf("Error setting CCE Node fields: %s", err)
+	}
 	return nil
 }
 
-func resourceCCENodeV3Update(d *schema.ResourceData, meta interface{}) error {
+func resourceCCENodeV3Update(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := meta.(*config.Config)
 	nodeClient, err := config.CceV3Client(GetRegion(d, config))
 	if err != nil {
-		return fmtp.Errorf("Error creating HuaweiCloud CCE client: %s", err)
+		return fmtp.DiagErrorf("Error creating HuaweiCloud CCE client: %s", err)
 	}
 
 	if d.HasChange("name") {
@@ -754,7 +928,7 @@ func resourceCCENodeV3Update(d *schema.ResourceData, meta interface{}) error {
 		clusterid := d.Get("cluster_id").(string)
 		_, err = nodes.Update(nodeClient, clusterid, d.Id(), updateOpts).Extract()
 		if err != nil {
-			return fmtp.Errorf("Error updating HuaweiCloud cce node: %s", err)
+			return fmtp.DiagErrorf("Error updating HuaweiCloud cce node: %s", err)
 		}
 	}
 
@@ -762,24 +936,24 @@ func resourceCCENodeV3Update(d *schema.ResourceData, meta interface{}) error {
 	if d.HasChange("tags") {
 		computeClient, err := config.ComputeV1Client(GetRegion(d, config))
 		if err != nil {
-			return fmtp.Errorf("Error creating HuaweiCloud compute client: %s", err)
+			return fmtp.DiagErrorf("Error creating HuaweiCloud compute client: %s", err)
 		}
 
 		serverId := d.Get("server_id").(string)
 		tagErr := utils.UpdateResourceTags(computeClient, d, "cloudservers", serverId)
 		if tagErr != nil {
-			return fmtp.Errorf("Error updating tags of cce node %s: %s", d.Id(), tagErr)
+			return fmtp.DiagErrorf("Error updating tags of cce node %s: %s", d.Id(), tagErr)
 		}
 	}
 
-	return resourceCCENodeV3Read(d, meta)
+	return resourceCCENodeV3Read(ctx, d, meta)
 }
 
-func resourceCCENodeV3Delete(d *schema.ResourceData, meta interface{}) error {
+func resourceCCENodeV3Delete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := meta.(*config.Config)
 	nodeClient, err := config.CceV3Client(GetRegion(d, config))
 	if err != nil {
-		return fmtp.Errorf("Error creating HuaweiCloud CCE client: %s", err)
+		return fmtp.DiagErrorf("Error creating HuaweiCloud CCE client: %s", err)
 	}
 
 	clusterid := d.Get("cluster_id").(string)
@@ -793,10 +967,14 @@ func resourceCCENodeV3Delete(d *schema.ResourceData, meta interface{}) error {
 				SshKey: d.Get("key_pair").(string),
 			}
 		} else if hasFilledOpt(d, "password") {
+			password, err := utils.TryPasswordEncrypt(d.Get("password").(string))
+			if err != nil {
+				return diag.FromErr(err)
+			}
 			loginSpec = nodes.LoginSpec{
 				UserPassword: nodes.UserPassword{
 					Username: "root",
-					Password: d.Get("password").(string),
+					Password: password,
 				},
 			}
 		}
@@ -809,7 +987,7 @@ func resourceCCENodeV3Delete(d *schema.ResourceData, meta interface{}) error {
 
 		err = nodes.Remove(nodeClient, clusterid, removeOpts).ExtractErr()
 		if err != nil {
-			return fmtp.Errorf("Error removing HuaweiCloud CCE node: %s", err)
+			return fmtp.DiagErrorf("Error removing HuaweiCloud CCE node: %s", err)
 		}
 	} else {
 		// for prePaid node, firstly, we should unsubscribe the ecs server, and then delete it
@@ -820,7 +998,7 @@ func resourceCCENodeV3Delete(d *schema.ResourceData, meta interface{}) error {
 			resourceIDs := make([]string, 0, 2)
 			computeClient, err := config.ComputeV2Client(GetRegion(d, config))
 			if err != nil {
-				return fmtp.Errorf("Error creating HuaweiCloud compute client: %s", err)
+				return fmtp.DiagErrorf("Error creating HuaweiCloud compute client: %s", err)
 			}
 
 			// check whether the ecs server of the perPaid exists before unsubscribe it
@@ -830,7 +1008,7 @@ func resourceCCENodeV3Delete(d *schema.ResourceData, meta interface{}) error {
 
 				if err != nil {
 					if _, ok := err.(golangsdk.ErrDefault404); !ok {
-						return fmtp.Errorf("Error retrieving HuaweiCloud ecs intance: %s", err)
+						return fmtp.DiagErrorf("Error retrieving HuaweiCloud ecs intance: %s", err)
 					}
 				} else {
 					if server.Status != "DELETED" && server.Status != "SOFT_DELETED" {
@@ -843,7 +1021,7 @@ func resourceCCENodeV3Delete(d *schema.ResourceData, meta interface{}) error {
 			if _, ok := d.GetOk("iptype"); ok && publicIP != "" {
 				eipClient, err := config.NetworkingV1Client(GetRegion(d, config))
 				if err != nil {
-					return fmtp.Errorf("Error creating networking client: %s", err)
+					return fmtp.DiagErrorf("Error creating networking client: %s", err)
 				}
 
 				if eipID, err := getEipIDbyAddress(eipClient, publicIP); err == nil {
@@ -855,7 +1033,7 @@ func resourceCCENodeV3Delete(d *schema.ResourceData, meta interface{}) error {
 
 			if len(resourceIDs) > 0 {
 				if err := UnsubscribePrePaidResource(d, config, resourceIDs); err != nil {
-					return fmtp.Errorf("Error unsubscribing HuaweiCloud CCE node: %s", err)
+					return fmtp.DiagErrorf("Error unsubscribing HuaweiCloud CCE node: %s", err)
 				}
 			}
 
@@ -864,14 +1042,14 @@ func resourceCCENodeV3Delete(d *schema.ResourceData, meta interface{}) error {
 			target := []string{"DELETED", "SOFT_DELETED"}
 			deleteTimeout := d.Timeout(schema.TimeoutDelete)
 			if err := waitForServerTargetState(computeClient, serverID, pending, target, deleteTimeout); err != nil {
-				return fmtp.Errorf("State waiting timeout: %s", err)
+				return fmtp.DiagErrorf("State waiting timeout: %s", err)
 			}
 
 			nodes.Delete(nodeClient, clusterid, d.Id())
 		} else {
 			err = nodes.Delete(nodeClient, clusterid, d.Id()).ExtractErr()
 			if err != nil {
-				return fmtp.Errorf("Error deleting HuaweiCloud CCE node: %s", err)
+				return fmtp.DiagErrorf("Error deleting HuaweiCloud CCE node: %s", err)
 			}
 		}
 	}
@@ -884,16 +1062,16 @@ func resourceCCENodeV3Delete(d *schema.ResourceData, meta interface{}) error {
 		PollInterval: 20 * time.Second,
 	}
 
-	_, err = stateConf.WaitForState()
+	_, err = stateConf.WaitForStateContext(ctx)
 	if err != nil {
-		return fmtp.Errorf("Error deleting HuaweiCloud CCE Node: %s", err)
+		return fmtp.DiagErrorf("Error deleting HuaweiCloud CCE Node: %s", err)
 	}
 
 	d.SetId("")
 	return nil
 }
 
-func getResourceIDFromJob(client *golangsdk.ServiceClient, jobID, jobType, subJobType string,
+func getResourceIDFromJob(ctx context.Context, client *golangsdk.ServiceClient, jobID, jobType, subJobType string,
 	timeout time.Duration) (string, error) {
 
 	stateJob := &resource.StateChangeConf{
@@ -905,7 +1083,7 @@ func getResourceIDFromJob(client *golangsdk.ServiceClient, jobID, jobType, subJo
 		PollInterval: 20 * time.Second,
 	}
 
-	v, err := stateJob.WaitForState()
+	v, err := stateJob.WaitForStateContext(ctx)
 	if err != nil {
 		if job, ok := v.(*nodes.Job); ok {
 			return "", fmtp.Errorf("Error waiting for job (%s) to become success: %s, reason: %s",
@@ -1004,29 +1182,9 @@ func waitForJobStatus(cceClient *golangsdk.ServiceClient, jobID string) resource
 	}
 }
 
-func installScriptHashSum(script string) string {
-	// Check whether the preinstall/postinstall is not Base64 encoded.
-	// Always calculate hash of base64 decoded value since we
-	// check against double-encoding when setting it
-	v, base64DecodeError := base64.StdEncoding.DecodeString(script)
-	if base64DecodeError != nil {
-		v = []byte(script)
-	}
-
-	hash := sha1.Sum(v)
-	return hex.EncodeToString(hash[:])
-}
-
-func installScriptEncode(script string) string {
-	if _, err := base64.StdEncoding.DecodeString(script); err != nil {
-		return base64.StdEncoding.EncodeToString([]byte(script))
-	}
-	return script
-}
-
 func getEipIDbyAddress(client *golangsdk.ServiceClient, address string) (string, error) {
 	listOpts := &eips.ListOpts{
-		PublicIp: address,
+		PublicIp: []string{address},
 	}
 	pages, err := eips.List(client, listOpts).AllPages()
 	if err != nil {
@@ -1044,7 +1202,7 @@ func getEipIDbyAddress(client *golangsdk.ServiceClient, address string) (string,
 	return allEips[0].ID, nil
 }
 
-func resourceCCENodeV3Import(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+func resourceCCENodeV3Import(_ context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
 	parts := strings.SplitN(d.Id(), "/", 2)
 	if len(parts) != 2 {
 		err := fmtp.Errorf("Invalid format specified for CCE Node. Format must be <cluster id>/<node id>")

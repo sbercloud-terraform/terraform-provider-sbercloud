@@ -2,8 +2,6 @@ package huaweicloud
 
 import (
 	"bytes"
-	"crypto/sha1"
-	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -71,7 +69,8 @@ func ResourceComputeInstanceV2() *schema.Resource {
 			},
 			"availability_zone": {
 				Type:     schema.TypeString,
-				Required: true,
+				Optional: true,
+				Computed: true,
 				ForceNew: true,
 			},
 			"name": {
@@ -151,13 +150,12 @@ func ResourceComputeInstanceV2() *schema.Resource {
 							Computed:    true,
 							Description: "schema: Computed",
 						},
-						"fixed_ip_v4": {
-							Type:     schema.TypeString,
+						"ipv6_enable": {
+							Type:     schema.TypeBool,
 							Optional: true,
 							ForceNew: true,
-							Computed: true,
 						},
-						"fixed_ip_v6": {
+						"fixed_ip_v4": {
 							Type:     schema.TypeString,
 							Optional: true,
 							ForceNew: true,
@@ -167,6 +165,13 @@ func ResourceComputeInstanceV2() *schema.Resource {
 							Type:     schema.TypeBool,
 							Optional: true,
 							Computed: true,
+						},
+						"fixed_ip_v6": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							ForceNew:    true,
+							Computed:    true,
+							Description: "schema: Computed",
 						},
 						"mac": {
 							Type:     schema.TypeString,
@@ -258,15 +263,7 @@ func ResourceComputeInstanceV2() *schema.Resource {
 				Optional: true,
 				ForceNew: true,
 				// just stash the hash for state & diff comparisons
-				StateFunc: func(v interface{}) string {
-					switch v.(type) {
-					case string:
-						hash := sha1.Sum([]byte(v.(string)))
-						return hex.EncodeToString(hash[:])
-					default:
-						return ""
-					}
-				},
+				StateFunc: utils.HashAndHexEncode,
 			},
 			"stop_before_destroy": {
 				Type:     schema.TypeBool,
@@ -713,6 +710,11 @@ func resourceComputeInstanceV2Read(d *schema.ResourceData, meta interface{}) err
 	server, err := cloudservers.Get(ecsClient, d.Id()).Extract()
 	if err != nil {
 		return CheckDeleted(d, err, "compute instance")
+	} else {
+		if server.Status == "DELETED" {
+			d.SetId("")
+			return nil
+		}
 	}
 
 	logp.Printf("[DEBUG] Retrieved compute instance %s: %+v", d.Id(), server)
@@ -1147,6 +1149,7 @@ func resourceComputeInstanceV2ImportState(d *schema.ResourceData, meta interface
 			"port":              nic.PortID,
 			"fixed_ip_v4":       nic.FixedIPv4,
 			"fixed_ip_v6":       nic.FixedIPv6,
+			"ipv6_enable":       nic.FixedIPv6 != "",
 			"source_dest_check": nic.SourceDestCheck,
 			"mac":               nic.MAC,
 		}
@@ -1249,8 +1252,9 @@ func resourceInstanceNicsV2(d *schema.ResourceData) []cloudservers.Nic {
 	for _, v := range networks {
 		network := v.(map[string]interface{})
 		nicRequest := cloudservers.Nic{
-			SubnetId:  network["uuid"].(string),
-			IpAddress: network["fixed_ip_v4"].(string),
+			SubnetId:   network["uuid"].(string),
+			IpAddress:  network["fixed_ip_v4"].(string),
+			Ipv6Enable: network["ipv6_enable"].(bool),
 		}
 
 		nicRequests = append(nicRequests, nicRequest)

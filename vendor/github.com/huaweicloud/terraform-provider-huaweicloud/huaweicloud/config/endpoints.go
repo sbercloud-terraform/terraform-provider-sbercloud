@@ -22,6 +22,13 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Admin:            true,
 		WithOutProjectID: true,
 	},
+	"iam_no_version": {
+		Name:             "iam",
+		Version:          "",
+		Scope:            "global",
+		Admin:            true,
+		WithOutProjectID: true,
+	},
 	// iam is used for huaweicloud IAM APIs
 	"iam": {
 		Name:             "iam",
@@ -121,6 +128,14 @@ var allServiceCatalog = map[string]ServiceCatalog{
 	},
 
 	// ******* catalog for storage ******
+	"evsv1": {
+		Name:    "evs",
+		Version: "v1",
+	},
+	"evsv21": {
+		Name:    "evs",
+		Version: "v2.1",
+	},
 	"volumev2": {
 		Name:    "evs",
 		Version: "v2",
@@ -261,6 +276,10 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Name:             "kms",
 		Version:          "v1.0",
 		WithOutProjectID: true,
+	},
+	"kmsv1": {
+		Name:    "kms",
+		Version: "v1",
 	},
 	"waf": {
 		Name:         "waf",

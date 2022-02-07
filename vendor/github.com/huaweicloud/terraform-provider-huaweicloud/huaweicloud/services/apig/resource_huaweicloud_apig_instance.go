@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/chnsz/golangsdk"
-	"github.com/chnsz/golangsdk/openstack/apigw/v2/instances"
+	"github.com/chnsz/golangsdk/openstack/apigw/dedicated/v2/instances"
 	"github.com/chnsz/golangsdk/openstack/networking/v1/eips"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -286,7 +286,7 @@ func setApigIngressAccess(d *schema.ResourceData, config *config.Config, resp in
 			return fmtp.Errorf("Error creating VPC client: %s", err)
 		}
 		opt := eips.ListOpts{
-			PublicIp: publicAddress,
+			PublicIp: []string{publicAddress},
 		}
 		allPages, err := eips.List(client, opt).AllPages()
 		if err != nil {

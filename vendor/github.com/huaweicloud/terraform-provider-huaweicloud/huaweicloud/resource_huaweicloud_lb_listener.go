@@ -1,14 +1,18 @@
 package huaweicloud
 
 import (
+	"context"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
 	"github.com/chnsz/golangsdk/openstack/common/tags"
-	"github.com/chnsz/golangsdk/openstack/networking/v2/extensions/lbaas_v2/listeners"
+	"github.com/chnsz/golangsdk/openstack/elb/v2/listeners"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
@@ -17,10 +21,10 @@ import (
 
 func ResourceListenerV2() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceListenerV2Create,
-		Read:   resourceListenerV2Read,
-		Update: resourceListenerV2Update,
-		Delete: resourceListenerV2Delete,
+		CreateContext: resourceListenerV2Create,
+		ReadContext:   resourceListenerV2Read,
+		UpdateContext: resourceListenerV2Update,
+		DeleteContext: resourceListenerV2Delete,
 
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(10 * time.Minute),
@@ -116,13 +120,20 @@ func ResourceListenerV2() *schema.Resource {
 	}
 }
 
-func resourceListenerV2Create(d *schema.ResourceData, meta interface{}) error {
+func resourceListenerV2Create(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := meta.(*config.Config)
-	lbClient, err := config.ElbV2Client(GetRegion(d, config))
+	lbClient, err := config.LoadBalancerClient(GetRegion(d, config))
 	if err != nil {
-		return fmtp.Errorf("Error creating HuaweiCloud elb client: %s", err)
+		return fmtp.DiagErrorf("Error creating HuaweiCloud elb client: %s", err)
 	}
 
+	// client for tags
+	lbv2Client, err := config.ElbV2Client(GetRegion(d, config))
+	if err != nil {
+		return fmtp.DiagErrorf("Error creating HuaweiCloud elb v2.0 client: %s", err)
+	}
+
+	lbID := d.Get("loadbalancer_id").(string)
 	adminStateUp := d.Get("admin_state_up").(bool)
 	http2_enable := d.Get("http2_enable").(bool)
 	var sniContainerRefs []string
@@ -135,7 +146,7 @@ func resourceListenerV2Create(d *schema.ResourceData, meta interface{}) error {
 		Protocol:               listeners.Protocol(d.Get("protocol").(string)),
 		ProtocolPort:           d.Get("protocol_port").(int),
 		TenantID:               d.Get("tenant_id").(string),
-		LoadbalancerID:         d.Get("loadbalancer_id").(string),
+		LoadbalancerID:         lbID,
 		Name:                   d.Get("name").(string),
 		DefaultPoolID:          d.Get("default_pool_id").(string),
 		Description:            d.Get("description").(string),
@@ -150,34 +161,23 @@ func resourceListenerV2Create(d *schema.ResourceData, meta interface{}) error {
 		createOpts.ConnLimit = &connectionLimit
 	}
 
-	logp.Printf("[DEBUG] Create Options: %#v", createOpts)
-
 	// Wait for LoadBalancer to become active before continuing
-	lbID := createOpts.LoadbalancerID
 	timeout := d.Timeout(schema.TimeoutCreate)
-	err = waitForLBV2LoadBalancer(lbClient, lbID, "ACTIVE", nil, timeout)
+	err = waitForLBV2LoadBalancer(ctx, lbClient, lbID, "ACTIVE", nil, timeout)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
-	logp.Printf("[DEBUG] Attempting to create listener")
-	var listener *listeners.Listener
-	//lintignore:R006
-	err = resource.Retry(timeout, func() *resource.RetryError {
-		listener, err = listeners.Create(lbClient, createOpts).Extract()
-		if err != nil {
-			return checkForRetryableError(err)
-		}
-		return nil
-	})
+	logp.Printf("[DEBUG] Create Options: %#v", createOpts)
+	listener, err := listeners.Create(lbClient, createOpts).Extract()
 	if err != nil {
-		return fmtp.Errorf("Error creating listener: %s", err)
+		return fmtp.DiagErrorf("Error creating listener: %s", err)
 	}
 
 	// Wait for LoadBalancer to become active again before continuing
-	err = waitForLBV2LoadBalancer(lbClient, lbID, "ACTIVE", nil, timeout)
+	err = waitForLBV2LoadBalancer(ctx, lbClient, lbID, "ACTIVE", nil, timeout)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	d.SetId(listener.ID)
@@ -186,57 +186,75 @@ func resourceListenerV2Create(d *schema.ResourceData, meta interface{}) error {
 	tagRaw := d.Get("tags").(map[string]interface{})
 	if len(tagRaw) > 0 {
 		taglist := utils.ExpandResourceTags(tagRaw)
-		if tagErr := tags.Create(lbClient, "listeners", listener.ID, taglist).ExtractErr(); tagErr != nil {
-			return fmtp.Errorf("Error setting tags of elb listener %s: %s", listener.ID, tagErr)
+		if tagErr := tags.Create(lbv2Client, "listeners", listener.ID, taglist).ExtractErr(); tagErr != nil {
+			return fmtp.DiagErrorf("Error setting tags of elb listener %s: %s", listener.ID, tagErr)
 		}
 	}
 
-	return resourceListenerV2Read(d, meta)
+	return resourceListenerV2Read(ctx, d, meta)
 }
 
-func resourceListenerV2Read(d *schema.ResourceData, meta interface{}) error {
+func resourceListenerV2Read(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := meta.(*config.Config)
-	lbClient, err := config.ElbV2Client(GetRegion(d, config))
+	lbClient, err := config.LoadBalancerClient(GetRegion(d, config))
 	if err != nil {
-		return fmtp.Errorf("Error creating HuaweiCloud elb client: %s", err)
+		return fmtp.DiagErrorf("Error creating HuaweiCloud elb v2 client: %s", err)
+	}
+
+	// client for tags
+	lbv2Client, err := config.ElbV2Client(GetRegion(d, config))
+	if err != nil {
+		return fmtp.DiagErrorf("Error creating HuaweiCloud elb v2.0 client: %s", err)
 	}
 
 	listener, err := listeners.Get(lbClient, d.Id()).Extract()
 	if err != nil {
-		return CheckDeleted(d, err, "listener")
+		return common.CheckDeletedDiag(d, err, "listener")
 	}
 
 	logp.Printf("[DEBUG] Retrieved listener %s: %#v", d.Id(), listener)
 
-	d.Set("name", listener.Name)
-	d.Set("protocol", listener.Protocol)
-	d.Set("tenant_id", listener.TenantID)
-	d.Set("description", listener.Description)
-	d.Set("protocol_port", listener.ProtocolPort)
-	d.Set("admin_state_up", listener.AdminStateUp)
-	d.Set("default_pool_id", listener.DefaultPoolID)
-	d.Set("connection_limit", listener.ConnLimit)
-	d.Set("http2_enable", listener.Http2Enable)
-	d.Set("sni_container_refs", listener.SniContainerRefs)
-	d.Set("default_tls_container_ref", listener.DefaultTlsContainerRef)
-	d.Set("region", GetRegion(d, config))
+	mErr := multierror.Append(nil,
+		d.Set("region", config.GetRegion(d)),
+		d.Set("name", listener.Name),
+		d.Set("protocol", listener.Protocol),
+		d.Set("tenant_id", listener.TenantID),
+		d.Set("description", listener.Description),
+		d.Set("protocol_port", listener.ProtocolPort),
+		d.Set("admin_state_up", listener.AdminStateUp),
+		d.Set("default_pool_id", listener.DefaultPoolID),
+		d.Set("connection_limit", listener.ConnLimit),
+		d.Set("http2_enable", listener.Http2Enable),
+		d.Set("sni_container_refs", listener.SniContainerRefs),
+		d.Set("default_tls_container_ref", listener.DefaultTlsContainerRef),
+	)
 
 	// fetch tags
-	if resourceTags, err := tags.Get(lbClient, "listeners", d.Id()).Extract(); err == nil {
+	if resourceTags, err := tags.Get(lbv2Client, "listeners", d.Id()).Extract(); err == nil {
 		tagmap := utils.TagsToMap(resourceTags.Tags)
-		d.Set("tags", tagmap)
+		mErr = multierror.Append(mErr, d.Set("tags", tagmap))
 	} else {
 		logp.Printf("[WARN] fetching tags of elb listener failed: %s", err)
+	}
+
+	if err = mErr.ErrorOrNil(); err != nil {
+		return fmtp.DiagErrorf("Error setting listener fields: %s", err)
 	}
 
 	return nil
 }
 
-func resourceListenerV2Update(d *schema.ResourceData, meta interface{}) error {
+func resourceListenerV2Update(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := meta.(*config.Config)
-	lbClient, err := config.ElbV2Client(GetRegion(d, config))
+	lbClient, err := config.LoadBalancerClient(GetRegion(d, config))
 	if err != nil {
-		return fmtp.Errorf("Error creating HuaweiCloud elb client: %s", err)
+		return fmtp.DiagErrorf("Error creating HuaweiCloud elb client: %s", err)
+	}
+
+	// client for tags
+	lbv2Client, err := config.ElbV2Client(GetRegion(d, config))
+	if err != nil {
+		return fmtp.DiagErrorf("Error creating HuaweiCloud elb v2.0 client: %s", err)
 	}
 
 	//lintignore:R019
@@ -277,14 +295,14 @@ func resourceListenerV2Update(d *schema.ResourceData, meta interface{}) error {
 		// Wait for LoadBalancer to become active before continuing
 		lbID := d.Get("loadbalancer_id").(string)
 		timeout := d.Timeout(schema.TimeoutUpdate)
-		err = waitForLBV2LoadBalancer(lbClient, lbID, "ACTIVE", nil, timeout)
+		err = waitForLBV2LoadBalancer(ctx, lbClient, lbID, "ACTIVE", nil, timeout)
 		if err != nil {
-			return err
+			return diag.FromErr(err)
 		}
 
 		logp.Printf("[DEBUG] Updating listener %s with options: %#v", d.Id(), updateOpts)
 		//lintignore:R006
-		err = resource.Retry(timeout, func() *resource.RetryError {
+		err = resource.RetryContext(ctx, timeout, func() *resource.RetryError {
 			_, err = listeners.Update(lbClient, d.Id(), updateOpts).Extract()
 			if err != nil {
 				return checkForRetryableError(err)
@@ -293,46 +311,46 @@ func resourceListenerV2Update(d *schema.ResourceData, meta interface{}) error {
 		})
 
 		if err != nil {
-			return fmtp.Errorf("Error updating listener %s: %s", d.Id(), err)
+			return fmtp.DiagErrorf("Error updating listener %s: %s", d.Id(), err)
 		}
 
 		// Wait for LoadBalancer to become active again before continuing
-		err = waitForLBV2LoadBalancer(lbClient, lbID, "ACTIVE", nil, timeout)
+		err = waitForLBV2LoadBalancer(ctx, lbClient, lbID, "ACTIVE", nil, timeout)
 		if err != nil {
-			return err
+			return diag.FromErr(err)
 		}
 	}
 
 	// update tags
 	if d.HasChange("tags") {
-		tagErr := utils.UpdateResourceTags(lbClient, d, "listeners", d.Id())
+		tagErr := utils.UpdateResourceTags(lbv2Client, d, "listeners", d.Id())
 		if tagErr != nil {
-			return fmtp.Errorf("Error updating tags of elb listener:%s, err:%s", d.Id(), tagErr)
+			return fmtp.DiagErrorf("Error updating tags of elb listener:%s, err:%s", d.Id(), tagErr)
 		}
 	}
 
-	return resourceListenerV2Read(d, meta)
+	return resourceListenerV2Read(ctx, d, meta)
 
 }
 
-func resourceListenerV2Delete(d *schema.ResourceData, meta interface{}) error {
+func resourceListenerV2Delete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := meta.(*config.Config)
-	lbClient, err := config.ElbV2Client(GetRegion(d, config))
+	lbClient, err := config.LoadBalancerClient(GetRegion(d, config))
 	if err != nil {
-		return fmtp.Errorf("Error creating HuaweiCloud elb client: %s", err)
+		return fmtp.DiagErrorf("Error creating HuaweiCloud elb client: %s", err)
 	}
 
 	// Wait for LoadBalancer to become active before continuing
 	lbID := d.Get("loadbalancer_id").(string)
 	timeout := d.Timeout(schema.TimeoutDelete)
-	err = waitForLBV2LoadBalancer(lbClient, lbID, "ACTIVE", nil, timeout)
+	err = waitForLBV2LoadBalancer(ctx, lbClient, lbID, "ACTIVE", nil, timeout)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	logp.Printf("[DEBUG] Deleting listener %s", d.Id())
 	//lintignore:R006
-	err = resource.Retry(timeout, func() *resource.RetryError {
+	err = resource.RetryContext(ctx, timeout, func() *resource.RetryError {
 		err = listeners.Delete(lbClient, d.Id()).ExtractErr()
 		if err != nil {
 			return checkForRetryableError(err)
@@ -341,19 +359,19 @@ func resourceListenerV2Delete(d *schema.ResourceData, meta interface{}) error {
 	})
 
 	if err != nil {
-		return fmtp.Errorf("Error deleting listener %s: %s", d.Id(), err)
+		return fmtp.DiagErrorf("Error deleting listener %s: %s", d.Id(), err)
 	}
 
 	// Wait for LoadBalancer to become active again before continuing
-	err = waitForLBV2LoadBalancer(lbClient, lbID, "ACTIVE", nil, timeout)
+	err = waitForLBV2LoadBalancer(ctx, lbClient, lbID, "ACTIVE", nil, timeout)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	// Wait for Listener to delete
-	err = waitForLBV2Listener(lbClient, d.Id(), "DELETED", nil, timeout)
+	err = waitForLBV2Listener(ctx, lbClient, d.Id(), "DELETED", nil, timeout)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	return nil

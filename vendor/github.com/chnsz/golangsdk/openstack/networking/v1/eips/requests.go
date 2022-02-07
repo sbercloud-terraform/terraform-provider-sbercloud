@@ -23,8 +23,10 @@ type ApplyOpts struct {
 }
 
 type PublicIpOpts struct {
-	Type    string `json:"type" required:"true"`
-	Address string `json:"ip_address,omitempty"`
+	Type      string `json:"type" required:"true"`
+	Address   string `json:"ip_address,omitempty"`
+	Alias     string `json:"alias,omitempty"`
+	IPVersion int    `json:"ip_version,omitempty"`
 }
 
 type BandwidthOpts struct {
@@ -70,9 +72,12 @@ type UpdateOptsBuilder interface {
 	ToPublicIpUpdateMap() (map[string]interface{}, error)
 }
 
-//UpdateOpts is a struct which represents the request body of update method
+// UpdateOpts is a struct which represents the request body of update method
+// NOTE: ip_version and port_id can not be updated at the same time
 type UpdateOpts struct {
-	PortID string `json:"port_id,omitempty"`
+	PortID    string  `json:"port_id,omitempty"`
+	Alias     *string `json:"alias,omitempty"`
+	IPVersion int     `json:"ip_version,omitempty"`
 }
 
 func (opts UpdateOpts) ToPublicIpUpdateMap() (map[string]interface{}, error) {
@@ -105,10 +110,18 @@ type ListOpts struct {
 	IPVersion int `q:"ip_version"`
 
 	// Associated port id
-	PortId string `q:"port_id"`
+	PortId []string `q:"port_id"`
 
 	// Public IP address
-	PublicIp string `q:"public_ip_address"`
+	PublicIp []string `q:"public_ip_address"`
+
+	// private IP address
+	PrivateIp []string `q:"private_ip_address"`
+
+	// ID
+	Id []string `q:"id"`
+
+	AllowShareBandwidthTypeAny []string `q:"allow_share_bandwidth_type_any"`
 
 	// enterprise_project_id
 	// You can use this field to filter the elastic public IP under an enterprise project.

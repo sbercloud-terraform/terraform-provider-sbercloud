@@ -7,15 +7,20 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/mutexkv"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cdm"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/css"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dcs"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dds"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/deprecated"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dis"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dli"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dms"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dws"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/eip"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/evs"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/fgs"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/iam"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/rds"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/vpc"
 )
 
@@ -127,10 +132,9 @@ func Provider() *schema.Provider {
 			"sbercloud_dcs_maintainwindow":     dcs.DataSourceDcsMaintainWindow(),
 			"sbercloud_dcs_product":            deprecated.DataSourceDcsProductV1(),
 			"sbercloud_dds_flavors":            dds.DataSourceDDSFlavorV3(),
-			"sbercloud_dis_partition":          huaweicloud.DataSourceDisPartitionV2(),
-			"sbercloud_dms_az":                 huaweicloud.DataSourceDmsAZV1(),
-			"sbercloud_dms_product":            huaweicloud.DataSourceDmsProductV1(),
-			"sbercloud_dms_maintainwindow":     huaweicloud.DataSourceDmsMaintainWindowV1(),
+			"sbercloud_dms_az":                 deprecated.DataSourceDmsAZ(),
+			"sbercloud_dms_product":            dms.DataSourceDmsProduct(),
+			"sbercloud_dms_maintainwindow":     dms.DataSourceDmsMaintainWindow(),
 			"sbercloud_identity_role":          iam.DataSourceIdentityRoleV3(),
 			"sbercloud_identity_custom_role":   iam.DataSourceIdentityCustomRole(),
 			"sbercloud_identity_group":         iam.DataSourceIdentityGroup(),
@@ -141,12 +145,12 @@ func Provider() *schema.Provider {
 			"sbercloud_networking_port":        huaweicloud.DataSourceNetworkingPortV2(),
 			"sbercloud_networking_secgroup":    huaweicloud.DataSourceNetworkingSecGroupV2(),
 			"sbercloud_obs_bucket_object":      huaweicloud.DataSourceObsBucketObject(),
-			"sbercloud_rds_flavors":            huaweicloud.DataSourceRdsFlavorV3(),
+			"sbercloud_rds_flavors":            rds.DataSourceRdsFlavor(),
 			"sbercloud_sfs_file_system":        huaweicloud.DataSourceSFSFileSystemV2(),
 			"sbercloud_vpc":                    vpc.DataSourceVpcV1(),
 			"sbercloud_vpcs":                   vpc.DataSourceVpcs(),
-			"sbercloud_vpc_bandwidth":          vpc.DataSourceBandWidth(),
-			"sbercloud_vpc_eip":                vpc.DataSourceVpcEip(),
+			"sbercloud_vpc_bandwidth":          eip.DataSourceBandWidth(),
+			"sbercloud_vpc_eip":                eip.DataSourceVpcEip(),
 			"sbercloud_vpc_ids":                vpc.DataSourceVpcIdsV1(),
 			"sbercloud_vpc_peering_connection": vpc.DataSourceVpcPeeringConnectionV2(),
 			"sbercloud_vpc_route":              vpc.DataSourceVpcRouteV2(),
@@ -168,7 +172,7 @@ func Provider() *schema.Provider {
 			"sbercloud_cce_cluster":                     huaweicloud.ResourceCCEClusterV3(),
 			"sbercloud_cce_node":                        huaweicloud.ResourceCCENodeV3(),
 			"sbercloud_cce_node_pool":                   huaweicloud.ResourceCCENodePool(),
-			"sbercloud_cdm_cluster":                     huaweicloud.ResourceCdmClusterV1(),
+			"sbercloud_cdm_cluster":                     cdm.ResourceCdmCluster(),
 			"sbercloud_compute_instance":                huaweicloud.ResourceComputeInstanceV2(),
 			"sbercloud_compute_interface_attach":        huaweicloud.ResourceComputeInterfaceAttachV2(),
 			"sbercloud_compute_keypair":                 huaweicloud.ResourceComputeKeypairV2(),
@@ -181,14 +185,14 @@ func Provider() *schema.Provider {
 			"sbercloud_dis_stream":                      dis.ResourceDisStream(),
 			"sbercloud_dli_queue":                       dli.ResourceDliQueue(),
 			"sbercloud_dms_instance":                    ResourceDmsInstancesV1(),
-			"sbercloud_dms_kafka_instance":              huaweicloud.ResourceDmsKafkaInstance(),
-			"sbercloud_dms_kafka_topic":                 huaweicloud.ResourceDmsKafkaTopic(),
-			"sbercloud_dms_rabbitmq_instance":           huaweicloud.ResourceDmsRabbitmqInstance(),
+			"sbercloud_dms_kafka_instance":              dms.ResourceDmsKafkaInstance(),
+			"sbercloud_dms_kafka_topic":                 dms.ResourceDmsKafkaTopic(),
+			"sbercloud_dms_rabbitmq_instance":           dms.ResourceDmsRabbitmqInstance(),
 			"sbercloud_dns_recordset":                   huaweicloud.ResourceDNSRecordSetV2(),
 			"sbercloud_dns_zone":                        huaweicloud.ResourceDNSZoneV2(),
 			"sbercloud_dws_cluster":                     dws.ResourceDwsCluster(),
 			"sbercloud_evs_snapshot":                    huaweicloud.ResourceEvsSnapshotV2(),
-			"sbercloud_evs_volume":                      huaweicloud.ResourceEvsStorageVolumeV3(),
+			"sbercloud_evs_volume":                      evs.ResourceEvsVolume(),
 			"sbercloud_fgs_function":                    fgs.ResourceFgsFunctionV2(),
 			"sbercloud_ges_graph":                       huaweicloud.ResourceGesGraphV1(),
 			"sbercloud_identity_access_key":             iam.ResourceIdentityKey(),
@@ -215,7 +219,7 @@ func Provider() *schema.Provider {
 			"sbercloud_nat_snat_rule":                   huaweicloud.ResourceNatSnatRuleV2(),
 			"sbercloud_network_acl":                     huaweicloud.ResourceNetworkACL(),
 			"sbercloud_network_acl_rule":                huaweicloud.ResourceNetworkACLRule(),
-			"sbercloud_networking_eip_associate":        huaweicloud.ResourceNetworkingFloatingIPAssociateV2(),
+			"sbercloud_networking_eip_associate":        eip.ResourceEIPAssociate(),
 			"sbercloud_networking_secgroup":             huaweicloud.ResourceNetworkingSecGroupV2(),
 			"sbercloud_networking_secgroup_rule":        huaweicloud.ResourceNetworkingSecGroupRuleV2(),
 			"sbercloud_obs_bucket":                      huaweicloud.ResourceObsBucket(),
@@ -230,8 +234,8 @@ func Provider() *schema.Provider {
 			"sbercloud_smn_subscription":                huaweicloud.ResourceSubscription(),
 			"sbercloud_smn_topic":                       huaweicloud.ResourceTopic(),
 			"sbercloud_vpc":                             vpc.ResourceVirtualPrivateCloudV1(),
-			"sbercloud_vpc_bandwidth":                   vpc.ResourceVpcBandWidthV2(),
-			"sbercloud_vpc_eip":                         vpc.ResourceVpcEIPV1(),
+			"sbercloud_vpc_bandwidth":                   eip.ResourceVpcBandWidthV2(),
+			"sbercloud_vpc_eip":                         eip.ResourceVpcEIPV1(),
 			"sbercloud_vpc_peering_connection":          vpc.ResourceVpcPeeringConnectionV2(),
 			"sbercloud_vpc_peering_connection_accepter": vpc.ResourceVpcPeeringConnectionAccepterV2(),
 			"sbercloud_vpc_route":                       vpc.ResourceVPCRouteV2(),

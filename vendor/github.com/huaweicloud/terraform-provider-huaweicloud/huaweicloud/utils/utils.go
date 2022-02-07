@@ -240,22 +240,63 @@ func IsResourceNotFound(err error) bool {
 	return ok
 }
 
-// Method FormatTimeStampRFC3339 is used to unify the time format to RFC-3339 and return a time string.
+// FormatTimeStampRFC3339 is used to unify the time format to RFC-3339 and return a time string.
 func FormatTimeStampRFC3339(timestamp int64) string {
 	createTime := time.Unix(timestamp, 0)
 	return createTime.Format(time.RFC3339)
 }
 
-// Method EncodeBase64String is used to encode a string by base64.
+// EncodeBase64String is used to encode a string by base64.
 func EncodeBase64String(str string) string {
 	strByte := []byte(str)
 	return base64.StdEncoding.EncodeToString(strByte)
 }
 
-// Method EncodeBase64IfNot is used to encode a string by base64 if it not a base64 string.
+// EncodeBase64IfNot is used to encode a string by base64 if it not a base64 string.
 func EncodeBase64IfNot(str string) string {
 	if _, err := base64.StdEncoding.DecodeString(str); err != nil {
 		return base64.StdEncoding.EncodeToString([]byte(str))
 	}
 	return str
+}
+
+// IsIPv4Address is used to check whether the addr string is IPv4 format
+func IsIPv4Address(addr string) bool {
+	pattern := "^(25[0-5]|2[0-4]\\d|(1\\d{2}|[1-9]?\\d)\\.){3}(25[0-5]|2[0-4]\\d|(1\\d{2}|[1-9]?\\d))$"
+	matched, _ := regexp.MatchString(pattern, addr)
+	return matched
+}
+
+// This function compares whether there is a containment relationship between two maps, that is,
+// whether map A (rawMap) contains map B (filterMap).
+//   Map A is {'foo': 'bar'} and filter map B is {'foo': 'bar'} or {'foo': 'bar,dor'} will return true.
+//   Map A is {'foo': 'bar'} and filter map B is {'foo': 'dor'} or {'foo1': 'bar'} will return false.
+//   Map A is {'foo': 'bar'} and filter map B is {'foo': ''} will return true.
+//   Map A is {'foo': 'bar'} and filter map B is {'': 'bar'} or {'': ''} will return false.
+// The value of filter map 'bar,for' means that the object value can be either 'bar' or 'dor'.
+// Note: There is no spaces before and after the delimiter (,).
+func HasMapContains(rawMap map[string]string, filterMap map[string]interface{}) bool {
+	if len(filterMap) < 1 {
+		return true
+	}
+
+	hasContain := true
+	for key, value := range filterMap {
+		hasContain = hasContain && hasMapContain(rawMap, key, value.(string))
+	}
+
+	return hasContain
+}
+
+func hasMapContain(rawMap map[string]string, filterKey, filterValue string) bool {
+	if rawTag, ok := rawMap[filterKey]; ok {
+		if filterValue != "" {
+			filterTagValues := strings.Split(filterValue, ",")
+			return StrSliceContains(filterTagValues, rawTag)
+		} else {
+			return true
+		}
+	} else {
+		return false
+	}
 }

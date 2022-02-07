@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
@@ -19,12 +21,16 @@ import (
 	"github.com/chnsz/golangsdk/openstack/obs"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/logging"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/jmespath/go-jmespath"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/pathorcontents"
 )
 
 const (
 	obsLogFile         string = "./.obs-sdk.log"
 	obsLogFileSize10MB int64  = 1024 * 1024 * 10
+	securityKeyURL     string = "http://169.254.169.254/openstack/latest/securitykey"
+	keyExpiresDuration int64  = 600
 )
 
 type Config struct {
@@ -54,6 +60,9 @@ type Config struct {
 	RegionClient        bool
 	EnterpriseProjectID string
 
+	// metadata security key expires at
+	SecurityKeyExpiresAt time.Time
+
 	HwClient     *golangsdk.ProviderClient
 	DomainClient *golangsdk.ProviderClient
 
@@ -67,6 +76,10 @@ type Config struct {
 	// RPLock is used to make the accessing of RegionProjectIDMap serial,
 	// prevent sending duplicate query requests
 	RPLock *sync.Mutex
+
+	// SecurityKeyLock is used to make the accessing of SecurityKeyExpiresAt serial,
+	// prevent sending duplicate query metadata api
+	SecurityKeyLock *sync.Mutex
 }
 
 func (c *Config) LoadAndValidate() error {
@@ -88,7 +101,13 @@ func (c *Config) LoadAndValidate() error {
 		} else {
 			err = buildClientByPassword(c)
 		}
-
+	} else {
+		err = getAuthConfigByMeta(c)
+		if err != nil {
+			return fmt.Errorf("Error fetching Auth credentials from ECS Metadata API, AkSk or ECS agency must be provided: %s", err)
+		}
+		log.Printf("[DEBUG] Successfully got metadata security key, which will expire at: %s", c.SecurityKeyExpiresAt)
+		err = buildClientByAKSK(c)
 	}
 	if err != nil {
 		return err
@@ -121,6 +140,15 @@ func (c *Config) LoadAndValidate() error {
 	}
 
 	return nil
+}
+
+func (c *Config) reloadSecurityKey() error {
+	err := getAuthConfigByMeta(c)
+	if err != nil {
+		return fmt.Errorf("Error reloading Auth credentials from ECS Metadata API: %s", err)
+	}
+	log.Printf("Successfully reload metadata security key, which will expire at: %s", c.SecurityKeyExpiresAt)
+	return buildClientByAKSK(c)
 }
 
 func generateTLSConfig(c *Config) (*tls.Config, error) {
@@ -370,6 +398,63 @@ func genClients(c *Config, pao, dao golangsdk.AuthOptionsProvider) error {
 	return err
 }
 
+func getAuthConfigByMeta(c *Config) error {
+	req, err := http.NewRequest("GET", securityKeyURL, nil)
+	if err != nil {
+		return fmt.Errorf("Error building metadata API request: %s", err.Error())
+	}
+
+	httpClient := &http.Client{}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("Error requesting metadata API: %s", err.Error())
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("Error requesting metadata API: status code = %d", resp.StatusCode)
+	}
+
+	var parsedBody interface{}
+
+	defer resp.Body.Close()
+	rawBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("Error parsing metadata API response: %s", err.Error())
+	}
+
+	err = json.Unmarshal(rawBody, &parsedBody)
+	if err != nil {
+		return fmt.Errorf("Error unmarshal metadata API, agency_name is empty: %s", err.Error())
+	}
+
+	expiresAt, err := jmespath.Search("credential.expires_at", parsedBody)
+	if err != nil {
+		return fmt.Errorf("Error fetching metadata expires_at: %s", err.Error())
+	}
+	accessKey, err := jmespath.Search("credential.access", parsedBody)
+	if err != nil {
+		return fmt.Errorf("Error fetching metadata access: %s", err.Error())
+	}
+	secretKey, err := jmespath.Search("credential.secret", parsedBody)
+	if err != nil {
+		return fmt.Errorf("Error fetching metadata secret: %s", err.Error())
+	}
+	securityToken, err := jmespath.Search("credential.securitytoken", parsedBody)
+	if err != nil {
+		return fmt.Errorf("Error fetching metadata securitytoken: %s", err.Error())
+	}
+
+	if accessKey == nil || secretKey == nil || securityToken == nil || expiresAt == nil {
+		return fmt.Errorf("Error fetching metadata authentication information.")
+	}
+	expairesTime, err := time.Parse(time.RFC3339, expiresAt.(string))
+	if err != nil {
+		return err
+	}
+	c.AccessKey, c.SecretKey, c.SecurityToken, c.SecurityKeyExpiresAt = accessKey.(string), secretKey.(string), securityToken.(string), expairesTime
+
+	return nil
+}
+
 func getObsEndpoint(c *Config, region string) string {
 	if endpoint, ok := c.Endpoints["obs"]; ok {
 		return endpoint
@@ -409,6 +494,16 @@ func (c *Config) ObjectStorageClient(region string) (*obs.ObsClient, error) {
 		}
 	}
 
+	if !c.SecurityKeyExpiresAt.IsZero() {
+		c.SecurityKeyLock.Lock()
+		defer c.SecurityKeyLock.Unlock()
+		timeNow := time.Now().Unix()
+		expairesAtInt := c.SecurityKeyExpiresAt.Unix()
+		if timeNow+keyExpiresDuration > expairesAtInt {
+			c.reloadSecurityKey()
+		}
+	}
+
 	obsEndpoint := getObsEndpoint(c, region)
 	if c.SecurityToken != "" {
 		return obs.New(c.AccessKey, c.SecretKey, obsEndpoint, obs.WithSecurityToken(c.SecurityToken))
@@ -425,6 +520,16 @@ func (c *Config) NewServiceClient(srv, region string) (*golangsdk.ServiceClient,
 		return nil, fmt.Errorf("service type %s is invalid or not supportted", srv)
 	}
 
+	if !c.SecurityKeyExpiresAt.IsZero() {
+		c.SecurityKeyLock.Lock()
+		defer c.SecurityKeyLock.Unlock()
+		timeNow := time.Now().Unix()
+		expairesAtInt := c.SecurityKeyExpiresAt.Unix()
+		if timeNow+keyExpiresDuration > expairesAtInt {
+			c.reloadSecurityKey()
+		}
+	}
+
 	client := c.HwClient
 	if serviceCatalog.Admin {
 		client = c.DomainClient
@@ -437,8 +542,8 @@ func (c *Config) NewServiceClient(srv, region string) (*golangsdk.ServiceClient,
 }
 
 func (c *Config) newServiceClientByName(client *golangsdk.ProviderClient, catalog ServiceCatalog, region string) (*golangsdk.ServiceClient, error) {
-	if catalog.Name == "" || catalog.Version == "" {
-		return nil, fmt.Errorf("must specify the service name and api version")
+	if catalog.Name == "" {
+		return nil, fmt.Errorf("must specify the service name")
 	}
 
 	// Custom Resource-level region only supports AK/SK authentication.
@@ -474,7 +579,10 @@ func (c *Config) newServiceClientByName(client *golangsdk.ProviderClient, catalo
 		sc.Endpoint = fmt.Sprintf("https://%s.%s.%s/", catalog.Name, region, c.Cloud)
 	}
 
-	sc.ResourceBase = sc.Endpoint + catalog.Version + "/"
+	sc.ResourceBase = sc.Endpoint
+	if catalog.Version != "" {
+		sc.ResourceBase = sc.ResourceBase + catalog.Version + "/"
+	}
 	if !catalog.WithOutProjectID {
 		sc.ResourceBase = sc.ResourceBase + projectID + "/"
 	}
@@ -497,7 +605,11 @@ func (c *Config) newServiceClientByEndpoint(client *golangsdk.ProviderClient, sr
 		ProviderClient: client,
 		Endpoint:       endpoint,
 	}
-	sc.ResourceBase = sc.Endpoint + catalog.Version + "/"
+
+	sc.ResourceBase = sc.Endpoint
+	if catalog.Version != "" {
+		sc.ResourceBase = sc.ResourceBase + catalog.Version + "/"
+	}
 	if !catalog.WithOutProjectID {
 		sc.ResourceBase = sc.ResourceBase + client.ProjectID + "/"
 	}
@@ -630,6 +742,10 @@ func (c *Config) IdentityV3Client(region string) (*golangsdk.ServiceClient, erro
 	return c.NewServiceClient("identity", region)
 }
 
+func (c *Config) IAMNoVersionClient(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("iam_no_version", region)
+}
+
 func (c *Config) CdnV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("cdn", region)
 }
@@ -696,6 +812,14 @@ func (c *Config) BmsV1Client(region string) (*golangsdk.ServiceClient, error) {
 }
 
 // ********** client for Storage **********
+func (c *Config) BlockStorageV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("evsv1", region)
+}
+
+func (c *Config) BlockStorageV21Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("evsv21", region)
+}
+
 func (c *Config) BlockStorageV2Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("volumev2", region)
 }
@@ -800,6 +924,10 @@ func (c *Config) AntiDDosV1Client(region string) (*golangsdk.ServiceClient, erro
 
 func (c *Config) KmsKeyV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("kms", region)
+}
+
+func (c *Config) KmsV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("kmsv1", region)
 }
 
 // WafV1Client is not avaliable in HuaweiCloud, will be imported by other clouds
