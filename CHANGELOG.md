@@ -1,3 +1,9 @@
+## 1.5.1 (February 7, 2022)
+
+ENHANCEMENTS:
+* Add more useful examples ([#111](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/111))
+* Upgrade to terraform-provider-huaweicloud `v1.32.2` ([#113](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/113))
+
 ## 1.5.0 (December 29, 2021)
 
 FEATURES:
@@ -21,9 +27,9 @@ FEATURES:
 
 ENHANCEMENTS:
 
-Upgrade to terraform-plugin-sdk v2 ([#99](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/99))
-Upgrade to new golangsdk ([#101](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/101))
-Upgrade to terraform-provider-huaweicloud `v1.31.0` ([#104](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/104))
+* Upgrade to terraform-plugin-sdk v2 ([#99](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/99))
+* Upgrade to new golangsdk ([#101](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/101))
+* Upgrade to terraform-provider-huaweicloud `v1.31.0` ([#104](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/104))
 
 DEPRECATE:
 
