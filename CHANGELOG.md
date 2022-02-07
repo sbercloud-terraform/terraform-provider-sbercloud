@@ -2,7 +2,7 @@
 
 ENHANCEMENTS:
 * Add more useful examples ([#111](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/111))
-* Upgrade to terraform-provider-huaweicloud `v1.32.1` ([#113](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/113))
+* Upgrade to terraform-provider-huaweicloud `v1.32.2` ([#113](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/113))
 
 ## 1.5.0 (December 29, 2021)
 
