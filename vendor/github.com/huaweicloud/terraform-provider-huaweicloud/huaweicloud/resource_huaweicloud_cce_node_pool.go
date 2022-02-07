@@ -346,10 +346,14 @@ func resourceCCENodePoolCreate(ctx context.Context, d *schema.ResourceData, meta
 			SshKey: d.Get("key_pair").(string),
 		}
 	} else if hasFilledOpt(d, "password") {
+		password, err := utils.TryPasswordEncrypt(d.Get("password").(string))
+		if err != nil {
+			return diag.FromErr(err)
+		}
 		loginSpec = nodes.LoginSpec{
 			UserPassword: nodes.UserPassword{
 				Username: "root",
-				Password: d.Get("password").(string),
+				Password: password,
 			},
 		}
 	}
@@ -483,10 +487,14 @@ func resourceCCENodePoolUpdate(ctx context.Context, d *schema.ResourceData, meta
 	if hasFilledOpt(d, "key_pair") {
 		loginSpec = nodes.LoginSpec{SshKey: d.Get("key_pair").(string)}
 	} else if hasFilledOpt(d, "password") {
+		password, err := utils.TryPasswordEncrypt(d.Get("password").(string))
+		if err != nil {
+			return diag.FromErr(err)
+		}
 		loginSpec = nodes.LoginSpec{
 			UserPassword: nodes.UserPassword{
 				Username: "root",
-				Password: d.Get("password").(string),
+				Password: password,
 			},
 		}
 	}
@@ -532,12 +540,12 @@ func resourceCCENodePoolUpdate(ctx context.Context, d *schema.ResourceData, meta
 		Target:       []string{""},
 		Refresh:      waitForCceNodePoolActive(nodePoolClient, clusterid, d.Id()),
 		Timeout:      d.Timeout(schema.TimeoutCreate),
-		Delay:        15 * time.Second,
+		Delay:        60 * time.Second,
 		PollInterval: 10 * time.Second,
 	}
 	_, err = stateConf.WaitForStateContext(ctx)
 	if err != nil {
-		return fmtp.DiagErrorf("Error creating HuaweiCloud CCE Node Pool: %s", err)
+		return fmtp.DiagErrorf("Error updating HuaweiCloud CCE Node Pool: %s", err)
 	}
 
 	return resourceCCENodePoolRead(ctx, d, meta)

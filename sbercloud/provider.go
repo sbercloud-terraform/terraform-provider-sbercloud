@@ -16,6 +16,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dli"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dms"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dws"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/eip"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/evs"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/fgs"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/iam"
@@ -148,8 +149,8 @@ func Provider() *schema.Provider {
 			"sbercloud_sfs_file_system":        huaweicloud.DataSourceSFSFileSystemV2(),
 			"sbercloud_vpc":                    vpc.DataSourceVpcV1(),
 			"sbercloud_vpcs":                   vpc.DataSourceVpcs(),
-			"sbercloud_vpc_bandwidth":          vpc.DataSourceBandWidth(),
-			"sbercloud_vpc_eip":                vpc.DataSourceVpcEip(),
+			"sbercloud_vpc_bandwidth":          eip.DataSourceBandWidth(),
+			"sbercloud_vpc_eip":                eip.DataSourceVpcEip(),
 			"sbercloud_vpc_ids":                vpc.DataSourceVpcIdsV1(),
 			"sbercloud_vpc_peering_connection": vpc.DataSourceVpcPeeringConnectionV2(),
 			"sbercloud_vpc_route":              vpc.DataSourceVpcRouteV2(),
@@ -218,7 +219,7 @@ func Provider() *schema.Provider {
 			"sbercloud_nat_snat_rule":                   huaweicloud.ResourceNatSnatRuleV2(),
 			"sbercloud_network_acl":                     huaweicloud.ResourceNetworkACL(),
 			"sbercloud_network_acl_rule":                huaweicloud.ResourceNetworkACLRule(),
-			"sbercloud_networking_eip_associate":        huaweicloud.ResourceNetworkingFloatingIPAssociateV2(),
+			"sbercloud_networking_eip_associate":        eip.ResourceEIPAssociate(),
 			"sbercloud_networking_secgroup":             huaweicloud.ResourceNetworkingSecGroupV2(),
 			"sbercloud_networking_secgroup_rule":        huaweicloud.ResourceNetworkingSecGroupRuleV2(),
 			"sbercloud_obs_bucket":                      huaweicloud.ResourceObsBucket(),
@@ -233,8 +234,8 @@ func Provider() *schema.Provider {
 			"sbercloud_smn_subscription":                huaweicloud.ResourceSubscription(),
 			"sbercloud_smn_topic":                       huaweicloud.ResourceTopic(),
 			"sbercloud_vpc":                             vpc.ResourceVirtualPrivateCloudV1(),
-			"sbercloud_vpc_bandwidth":                   vpc.ResourceVpcBandWidthV2(),
-			"sbercloud_vpc_eip":                         vpc.ResourceVpcEIPV1(),
+			"sbercloud_vpc_bandwidth":                   eip.ResourceVpcBandWidthV2(),
+			"sbercloud_vpc_eip":                         eip.ResourceVpcEIPV1(),
 			"sbercloud_vpc_peering_connection":          vpc.ResourceVpcPeeringConnectionV2(),
 			"sbercloud_vpc_peering_connection_accepter": vpc.ResourceVpcPeeringConnectionAccepterV2(),
 			"sbercloud_vpc_route":                       vpc.ResourceVPCRouteV2(),
