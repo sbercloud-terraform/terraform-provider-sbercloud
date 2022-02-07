@@ -33,8 +33,9 @@ resource "sbercloud_cce_node" "cce_01_node" {
   count             = local.number_of_workers
   cluster_id        = sbercloud_cce_cluster.cce_01.id
   name              = "cce-worker-${count.index}"
-  flavor_id         = "s6.large.2"
+  flavor_id         = "c6.large.4"
   availability_zone = data.sbercloud_availability_zones.list_of_az.names[count.index % local.number_of_az]
+  os                = "CentOS 7.6"
   key_pair          = "put_here_the_name_of_your_existing_key_pair"
 
   root_volume {

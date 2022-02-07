@@ -1,9 +1,9 @@
-# Get the VPC where NAT gateway will be created
+# Get the VPC where CCE cluster will be created
 data "sbercloud_vpc" "vpc_01" {
   name = "put_here_the_name_of_your_existing_vpc"
 }
 
-# Get the subnet where NAT gateway will be created
+# Get the subnet where CCE cluster will be created
 data "sbercloud_vpc_subnet" "subnet_01" {
   name = "put_here_the_name_of_your_existing_subnet"
 }
@@ -24,6 +24,7 @@ resource "sbercloud_cce_node" "cce_01_node" {
   name              = "cce-worker"
   flavor_id         = "s6.large.2"
   availability_zone = "ru-moscow-1a"
+  os                = "CentOS 7.6"
   key_pair          = "put_here_the_name_of_your_existing_key_pair"
 
   root_volume {
