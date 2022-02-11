@@ -13,6 +13,7 @@ data "sbercloud_networking_secgroup" "sg_01" {
   name = "put_here_name_of_your_security_group"
 }
 
+# Create RDS instance
 resource "sbercloud_rds_instance" "rds_01" {
   name              = "terraform_mysql_single"
   flavor            = "rds.mysql.c6.large.2"
