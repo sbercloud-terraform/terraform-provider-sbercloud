@@ -26,10 +26,11 @@ data "sbercloud_rds_flavors" "rds_flavors" {
 locals {
   rds_flavor = compact([
     for item in data.sbercloud_rds_flavors.rds_flavors.flavors :
-    item["vcpus"] == "2" && item["memory"] == 8 ? item["name"] : ""
+    item["vcpus"] == 2 && item["memory"] == 8 ? item["name"] : ""
   ])[0]
 }
 
+# Create RDS instance
 resource "sbercloud_rds_instance" "rds_01" {
   name                  = "terraform-pg-cluster"
   flavor                = local.rds_flavor
