@@ -13,4 +13,4 @@ This example provisions an EIP with the following attributes:
 
 ### Notes
 
-No notes so far.
+EIP can then be used with other services: ECS, RDS, and some others.
