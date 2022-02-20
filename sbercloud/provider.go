@@ -7,6 +7,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/mutexkv"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cbr"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cdm"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/css"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dcs"
@@ -123,6 +124,7 @@ func Provider() *schema.Provider {
 
 		DataSourcesMap: map[string]*schema.Resource{
 			"sbercloud_availability_zones":     huaweicloud.DataSourceAvailabilityZones(),
+			"sbercloud_cbr_vaults":             cbr.DataSourceCbrVaultsV3(),
 			"sbercloud_cce_cluster":            huaweicloud.DataSourceCCEClusterV3(),
 			"sbercloud_cce_node":               huaweicloud.DataSourceCCENodeV3(),
 			"sbercloud_cce_node_pool":          huaweicloud.DataSourceCCENodePoolV3(),
@@ -168,6 +170,8 @@ func Provider() *schema.Provider {
 			"sbercloud_as_configuration":                huaweicloud.ResourceASConfiguration(),
 			"sbercloud_as_group":                        huaweicloud.ResourceASGroup(),
 			"sbercloud_as_policy":                       huaweicloud.ResourceASPolicy(),
+			"sbercloud_cbr_policy":                      cbr.ResourceCBRPolicyV3(),
+			"sbercloud_cbr_vault":                       cbr.ResourceCBRVaultV3(),
 			"sbercloud_css_cluster":                     css.ResourceCssCluster(),
 			"sbercloud_cce_cluster":                     huaweicloud.ResourceCCEClusterV3(),
 			"sbercloud_cce_node":                        huaweicloud.ResourceCCENodeV3(),
