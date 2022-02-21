@@ -1,0 +1,47 @@
+---
+subcategory: "Identity and Access Management (IAM)"
+---
+
+# sbercloud_identity_project
+
+Manages a Project resource within SberCloud Identity And Access Management service.
+
+-> You *must* have security admin privileges in your SberCloud cloud to use this resource.
+
+!>  Deleting projects is not supported. The project is only removed from the state, but it remains in the cloud.
+
+## Example Usage
+
+```hcl
+resource "sbercloud_identity_project" "project_1" {
+  name        = "ru-moscow-1_project1"
+  description = "This is a test project"
+}
+```
+
+## Argument Reference
+
+The following arguments are supported:
+
+* `name` - (Required, String) Specifies the name of the project. it must start with an existing *region* and be less
+  than or equal to 64 characters. Example: ru-moscow-1_project1.
+
+* `description` - (Optional, String) Specifies the description of the project.
+
+## Attributes Reference
+
+In addition to all arguments above, the following attributes are exported:
+
+* `id` - A resource ID in UUID format.
+
+* `parent_id` - The parent of this project.
+
+* `enabled` - Enabling status of this project.
+
+## Import
+
+Projects can be imported using the `id`, e.g.
+
+```
+$ terraform import sbercloud_identity_project.project_1 89c60255-9bd6-460c-822a-e2b959ede9d2
+```
