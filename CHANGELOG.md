@@ -1,6 +1,28 @@
-## 1.5.1 (February 7, 2022)
+## 1.6.0 (February 22, 2022)
+
+FEATURES:
+
+* **New Data Source:** `sbercloud_cbr_vaults` ([#117](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/117))
+* **New Data Source:** `sbercloud_enterprise_project` ([#119](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/119))
+* **New Resource:** `sbercloud_cbr_policy` ([#117](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/117))
+* **New Resource:** `sbercloud_cbr_vault` ([#117](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/117))
+* **New Resource:** `sbercloud_enterprise_project` ([#119](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/119))
+* **New Resource:** `sbercloud_identity_project` ([#123](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/123))
 
 ENHANCEMENTS:
+
+* Add VPC EIP example and more RDS examples ([#116](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/116))
+
+
+BUG FIXES:
+
+* Fix the resource schema version for `sbercloud_vpc_route` resource ([#122](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/122))
+
+
+## 1.5.1 (February 8, 2022)
+
+ENHANCEMENTS:
+
 * Add more useful examples ([#111](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/111))
 * Upgrade to terraform-provider-huaweicloud `v1.32.2` ([#113](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/113))
 
