@@ -18,6 +18,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dms"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dws"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/eip"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/eps"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/evs"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/fgs"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/iam"
@@ -137,6 +138,7 @@ func Provider() *schema.Provider {
 			"sbercloud_dms_az":                 deprecated.DataSourceDmsAZ(),
 			"sbercloud_dms_product":            dms.DataSourceDmsProduct(),
 			"sbercloud_dms_maintainwindow":     dms.DataSourceDmsMaintainWindow(),
+			"sbercloud_enterprise_project":     eps.DataSourceEnterpriseProject(),
 			"sbercloud_identity_role":          iam.DataSourceIdentityRoleV3(),
 			"sbercloud_identity_custom_role":   iam.DataSourceIdentityCustomRole(),
 			"sbercloud_identity_group":         iam.DataSourceIdentityGroup(),
@@ -195,6 +197,7 @@ func Provider() *schema.Provider {
 			"sbercloud_dns_recordset":                   huaweicloud.ResourceDNSRecordSetV2(),
 			"sbercloud_dns_zone":                        huaweicloud.ResourceDNSZoneV2(),
 			"sbercloud_dws_cluster":                     dws.ResourceDwsCluster(),
+			"sbercloud_enterprise_project":              eps.ResourceEnterpriseProject(),
 			"sbercloud_evs_snapshot":                    huaweicloud.ResourceEvsSnapshotV2(),
 			"sbercloud_evs_volume":                      evs.ResourceEvsVolume(),
 			"sbercloud_fgs_function":                    fgs.ResourceFgsFunctionV2(),
