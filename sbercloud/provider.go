@@ -238,7 +238,7 @@ func Provider() *schema.Provider {
 			"sbercloud_vpc_eip":                         eip.ResourceVpcEIPV1(),
 			"sbercloud_vpc_peering_connection":          vpc.ResourceVpcPeeringConnectionV2(),
 			"sbercloud_vpc_peering_connection_accepter": vpc.ResourceVpcPeeringConnectionAccepterV2(),
-			"sbercloud_vpc_route":                       vpc.ResourceVPCRouteV2(),
+			"sbercloud_vpc_route":                       vpc.ResourceVPCRouteTableRoute(),
 			"sbercloud_vpc_route_table":                 vpc.ResourceVPCRouteTable(),
 			"sbercloud_vpc_subnet":                      vpc.ResourceVpcSubnetV1(),
 			// Legacy
