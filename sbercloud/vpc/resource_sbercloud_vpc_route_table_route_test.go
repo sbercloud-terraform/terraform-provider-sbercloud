@@ -2,36 +2,58 @@ package vpc
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 
-	"github.com/chnsz/golangsdk/openstack/networking/v2/routes"
+	"github.com/chnsz/golangsdk/openstack/networking/v1/routetables"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 )
 
-func getRouteResourceFunc(conf *config.Config, state *terraform.ResourceState) (interface{}, error) {
-	c, err := conf.NetworkingV2Client(acceptance.SBC_REGION_NAME)
+func getVpcRTBRouteResourceFunc(conf *config.Config, state *terraform.ResourceState) (interface{}, error) {
+	vpcClient, err := conf.NetworkingV1Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
-		return nil, fmt.Errorf("error creating SberCloud Network client: %s", err)
+		return nil, fmt.Errorf("Error creating VPC client: %s", err)
 	}
-	return routes.Get(c, state.Primary.ID).Extract()
+
+	parts := strings.SplitN(state.Primary.ID, "/", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("the format of resource ID %s is invalid", state.Primary.ID)
+	}
+
+	routeTableID := parts[0]
+	destination := parts[1]
+	routeTable, err := routetables.Get(vpcClient, routeTableID).Extract()
+	if err != nil {
+		return nil, fmt.Errorf("Error retrieving VPC route table %s: %s", routeTableID, err)
+	}
+
+	var route *routetables.Route
+	for _, item := range routeTable.Routes {
+		if item.DestinationCIDR == destination {
+			route = &item
+			break
+		}
+	}
+	if route == nil {
+		return nil, fmt.Errorf("can not find the vpc route %s with %s", routeTableID, destination)
+	}
+
+	return route, nil
 }
 
-// TestAccVpcRoute_basic: This function is *deprecated* as the resource ID format
-// has changed, please run TestAccVpcRTBRoute_basic
-func TestAccVpcRoute_basic(t *testing.T) {
-	var route routes.Route
-
+func TestAccVpcRTBRoute_basic(t *testing.T) {
+	var route routetables.Route
 	randName := acceptance.RandomAccResourceName()
 	resourceName := "sbercloud_vpc_route.test"
 
 	rc := acceptance.InitResourceCheck(
 		resourceName,
 		&route,
-		getRouteResourceFunc,
+		getVpcRTBRouteResourceFunc,
 	)
 
 	resource.ParallelTest(t, resource.TestCase{
@@ -40,10 +62,13 @@ func TestAccVpcRoute_basic(t *testing.T) {
 		CheckDestroy:      rc.CheckResourceDestroy(),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccRoute_basic(randName),
+				Config: testAccVpcRTBRoute_basic(randName),
 				Check: resource.ComposeTestCheckFunc(
 					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "type", "peering"),
+					resource.TestCheckResourceAttr(resourceName, "description", "peering route"),
+					resource.TestCheckResourceAttrSet(resourceName, "route_table_id"),
+					resource.TestCheckResourceAttrSet(resourceName, "route_table_name"),
 					acceptance.TestCheckResourceAttrWithVariable(resourceName, "nexthop",
 						"${sbercloud_vpc_peering_connection.test.id}"),
 					acceptance.TestCheckResourceAttrWithVariable(resourceName, "destination",
@@ -61,16 +86,16 @@ func TestAccVpcRoute_basic(t *testing.T) {
 	})
 }
 
-func testAccRoute_basic(rName string) string {
+func testAccVpcRTBRoute_basic(rName string) string {
 	return fmt.Sprintf(`
 resource "sbercloud_vpc" "test1" {
   name = "%s_1"
-  cidr = "172.16.0.0/20"
+  cidr = "172.16.0.0/16"
 }
 
 resource "sbercloud_vpc" "test2" {
   name = "%s_2"
-  cidr = "172.16.128.0/20"
+  cidr = "192.168.0.0/16"
 }
 
 resource "sbercloud_vpc_peering_connection" "test" {
@@ -80,10 +105,11 @@ resource "sbercloud_vpc_peering_connection" "test" {
 }
 
 resource "sbercloud_vpc_route" "test" {
+  vpc_id      = sbercloud_vpc.test1.id
+  destination = sbercloud_vpc.test2.cidr
   type        = "peering"
   nexthop     = sbercloud_vpc_peering_connection.test.id
-  destination = sbercloud_vpc.test2.cidr
-  vpc_id      = sbercloud_vpc.test1.id
+  description = "peering route"
 }
 `, rName, rName, rName)
 }
