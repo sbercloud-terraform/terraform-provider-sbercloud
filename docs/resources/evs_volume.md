@@ -12,7 +12,7 @@ Manages a volume resource within sbercloud.
 resource "sbercloud_evs_volume" "volume" {
   name              = "volume"
   description       = "my volume"
-  volume_type       = "SATA"
+  volume_type       = "SSD"
   size              = 20
   availability_zone = "ru-moscow-1a"
 }
@@ -24,7 +24,7 @@ resource "sbercloud_evs_volume" "volume" {
 resource "sbercloud_evs_volume" "volume" {
   name              = "volume"
   description       = "my volume"
-  volume_type       = "SATA"
+  volume_type       = "SSD"
   size              = 20
   kms_id            = var.kms_id
   availability_zone = "ru-moscow-1a"

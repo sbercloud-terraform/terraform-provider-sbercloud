@@ -34,11 +34,11 @@ resource "sbercloud_cce_node" "node" {
 
   root_volume {
     size       = 40
-    volumetype = "SATA"
+    volumetype = "SSD"
   }
   data_volumes {
     size       = 100
-    volumetype = "SATA"
+    volumetype = "SSD"
   }
 }
 ```
@@ -55,11 +55,11 @@ resource "sbercloud_cce_node" "mynode" {
 
   root_volume {
     size       = 40
-    volumetype = "SATA"
+    volumetype = "SSD"
   }
   data_volumes {
     size       = 100
-    volumetype = "SATA"
+    volumetype = "SSD"
   }
 
   // Assign EIP
@@ -94,11 +94,11 @@ resource "sbercloud_cce_node" "mynode" {
 
   root_volume {
     size       = 40
-    volumetype = "SATA"
+    volumetype = "SSD"
   }
   data_volumes {
     size       = 100
-    volumetype = "SATA"
+    volumetype = "SSD"
   }
 
   // Assign existing EIP
