@@ -7,9 +7,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
 
 	"github.com/chnsz/golangsdk"
-	"github.com/chnsz/golangsdk/openstack/blockstorage/v2/volumes"
 	"github.com/chnsz/golangsdk/openstack/ecs/v1/block_devices"
 	"github.com/chnsz/golangsdk/openstack/ecs/v1/cloudservers"
+	"github.com/chnsz/golangsdk/openstack/evs/v2/cloudvolumes"
 	"github.com/chnsz/golangsdk/openstack/networking/v2/ports"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -171,7 +171,7 @@ func DataSourceComputeInstance() *schema.Resource {
 func buildListOptsWithoutStatus(d *schema.ResourceData, conf *config.Config) *cloudservers.ListOpts {
 	result := cloudservers.ListOpts{
 		Limit:               100,
-		EnterpriseProjectID: GetEnterpriseProjectID(d, conf),
+		EnterpriseProjectID: conf.DataGetEnterpriseProjectID(d),
 		Name:                d.Get("name").(string),
 		Flavor:              d.Get("flavor_id").(string),
 		IP:                  d.Get("fixed_ip_v4").(string),
@@ -223,7 +223,7 @@ func setEcsInstanceVolumeAttached(d *schema.ResourceData, ecsClient, evsClient *
 		bds := make([]map[string]interface{}, len(attached))
 		for i, b := range attached {
 			// retrieve volume `size` and `type`
-			volumeInfo, err := volumes.Get(evsClient, b.ID).Extract()
+			volumeInfo, err := cloudvolumes.Get(evsClient, b.ID).Extract()
 			if err != nil {
 				return err
 			}
@@ -259,7 +259,7 @@ func setEcsInstanceParams(d *schema.ResourceData, config *config.Config, ecsClie
 	if err != nil {
 		return fmtp.DiagErrorf("Error creating HuaweiCloud networking v2 client: %s", err)
 	}
-	blockStorageClient, err := config.BlockStorageV3Client(GetRegion(d, config))
+	blockStorageClient, err := config.BlockStorageV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmtp.DiagErrorf("Error creating HuaweiCloud EVS client: %s", err)
 	}
@@ -271,9 +271,9 @@ func setEcsInstanceParams(d *schema.ResourceData, config *config.Config, ecsClie
 		d.Set("flavor_id", server.Flavor.ID),
 		d.Set("flavor_name", server.Flavor.Name),
 		d.Set("image_id", server.Image.ID),
-		d.Set("image_name", golangsdk.MaybeString(server.Metadata.ImageName)),
-		d.Set("key_pair", golangsdk.MaybeString(server.KeyName)),
-		d.Set("user_data", golangsdk.MaybeString(server.UserData)),
+		d.Set("image_name", server.Metadata.ImageName),
+		d.Set("key_pair", server.KeyName),
+		d.Set("user_data", server.UserData),
 		d.Set("enterprise_project_id", server.EnterpriseProjectID),
 		d.Set("security_group_ids", parseEcsInstanceSecurityGroupIds(server.SecurityGroups)),
 		d.Set("security_groups", parseEcsInstanceSecurityGroups(server.SecurityGroups)),

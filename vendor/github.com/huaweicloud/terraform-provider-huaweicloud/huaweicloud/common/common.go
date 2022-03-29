@@ -11,6 +11,7 @@ package common
 
 import (
 	"context"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -23,6 +24,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
+	"github.com/huaweicloud/huaweicloud-sdk-go-v3/core/sdkerr"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
 )
@@ -96,6 +98,19 @@ func CheckDeletedDiag(d *schema.ResourceData, err error, msg string) diag.Diagno
 	return fmtp.DiagErrorf("%s: %s", msg, err)
 }
 
+// CheckDeletedError checks the error raised by **huaweicloud-sdk-go-v3** is 404 (Not Found),
+// if so, sets the resource ID to the empty string instead of throwing an error.
+func CheckDeletedError(d *schema.ResourceData, err error, msg string) diag.Diagnostics {
+	if responseErr, ok := err.(*sdkerr.ServiceResponseError); ok {
+		if responseErr.StatusCode == http.StatusNotFound {
+			d.SetId("")
+			return nil
+		}
+	}
+
+	return fmtp.DiagErrorf("%s: %s", msg, err)
+}
+
 // UnsubscribePrePaidResource impl the action of unsubscribe resource
 func UnsubscribePrePaidResource(d *schema.ResourceData, config *config.Config, resourceIDs []string) error {
 	bssV2Client, err := config.BssV2Client(GetRegion(d, config))
@@ -133,8 +148,8 @@ func WaitOrderComplete(ctx context.Context, d *schema.ResourceData, config *conf
 		return fmtp.Errorf("Error creating HuaweiCloud bss V2 client: %s", err)
 	}
 	stateConf := &resource.StateChangeConf{
-		Pending:      []string{"3"},
-		Target:       []string{"5"},
+		Pending:      []string{"3"}, // 3: Processing; 6: Pending payment.
+		Target:       []string{"5"}, // 5: Completed.
 		Refresh:      refreshOrderStatus(bssV2Client, orderNum),
 		Timeout:      d.Timeout(schema.TimeoutCreate),
 		Delay:        5 * time.Second,
@@ -142,7 +157,7 @@ func WaitOrderComplete(ctx context.Context, d *schema.ResourceData, config *conf
 	}
 	_, err = stateConf.WaitForStateContext(ctx)
 	if err != nil {
-		return fmtp.Errorf("Error while waiting for the order(%s) to complete payment: %#v", d.Id(), err)
+		return fmtp.Errorf("Error while waiting for the order (%s) to complete payment: %#v", orderNum, err)
 	}
 	return nil
 }

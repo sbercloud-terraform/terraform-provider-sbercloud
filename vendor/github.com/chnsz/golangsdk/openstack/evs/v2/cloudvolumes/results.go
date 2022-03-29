@@ -129,26 +129,13 @@ type Volume struct {
 
 // VolumePage is a pagination.pager that is returned from a call to the List function.
 type VolumePage struct {
-	pagination.LinkedPageBase
+	pagination.OffsetPageBase
 }
 
 // IsEmpty returns true if a ListResult contains no Volumes.
 func (r VolumePage) IsEmpty() (bool, error) {
 	volumes, err := ExtractVolumes(r)
 	return len(volumes) == 0, err
-}
-
-// NextPageURL uses the response's embedded link reference to navigate to the
-// next page of results.
-func (r VolumePage) NextPageURL() (string, error) {
-	var s struct {
-		Links []golangsdk.Link `json:"volumes_links"`
-	}
-	err := r.ExtractInto(&s)
-	if err != nil {
-		return "", err
-	}
-	return golangsdk.ExtractNextURL(s.Links)
 }
 
 // ExtractVolumes extracts and returns Volumes. It is used while iterating over a cloudvolumes.List call.
