@@ -1,4 +1,17 @@
-## 1.6.0 (February 22, 2022)
+## 1.6.1 (March 30, 2022)
+
+ENHANCEMENTS:
+
+* Add support for `security_token` parameter to authenticate with a temporary security credentials ([#126](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/126))
+* Upgrade to terraform-provider-huaweicloud `v1.34.1` ([#128](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/128))
+* Update ECS doc examples with required params ([#129](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/129))
+* Remove unsupported disk type from doc examples ([#130](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/130))
+
+BUG FIXES:
+
+* Fix an issue when ECS ipv4 gets imported as fixed_ip_v6 ([#125](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/125))
+
+## 1.6.0 (February 25, 2022)
 
 FEATURES:
 
@@ -9,15 +22,9 @@ FEATURES:
 * **New Resource:** `sbercloud_enterprise_project` ([#119](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/119))
 * **New Resource:** `sbercloud_identity_project` ([#123](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/123))
 
-ENHANCEMENTS:
-
-* Add VPC EIP example and more RDS examples ([#116](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/116))
-
-
 BUG FIXES:
 
 * Fix the resource schema version for `sbercloud_vpc_route` resource ([#122](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/122))
-
 
 ## 1.5.1 (February 8, 2022)
 
