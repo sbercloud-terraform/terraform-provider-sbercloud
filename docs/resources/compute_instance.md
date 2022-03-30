@@ -35,6 +35,8 @@ resource "sbercloud_compute_instance" "basic" {
   flavor_id         = data.sbercloud_compute_flavors.myflavor.ids[0]
   security_groups   = ["default"]
   availability_zone = data.sbercloud_availability_zones.myaz.names[0]
+  system_disk_type = "SSD"
+  system_disk_size = 20
 
   network {
     uuid = data.sbercloud_vpc_subnet.mynet.id
@@ -52,6 +54,8 @@ resource "sbercloud_compute_instance" "myinstance" {
   key_pair          = "my_key_pair_name"
   security_groups   = ["default"]
   availability_zone = "ru-moscow-1a"
+  system_disk_type = "SSD"
+  system_disk_size = 20
 
   network {
     uuid = "55534eaa-533a-419d-9b40-ec427ea7195a"
@@ -93,6 +97,8 @@ resource "sbercloud_compute_instance" "myinstance" {
   key_pair          = "my_key_pair_name"
   security_groups   = ["default"]
   availability_zone = "ru-moscow-1a"
+  system_disk_type = "SSD"
+  system_disk_size = 20
 
   network {
     uuid = "55534eaa-533a-419d-9b40-ec427ea7195a"
@@ -150,6 +156,8 @@ resource "sbercloud_compute_instance" "multi-net" {
   key_pair          = "my_key_pair_name"
   security_groups   = ["default"]
   availability_zone = "ru-moscow-1a"
+  system_disk_type = "SSD"
+  system_disk_size = 20
 
   network {
     uuid = "55534eaa-533a-419d-9b40-ec427ea7195a"
@@ -172,6 +180,8 @@ resource "sbercloud_compute_instance" "myinstance" {
   security_groups   = ["default"]
   availability_zone = "ru-moscow-1a"
   user_data         = "#cloud-config\nhostname: instance_1.example.com\nfqdn: instance_1.example.com"
+  system_disk_type = "SSD"
+  system_disk_size = 20
 
   network {
     uuid = "55534eaa-533a-419d-9b40-ec427ea7195a"
