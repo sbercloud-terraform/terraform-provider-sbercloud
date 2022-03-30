@@ -11,13 +11,12 @@ github.com/apparentlymart/go-cidr/cidr
 github.com/apparentlymart/go-textseg/textseg
 # github.com/apparentlymart/go-textseg/v13 v13.0.0
 github.com/apparentlymart/go-textseg/v13/textseg
-# github.com/chnsz/golangsdk v0.0.0-20220125092117-e13751718b24
+# github.com/chnsz/golangsdk v0.0.0-20220304013938-f6f092b31a44
 github.com/chnsz/golangsdk
 github.com/chnsz/golangsdk/internal
 github.com/chnsz/golangsdk/openstack
 github.com/chnsz/golangsdk/openstack/antiddos/v1/antiddos
 github.com/chnsz/golangsdk/openstack/aom/v1/icagents
-github.com/chnsz/golangsdk/openstack/apigw/apis
 github.com/chnsz/golangsdk/openstack/apigw/dedicated/v2/apigroups
 github.com/chnsz/golangsdk/openstack/apigw/dedicated/v2/apis
 github.com/chnsz/golangsdk/openstack/apigw/dedicated/v2/applications
@@ -27,8 +26,8 @@ github.com/chnsz/golangsdk/openstack/apigw/dedicated/v2/environments
 github.com/chnsz/golangsdk/openstack/apigw/dedicated/v2/instances
 github.com/chnsz/golangsdk/openstack/apigw/dedicated/v2/responses
 github.com/chnsz/golangsdk/openstack/apigw/dedicated/v2/throttles
-github.com/chnsz/golangsdk/openstack/apigw/groups
 github.com/chnsz/golangsdk/openstack/apigw/shared/v1/apis
+github.com/chnsz/golangsdk/openstack/apigw/shared/v1/environments
 github.com/chnsz/golangsdk/openstack/apigw/shared/v1/groups
 github.com/chnsz/golangsdk/openstack/autoscaling/v1/configurations
 github.com/chnsz/golangsdk/openstack/autoscaling/v1/groups
@@ -59,6 +58,7 @@ github.com/chnsz/golangsdk/openstack/cdm/v1/job
 github.com/chnsz/golangsdk/openstack/cdm/v1/link
 github.com/chnsz/golangsdk/openstack/cdn/v1/domains
 github.com/chnsz/golangsdk/openstack/cloudeyeservice/alarmrule
+github.com/chnsz/golangsdk/openstack/cloudtable/v2/clusters
 github.com/chnsz/golangsdk/openstack/common/structs
 github.com/chnsz/golangsdk/openstack/common/tags
 github.com/chnsz/golangsdk/openstack/compute/v2/extensions/attachinterfaces
@@ -113,12 +113,14 @@ github.com/chnsz/golangsdk/openstack/dms/v2/rabbitmq/instances
 github.com/chnsz/golangsdk/openstack/dns/v2/ptrrecords
 github.com/chnsz/golangsdk/openstack/dns/v2/recordsets
 github.com/chnsz/golangsdk/openstack/dns/v2/zones
+github.com/chnsz/golangsdk/openstack/drs/v3/jobs
 github.com/chnsz/golangsdk/openstack/dws/v1/cluster
 github.com/chnsz/golangsdk/openstack/dws/v2/flavors
 github.com/chnsz/golangsdk/openstack/ecs/v1/auto_recovery
 github.com/chnsz/golangsdk/openstack/ecs/v1/block_devices
 github.com/chnsz/golangsdk/openstack/ecs/v1/cloudservers
 github.com/chnsz/golangsdk/openstack/ecs/v1/flavors
+github.com/chnsz/golangsdk/openstack/ecs/v1/jobs
 github.com/chnsz/golangsdk/openstack/ecs/v1/powers
 github.com/chnsz/golangsdk/openstack/ecs/v1/servergroups
 github.com/chnsz/golangsdk/openstack/elb/v2/certificates
@@ -137,7 +139,6 @@ github.com/chnsz/golangsdk/openstack/elb/v3/loadbalancers
 github.com/chnsz/golangsdk/openstack/elb/v3/monitors
 github.com/chnsz/golangsdk/openstack/elb/v3/pools
 github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects
-github.com/chnsz/golangsdk/openstack/evs/v1/jobs
 github.com/chnsz/golangsdk/openstack/evs/v2/cloudvolumes
 github.com/chnsz/golangsdk/openstack/evs/v2/snapshots
 github.com/chnsz/golangsdk/openstack/evs/v3/volumes
@@ -190,6 +191,7 @@ github.com/chnsz/golangsdk/openstack/kms/v1/keys
 github.com/chnsz/golangsdk/openstack/lts/huawei/loggroups
 github.com/chnsz/golangsdk/openstack/lts/huawei/logstreams
 github.com/chnsz/golangsdk/openstack/maas/v1/task
+github.com/chnsz/golangsdk/openstack/modelarts/v1/notebook
 github.com/chnsz/golangsdk/openstack/mrs/v1/cluster
 github.com/chnsz/golangsdk/openstack/mrs/v1/job
 github.com/chnsz/golangsdk/openstack/mrs/v2/clusters
@@ -197,7 +199,6 @@ github.com/chnsz/golangsdk/openstack/mrs/v2/jobs
 github.com/chnsz/golangsdk/openstack/networking/v1/bandwidths
 github.com/chnsz/golangsdk/openstack/networking/v1/eips
 github.com/chnsz/golangsdk/openstack/networking/v1/routetables
-github.com/chnsz/golangsdk/openstack/networking/v1/security/securitygroups
 github.com/chnsz/golangsdk/openstack/networking/v1/subnets
 github.com/chnsz/golangsdk/openstack/networking/v1/vpcs
 github.com/chnsz/golangsdk/openstack/networking/v2/bandwidths
@@ -230,6 +231,8 @@ github.com/chnsz/golangsdk/openstack/networking/v2/peerings
 github.com/chnsz/golangsdk/openstack/networking/v2/ports
 github.com/chnsz/golangsdk/openstack/networking/v2/routes
 github.com/chnsz/golangsdk/openstack/networking/v2/subnets
+github.com/chnsz/golangsdk/openstack/networking/v3/security/groups
+github.com/chnsz/golangsdk/openstack/networking/v3/security/rules
 github.com/chnsz/golangsdk/openstack/obs
 github.com/chnsz/golangsdk/openstack/opengauss/v3/backups
 github.com/chnsz/golangsdk/openstack/opengauss/v3/instances
@@ -238,10 +241,6 @@ github.com/chnsz/golangsdk/openstack/rds/v3/configurations
 github.com/chnsz/golangsdk/openstack/rds/v3/flavors
 github.com/chnsz/golangsdk/openstack/rds/v3/instances
 github.com/chnsz/golangsdk/openstack/rds/v3/securities
-github.com/chnsz/golangsdk/openstack/rts/v1/softwareconfig
-github.com/chnsz/golangsdk/openstack/rts/v1/stackresources
-github.com/chnsz/golangsdk/openstack/rts/v1/stacks
-github.com/chnsz/golangsdk/openstack/rts/v1/stacktemplates
 github.com/chnsz/golangsdk/openstack/scm/v3/certificates
 github.com/chnsz/golangsdk/openstack/sfs/v2/shares
 github.com/chnsz/golangsdk/openstack/sfs_turbo/v1/shares
@@ -379,7 +378,29 @@ github.com/hashicorp/terraform-registry-address
 github.com/hashicorp/terraform-svchost
 # github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d
 github.com/hashicorp/yamux
-# github.com/huaweicloud/terraform-provider-huaweicloud v1.32.2-0.20220130093443-862efea42dac
+# github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.0.77
+github.com/huaweicloud/huaweicloud-sdk-go-v3/core
+github.com/huaweicloud/huaweicloud-sdk-go-v3/core/auth
+github.com/huaweicloud/huaweicloud-sdk-go-v3/core/auth/basic
+github.com/huaweicloud/huaweicloud-sdk-go-v3/core/auth/cache
+github.com/huaweicloud/huaweicloud-sdk-go-v3/core/auth/env
+github.com/huaweicloud/huaweicloud-sdk-go-v3/core/auth/global
+github.com/huaweicloud/huaweicloud-sdk-go-v3/core/auth/iam
+github.com/huaweicloud/huaweicloud-sdk-go-v3/core/auth/signer
+github.com/huaweicloud/huaweicloud-sdk-go-v3/core/config
+github.com/huaweicloud/huaweicloud-sdk-go-v3/core/converter
+github.com/huaweicloud/huaweicloud-sdk-go-v3/core/def
+github.com/huaweicloud/huaweicloud-sdk-go-v3/core/httphandler
+github.com/huaweicloud/huaweicloud-sdk-go-v3/core/impl
+github.com/huaweicloud/huaweicloud-sdk-go-v3/core/region
+github.com/huaweicloud/huaweicloud-sdk-go-v3/core/request
+github.com/huaweicloud/huaweicloud-sdk-go-v3/core/response
+github.com/huaweicloud/huaweicloud-sdk-go-v3/core/sdkerr
+github.com/huaweicloud/huaweicloud-sdk-go-v3/core/sdktime
+github.com/huaweicloud/huaweicloud-sdk-go-v3/core/utils
+github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vpc/v3
+github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vpc/v3/model
+# github.com/huaweicloud/terraform-provider-huaweicloud v1.34.1
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config
@@ -390,11 +411,14 @@ github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/interna
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/mutexkv
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/pathorcontents
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/apig
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/as
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/bms
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cbr
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cce
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cci
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cdm
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ces
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cloudtable
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/css
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dcs
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dds
@@ -403,6 +427,7 @@ github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dew
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dis
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dli
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dms
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/drs
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dws
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/eip
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/elb
@@ -411,7 +436,9 @@ github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/evs
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/fgs
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/gaussdb
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/iam
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ims
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/lb
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/modelarts
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/mrs
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/obs
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/rds
@@ -426,6 +453,8 @@ github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp
 github.com/jen20/awspolicyequivalence
 # github.com/jmespath/go-jmespath v0.4.0
 github.com/jmespath/go-jmespath
+# github.com/json-iterator/go v1.1.10
+github.com/json-iterator/go
 # github.com/keybase/go-crypto v0.0.0-20200123153347-de78d2cb44f4
 github.com/keybase/go-crypto/brainpool
 github.com/keybase/go-crypto/cast5
@@ -456,6 +485,10 @@ github.com/mitchellh/go-wordwrap
 github.com/mitchellh/mapstructure
 # github.com/mitchellh/reflectwalk v1.0.2
 github.com/mitchellh/reflectwalk
+# github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421
+github.com/modern-go/concurrent
+# github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742
+github.com/modern-go/reflect2
 # github.com/oklog/run v1.0.0
 github.com/oklog/run
 # github.com/unknwon/com v1.0.1
@@ -597,5 +630,3 @@ google.golang.org/protobuf/types/known/anypb
 google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/emptypb
 google.golang.org/protobuf/types/known/timestamppb
-# gopkg.in/yaml.v2 v2.3.0
-gopkg.in/yaml.v2

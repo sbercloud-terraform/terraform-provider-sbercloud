@@ -116,6 +116,7 @@ func (c *Config) LoadAndValidate() error {
 	if c.HwClient != nil && c.HwClient.ProjectID != "" {
 		c.RegionProjectIDMap[c.Region] = c.HwClient.ProjectID
 	}
+	log.Printf("[DEBUG] init region and project map: %#v", c.RegionProjectIDMap)
 
 	// set DomainID for IAM resource
 	if c.DomainID == "" {
@@ -226,7 +227,10 @@ func genClient(c *Config, ao golangsdk.AuthOptionsProvider) (*golangsdk.Provider
 	if err != nil {
 		return nil, err
 	}
-	transport := &http.Transport{Proxy: http.ProxyFromEnvironment, TLSClientConfig: config}
+	transport := &http.Transport{
+		Proxy:           http.ProxyFromEnvironment,
+		TLSClientConfig: config,
+	}
 
 	client.HTTPClient = http.Client{
 		Transport: &LogRoundTripper{
@@ -564,14 +568,16 @@ func (c *Config) newServiceClientByName(client *golangsdk.ProviderClient, catalo
 		projectID, _ = c.RegionProjectIDMap[region]
 	}
 
-	sc := new(golangsdk.ServiceClient)
-
+	// update ProjectID and region in ProviderClient
 	clone := new(golangsdk.ProviderClient)
 	*clone = *client
 	clone.ProjectID = projectID
 	clone.AKSKAuthOptions.ProjectId = projectID
 	clone.AKSKAuthOptions.Region = region
-	sc.ProviderClient = clone
+
+	sc := &golangsdk.ServiceClient{
+		ProviderClient: clone,
+	}
 
 	if catalog.Scope == "global" && !c.RegionClient {
 		sc.Endpoint = fmt.Sprintf("https://%s.%s/", catalog.Name, c.Cloud)
@@ -682,7 +688,7 @@ func (c *Config) getUserIDbyName(name string) (string, error) {
 // loadUserProjects will query the region-projectId pair and store it into RegionProjectIDMap
 func (c *Config) loadUserProjects(client *golangsdk.ProviderClient, region string) error {
 
-	log.Printf("Load projectID for region: %s", region)
+	log.Printf("[DEBUG] Load project ID for region: %s", region)
 	domainID := client.DomainID
 	opts := projects.ListOpts{
 		DomainID: domainID,
@@ -706,6 +712,7 @@ func (c *Config) loadUserProjects(client *golangsdk.ProviderClient, region strin
 	}
 
 	for _, item := range all {
+		log.Printf("[DEBUG] add %s/%s to region and project map", item.Name, item.ID)
 		c.RegionProjectIDMap[item.Name] = item.ID
 	}
 	return nil
@@ -731,6 +738,20 @@ func (c *Config) GetEnterpriseProjectID(d *schema.ResourceData) string {
 	}
 
 	return c.EnterpriseProjectID
+}
+
+// DataGetEnterpriseProjectID returns the enterprise_project_id that was specified in the data source.
+// If it was not set, the provider-level value is checked. The provider-level value can
+// either be set by the `enterprise_project_id` argument or by HW_ENTERPRISE_PROJECT_ID.
+// If the provider-level value is also not set, `all_granted_eps` will be returned.
+func (c *Config) DataGetEnterpriseProjectID(d *schema.ResourceData) string {
+	if v, ok := d.GetOk("enterprise_project_id"); ok {
+		return v.(string)
+	}
+	if c.EnterpriseProjectID != "" {
+		return c.EnterpriseProjectID
+	}
+	return "all_granted_eps"
 }
 
 // ********** client for Global Service **********
@@ -796,11 +817,11 @@ func (c *Config) CciV1BetaClient(region string) (*golangsdk.ServiceClient, error
 }
 
 func (c *Config) CciV1Client(region string) (*golangsdk.ServiceClient, error) {
-	return c.NewServiceClient("cciv1", region)
+	return c.NewServiceClient("cci", region)
 }
 
 func (c *Config) FgsV2Client(region string) (*golangsdk.ServiceClient, error) {
-	return c.NewServiceClient("fgsv2", region)
+	return c.NewServiceClient("fgs", region)
 }
 
 func (c *Config) SwrV2Client(region string) (*golangsdk.ServiceClient, error) {
@@ -812,19 +833,11 @@ func (c *Config) BmsV1Client(region string) (*golangsdk.ServiceClient, error) {
 }
 
 // ********** client for Storage **********
-func (c *Config) BlockStorageV1Client(region string) (*golangsdk.ServiceClient, error) {
-	return c.NewServiceClient("evsv1", region)
-}
-
 func (c *Config) BlockStorageV21Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("evsv21", region)
 }
 
 func (c *Config) BlockStorageV2Client(region string) (*golangsdk.ServiceClient, error) {
-	return c.NewServiceClient("volumev2", region)
-}
-
-func (c *Config) BlockStorageV3Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("evs", region)
 }
 
@@ -857,6 +870,10 @@ func (c *Config) NetworkingV1Client(region string) (*golangsdk.ServiceClient, er
 // the endpoint likes: https://vpc.{region}.myhuaweicloud.com/v2.0/
 func (c *Config) NetworkingV2Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("networkv2", region)
+}
+
+func (c *Config) NetworkingV3Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("vpcv3", region)
 }
 
 func (c *Config) SecurityGroupV1Client(region string) (*golangsdk.ServiceClient, error) {
@@ -953,7 +970,7 @@ func (c *Config) DwsV1Client(region string) (*golangsdk.ServiceClient, error) {
 }
 
 func (c *Config) DwsV2Client(region string) (*golangsdk.ServiceClient, error) {
-	return c.NewServiceClient("dwsV2", region)
+	return c.NewServiceClient("dwsv2", region)
 }
 
 func (c *Config) DliV1Client(region string) (*golangsdk.ServiceClient, error) {
@@ -965,7 +982,7 @@ func (c *Config) DliV2Client(region string) (*golangsdk.ServiceClient, error) {
 }
 
 func (c *Config) DisV2Client(region string) (*golangsdk.ServiceClient, error) {
-	return c.NewServiceClient("disv2", region)
+	return c.NewServiceClient("dis", region)
 }
 
 func (c *Config) DisV3Client(region string) (*golangsdk.ServiceClient, error) {
@@ -992,13 +1009,17 @@ func (c *Config) GesV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("ges", region)
 }
 
+func (c *Config) ModelArtsV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("modelarts", region)
+}
+
 // ********** client for Application **********
 func (c *Config) ApiGatewayV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("apig", region)
 }
 
 func (c *Config) ApigV2Client(region string) (*golangsdk.ServiceClient, error) {
-	return c.NewServiceClient("apig_v2", region)
+	return c.NewServiceClient("apigv2", region)
 }
 
 func (c *Config) BcsV2Client(region string) (*golangsdk.ServiceClient, error) {
@@ -1010,7 +1031,7 @@ func (c *Config) DcsV1Client(region string) (*golangsdk.ServiceClient, error) {
 }
 
 func (c *Config) DcsV2Client(region string) (*golangsdk.ServiceClient, error) {
-	return c.NewServiceClient("dcsv2", region)
+	return c.NewServiceClient("dcs", region)
 }
 
 func (c *Config) DmsV1Client(region string) (*golangsdk.ServiceClient, error) {
@@ -1050,6 +1071,10 @@ func (c *Config) GaussdbV3Client(region string) (*golangsdk.ServiceClient, error
 	return c.NewServiceClient("gaussdb", region)
 }
 
+func (c *Config) DrsV3Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("drs", region)
+}
+
 // ********** client for edge / IoT **********
 
 // IECV1Client returns a ServiceClient for IEC Endpoint APIs
@@ -1068,10 +1093,6 @@ func (c *Config) BssV2Client(region string) (*golangsdk.ServiceClient, error) {
 
 func (c *Config) MaasV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("oms", region)
-}
-
-func (c *Config) OrchestrationV1Client(region string) (*golangsdk.ServiceClient, error) {
-	return c.NewServiceClient("rts", region)
 }
 
 func (c *Config) MlsV1Client(region string) (*golangsdk.ServiceClient, error) {

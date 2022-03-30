@@ -8,7 +8,6 @@ import (
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/blockstorage/extensions/volumeactions"
-	"github.com/chnsz/golangsdk/openstack/blockstorage/v2/volumes"
 	"github.com/chnsz/golangsdk/openstack/common/tags"
 	"github.com/chnsz/golangsdk/openstack/compute/v2/extensions/bootfromvolume"
 	"github.com/chnsz/golangsdk/openstack/compute/v2/extensions/keypairs"
@@ -20,10 +19,11 @@ import (
 	"github.com/chnsz/golangsdk/openstack/ecs/v1/block_devices"
 	"github.com/chnsz/golangsdk/openstack/ecs/v1/cloudservers"
 	"github.com/chnsz/golangsdk/openstack/ecs/v1/powers"
+	"github.com/chnsz/golangsdk/openstack/evs/v2/cloudvolumes"
 	"github.com/chnsz/golangsdk/openstack/ims/v2/cloudimages"
 	"github.com/chnsz/golangsdk/openstack/networking/v1/subnets"
-	"github.com/chnsz/golangsdk/openstack/networking/v2/extensions/security/groups"
 	"github.com/chnsz/golangsdk/openstack/networking/v2/ports"
+	"github.com/chnsz/golangsdk/openstack/networking/v3/security/groups"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -467,7 +467,7 @@ func resourceComputeInstanceV2Create(d *schema.ResourceData, meta interface{}) e
 	if !hasFilledOpt(d, "block_device") && !hasFilledOpt(d, "metadata") {
 		ecsV11Client, err := config.ComputeV11Client(GetRegion(d, config))
 		vpcClient, err := config.NetworkingV1Client(GetRegion(d, config))
-		sgClient, err := config.NetworkingV2Client(GetRegion(d, config))
+		sgClient, err := config.NetworkingV3Client(GetRegion(d, config))
 		if err != nil {
 			return fmtp.Errorf("Error creating HuaweiCloud Client: %s", err)
 		}
@@ -698,7 +698,7 @@ func resourceComputeInstanceV2Create(d *schema.ResourceData, meta interface{}) e
 func resourceComputeInstanceV2Read(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*config.Config)
 	ecsClient, err := config.ComputeV1Client(GetRegion(d, config))
-	blockStorageClient, err := config.BlockStorageV3Client(GetRegion(d, config))
+	blockStorageClient, err := config.BlockStorageV2Client(GetRegion(d, config))
 	if err != nil {
 		return fmtp.Errorf("Error creating HuaweiCloud client: %s", err)
 	}
@@ -804,7 +804,7 @@ func resourceComputeInstanceV2Read(d *schema.ResourceData, meta interface{}) err
 		bds := make([]map[string]interface{}, len(server.VolumeAttached))
 		for i, b := range server.VolumeAttached {
 			// retrieve volume `size` and `type`
-			volumeInfo, err := volumes.Get(blockStorageClient, b.ID).Extract()
+			volumeInfo, err := cloudvolumes.Get(blockStorageClient, b.ID).Extract()
 			if err != nil {
 				return err
 			}
@@ -1326,9 +1326,10 @@ func resourceInstanceSchedulerHintsV2(d *schema.ResourceData, schedulerHintsRaw 
 
 func getImage(client *golangsdk.ServiceClient, id, name string) (*cloudimages.Image, error) {
 	listOpts := &cloudimages.ListOpts{
-		ID:    id,
-		Name:  name,
-		Limit: 1,
+		ID:                  id,
+		Name:                name,
+		Limit:               1,
+		EnterpriseProjectID: "all_granted_eps",
 	}
 	allPages, err := cloudimages.List(client, listOpts).AllPages()
 	if err != nil {
