@@ -18,7 +18,7 @@ resource "sbercloud_as_configuration" "my_as_config" {
     image  = var.image_id
     disk {
       size        = 40
-      volume_type = "SATA"
+      volume_type = "SSD"
       disk_type   = "SYS"
     }
     key_name  = var.keyname
@@ -37,12 +37,12 @@ resource "sbercloud_as_configuration" "my_as_config" {
     image  = var.image_id
     disk {
       size        = 40
-      volume_type = "SATA"
+      volume_type = "SSD"
       disk_type   = "SYS"
     }
     disk {
       size        = 100
-      volume_type = "SATA"
+      volume_type = "SSD"
       disk_type   = "DATA"
       kms_id      = var.kms_id
     }
@@ -62,7 +62,7 @@ resource "sbercloud_as_configuration" "my_as_config" {
     image  = var.image_id
     disk {
       size        = 40
-      volume_type = "SATA"
+      volume_type = "SSD"
       disk_type   = "SYS"
     }
     key_name  = var.keyname

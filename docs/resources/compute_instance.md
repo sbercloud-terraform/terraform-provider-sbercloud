@@ -124,7 +124,7 @@ resource "sbercloud_compute_instance" "multi-disk" {
   system_disk_size = 40
 
   data_disks {
-    type = "SATA"
+    type = "SSD"
     size = "10"
   }
   data_disks {
