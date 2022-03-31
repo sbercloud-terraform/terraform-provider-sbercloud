@@ -66,7 +66,7 @@ func TestAccEvsStorageV3Volume_image(t *testing.T) {
 
 func testAccCheckEvsStorageV3VolumeDestroy(s *terraform.State) error {
 	config := testAccProvider.Meta().(*config.Config)
-	blockStorageClient, err := config.BlockStorageV3Client(SBC_REGION_NAME)
+	blockStorageClient, err := config.BlockStorageV2Client(SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating Sbercloud evs storage client: %s", err)
 	}
@@ -97,7 +97,7 @@ func testAccCheckEvsStorageV3VolumeExists(n string, volume *volumes.Volume) reso
 		}
 
 		config := testAccProvider.Meta().(*config.Config)
-		blockStorageClient, err := config.BlockStorageV3Client(SBC_REGION_NAME)
+		blockStorageClient, err := config.BlockStorageV2Client(SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating Sbercloud evs storage client: %s", err)
 		}
@@ -129,7 +129,7 @@ func testAccCheckEvsStorageV3VolumeTags(n string, k string, v string) resource.T
 		}
 
 		config := testAccProvider.Meta().(*config.Config)
-		blockStorageClient, err := config.BlockStorageV3Client(SBC_REGION_NAME)
+		blockStorageClient, err := config.BlockStorageV2Client(SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating Sbercloud block storage client: %s", err)
 		}
@@ -169,7 +169,7 @@ resource "sbercloud_evs_volume" "test" {
   name              = "%s"
   description       = "test volume"
   availability_zone = data.sbercloud_availability_zones.test.names[0]
-  volume_type       = "SAS"
+  volume_type       = "SSD"
   size              = 12
 }
 `, rName)
@@ -187,7 +187,7 @@ data "sbercloud_images_image" "test" {
 resource "sbercloud_evs_volume" "test" {
   name              = "%s"
   availability_zone = data.sbercloud_availability_zones.test.names[0]
-  volume_type       = "SAS"
+  volume_type       = "SSD"
   size              = 40
   image_id          = data.sbercloud_images_image.test.id
 }
