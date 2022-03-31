@@ -24,7 +24,7 @@ func TestAccNetworkingV2SecGroup_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckNetworkingV2SecGroupExists(
 						"sbercloud_networking_secgroup.secgroup_1", &security_group),
-					testAccCheckNetworkingV2SecGroupRuleCount(&security_group, 2),
+					testAccCheckNetworkingV2SecGroupRuleCount(&security_group, 4),
 				),
 			},
 			{
