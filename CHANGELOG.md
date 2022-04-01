@@ -1,3 +1,13 @@
+## 1.6.2 (April 1, 2022)
+
+ENHANCEMENTS:
+
+* Add `security_token` description to provider documentation ([#133](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/133))
+
+BUG FIXES:
+
+* Fix broken creation of ECS and security group resources ([#132](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/132))
+
 ## 1.6.1 (March 30, 2022)
 
 ENHANCEMENTS:
