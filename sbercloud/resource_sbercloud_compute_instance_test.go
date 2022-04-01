@@ -265,11 +265,11 @@ resource "sbercloud_compute_instance" "test" {
   security_groups   = ["default"]
   availability_zone = data.sbercloud_availability_zones.test.names[0]
  
-  system_disk_type = "SAS"
+  system_disk_type = "SSD"
   system_disk_size = 50
 
   data_disks {
-    type = "SAS"
+    type = "SSD"
     size = "10"
   }
 

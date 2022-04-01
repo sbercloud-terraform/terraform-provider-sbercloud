@@ -150,7 +150,7 @@ func testAccComputeV2VolumeAttach_basic(rName string) string {
 resource "sbercloud_evs_volume" "test" {
   name = "%s"
   availability_zone = data.sbercloud_availability_zones.test.names[0]
-  volume_type = "SAS"
+  volume_type = "SSD"
   size = 10
 }
 
@@ -180,7 +180,7 @@ func testAccComputeV2VolumeAttach_device(rName string) string {
 resource "sbercloud_evs_volume" "test" {
   name = "%s"
   availability_zone = data.sbercloud_availability_zones.test.names[0]
-  volume_type = "SAS"
+  volume_type = "SSD"
   size = 10
 }
 

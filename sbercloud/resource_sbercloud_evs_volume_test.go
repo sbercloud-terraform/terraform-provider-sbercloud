@@ -169,7 +169,7 @@ resource "sbercloud_evs_volume" "test" {
   name              = "%s"
   description       = "test volume"
   availability_zone = data.sbercloud_availability_zones.test.names[0]
-  volume_type       = "SAS"
+  volume_type       = "SSD"
   size              = 12
 }
 `, rName)
@@ -187,7 +187,7 @@ data "sbercloud_images_image" "test" {
 resource "sbercloud_evs_volume" "test" {
   name              = "%s"
   availability_zone = data.sbercloud_availability_zones.test.names[0]
-  volume_type       = "SAS"
+  volume_type       = "SSD"
   size              = 40
   image_id          = data.sbercloud_images_image.test.id
 }

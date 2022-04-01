@@ -191,7 +191,7 @@ func Provider() *schema.Provider {
 			"sbercloud_cce_node":                        huaweicloud.ResourceCCENodeV3(),
 			"sbercloud_cce_node_pool":                   huaweicloud.ResourceCCENodePool(),
 			"sbercloud_cdm_cluster":                     cdm.ResourceCdmCluster(),
-			"sbercloud_compute_instance":                huaweicloud.ResourceComputeInstanceV2(),
+			"sbercloud_compute_instance":                ResourceComputeInstanceV2(),
 			"sbercloud_compute_interface_attach":        huaweicloud.ResourceComputeInterfaceAttachV2(),
 			"sbercloud_compute_keypair":                 huaweicloud.ResourceComputeKeypairV2(),
 			"sbercloud_compute_servergroup":             huaweicloud.ResourceComputeServerGroupV2(),
