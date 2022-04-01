@@ -87,6 +87,10 @@ The following arguments are supported:
 * `secret_key` - (Optional) The secret key of the SberCloud to use.
   If omitted, the `SBC_SECRET_KEY` environment variable is used.
 
+* `security_token` - (Optional) The security token to authenticate with a
+  [temporary security credential](https://support.hc.sbercloud.ru/en-us/api/iam/en-us_topic_0097949518.html).
+  If omitted, the `SBC_SECURITY_TOKEN` environment variable is used.
+
 * `project_name` - (Optional) The Name of the Project to login with.
   If omitted, the `SBC_PROJECT_NAME` environment variable are used.
 
