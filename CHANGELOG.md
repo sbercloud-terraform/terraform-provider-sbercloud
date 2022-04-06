@@ -1,3 +1,9 @@
+## 1.6.3 (April 4, 2022)
+
+BUG FIXES:
+
+* Fix broken creation of ECS resource with SAS disk ([#137](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/137))
+
 ## 1.6.2 (April 1, 2022)
 
 ENHANCEMENTS:
