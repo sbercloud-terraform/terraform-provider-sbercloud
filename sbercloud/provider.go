@@ -236,6 +236,8 @@ func Provider() *schema.Provider {
 			"sbercloud_lb_monitor":                      lb.ResourceMonitorV2(),
 			"sbercloud_lb_pool":                         lb.ResourcePoolV2(),
 			"sbercloud_lb_whitelist":                    lb.ResourceWhitelistV2(),
+			"sbercloud_lts_group":                       huaweicloud.ResourceLTSGroupV2(),
+			"sbercloud_lts_stream":                      huaweicloud.ResourceLTSStreamV2(),
 			"sbercloud_nat_dnat_rule":                   huaweicloud.ResourceNatDnatRuleV2(),
 			"sbercloud_nat_gateway":                     huaweicloud.ResourceNatGatewayV2(),
 			"sbercloud_nat_snat_rule":                   huaweicloud.ResourceNatSnatRuleV2(),
