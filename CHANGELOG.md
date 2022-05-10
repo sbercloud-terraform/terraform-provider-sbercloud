@@ -1,3 +1,10 @@
+## 1.7.0 (May 10, 2022)
+
+FEATURES:
+
+* **New Resource:** `sbercloud_lts_group` ([#118](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/118))
+* **New Resource:** `sbercloud_lts_stream` ([#118](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/118))
+
 ## 1.6.3 (April 4, 2022)
 
 BUG FIXES:
