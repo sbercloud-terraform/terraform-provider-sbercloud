@@ -11,7 +11,7 @@ github.com/apparentlymart/go-cidr/cidr
 github.com/apparentlymart/go-textseg/textseg
 # github.com/apparentlymart/go-textseg/v13 v13.0.0
 github.com/apparentlymart/go-textseg/v13/textseg
-# github.com/chnsz/golangsdk v0.0.0-20220304013938-f6f092b31a44
+# github.com/chnsz/golangsdk v0.0.0-20220429084636-e5b1770584a3
 github.com/chnsz/golangsdk
 github.com/chnsz/golangsdk/internal
 github.com/chnsz/golangsdk/openstack
@@ -192,13 +192,17 @@ github.com/chnsz/golangsdk/openstack/lts/huawei/loggroups
 github.com/chnsz/golangsdk/openstack/lts/huawei/logstreams
 github.com/chnsz/golangsdk/openstack/maas/v1/task
 github.com/chnsz/golangsdk/openstack/modelarts/v1/notebook
+github.com/chnsz/golangsdk/openstack/modelarts/v2/dataset
+github.com/chnsz/golangsdk/openstack/modelarts/v2/version
 github.com/chnsz/golangsdk/openstack/mrs/v1/cluster
 github.com/chnsz/golangsdk/openstack/mrs/v1/job
 github.com/chnsz/golangsdk/openstack/mrs/v2/clusters
 github.com/chnsz/golangsdk/openstack/mrs/v2/jobs
 github.com/chnsz/golangsdk/openstack/networking/v1/bandwidths
 github.com/chnsz/golangsdk/openstack/networking/v1/eips
+github.com/chnsz/golangsdk/openstack/networking/v1/ports
 github.com/chnsz/golangsdk/openstack/networking/v1/routetables
+github.com/chnsz/golangsdk/openstack/networking/v1/security/rules
 github.com/chnsz/golangsdk/openstack/networking/v1/security/securitygroups
 github.com/chnsz/golangsdk/openstack/networking/v1/subnets
 github.com/chnsz/golangsdk/openstack/networking/v1/vpcs
@@ -243,6 +247,11 @@ github.com/chnsz/golangsdk/openstack/rds/v3/flavors
 github.com/chnsz/golangsdk/openstack/rds/v3/instances
 github.com/chnsz/golangsdk/openstack/rds/v3/securities
 github.com/chnsz/golangsdk/openstack/scm/v3/certificates
+github.com/chnsz/golangsdk/openstack/servicestage/v1/repositories
+github.com/chnsz/golangsdk/openstack/servicestage/v2/applications
+github.com/chnsz/golangsdk/openstack/servicestage/v2/components
+github.com/chnsz/golangsdk/openstack/servicestage/v2/environments
+github.com/chnsz/golangsdk/openstack/servicestage/v2/metadata
 github.com/chnsz/golangsdk/openstack/sfs/v2/shares
 github.com/chnsz/golangsdk/openstack/sfs_turbo/v1/shares
 github.com/chnsz/golangsdk/openstack/smn/v2/subscriptions
@@ -250,6 +259,7 @@ github.com/chnsz/golangsdk/openstack/smn/v2/topics
 github.com/chnsz/golangsdk/openstack/swr/v2/domains
 github.com/chnsz/golangsdk/openstack/swr/v2/namespaces
 github.com/chnsz/golangsdk/openstack/swr/v2/repositories
+github.com/chnsz/golangsdk/openstack/taurusdb/v3/auditlog
 github.com/chnsz/golangsdk/openstack/taurusdb/v3/backups
 github.com/chnsz/golangsdk/openstack/taurusdb/v3/configurations
 github.com/chnsz/golangsdk/openstack/taurusdb/v3/instances
@@ -379,14 +389,14 @@ github.com/hashicorp/terraform-registry-address
 github.com/hashicorp/terraform-svchost
 # github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d
 github.com/hashicorp/yamux
-# github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.0.77
+# github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.0.84
 github.com/huaweicloud/huaweicloud-sdk-go-v3/core
 github.com/huaweicloud/huaweicloud-sdk-go-v3/core/auth
 github.com/huaweicloud/huaweicloud-sdk-go-v3/core/auth/basic
 github.com/huaweicloud/huaweicloud-sdk-go-v3/core/auth/cache
-github.com/huaweicloud/huaweicloud-sdk-go-v3/core/auth/env
 github.com/huaweicloud/huaweicloud-sdk-go-v3/core/auth/global
-github.com/huaweicloud/huaweicloud-sdk-go-v3/core/auth/iam
+github.com/huaweicloud/huaweicloud-sdk-go-v3/core/auth/helper
+github.com/huaweicloud/huaweicloud-sdk-go-v3/core/auth/internal
 github.com/huaweicloud/huaweicloud-sdk-go-v3/core/auth/signer
 github.com/huaweicloud/huaweicloud-sdk-go-v3/core/config
 github.com/huaweicloud/huaweicloud-sdk-go-v3/core/converter
@@ -399,9 +409,23 @@ github.com/huaweicloud/huaweicloud-sdk-go-v3/core/response
 github.com/huaweicloud/huaweicloud-sdk-go-v3/core/sdkerr
 github.com/huaweicloud/huaweicloud-sdk-go-v3/core/sdktime
 github.com/huaweicloud/huaweicloud-sdk-go-v3/core/utils
+github.com/huaweicloud/huaweicloud-sdk-go-v3/services/aom/v2
+github.com/huaweicloud/huaweicloud-sdk-go-v3/services/aom/v2/model
+github.com/huaweicloud/huaweicloud-sdk-go-v3/services/cpts/v1
+github.com/huaweicloud/huaweicloud-sdk-go-v3/services/cpts/v1/model
+github.com/huaweicloud/huaweicloud-sdk-go-v3/services/cts/v3
+github.com/huaweicloud/huaweicloud-sdk-go-v3/services/cts/v3/model
+github.com/huaweicloud/huaweicloud-sdk-go-v3/services/iam/v3
+github.com/huaweicloud/huaweicloud-sdk-go-v3/services/iam/v3/model
+github.com/huaweicloud/huaweicloud-sdk-go-v3/services/kps/v3
+github.com/huaweicloud/huaweicloud-sdk-go-v3/services/kps/v3/model
+github.com/huaweicloud/huaweicloud-sdk-go-v3/services/rds/v3
+github.com/huaweicloud/huaweicloud-sdk-go-v3/services/rds/v3/model
+github.com/huaweicloud/huaweicloud-sdk-go-v3/services/tms/v1
+github.com/huaweicloud/huaweicloud-sdk-go-v3/services/tms/v1/model
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vpc/v3
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vpc/v3/model
-# github.com/huaweicloud/terraform-provider-huaweicloud v1.34.1
+# github.com/huaweicloud/terraform-provider-huaweicloud v1.35.3-0.20220510065510-34c12f0b0f77
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config
@@ -411,6 +435,7 @@ github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/interna
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/internal/vault/sdk/jsonutil
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/mutexkv
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/pathorcontents
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/aom
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/apig
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/as
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/bms
@@ -420,7 +445,9 @@ github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cci
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cdm
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ces
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cloudtable
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cpts
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/css
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cts
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dcs
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dds
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/deprecated
@@ -430,6 +457,7 @@ github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dli
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dms
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/drs
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dws
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ecs
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/eip
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/elb
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/eps
@@ -444,7 +472,9 @@ github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/mrs
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/obs
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/rds
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/scm
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/servicestage
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/swr
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/tms
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/vpc
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/waf
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils
@@ -505,7 +535,7 @@ github.com/zclconf/go-cty/cty/function/stdlib
 github.com/zclconf/go-cty/cty/gocty
 github.com/zclconf/go-cty/cty/json
 github.com/zclconf/go-cty/cty/set
-# golang.org/x/crypto v0.0.0-20210616213533-5ff15b29337e
+# golang.org/x/crypto v0.0.0-20210920023735-84f357641f63
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/cast5
 golang.org/x/crypto/chacha20
@@ -513,6 +543,8 @@ golang.org/x/crypto/curve25519
 golang.org/x/crypto/curve25519/internal/field
 golang.org/x/crypto/ed25519
 golang.org/x/crypto/ed25519/internal/edwards25519
+golang.org/x/crypto/hkdf
+golang.org/x/crypto/internal/poly1305
 golang.org/x/crypto/internal/subtle
 golang.org/x/crypto/openpgp
 golang.org/x/crypto/openpgp/armor
@@ -520,7 +552,6 @@ golang.org/x/crypto/openpgp/elgamal
 golang.org/x/crypto/openpgp/errors
 golang.org/x/crypto/openpgp/packet
 golang.org/x/crypto/openpgp/s2k
-golang.org/x/crypto/poly1305
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 # golang.org/x/net v0.0.0-20210326060303-6b1517762897

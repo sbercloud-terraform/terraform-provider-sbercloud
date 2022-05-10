@@ -5,17 +5,17 @@ import (
 )
 
 func CreateURL(c *golangsdk.ServiceClient) string {
-	return c.ServiceURL("security-groups")
+	return c.ServiceURL(c.ProjectID, "security-groups")
 }
 
 func DeleteURL(c *golangsdk.ServiceClient, securityGroupId string) string {
-	return c.ServiceURL("security-groups", securityGroupId)
+	return c.ServiceURL(c.ProjectID, "security-groups", securityGroupId)
 }
 
 func GetURL(c *golangsdk.ServiceClient, securityGroupId string) string {
-	return c.ServiceURL("security-groups", securityGroupId)
+	return c.ServiceURL(c.ProjectID, "security-groups", securityGroupId)
 }
 
 func ListURL(c *golangsdk.ServiceClient) string {
-	return c.ServiceURL("security-groups")
+	return c.ServiceURL(c.ProjectID, "security-groups")
 }

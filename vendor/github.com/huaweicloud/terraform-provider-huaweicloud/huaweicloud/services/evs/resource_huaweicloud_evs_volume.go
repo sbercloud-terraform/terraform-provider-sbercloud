@@ -14,7 +14,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
 	"github.com/chnsz/golangsdk"
-	"github.com/chnsz/golangsdk/openstack/compute/v2/extensions/volumeattach"
+	"github.com/chnsz/golangsdk/openstack/ecs/v1/block_devices"
+	"github.com/chnsz/golangsdk/openstack/ecs/v1/jobs"
 	"github.com/chnsz/golangsdk/openstack/evs/v2/cloudvolumes"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -108,7 +109,7 @@ func ResourceEvsVolume() *schema.Resource {
 				ForceNew: true,
 				Default:  false,
 			},
-			"charging_mode": common.SchemeChargingMode(nil),
+			"charging_mode": common.SchemaChargingMode(nil),
 			"period_unit":   common.SchemaPeriodUnit(nil),
 			"period":        common.SchemaPeriod(nil),
 			"auto_renew":    common.SchemaAutoRenew(nil),
@@ -243,7 +244,7 @@ func resourceEvsVolumeCreate(ctx context.Context, d *schema.ResourceData, meta i
 	stateConf := &resource.StateChangeConf{
 		Pending:    []string{"creating"},
 		Target:     []string{"available"},
-		Refresh:    cloudVolumeRefreshFunc(evsV2Client, d.Id()),
+		Refresh:    CloudVolumeRefreshFunc(evsV2Client, d.Id()),
 		Timeout:    d.Timeout(schema.TimeoutCreate),
 		Delay:      3 * time.Second,
 		MinTimeout: 5 * time.Second,
@@ -386,7 +387,7 @@ func resourceEvsVolumeUpdate(ctx context.Context, d *schema.ResourceData, meta i
 		stateConf := &resource.StateChangeConf{
 			Pending:    []string{"extending"},
 			Target:     []string{"available", "in-use"},
-			Refresh:    cloudVolumeRefreshFunc(evsV2Client, d.Id()),
+			Refresh:    CloudVolumeRefreshFunc(evsV2Client, d.Id()),
 			Timeout:    d.Timeout(schema.TimeoutUpdate),
 			Delay:      10 * time.Second,
 			MinTimeout: 3 * time.Second,
@@ -425,30 +426,30 @@ func resourceEvsVolumeDelete(ctx context.Context, d *schema.ResourceData, meta i
 	// Make sure this volume is detached from all instances before deleting.
 	if len(v.Attachments) > 0 {
 		logp.Printf("[DEBUG] Start to detaching volumes.")
-		computeClient, err := config.ComputeV2Client(region)
+		computeClient, err := config.ComputeV1Client(region)
 		if err != nil {
 			return fmtp.DiagErrorf("Error creating HuaweiCloud ECS v2 client: %s", err)
 		}
 		for _, attachment := range v.Attachments {
 			logp.Printf("[DEBUG] The attachment is: %v", attachment)
-			err = volumeattach.Delete(computeClient, attachment.ServerID, attachment.AttachmentID).ExtractErr()
-			if err != nil {
-				return fmtp.DiagErrorf("An error occurred while detaching the volume from the object instance: %s", err)
+			opts := block_devices.DetachOpts{
+				ServerId: attachment.ServerID,
 			}
-		}
-
-		stateConf := &resource.StateChangeConf{
-			Pending:    []string{"in-use", "attaching", "detaching"},
-			Target:     []string{"available"},
-			Refresh:    cloudVolumeRefreshFunc(evsV2Client, d.Id()),
-			Timeout:    10 * time.Minute,
-			Delay:      10 * time.Second,
-			MinTimeout: 3 * time.Second,
-		}
-
-		_, err = stateConf.WaitForStateContext(ctx)
-		if err != nil {
-			return fmtp.DiagErrorf("Error waiting for volume (%s) to become available: %s", d.Id(), err)
+			job, err := block_devices.Detach(computeClient, attachment.AttachmentID, opts)
+			if err != nil {
+				return diag.FromErr(err)
+			}
+			stateConf := &resource.StateChangeConf{
+				Pending:    []string{"RUNNING"},
+				Target:     []string{"SUCCESS", "NOTFOUND"},
+				Refresh:    AttachmentJobRefreshFunc(computeClient, job.ID),
+				Timeout:    10 * time.Minute,
+				Delay:      10 * time.Second,
+				MinTimeout: 3 * time.Second,
+			}
+			if _, err = stateConf.WaitForState(); err != nil {
+				return diag.FromErr(err)
+			}
 		}
 	}
 
@@ -477,7 +478,7 @@ func resourceEvsVolumeDelete(ctx context.Context, d *schema.ResourceData, meta i
 	stateConf := &resource.StateChangeConf{
 		Pending:    []string{"deleting", "downloading", "available"},
 		Target:     []string{"deleted"},
-		Refresh:    cloudVolumeRefreshFunc(evsV2Client, d.Id()),
+		Refresh:    CloudVolumeRefreshFunc(evsV2Client, d.Id()),
 		Timeout:    d.Timeout(schema.TimeoutDelete),
 		Delay:      10 * time.Second,
 		MinTimeout: 3 * time.Second,
@@ -492,7 +493,21 @@ func resourceEvsVolumeDelete(ctx context.Context, d *schema.ResourceData, meta i
 	return nil
 }
 
-func cloudVolumeRefreshFunc(c *golangsdk.ServiceClient, volumeId string) resource.StateRefreshFunc {
+func AttachmentJobRefreshFunc(c *golangsdk.ServiceClient, jobId string) resource.StateRefreshFunc {
+	return func() (interface{}, string, error) {
+		resp, err := jobs.Get(c, jobId)
+		if err != nil {
+			if _, ok := err.(golangsdk.ErrDefault404); ok {
+				return resp, "NOTFOUND", nil
+			}
+			return resp, "ERROR", err
+		}
+
+		return resp, resp.Status, nil
+	}
+}
+
+func CloudVolumeRefreshFunc(c *golangsdk.ServiceClient, volumeId string) resource.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		response, err := cloudvolumes.Get(c, volumeId).Extract()
 		if err != nil {

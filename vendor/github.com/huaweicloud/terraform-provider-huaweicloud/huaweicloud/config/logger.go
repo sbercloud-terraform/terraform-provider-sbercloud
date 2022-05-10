@@ -150,6 +150,10 @@ func (lrt *LogRoundTripper) logResponse(original io.ReadCloser, contentType stri
 func formatJSON(raw []byte, maskBody bool) string {
 	var data map[string]interface{}
 
+	if len(raw) == 0 {
+		return ""
+	}
+
 	err := json.Unmarshal(raw, &data)
 	if err != nil {
 		log.Printf("[DEBUG] Unable to parse JSON: %s", err)
@@ -230,14 +234,15 @@ func maskSecurityFields(data map[string]interface{}) bool {
 func isSecurityFields(field string) bool {
 	// "password" is apply to the most request JSON body
 	// "secret" is apply to the AK/SK response JSON body
-	if strings.Contains(field, "password") || strings.Contains(field, "secret") {
+	// "securitytoken" is apply to the AK/SK response JSON body
+	if strings.Contains(field, "password") || strings.Contains(field, "secret") || strings.Contains(field, "securitytoken") {
 		return true
 	}
 
 	// "adminPass" is apply to the ecs/bms instance request JSON body
 	// "adminPwd" is apply to the css cluster request JSON body
 	// 'encrypted_user_data' is apply to the function request JSON body of FunctionGraph
-	securityFields := []string{"adminPass", "adminPwd", "encrypted_user_data"}
+	securityFields := []string{"adminPass", "adminPwd", "encrypted_user_data", "token"}
 	for _, key := range securityFields {
 		if key == field {
 			return true

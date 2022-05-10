@@ -3,6 +3,8 @@ package sbercloud
 import (
 	"sync"
 
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ecs"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -196,7 +198,7 @@ func Provider() *schema.Provider {
 			"sbercloud_compute_keypair":                 huaweicloud.ResourceComputeKeypairV2(),
 			"sbercloud_compute_servergroup":             huaweicloud.ResourceComputeServerGroupV2(),
 			"sbercloud_compute_eip_associate":           huaweicloud.ResourceComputeFloatingIPAssociateV2(),
-			"sbercloud_compute_volume_attach":           huaweicloud.ResourceComputeVolumeAttachV2(),
+			"sbercloud_compute_volume_attach":           ecs.ResourceComputeVolumeAttach(),
 			"sbercloud_ces_alarmrule":                   ces.ResourceAlarmRule(),
 			"sbercloud_dcs_instance":                    dcs.ResourceDcsInstance(),
 			"sbercloud_dds_instance":                    dds.ResourceDdsInstanceV3(),
@@ -245,9 +247,9 @@ func Provider() *schema.Provider {
 			"sbercloud_obs_bucket":                      huaweicloud.ResourceObsBucket(),
 			"sbercloud_obs_bucket_object":               huaweicloud.ResourceObsBucketObject(),
 			"sbercloud_obs_bucket_policy":               huaweicloud.ResourceObsBucketPolicy(),
-			"sbercloud_rds_instance":                    huaweicloud.ResourceRdsInstanceV3(),
-			"sbercloud_rds_parametergroup":              huaweicloud.ResourceRdsConfigurationV3(),
-			"sbercloud_rds_read_replica_instance":       huaweicloud.ResourceRdsReadReplicaInstance(),
+			"sbercloud_rds_instance":                    rds.ResourceRdsInstance(),
+			"sbercloud_rds_parametergroup":              rds.ResourceRdsConfiguration(),
+			"sbercloud_rds_read_replica_instance":       rds.ResourceRdsReadReplicaInstance(),
 			"sbercloud_sfs_access_rule":                 huaweicloud.ResourceSFSAccessRuleV2(),
 			"sbercloud_sfs_file_system":                 huaweicloud.ResourceSFSFileSystemV2(),
 			"sbercloud_sfs_turbo":                       huaweicloud.ResourceSFSTurbo(),

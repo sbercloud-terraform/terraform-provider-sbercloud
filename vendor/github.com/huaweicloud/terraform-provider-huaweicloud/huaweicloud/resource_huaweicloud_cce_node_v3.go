@@ -10,7 +10,7 @@ import (
 	"github.com/chnsz/golangsdk/openstack/cce/v3/clusters"
 	"github.com/chnsz/golangsdk/openstack/cce/v3/nodes"
 	"github.com/chnsz/golangsdk/openstack/common/tags"
-	"github.com/chnsz/golangsdk/openstack/compute/v2/servers"
+	"github.com/chnsz/golangsdk/openstack/ecs/v1/cloudservers"
 	"github.com/chnsz/golangsdk/openstack/networking/v1/eips"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -398,7 +398,7 @@ func ResourceCCENodeV3() *schema.Resource {
 			},
 
 			// charge info: charging_mode, period_unit, period, auto_renew
-			"charging_mode": schemeChargingMode(nil),
+			"charging_mode": schemaChargingMode(nil),
 			"period_unit":   schemaPeriodUnit(nil),
 			"period":        schemaPeriod(nil),
 			"auto_renew":    schemaAutoRenew(nil),
@@ -996,7 +996,7 @@ func resourceCCENodeV3Delete(ctx context.Context, d *schema.ResourceData, meta i
 			publicIP := d.Get("public_ip").(string)
 
 			resourceIDs := make([]string, 0, 2)
-			computeClient, err := config.ComputeV2Client(GetRegion(d, config))
+			computeClient, err := config.ComputeV1Client(GetRegion(d, config))
 			if err != nil {
 				return fmtp.DiagErrorf("Error creating HuaweiCloud compute client: %s", err)
 			}
@@ -1004,12 +1004,9 @@ func resourceCCENodeV3Delete(ctx context.Context, d *schema.ResourceData, meta i
 			// check whether the ecs server of the perPaid exists before unsubscribe it
 			// because resource could not be found cannot be unsubscribed
 			if serverID != "" {
-				server, err := servers.Get(computeClient, serverID).Extract()
-
+				server, err := cloudservers.Get(computeClient, serverID).Extract()
 				if err != nil {
-					if _, ok := err.(golangsdk.ErrDefault404); !ok {
-						return fmtp.DiagErrorf("Error retrieving HuaweiCloud ecs intance: %s", err)
-					}
+					return common.CheckDeletedDiag(d, err, "error retrieving compute instance")
 				} else {
 					if server.Status != "DELETED" && server.Status != "SOFT_DELETED" {
 						resourceIDs = append(resourceIDs, serverID)
@@ -1041,7 +1038,7 @@ func resourceCCENodeV3Delete(ctx context.Context, d *schema.ResourceData, meta i
 			pending := []string{"ACTIVE", "SHUTOFF"}
 			target := []string{"DELETED", "SOFT_DELETED"}
 			deleteTimeout := d.Timeout(schema.TimeoutDelete)
-			if err := waitForServerTargetState(computeClient, serverID, pending, target, deleteTimeout); err != nil {
+			if err := waitForServerTargetState(ctx, computeClient, serverID, pending, target, deleteTimeout); err != nil {
 				return fmtp.DiagErrorf("State waiting timeout: %s", err)
 			}
 
