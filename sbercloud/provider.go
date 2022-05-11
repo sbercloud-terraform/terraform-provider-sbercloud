@@ -3,6 +3,8 @@ package sbercloud
 import (
 	"sync"
 
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ecs"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -159,7 +161,7 @@ func Provider() *schema.Provider {
 			"sbercloud_kms_data_key":           huaweicloud.DataSourceKmsDataKeyV1(),
 			"sbercloud_nat_gateway":            huaweicloud.DataSourceNatGatewayV2(),
 			"sbercloud_networking_port":        huaweicloud.DataSourceNetworkingPortV2(),
-			"sbercloud_networking_secgroup":    DataSourceNetworkingSecGroupV2(),
+			"sbercloud_networking_secgroup":    huaweicloud.DataSourceNetworkingSecGroup(),
 			"sbercloud_obs_bucket_object":      huaweicloud.DataSourceObsBucketObject(),
 			"sbercloud_rds_flavors":            rds.DataSourceRdsFlavor(),
 			"sbercloud_sfs_file_system":        huaweicloud.DataSourceSFSFileSystemV2(),
@@ -196,7 +198,7 @@ func Provider() *schema.Provider {
 			"sbercloud_compute_keypair":                 huaweicloud.ResourceComputeKeypairV2(),
 			"sbercloud_compute_servergroup":             huaweicloud.ResourceComputeServerGroupV2(),
 			"sbercloud_compute_eip_associate":           huaweicloud.ResourceComputeFloatingIPAssociateV2(),
-			"sbercloud_compute_volume_attach":           huaweicloud.ResourceComputeVolumeAttachV2(),
+			"sbercloud_compute_volume_attach":           ecs.ResourceComputeVolumeAttach(),
 			"sbercloud_ces_alarmrule":                   ces.ResourceAlarmRule(),
 			"sbercloud_dcs_instance":                    dcs.ResourceDcsInstance(),
 			"sbercloud_dds_instance":                    dds.ResourceDdsInstanceV3(),
@@ -234,20 +236,22 @@ func Provider() *schema.Provider {
 			"sbercloud_lb_monitor":                      lb.ResourceMonitorV2(),
 			"sbercloud_lb_pool":                         lb.ResourcePoolV2(),
 			"sbercloud_lb_whitelist":                    lb.ResourceWhitelistV2(),
+			"sbercloud_lts_group":                       huaweicloud.ResourceLTSGroupV2(),
+			"sbercloud_lts_stream":                      huaweicloud.ResourceLTSStreamV2(),
 			"sbercloud_nat_dnat_rule":                   huaweicloud.ResourceNatDnatRuleV2(),
 			"sbercloud_nat_gateway":                     huaweicloud.ResourceNatGatewayV2(),
 			"sbercloud_nat_snat_rule":                   huaweicloud.ResourceNatSnatRuleV2(),
 			"sbercloud_network_acl":                     huaweicloud.ResourceNetworkACL(),
 			"sbercloud_network_acl_rule":                huaweicloud.ResourceNetworkACLRule(),
 			"sbercloud_networking_eip_associate":        eip.ResourceEIPAssociate(),
-			"sbercloud_networking_secgroup":             ResourceNetworkingSecGroupV2(),
-			"sbercloud_networking_secgroup_rule":        ResourceNetworkingSecGroupRuleV2(),
+			"sbercloud_networking_secgroup":             huaweicloud.ResourceNetworkingSecGroup(),
+			"sbercloud_networking_secgroup_rule":        huaweicloud.ResourceNetworkingSecGroupRule(),
 			"sbercloud_obs_bucket":                      huaweicloud.ResourceObsBucket(),
 			"sbercloud_obs_bucket_object":               huaweicloud.ResourceObsBucketObject(),
 			"sbercloud_obs_bucket_policy":               huaweicloud.ResourceObsBucketPolicy(),
-			"sbercloud_rds_instance":                    huaweicloud.ResourceRdsInstanceV3(),
-			"sbercloud_rds_parametergroup":              huaweicloud.ResourceRdsConfigurationV3(),
-			"sbercloud_rds_read_replica_instance":       huaweicloud.ResourceRdsReadReplicaInstance(),
+			"sbercloud_rds_instance":                    rds.ResourceRdsInstance(),
+			"sbercloud_rds_parametergroup":              rds.ResourceRdsConfiguration(),
+			"sbercloud_rds_read_replica_instance":       rds.ResourceRdsReadReplicaInstance(),
 			"sbercloud_sfs_access_rule":                 huaweicloud.ResourceSFSAccessRuleV2(),
 			"sbercloud_sfs_file_system":                 huaweicloud.ResourceSFSFileSystemV2(),
 			"sbercloud_sfs_turbo":                       huaweicloud.ResourceSFSTurbo(),
