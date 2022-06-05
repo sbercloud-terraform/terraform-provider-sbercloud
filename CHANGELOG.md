@@ -7,6 +7,10 @@ FEATURES:
 * **New Resource:** `sbercloud_mapreduce_cluster` ([#67](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/67))
 * **New Resource:** `sbercloud_mapreduce_job` ([#67](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/67))
 
+ENHANCEMENTS:
+
+* Update documentation for CCE objects ([#145](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/145))
+
 ## 1.7.0 (May 10, 2022)
 
 FEATURES:
