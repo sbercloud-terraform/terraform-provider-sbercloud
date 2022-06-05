@@ -2,36 +2,36 @@
 subcategory: "Cloud Container Engine (CCE)"
 ---
 
-# sbercloud\_cce\_node\_pool
+# sbercloud_cce_node_pool
 
 To get the specified node pool in a cluster.
 
 ## Example Usage
 
 ```hcl
-variable "cluster_id" { }
-variable "node_pool_name" { }
+variable "cluster_id" {}
+variable "node_pool_name" {}
 
 data "sbercloud_cce_node_pool" "node_pool" {
   cluster_id = var.cluster_id
   name       = var.node_pool_name
 }
 ```
+
 ## Argument Reference
 
 The following arguments are supported:
 
-* `region` - (Optional, String) The region in which to obtain the cce node pools.
+* `region` - (Optional, String) Specifies the region in which to obtain the CCE node pools.
   If omitted, the provider-level region will be used.
 
-* `cluster_id` - (Required, String) Specifies the id of container cluster.
+* `cluster_id` - (Required, String) Specifies the ID of container cluster.
 
 * `name` - (Optional, String) Specifies the name of the node pool.
 
-* `node_pool_id` - (Optional, String) Specifies the id of the node pool.
+* `node_pool_id` - (Optional, String) Specifies the ID of the node pool.
 
 * `status` - (Optional, String) Specifies the state of the node pool.
-
 
 ## Attributes Reference
 
@@ -43,7 +43,7 @@ In addition to all arguments above, the following attributes are exported:
 
 * `current_node_count` - Current number of nodes in the node pool.
 
-* `flavor_id` - The flavor id.
+* `flavor_id` - The flavor ID.
 
 * `type` - Node Pool type.
 
@@ -73,19 +73,11 @@ In addition to all arguments above, the following attributes are exported:
 
 * `tags` - Tags of a VM node, key/value pair format.
 
-* `root_volume` - It corresponds to the system disk related configuration.
+* `root_volume` - It corresponds to the system disk related configuration. Structure is documented below.
 
-* `data_volumes` - Represents the data disk to be created.
+* `data_volumes` - Represents the data disk to be created. Structure is documented below.
 
-The `root_volume` block supports:
-
-* `size` - Disk size in GB.
-
-* `volumetype` - Disk type.
-
-* `extend_params` - Disk expansion parameters.
-
-The `data_volumes` block supports:
+The `root_volume` and `data_volumes` blocks support:
 
 * `size` - Disk size in GB.
 

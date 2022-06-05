@@ -2,14 +2,14 @@
 subcategory: "Cloud Container Engine (CCE)"
 ---
 
-# sbercloud\_cce\_cluster
+# sbercloud_cce_cluster
 
-Provides details about all clusters and obtains certificate for accessing cluster information.
+Provides details about the cluster and obtains certificate for accessing cluster information.
 
 ## Example Usage
 
 ```hcl
-variable "cluster_name" { }
+variable "cluster_name" {}
 
 data "sbercloud_cce_cluster" "cluster" {
   name   = var.cluster_name
@@ -21,54 +21,87 @@ data "sbercloud_cce_cluster" "cluster" {
 
 The following arguments are supported:
 
-* `region` - (Optional, String) The region in which to obtain the cce clusters. If omitted, the provider-level region will be used.
+* `region` - (Optional, String) Specifies the region in which to obtain the CCE cluster. If omitted, the provider-level
+  region will be used.
 
-* `name` -  (Optional, String)The Name of the cluster resource.
- 
-* `id` - (Optional, String) The ID of container cluster.
+* `name` - (Optional, String) Specifies the name of the cluster.
 
-* `status` - (Optional, String) The state of the cluster.
+* `id` - (Optional, String) Specifies the ID of the cluster.
 
-* `cluster_type` - (Optional, String) Type of the cluster. Possible values: VirtualMachine, BareMetal.
+* `status` - (Optional, String) Specifies the status of the cluster.
+
+* `cluster_type` - (Optional, String) Specifies the type of the cluster. Possible values: **VirtualMachine**, **ARM64**.
+
+* `vpc_id` - (Optional, String) Specifies the VPC ID to which the cluster belongs.
 
 ## Attributes Reference
 
 In addition to all arguments above, the following attributes are exported:
 
-* `billingMode` - Charging mode of the cluster.
+* `billing_mode` - Charging mode of the cluster.
 
 * `description` - Cluster description.
 
 * `name` - The name of the cluster in string format.
-  
+
 * `flavor_id` - The cluster specification in string format.
 
 * `cluster_version` - The version of cluster in string format.
 
 * `container_network_cidr` - The container network segment.
 
-* `container_network_type` - The container network type: overlay_l2 , underlay_ipvlan or vpc-router.
-  
+* `container_network_type` - The container network type: **overlay_l2** , **underlay_ipvlan**, **vpc-router** or **eni**.
+
+* `eni_subnet_id` - ENI subnet ID. Specified when creating a CCE Turbo cluster.
+
+* `eni_subnet_cidr` - ENI network segment. Specified when creating a CCE Turbo cluster.
+
+* `service_network_cidr` - The service network segment.
+
+* `authentication_mode` - Authentication mode of the cluster, possible values are x509 and rbac. Defaults to **rbac**.
+
+* `masters` - Advanced configuration of master nodes. Structure is documented below.
+
+* `security_group_id` - Security group ID of the cluster.
+
 * `subnet_id` - The ID of the subnet used to create the node.
 
 * `highway_subnet_id` - The ID of the high speed network used to create bare metal nodes.
 
-**endpoints**
+* `enterprise_project_id` - The enterprise project ID of the CCE cluster.
 
-* `internal` - The address accessed within the user's subnet.
+* `endpoints` - The access addresses of kube-apiserver in the cluster. Structure is documented below.
 
-* `external` - Public network access address.
+* `certificate_clusters` - The certificate clusters. Structure is documented below.
 
-* `certificate_clusters/name` - The cluster name.
-
-* `certificate_clusters/server` - The server IP address.
-
-* `certificate_clusters/certificate_authority_data` - The certificate data.
-
-* `certificate_users/name` - The user name.
-
-* `certificate_users/client_certificate_data` - The client certificate data.
-
-* `certificate_users/client_key_data` - The client key data.
+* `certificate_users` - The certificate users. Structure is documented below.
 
 * `kube_config_raw` - Raw Kubernetes config to be used by kubectl and other compatible tools.
+
+The `masters` block supports:
+
+* `availability_zone` - The availability zone (AZ) of the master node.
+
+The `endpoints` block supports:
+
+* `url` - The URL of the cluster access address.
+
+* `type` - The type of the cluster access address.
+  + **Internal**: The user's subnet access address.
+  + **External**: The public network access address.
+
+The `certificate_clusters` block supports:
+
+* `name` - The cluster name.
+
+* `server` - The server IP address.
+
+* `certificate_authority_data` - The certificate data.
+
+The `certificate_users` block supports:
+
+* `name` - The user name.
+
+* `client_certificate_data` - The client certificate data.
+
+* `client_key_data` - The client key data.
