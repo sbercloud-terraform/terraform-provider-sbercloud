@@ -1,4 +1,4 @@
-## 1.8.0 (Unreleased)
+## 1.8.0 (June 6, 2022)
 
 FEATURES:
 
