@@ -3,6 +3,8 @@ package sbercloud
 import (
 	"sync"
 
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/mrs"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ecs"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -240,6 +242,8 @@ func Provider() *schema.Provider {
 			"sbercloud_lb_whitelist":                    lb.ResourceWhitelistV2(),
 			"sbercloud_lts_group":                       huaweicloud.ResourceLTSGroupV2(),
 			"sbercloud_lts_stream":                      huaweicloud.ResourceLTSStreamV2(),
+			"sbercloud_mapreduce_cluster":               mrs.ResourceMRSClusterV2(),
+			"sbercloud_mapreduce_job":                   mrs.ResourceMRSJobV2(),
 			"sbercloud_nat_dnat_rule":                   huaweicloud.ResourceNatDnatRuleV2(),
 			"sbercloud_nat_gateway":                     huaweicloud.ResourceNatGatewayV2(),
 			"sbercloud_nat_snat_rule":                   huaweicloud.ResourceNatSnatRuleV2(),
