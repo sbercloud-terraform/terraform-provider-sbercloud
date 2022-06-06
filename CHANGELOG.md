@@ -1,3 +1,16 @@
+## 1.8.0 (June 6, 2022)
+
+FEATURES:
+
+* **New Data Source:** `sbercloud_cce_addon_template` ([#43](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/43))
+* **New Resource:** `sbercloud_cce_addon` ([#43](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/43))
+* **New Resource:** `sbercloud_mapreduce_cluster` ([#67](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/67))
+* **New Resource:** `sbercloud_mapreduce_job` ([#67](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/67))
+
+ENHANCEMENTS:
+
+* Update documentation for CCE objects ([#145](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/145))
+
 ## 1.7.0 (May 10, 2022)
 
 FEATURES:
