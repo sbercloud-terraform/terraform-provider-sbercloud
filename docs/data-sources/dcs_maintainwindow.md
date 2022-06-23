@@ -1,19 +1,17 @@
 ---
-subcategory: "Distributed Cache Service"
+subcategory: "Distributed Cache Service (DCS)"
 ---
 
-# sbercloud\_dcs\_maintainwindow
+# sbercloud_dcs_maintainwindow
 
-Use this data source to get the ID of an available SberCloud DCS maintainwindow.
+Use this data source to get the ID of an available Sbercloud dcs maintainwindow.
 
 ## Example Usage
 
 ```hcl
-
 data "sbercloud_dcs_maintainwindow" "maintainwindow1" {
   seq = 1
 }
-
 ```
 
 ## Argument Reference
