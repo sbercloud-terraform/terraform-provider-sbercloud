@@ -1,3 +1,9 @@
+## 1.8.1 (June 24, 2022)
+
+ENHANCEMENTS:
+
+* Update documentation for DCS objects ([#146](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/146))
+
 ## 1.8.0 (June 6, 2022)
 
 FEATURES:
