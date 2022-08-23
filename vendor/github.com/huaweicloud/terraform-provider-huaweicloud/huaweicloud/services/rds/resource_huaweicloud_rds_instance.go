@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
 	"github.com/chnsz/golangsdk"
+	"github.com/chnsz/golangsdk/openstack/bss/v2/orders"
 	"github.com/chnsz/golangsdk/openstack/common/tags"
 	"github.com/chnsz/golangsdk/openstack/rds/v3/backups"
 	"github.com/chnsz/golangsdk/openstack/rds/v3/instances"
@@ -81,9 +82,10 @@ func ResourceRdsInstance() *schema.Resource {
 							ForceNew:  true,
 						},
 						"type": {
-							Type:     schema.TypeString,
-							Required: true,
-							ForceNew: true,
+							Type:             schema.TypeString,
+							Required:         true,
+							ForceNew:         true,
+							DiffSuppressFunc: utils.SuppressCaseDiffs,
 						},
 						"version": {
 							Type:     schema.TypeString,
@@ -260,11 +262,12 @@ func ResourceRdsInstance() *schema.Resource {
 				Computed: true,
 			},
 
-			// charge info: charging_mode, period_unit, period, auto_renew
+			// charge info: charging_mode, period_unit, period, auto_renew, auto_pay
 			"charging_mode": common.SchemaChargingMode(nil),
 			"period_unit":   common.SchemaPeriodUnit(nil),
 			"period":        common.SchemaPeriod(nil),
 			"auto_renew":    common.SchemaAutoRenew(nil),
+			"auto_pay":      common.SchemaAutoPay(nil),
 		},
 	}
 }
@@ -279,10 +282,7 @@ func buildRdsInstanceDBPort(d *schema.ResourceData) string {
 func isMySQLDatabase(d *schema.ResourceData) bool {
 	dbType := d.Get("db.0.type").(string)
 	// Database type is not case sensitive.
-	if strings.ToLower(dbType) == "mysql" {
-		return true
-	}
-	return false
+	return strings.ToLower(dbType) == "mysql"
 }
 
 func resourceRdsInstanceCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -320,11 +320,15 @@ func resourceRdsInstanceCreate(ctx context.Context, d *schema.ResourceData, meta
 		}
 
 		chargeInfo := &instances.ChargeInfo{
-			ChargeMode:  d.Get("charging_mode").(string),
-			PeriodType:  d.Get("period_unit").(string),
-			PeriodNum:   d.Get("period").(int),
-			IsAutoPay:   "true",
-			IsAutoRenew: d.Get("auto_renew").(string),
+			ChargeMode: d.Get("charging_mode").(string),
+			PeriodType: d.Get("period_unit").(string),
+			PeriodNum:  d.Get("period").(int),
+		}
+		if d.Get("auto_pay").(string) != "false" {
+			chargeInfo.IsAutoPay = true
+		}
+		if d.Get("auto_renew").(string) == "true" {
+			chargeInfo.IsAutoRenew = true
 		}
 		createOpts.ChargeInfo = chargeInfo
 	}
@@ -340,6 +344,17 @@ func resourceRdsInstanceCreate(ctx context.Context, d *schema.ResourceData, meta
 	d.SetId(res.Instance.Id)
 	instanceID := d.Id()
 
+	// wait for order success
+	if res.OrderId != "" {
+		bssClient, err := config.BssV2Client(config.GetRegion(d))
+		if err != nil {
+			return diag.Errorf("error creating BSS V2 client: %s", err)
+		}
+		if err := orders.WaitForOrderSuccess(bssClient, int(d.Timeout(schema.TimeoutCreate)/time.Second), res.OrderId); err != nil {
+			return diag.Errorf("error waiting for RDS order %s succuss: %s", res.OrderId, err)
+		}
+	}
+
 	if res.JobId != "" {
 		if err := checkRDSInstanceJobFinish(client, res.JobId, d.Timeout(schema.TimeoutCreate)); err != nil {
 			return diag.Errorf("error creating instance (%s): %s", instanceID, err)
@@ -353,13 +368,15 @@ func resourceRdsInstanceCreate(ctx context.Context, d *schema.ResourceData, meta
 			Timeout:      d.Timeout(schema.TimeoutCreate),
 			Delay:        20 * time.Second,
 			PollInterval: 10 * time.Second,
+			// Ensure that the instance is 'ACTIVE', not going to enter 'BACKING UP'.
+			ContinuousTargetOccurence: 2,
 		}
 		if _, err = stateConf.WaitForState(); err != nil {
 			return diag.Errorf("error waiting for RDS instance (%s) creation completed: %s", instanceID, err)
 		}
 	}
 
-	if d.Get("ssl_enable").(bool) == true {
+	if d.Get("ssl_enable").(bool) {
 		if isMySQLDatabase(d) {
 			err = configRdsInstanceSSL(d, client, d.Id())
 			if err != nil {
@@ -523,7 +540,7 @@ func resourceRdsInstanceUpdate(ctx context.Context, d *schema.ResourceData, meta
 		return diag.FromErr(err)
 	}
 
-	if err := updateRdsInstanceFlavor(d, client, instanceID); err != nil {
+	if err := updateRdsInstanceFlavor(d, config, client, instanceID, true); err != nil {
 		return diag.FromErr(err)
 	}
 
@@ -712,7 +729,8 @@ func updateRdsInstanceName(d *schema.ResourceData, client *golangsdk.ServiceClie
 	return nil
 }
 
-func updateRdsInstanceFlavor(d *schema.ResourceData, client *golangsdk.ServiceClient, instanceID string) error {
+func updateRdsInstanceFlavor(d *schema.ResourceData, config *config.Config, client *golangsdk.ServiceClient,
+	instanceID string, isSupportAutoPay bool) error {
 	if !d.HasChange("flavor") {
 		return nil
 	}
@@ -720,12 +738,26 @@ func updateRdsInstanceFlavor(d *schema.ResourceData, client *golangsdk.ServiceCl
 	resizeFlavor := instances.SpecCode{
 		Speccode: d.Get("flavor").(string),
 	}
+	if isSupportAutoPay && d.Get("auto_pay").(string) != "false" {
+		resizeFlavor.IsAutoPay = true
+	}
 	var resizeFlavorOpts instances.ResizeFlavorOpts
 	resizeFlavorOpts.ResizeFlavor = &resizeFlavor
 
-	_, err := instances.Resize(client, resizeFlavorOpts, instanceID).Extract()
+	res, err := instances.Resize(client, resizeFlavorOpts, instanceID).Extract()
 	if err != nil {
 		return fmt.Errorf("error updating instance Flavor from result: %s ", err)
+	}
+
+	// wait for order success
+	if res.OrderId != "" {
+		bssClient, err := config.BssV2Client(config.GetRegion(d))
+		if err != nil {
+			return fmt.Errorf("error creating BSS V2 client: %s", err)
+		}
+		if err := orders.WaitForOrderSuccess(bssClient, int(d.Timeout(schema.TimeoutUpdate)/time.Second), res.OrderId); err != nil {
+			return fmt.Errorf("error waiting for RDS order %s succuss: %s", res.OrderId, err)
+		}
 	}
 
 	stateConf := &resource.StateChangeConf{

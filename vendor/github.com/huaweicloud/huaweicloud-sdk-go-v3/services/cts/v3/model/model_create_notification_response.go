@@ -11,37 +11,39 @@ import (
 
 // Response Object
 type CreateNotificationResponse struct {
+
 	// 通知名称。
-
 	NotificationName *string `json:"notification_name,omitempty"`
+
 	// 操作类型，完整和自定义。
-
 	OperationType *CreateNotificationResponseOperationType `json:"operation_type,omitempty"`
+
 	// 操作事件列表。
-
 	Operations *[]Operations `json:"operations,omitempty"`
+
 	// 通知用户列表，目前最多支持对10个用户组和50个用户发起的操作进行配置。
-
 	NotifyUserList *[]NotificationUsers `json:"notify_user_list,omitempty"`
+
 	// 通知状态，启用和停用。
-
 	Status *CreateNotificationResponseStatus `json:"status,omitempty"`
+
 	// 消息通知服务(SMN)主题的唯一的资源标识，可通过查询主题列表获取该标识。
-
 	TopicId *string `json:"topic_id,omitempty"`
+
 	// 通知的唯一标识ID。
-
 	NotificationId *string `json:"notification_id,omitempty"`
+
 	// 通知类型，消息通知，函数触发器。
-
 	NotificationType *CreateNotificationResponseNotificationType `json:"notification_type,omitempty"`
+
 	// 项目ID。
-
 	ProjectId *string `json:"project_id,omitempty"`
-	// 通知规则创建时间。
 
-	CreateTime     *int64 `json:"create_time,omitempty"`
-	HttpStatusCode int    `json:"-"`
+	// 通知规则创建时间。
+	CreateTime *int64 `json:"create_time,omitempty"`
+
+	Filter         *Filter `json:"filter,omitempty"`
+	HttpStatusCode int     `json:"-"`
 }
 
 func (o CreateNotificationResponse) String() string {
@@ -71,6 +73,10 @@ func GetCreateNotificationResponseOperationTypeEnum() CreateNotificationResponse
 			value: "complete",
 		},
 	}
+}
+
+func (c CreateNotificationResponseOperationType) Value() string {
+	return c.value
 }
 
 func (c CreateNotificationResponseOperationType) MarshalJSON() ([]byte, error) {
@@ -111,6 +117,10 @@ func GetCreateNotificationResponseStatusEnum() CreateNotificationResponseStatusE
 	}
 }
 
+func (c CreateNotificationResponseStatus) Value() string {
+	return c.value
+}
+
 func (c CreateNotificationResponseStatus) MarshalJSON() ([]byte, error) {
 	return utils.Marshal(c.value)
 }
@@ -147,6 +157,10 @@ func GetCreateNotificationResponseNotificationTypeEnum() CreateNotificationRespo
 			value: "fun",
 		},
 	}
+}
+
+func (c CreateNotificationResponseNotificationType) Value() string {
+	return c.value
 }
 
 func (c CreateNotificationResponseNotificationType) MarshalJSON() ([]byte, error) {

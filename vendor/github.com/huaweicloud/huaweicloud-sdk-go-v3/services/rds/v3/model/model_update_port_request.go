@@ -11,11 +11,11 @@ import (
 
 // Request Object
 type UpdatePortRequest struct {
+
 	// 语言
-
 	XLanguage *UpdatePortRequestXLanguage `json:"X-Language,omitempty"`
-	// 实例ID。
 
+	// 实例ID。
 	InstanceId string `json:"instance_id"`
 
 	Body *UpdateDbPortRequest `json:"body,omitempty"`
@@ -48,6 +48,10 @@ func GetUpdatePortRequestXLanguageEnum() UpdatePortRequestXLanguageEnum {
 			value: "en-us",
 		},
 	}
+}
+
+func (c UpdatePortRequestXLanguage) Value() string {
+	return c.value
 }
 
 func (c UpdatePortRequestXLanguage) MarshalJSON() ([]byte, error) {

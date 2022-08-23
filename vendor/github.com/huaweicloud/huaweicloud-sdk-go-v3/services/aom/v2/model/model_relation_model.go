@@ -11,14 +11,14 @@ import (
 
 // 查询条件。
 type RelationModel struct {
+
 	// 指定查询字段的key，对应metadata里面的key 。
-
 	Key *string `json:"key,omitempty"`
+
 	// 查询条件中指定key的值。
-
 	Value *[]string `json:"value,omitempty"`
-	// 该条件与其他条件的组合方式。 AND：必须满足所有条件； OR：可以满足其中一个条件； NOT：必须不满足所有条件。
 
+	// 该条件与其他条件的组合方式。 AND：必须满足所有条件； OR：可以满足其中一个条件； NOT：必须不满足所有条件。
 	Relation *RelationModelRelation `json:"relation,omitempty"`
 }
 
@@ -53,6 +53,10 @@ func GetRelationModelRelationEnum() RelationModelRelationEnum {
 			value: "NOT",
 		},
 	}
+}
+
+func (c RelationModelRelation) Value() string {
+	return c.value
 }
 
 func (c RelationModelRelation) MarshalJSON() ([]byte, error) {

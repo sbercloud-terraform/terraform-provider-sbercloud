@@ -11,11 +11,11 @@ import (
 
 // Request Object
 type StartupInstanceRequest struct {
+
 	// 语言
-
 	XLanguage *StartupInstanceRequestXLanguage `json:"X-Language,omitempty"`
-	// 实例ID。
 
+	// 实例ID。
 	InstanceId string `json:"instance_id"`
 }
 
@@ -46,6 +46,10 @@ func GetStartupInstanceRequestXLanguageEnum() StartupInstanceRequestXLanguageEnu
 			value: "en-us",
 		},
 	}
+}
+
+func (c StartupInstanceRequestXLanguage) Value() string {
+	return c.value
 }
 
 func (c StartupInstanceRequestXLanguage) MarshalJSON() ([]byte, error) {

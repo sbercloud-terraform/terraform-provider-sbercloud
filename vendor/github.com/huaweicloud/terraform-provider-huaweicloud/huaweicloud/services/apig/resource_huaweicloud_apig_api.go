@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/hashcode"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
@@ -90,8 +91,8 @@ func ResourceApigAPIV2() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 				ValidateFunc: validation.StringMatch(regexp.MustCompile("^([\u4e00-\u9fa5A-Za-z][\u4e00-\u9fa5A-Za-z_0-9]{2,63})$"),
-					"The name contains of 3 to 64 characters, starting with a letter. Only letters, digits, "+
-						"hyphens (-) and underscore (_) are allowed."),
+					"The name consists of 3 to 64 characters and only letters, digits, underscore (_) and chinese "+
+						"characters are allowed. The name must start with a letter or chinese character."),
 			},
 			"request_method": {
 				Type:     schema.TypeString,
@@ -1294,7 +1295,7 @@ func resourceApigAPIV2Read(d *schema.ResourceData, meta interface{}) error {
 	instanceId := d.Get("instance_id").(string)
 	resp, err := apis.Get(client, instanceId, d.Id()).Extract()
 	if err != nil {
-		return fmtp.Errorf("Error getting api information from server: %s", err)
+		return common.CheckDeleted(d, err, "error getting API information from server")
 	}
 
 	return setApigAPIParameters(d, config, resp)

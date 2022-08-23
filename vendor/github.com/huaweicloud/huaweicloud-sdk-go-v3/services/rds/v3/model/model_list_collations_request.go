@@ -11,8 +11,8 @@ import (
 
 // Request Object
 type ListCollationsRequest struct {
-	// 语言
 
+	// 语言
 	XLanguage *ListCollationsRequestXLanguage `json:"X-Language,omitempty"`
 }
 
@@ -43,6 +43,10 @@ func GetListCollationsRequestXLanguageEnum() ListCollationsRequestXLanguageEnum 
 			value: "en-us",
 		},
 	}
+}
+
+func (c ListCollationsRequestXLanguage) Value() string {
+	return c.value
 }
 
 func (c ListCollationsRequestXLanguage) MarshalJSON() ([]byte, error) {

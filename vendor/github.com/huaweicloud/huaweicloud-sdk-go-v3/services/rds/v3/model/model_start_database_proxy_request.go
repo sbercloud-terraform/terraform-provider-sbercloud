@@ -11,11 +11,11 @@ import (
 
 // Request Object
 type StartDatabaseProxyRequest struct {
+
 	// 语言
-
 	XLanguage *StartDatabaseProxyRequestXLanguage `json:"X-Language,omitempty"`
-	// 实例ID。
 
+	// 实例ID。
 	InstanceId string `json:"instance_id"`
 
 	Body *OpenProxyRequest `json:"body,omitempty"`
@@ -48,6 +48,10 @@ func GetStartDatabaseProxyRequestXLanguageEnum() StartDatabaseProxyRequestXLangu
 			value: "en-us",
 		},
 	}
+}
+
+func (c StartDatabaseProxyRequestXLanguage) Value() string {
+	return c.value
 }
 
 func (c StartDatabaseProxyRequestXLanguage) MarshalJSON() ([]byte, error) {

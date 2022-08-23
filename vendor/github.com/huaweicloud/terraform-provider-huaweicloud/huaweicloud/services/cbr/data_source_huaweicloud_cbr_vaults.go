@@ -199,6 +199,10 @@ func getCbrPolicyOfSpecificVault(client *golangsdk.ServiceClient, vaultId string
 		return nil, err
 	}
 	resp, err := policies.ExtractPolicies(pages)
+	if err != nil {
+		return nil, err
+	}
+
 	if len(resp) > 0 {
 		return &resp[0], nil
 	}
@@ -226,7 +230,7 @@ func setCbrAllVaultParameters(client *golangsdk.ServiceClient, d *schema.Resourc
 			"storage":               vault.Billing.StorageUnit,
 			"auto_expand_enabled":   vault.AutoExpand,
 			"tags":                  utils.TagsToMap(vault.Tags),
-			"resources":             makeCbrVaultResources(vault.Billing.ObjectType, vault.Resources),
+			"resources":             makeVaultResources(vault.Billing.ObjectType, vault.Resources),
 		}
 
 		// Query the CBR policy which bound to the vault by ID
@@ -257,8 +261,11 @@ func dataSourceCbrVaultsV3Read(_ context.Context, d *schema.ResourceData, meta i
 	if err != nil {
 		return fmtp.DiagErrorf("Error getting vault details: %s", err)
 	}
-	resp, err := vaults.ExtractVaults(pages)
 
+	resp, err := vaults.ExtractVaults(pages)
+	if err != nil {
+		return fmtp.DiagErrorf("error getting vault details: %s", err)
+	}
 	// Use the following parameters to filter the result of the List method return: consistent_level, size and
 	// auto_expand_enabled.
 	vaultList, err := filterCbrVaults(d, *resp)

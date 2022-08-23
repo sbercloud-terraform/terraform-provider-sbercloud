@@ -131,7 +131,7 @@ func (e *exchangeParam) buildStruct(optsValue *reflect.Value, optsType reflect.T
 		case reflect.Struct:
 			log.Printf("[DEBUG] buildStruct:: convert struct for opt:%s, value:%#v", optn, optv)
 			var p map[string]interface{}
-			ok := true
+			var ok bool
 
 			// If the type of parameter is Struct, then the corresponding type in Schema is TypeList
 			if v0, ok0 := optv.([]interface{}); ok0 {
@@ -213,7 +213,7 @@ func (e *exchangeParam) convertToMap(resp interface{}) (map[string]interface{}, 
 	nb := m.ReplaceAllFunc(
 		b,
 		func(src []byte) []byte {
-			k := fmt.Sprintf("%s", src[1:len(src)-2])
+			k := string(src[1 : len(src)-2])
 			return []byte(fmt.Sprintf("\"%s\":", e.toSchemaOptName(k)))
 		},
 	)
@@ -242,9 +242,7 @@ func hasFilledOpt(d *schema.ResourceData, param string) bool {
 }
 
 func BuildCreateParam(opts interface{}, d *schema.ResourceData, nameMap *map[string]string) ([]string, error) {
-	var f funcSkipOpt
-
-	f = func(optn string, jsonTags []string, tag reflect.StructTag) bool {
+	var f funcSkipOpt = func(optn string, jsonTags []string, tag reflect.StructTag) bool {
 		if getParamTag("required", tag) == "true" {
 			return false
 		}
@@ -271,8 +269,7 @@ func BuildCreateParam(opts interface{}, d *schema.ResourceData, nameMap *map[str
 func BuildUpdateParam(opts interface{}, d *schema.ResourceData, nameMap *map[string]string) ([]string, error) {
 	hasUpdatedItems := false
 
-	var f funcSkipOpt
-	f = func(optn string, jsonTags []string, tag reflect.StructTag) bool {
+	var f funcSkipOpt = func(optn string, jsonTags []string, tag reflect.StructTag) bool {
 		v := d.HasChange(optn)
 		if !hasUpdatedItems && v {
 			hasUpdatedItems = true

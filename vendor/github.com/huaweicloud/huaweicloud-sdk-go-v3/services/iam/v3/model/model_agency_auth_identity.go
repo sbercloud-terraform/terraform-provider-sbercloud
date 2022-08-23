@@ -11,8 +11,8 @@ import (
 
 //
 type AgencyAuthIdentity struct {
-	// 认证方法，该字段内容为[\"assume_role\"]。
 
+	// 认证方法，该字段内容为[\"assume_role\"]。
 	Methods []AgencyAuthIdentityMethods `json:"methods"`
 
 	AssumeRole *IdentityAssumerole `json:"assume_role"`
@@ -43,6 +43,10 @@ func GetAgencyAuthIdentityMethodsEnum() AgencyAuthIdentityMethodsEnum {
 			value: "assume_role",
 		},
 	}
+}
+
+func (c AgencyAuthIdentityMethods) Value() string {
+	return c.value
 }
 
 func (c AgencyAuthIdentityMethods) MarshalJSON() ([]byte, error) {

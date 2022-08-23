@@ -2,16 +2,24 @@ package utils
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
+	"math/big"
+	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/chnsz/golangsdk"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/jmespath/go-jmespath"
 )
 
 // ConvertStructToMap converts an instance of struct to a map object, and
@@ -30,7 +38,7 @@ func ConvertStructToMap(obj interface{}, nameMap map[string]string) (map[string]
 	nb := m.ReplaceAllFunc(
 		b,
 		func(src []byte) []byte {
-			k := fmt.Sprintf("%s", src[1:len(src)-2])
+			k := string(src[1 : len(src)-2])
 			v, ok := nameMap[k]
 			if !ok {
 				v = strings.ToLower(k)
@@ -62,6 +70,13 @@ func ExpandToStringList(v []interface{}) []string {
 	return s
 }
 
+// ExpandToStringListPointer takes the result for an array of strings and returns a pointer of the array
+func ExpandToStringListPointer(v []interface{}) *[]string {
+	s := ExpandToStringList(v)
+
+	return &s
+}
+
 // ExpandToIntList takes the result for an array of intgers and returns a []int
 func ExpandToIntList(v []interface{}) []int {
 	s := make([]int, 0, len(v))
@@ -71,6 +86,24 @@ func ExpandToIntList(v []interface{}) []int {
 		}
 	}
 	return s
+}
+
+// ExpandToInt32List takes the result for an array of intgers and returns a []int32
+func ExpandToInt32List(v []interface{}) []int32 {
+	s := make([]int32, 0, len(v))
+	for _, val := range v {
+		if intVal, ok := val.(int); ok {
+			s = append(s, int32(intVal))
+		}
+	}
+	return s
+}
+
+// ExpandToInt32ListPointer takes the result for an array of in32 and returns a pointer of the array
+func ExpandToInt32ListPointer(v []interface{}) *[]int32 {
+	s := ExpandToInt32List(v)
+
+	return &s
 }
 
 // ExpandToStringListBySet takes the result for a set of strings and returns a []string
@@ -130,8 +163,37 @@ func NormalizeJsonString(jsonString interface{}) (string, error) {
 // StrSliceContains checks if a given string is contained in a slice
 // When anybody asks why Go needs generics, here you go.
 func StrSliceContains(haystack []string, needle string) bool {
-	for _, s := range haystack {
-		if s == needle {
+	return IsStrContainsSliceElement(needle, haystack, false, true)
+}
+
+// StrSliceContainsAnother checks whether a string slice (b) contains another string slice (s).
+func StrSliceContainsAnother(b []string, s []string) bool {
+	// The empty set is the subset of any set.
+	if len(s) < 1 {
+		return true
+	}
+	for _, v := range s {
+		if !StrSliceContains(b, v) {
+			return false
+		}
+	}
+	return true
+}
+
+// IsStrContainsSliceElement returns true if the string exists in given slice or contains in one of slice elements when
+// open exact flag. Also you can ignore case for this check.
+func IsStrContainsSliceElement(str string, sl []string, ignoreCase, isExcat bool) bool {
+	if ignoreCase {
+		str = strings.ToLower(str)
+	}
+	for _, s := range sl {
+		if ignoreCase {
+			s = strings.ToLower(s)
+		}
+		if isExcat && s == str {
+			return true
+		}
+		if !isExcat && strings.Contains(str, s) {
 			return true
 		}
 	}
@@ -168,9 +230,9 @@ func RemoveNil(data map[string]interface{}) map[string]interface{} {
 			continue
 		}
 
-		switch v.(type) {
+		switch v := v.(type) {
 		case map[string]interface{}:
-			withoutNil[k] = RemoveNil(v.(map[string]interface{}))
+			withoutNil[k] = RemoveNil(v)
 		default:
 			withoutNil[k] = v
 		}
@@ -198,6 +260,15 @@ func FormatTimeStampUTC(timestamp int64) string {
 	return time.Unix(timestamp, 0).UTC().Format("2006-01-02 15:04:05")
 }
 
+// FormatTimeStampUTC is used to unify the unix second time to UTC time string, format: YYYY-MM-DD HH:MM:SS.
+func FormatUTCTimeStamp(utcTime string) (int64, error) {
+	timestamp, err := time.Parse("2006-01-02 15:04:05", utcTime)
+	if err != nil {
+		return 0, fmt.Errorf("unable to prase the time: %s", utcTime)
+	}
+	return timestamp.Unix(), nil
+}
+
 // EncodeBase64String is used to encode a string by base64.
 func EncodeBase64String(str string) string {
 	strByte := []byte(str)
@@ -221,10 +292,12 @@ func IsIPv4Address(addr string) bool {
 
 // This function compares whether there is a containment relationship between two maps, that is,
 // whether map A (rawMap) contains map B (filterMap).
-//   Map A is {'foo': 'bar'} and filter map B is {'foo': 'bar'} or {'foo': 'bar,dor'} will return true.
-//   Map A is {'foo': 'bar'} and filter map B is {'foo': 'dor'} or {'foo1': 'bar'} will return false.
-//   Map A is {'foo': 'bar'} and filter map B is {'foo': ''} will return true.
-//   Map A is {'foo': 'bar'} and filter map B is {'': 'bar'} or {'': ''} will return false.
+//
+//	Map A is {'foo': 'bar'} and filter map B is {'foo': 'bar'} or {'foo': 'bar,dor'} will return true.
+//	Map A is {'foo': 'bar'} and filter map B is {'foo': 'dor'} or {'foo1': 'bar'} will return false.
+//	Map A is {'foo': 'bar'} and filter map B is {'foo': ''} will return true.
+//	Map A is {'foo': 'bar'} and filter map B is {'': 'bar'} or {'': ''} will return false.
+//
 // The value of filter map 'bar,for' means that the object value can be either 'bar' or 'dor'.
 // Note: There is no spaces before and after the delimiter (,).
 func HasMapContains(rawMap map[string]string, filterMap map[string]interface{}) bool {
@@ -251,4 +324,126 @@ func hasMapContain(rawMap map[string]string, filterKey, filterValue string) bool
 	} else {
 		return false
 	}
+}
+
+// WriteToPemFile is used to write the keypair to Pem file.
+func WriteToPemFile(path, privateKey string) (err error) {
+	// If the private key exists, give it write permission for editing (-rw-------) for root user.
+	if _, err = ioutil.ReadFile(path); err == nil {
+		err = os.Chmod(path, 0600)
+		if err != nil {
+			return
+		}
+
+		defer func() {
+			// read-only permission (-r--------).
+			mErr := multierror.Append(err, os.Chmod(path, 0400))
+			err = mErr.ErrorOrNil()
+		}()
+	}
+	if err = ioutil.WriteFile(path, []byte(privateKey), 0600); err != nil {
+		return err
+	}
+	return nil
+}
+
+/*
+MarshalValue is used to marshal the value of struct in huaweicloud-sdk-go-v3, like this:
+type Xxxx struct { value string }
+*/
+func MarshalValue(i interface{}) string {
+	if i == nil {
+		return ""
+	}
+
+	jsonRaw, err := json.Marshal(i)
+	if err != nil {
+		log.Printf("[WARN] failed to marshal %#v: %s", i, err)
+		return ""
+	}
+
+	return strings.Trim(string(jsonRaw), `"`)
+}
+
+// RandomString returns a random string with a fixed length. You can also define a custom random character set.
+// Note: make sure the number is not a negative integer or a big integer.
+func RandomString(n int, allowedChars ...[]rune) (result string) {
+	var letters []rune
+
+	if len(allowedChars) == 0 {
+		// Using default seed.
+		letters = []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
+	} else {
+		letters = allowedChars[0]
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[ERROR] The number (input n) cannot be a negative integer or a large integer: %#v", r)
+		}
+	}()
+	b := make([]rune, n)
+	for i := range b {
+		n, _ := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
+		b[i] = letters[n.Int64()]
+	}
+
+	result = string(b)
+	return
+}
+
+// IsDebugOrHigher returns a bool type parameter, which specifies whether to print log
+var validLevels = []string{"TRACE", "DEBUG", "INFO", "WARN", "ERROR"}
+
+func IsDebugOrHigher() bool {
+	logLevel := os.Getenv("TF_LOG_PROVIDER")
+	if logLevel == "" {
+		logLevel = os.Getenv("TF_LOG")
+	}
+
+	if logLevel != "" {
+		if isValidLogLevel(logLevel) {
+			logLevel = strings.ToUpper(logLevel)
+			return logLevel == "DEBUG" || logLevel == "TRACE"
+		} else {
+			log.Printf("[WARN] Invalid log level: %q. Valid levels are: %+v", logLevel, validLevels)
+		}
+	}
+	return false
+}
+
+func isValidLogLevel(level string) bool {
+	for _, l := range validLevels {
+		if strings.ToUpper(level) == string(l) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// PathSearch evaluates a JMESPath expression against input data and returns the result.
+func PathSearch(expression string, obj interface{}, defaultValue interface{}) interface{} {
+	v, err := jmespath.Search(expression, obj)
+	if err != nil {
+		log.Printf("Error fetching metadata access: %s", err.Error())
+		return defaultValue
+	}
+	return v
+}
+
+// FlattenResponse returns the api response body if it's not empty
+func FlattenResponse(resp *http.Response) (interface{}, error) {
+	var respBody interface{}
+	defer resp.Body.Close()
+	// Don't decode JSON when there is no content
+	if resp.StatusCode == http.StatusNoContent {
+		_, err := io.Copy(ioutil.Discard, resp.Body)
+		return resp, err
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
+		return nil, err
+	}
+	return respBody, nil
 }

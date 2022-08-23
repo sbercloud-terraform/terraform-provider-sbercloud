@@ -11,11 +11,11 @@ import (
 
 // Request Object
 type SwitchSslRequest struct {
+
 	// 语言
-
 	XLanguage *SwitchSslRequestXLanguage `json:"X-Language,omitempty"`
-	// 实例ID。
 
+	// 实例ID。
 	InstanceId string `json:"instance_id"`
 
 	Body *SslOptionRequest `json:"body,omitempty"`
@@ -48,6 +48,10 @@ func GetSwitchSslRequestXLanguageEnum() SwitchSslRequestXLanguageEnum {
 			value: "en-us",
 		},
 	}
+}
+
+func (c SwitchSslRequestXLanguage) Value() string {
+	return c.value
 }
 
 func (c SwitchSslRequestXLanguage) MarshalJSON() ([]byte, error) {

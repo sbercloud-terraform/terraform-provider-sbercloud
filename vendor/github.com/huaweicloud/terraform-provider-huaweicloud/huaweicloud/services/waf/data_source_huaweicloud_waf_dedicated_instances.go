@@ -28,6 +28,7 @@ func DataSourceWafDedicatedInstancesV1() *schema.Resource {
 			"id": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Computed: true,
 			},
 			"name": {
 				Type:     schema.TypeString,
@@ -122,7 +123,7 @@ func dataSourceWafDedicatedInstanceRead(_ context.Context, d *schema.ResourceDat
 
 		if n, ok := d.GetOk("name"); ok {
 			// If the instance name does not match name form schema, then clear the items
-			if strings.Index(strings.ToLower(instance.InstanceName), strings.ToLower(n.(string))) == -1 {
+			if !strings.Contains(strings.ToLower(instance.InstanceName), strings.ToLower(n.(string))) {
 				items = []instances.DedicatedInstance{}
 			}
 		}

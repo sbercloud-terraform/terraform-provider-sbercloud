@@ -11,11 +11,11 @@ import (
 
 // Request Object
 type ChangeOpsWindowRequest struct {
+
 	// 语言
-
 	XLanguage *ChangeOpsWindowRequestXLanguage `json:"X-Language,omitempty"`
-	// 实例ID。
 
+	// 实例ID。
 	InstanceId string `json:"instance_id"`
 
 	Body *OpsWindowRequest `json:"body,omitempty"`
@@ -48,6 +48,10 @@ func GetChangeOpsWindowRequestXLanguageEnum() ChangeOpsWindowRequestXLanguageEnu
 			value: "en-us",
 		},
 	}
+}
+
+func (c ChangeOpsWindowRequestXLanguage) Value() string {
+	return c.value
 }
 
 func (c ChangeOpsWindowRequestXLanguage) MarshalJSON() ([]byte, error) {

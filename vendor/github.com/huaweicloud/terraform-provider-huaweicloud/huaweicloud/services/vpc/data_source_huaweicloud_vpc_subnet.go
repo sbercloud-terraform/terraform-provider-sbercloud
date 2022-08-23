@@ -26,10 +26,12 @@ func DataSourceVpcSubnetV1() *schema.Resource {
 			"name": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Computed: true,
 			},
 			"cidr": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Computed: true,
 			},
 			"dns_list": {
 				Type:     schema.TypeSet,
@@ -40,14 +42,17 @@ func DataSourceVpcSubnetV1() *schema.Resource {
 			"status": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Computed: true,
 			},
 			"vpc_id": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Computed: true,
 			},
 			"gateway_ip": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Computed: true,
 			},
 			"dhcp_enable": {
 				Type:     schema.TypeBool,
@@ -56,14 +61,17 @@ func DataSourceVpcSubnetV1() *schema.Resource {
 			"primary_dns": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Computed: true,
 			},
 			"secondary_dns": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Computed: true,
 			},
 			"availability_zone": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Computed: true,
 			},
 			"subnet_id": {
 				Type:     schema.TypeString,
@@ -117,7 +125,7 @@ func dataSourceVpcSubnetV1Read(d *schema.ResourceData, meta interface{}) error {
 		return fmtp.Errorf("Unable to retrieve subnets: %s", err)
 	}
 
-	if refinedSubnets == nil || len(refinedSubnets) == 0 {
+	if len(refinedSubnets) == 0 {
 		return fmtp.Errorf("No matching subnet found. " +
 			"Please change your search criteria and try again.")
 	}

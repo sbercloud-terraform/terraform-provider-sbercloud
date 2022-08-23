@@ -11,11 +11,11 @@ import (
 
 // Request Object
 type StartInstanceEnlargeVolumeActionRequest struct {
+
 	// 语言
-
 	XLanguage *StartInstanceEnlargeVolumeActionRequestXLanguage `json:"X-Language,omitempty"`
-	// 实例ID。
 
+	// 实例ID。
 	InstanceId string `json:"instance_id"`
 
 	Body *EnlargeVolume `json:"body,omitempty"`
@@ -48,6 +48,10 @@ func GetStartInstanceEnlargeVolumeActionRequestXLanguageEnum() StartInstanceEnla
 			value: "en-us",
 		},
 	}
+}
+
+func (c StartInstanceEnlargeVolumeActionRequestXLanguage) Value() string {
+	return c.value
 }
 
 func (c StartInstanceEnlargeVolumeActionRequestXLanguage) MarshalJSON() ([]byte, error) {

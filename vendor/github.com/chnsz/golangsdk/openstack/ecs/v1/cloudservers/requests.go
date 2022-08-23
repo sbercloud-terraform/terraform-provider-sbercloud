@@ -96,6 +96,8 @@ type PublicIp struct {
 	Id string `json:"id,omitempty"`
 
 	Eip *Eip `json:"eip,omitempty"`
+
+	DeleteOnTermination bool `json:"delete_on_termination,omitempty"`
 }
 
 type Eip struct {
@@ -174,6 +176,7 @@ type ServerExtendParam struct {
 type MetaData struct {
 	OpSvcUserId string `json:"op_svc_userid,omitempty"`
 	AgencyName  string `json:"agency_name,omitempty"`
+	AgentList   string `json:"__support_agent_list,omitempty"`
 }
 
 type SecurityGroup struct {

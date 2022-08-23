@@ -11,11 +11,11 @@ import (
 
 // Request Object
 type ChangeTheDelayThresholdRequest struct {
+
 	// 语言
-
 	XLanguage *ChangeTheDelayThresholdRequestXLanguage `json:"X-Language,omitempty"`
-	// 实例ID。
 
+	// 实例ID。
 	InstanceId string `json:"instance_id"`
 
 	Body *ChangingTheDelayThresholdRequestBody `json:"body,omitempty"`
@@ -48,6 +48,10 @@ func GetChangeTheDelayThresholdRequestXLanguageEnum() ChangeTheDelayThresholdReq
 			value: "en-us",
 		},
 	}
+}
+
+func (c ChangeTheDelayThresholdRequestXLanguage) Value() string {
+	return c.value
 }
 
 func (c ChangeTheDelayThresholdRequestXLanguage) MarshalJSON() ([]byte, error) {

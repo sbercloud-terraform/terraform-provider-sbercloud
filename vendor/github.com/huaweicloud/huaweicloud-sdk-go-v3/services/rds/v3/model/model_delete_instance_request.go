@@ -11,11 +11,11 @@ import (
 
 // Request Object
 type DeleteInstanceRequest struct {
+
 	// 语言
-
 	XLanguage *DeleteInstanceRequestXLanguage `json:"X-Language,omitempty"`
-	// 实例ID。
 
+	// 实例ID。
 	InstanceId string `json:"instance_id"`
 }
 
@@ -46,6 +46,10 @@ func GetDeleteInstanceRequestXLanguageEnum() DeleteInstanceRequestXLanguageEnum 
 			value: "en-us",
 		},
 	}
+}
+
+func (c DeleteInstanceRequestXLanguage) Value() string {
+	return c.value
 }
 
 func (c DeleteInstanceRequestXLanguage) MarshalJSON() ([]byte, error) {

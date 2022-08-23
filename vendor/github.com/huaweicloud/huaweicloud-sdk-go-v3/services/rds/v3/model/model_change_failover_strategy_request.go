@@ -11,11 +11,11 @@ import (
 
 // Request Object
 type ChangeFailoverStrategyRequest struct {
+
 	// 语言
-
 	XLanguage *ChangeFailoverStrategyRequestXLanguage `json:"X-Language,omitempty"`
-	// 实例ID。
 
+	// 实例ID。
 	InstanceId string `json:"instance_id"`
 
 	Body *FailoverStrategyRequest `json:"body,omitempty"`
@@ -48,6 +48,10 @@ func GetChangeFailoverStrategyRequestXLanguageEnum() ChangeFailoverStrategyReque
 			value: "en-us",
 		},
 	}
+}
+
+func (c ChangeFailoverStrategyRequestXLanguage) Value() string {
+	return c.value
 }
 
 func (c ChangeFailoverStrategyRequestXLanguage) MarshalJSON() ([]byte, error) {

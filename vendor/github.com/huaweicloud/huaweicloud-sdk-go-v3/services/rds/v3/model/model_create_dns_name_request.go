@@ -11,11 +11,11 @@ import (
 
 // Request Object
 type CreateDnsNameRequest struct {
+
 	// 语言
-
 	XLanguage *CreateDnsNameRequestXLanguage `json:"X-Language,omitempty"`
-	// 实例ID。
 
+	// 实例ID。
 	InstanceId string `json:"instance_id"`
 
 	Body *CreateDnsNameRequestBody `json:"body,omitempty"`
@@ -48,6 +48,10 @@ func GetCreateDnsNameRequestXLanguageEnum() CreateDnsNameRequestXLanguageEnum {
 			value: "en-us",
 		},
 	}
+}
+
+func (c CreateDnsNameRequestXLanguage) Value() string {
+	return c.value
 }
 
 func (c CreateDnsNameRequestXLanguage) MarshalJSON() ([]byte, error) {

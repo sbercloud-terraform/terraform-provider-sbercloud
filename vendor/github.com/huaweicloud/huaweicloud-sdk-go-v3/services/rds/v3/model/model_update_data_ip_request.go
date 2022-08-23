@@ -11,11 +11,11 @@ import (
 
 // Request Object
 type UpdateDataIpRequest struct {
+
 	// 语言
-
 	XLanguage *UpdateDataIpRequestXLanguage `json:"X-Language,omitempty"`
-	// 实例ID。
 
+	// 实例ID。
 	InstanceId string `json:"instance_id"`
 
 	Body *DataIpRequest `json:"body,omitempty"`
@@ -48,6 +48,10 @@ func GetUpdateDataIpRequestXLanguageEnum() UpdateDataIpRequestXLanguageEnum {
 			value: "en-us",
 		},
 	}
+}
+
+func (c UpdateDataIpRequestXLanguage) Value() string {
+	return c.value
 }
 
 func (c UpdateDataIpRequestXLanguage) MarshalJSON() ([]byte, error) {

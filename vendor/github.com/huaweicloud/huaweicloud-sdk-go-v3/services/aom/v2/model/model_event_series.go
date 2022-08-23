@@ -11,11 +11,11 @@ import (
 
 // 事件或者告警统计值统计结果元数据。
 type EventSeries struct {
+
 	// 事件或者告警级别枚举类型。
-
 	EventSeverity *EventSeriesEventSeverity `json:"event_severity,omitempty"`
-	// 事件或者告警统计结果。
 
+	// 事件或者告警统计结果。
 	Values *[]int32 `json:"values,omitempty"`
 }
 
@@ -54,6 +54,10 @@ func GetEventSeriesEventSeverityEnum() EventSeriesEventSeverityEnum {
 			value: "Info",
 		},
 	}
+}
+
+func (c EventSeriesEventSeverity) Value() string {
+	return c.value
 }
 
 func (c EventSeriesEventSeverity) MarshalJSON() ([]byte, error) {

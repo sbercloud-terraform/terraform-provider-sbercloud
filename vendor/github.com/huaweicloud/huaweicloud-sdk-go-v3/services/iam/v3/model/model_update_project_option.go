@@ -11,8 +11,8 @@ import (
 
 //
 type UpdateProjectOption struct {
-	// 项目的状态信息，参数的值为\"suspended\"或\"normal\"。 - status值为\"suspended\"时，会将项目设置为冻结状态。 - status值为\"normal\"时，会将项目设置为正常（解冻）状态。
 
+	// 项目的状态信息，参数的值为\"suspended\"或\"normal\"。 - status值为\"suspended\"时，会将项目设置为冻结状态。 - status值为\"normal\"时，会将项目设置为正常（解冻）状态。
 	Status UpdateProjectOptionStatus `json:"status"`
 }
 
@@ -43,6 +43,10 @@ func GetUpdateProjectOptionStatusEnum() UpdateProjectOptionStatusEnum {
 			value: "normal",
 		},
 	}
+}
+
+func (c UpdateProjectOptionStatus) Value() string {
+	return c.value
 }
 
 func (c UpdateProjectOptionStatus) MarshalJSON() ([]byte, error) {

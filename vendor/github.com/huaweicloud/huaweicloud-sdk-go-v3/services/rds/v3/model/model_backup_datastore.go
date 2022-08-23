@@ -10,11 +10,11 @@ import (
 )
 
 type BackupDatastore struct {
+
 	// 数据库引擎，不区分大小写：  - MySQL - PostgreSQL - SQLServer
-
 	Type BackupDatastoreType `json:"type"`
-	// 数据库版本。
 
+	// 数据库版本。
 	Version string `json:"version"`
 }
 
@@ -49,6 +49,10 @@ func GetBackupDatastoreTypeEnum() BackupDatastoreTypeEnum {
 			value: "SQLServer",
 		},
 	}
+}
+
+func (c BackupDatastoreType) Value() string {
+	return c.value
 }
 
 func (c BackupDatastoreType) MarshalJSON() ([]byte, error) {

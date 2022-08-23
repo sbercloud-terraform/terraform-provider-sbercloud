@@ -11,11 +11,11 @@ import (
 
 // Request Object
 type PushEventsRequest struct {
+
 	// 告警所属的企业项目id。
-
 	XEnterprisePrjectId *string `json:"x-enterprise-prject-id,omitempty"`
-	// 接口请求动作。action=clear代表清除告警，不传或者传其他值默认为上报动作。
 
+	// 接口请求动作。action=clear代表清除告警，不传或者传其他值默认为上报动作。
 	Action *PushEventsRequestAction `json:"action,omitempty"`
 
 	Body *EventList `json:"body,omitempty"`
@@ -44,6 +44,10 @@ func GetPushEventsRequestActionEnum() PushEventsRequestActionEnum {
 			value: "clear",
 		},
 	}
+}
+
+func (c PushEventsRequestAction) Value() string {
+	return c.value
 }
 
 func (c PushEventsRequestAction) MarshalJSON() ([]byte, error) {

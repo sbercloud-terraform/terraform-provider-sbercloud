@@ -11,11 +11,11 @@ import (
 
 // Request Object
 type ListDatastoresRequest struct {
+
 	// 语言
-
 	XLanguage *string `json:"X-Language,omitempty"`
-	// 数据库引擎。支持的引擎如下，不区分大小写： MySQL PostgreSQL SQLServer
 
+	// 数据库引擎。支持的引擎如下，不区分大小写： MySQL PostgreSQL SQLServer
 	DatabaseName ListDatastoresRequestDatabaseName `json:"database_name"`
 }
 
@@ -50,6 +50,10 @@ func GetListDatastoresRequestDatabaseNameEnum() ListDatastoresRequestDatabaseNam
 			value: "SQLServer",
 		},
 	}
+}
+
+func (c ListDatastoresRequestDatabaseName) Value() string {
+	return c.value
 }
 
 func (c ListDatastoresRequestDatabaseName) MarshalJSON() ([]byte, error) {

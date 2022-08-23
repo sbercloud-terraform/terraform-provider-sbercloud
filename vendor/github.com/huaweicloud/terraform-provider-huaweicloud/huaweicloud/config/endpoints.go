@@ -38,6 +38,7 @@ var multiCatalogKeys = map[string][]string{
 	"apig":         {"apigv2"},
 	"modelarts":    {"modelartsv2"},
 	"servicestage": {"servicestagev2"},
+	"smn":          {"smn-tag"},
 }
 
 // GetServiceDerivedCatalogKeys returns the derived catalog keys of a service.
@@ -346,6 +347,18 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		ResourceBase: "notifications",
 		Product:      "SMN",
 	},
+	"smn-tag": {
+		Name:    "smn",
+		Version: "v2",
+		Product: "SMN",
+	},
+	"sms": {
+		Name:             "sms.ap-southeast-1",
+		Version:          "v3",
+		Scope:            "global",
+		WithOutProjectID: true,
+		Product:          "SMS",
+	},
 	"tms": {
 		Name:             "tms",
 		Version:          "v1.0",
@@ -481,6 +494,11 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Version: "v2",
 		Product: "BCS",
 	},
+	"cse": {
+		Name:    "cse",
+		Version: "v2",
+		Product: "CSE",
+	},
 	"dcsv1": {
 		Name:             "dcs",
 		Version:          "v1.0",
@@ -562,5 +580,29 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Name:    "cpts",
 		Version: "v1",
 		Product: "CPTS",
+	},
+
+	"live": {
+		Name:    "live",
+		Version: "v1",
+		Product: "Live",
+	},
+
+	"mpc": {
+		Name:    "mpc",
+		Version: "v1",
+		Product: "MPC",
+	},
+
+	"iotda": {
+		Name:    "iotda",
+		Version: "v5",
+		Product: "IoTDA",
+	},
+
+	"vod": {
+		Name:    "vod",
+		Version: "v1",
+		Product: "VOD",
 	},
 }

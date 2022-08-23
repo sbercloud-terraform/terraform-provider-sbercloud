@@ -11,11 +11,11 @@ import (
 
 // Request Object
 type UpdateInstanceNameRequest struct {
+
 	// 语言
-
 	XLanguage *UpdateInstanceNameRequestXLanguage `json:"X-Language,omitempty"`
-	// 实例ID。
 
+	// 实例ID。
 	InstanceId string `json:"instance_id"`
 
 	Body *ModifiyInstanceNameRequest `json:"body,omitempty"`
@@ -48,6 +48,10 @@ func GetUpdateInstanceNameRequestXLanguageEnum() UpdateInstanceNameRequestXLangu
 			value: "en-us",
 		},
 	}
+}
+
+func (c UpdateInstanceNameRequestXLanguage) Value() string {
+	return c.value
 }
 
 func (c UpdateInstanceNameRequestXLanguage) MarshalJSON() ([]byte, error) {

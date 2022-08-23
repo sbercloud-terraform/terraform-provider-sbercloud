@@ -21,26 +21,32 @@ func DataSourceVpcRouteV2() *schema.Resource {
 			"type": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Computed: true,
 			},
 			"nexthop": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Computed: true,
 			},
 			"destination": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Computed: true,
 			},
 			"tenant_id": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Computed: true,
 			},
 			"vpc_id": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Computed: true,
 			},
 			"id": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Computed: true,
 			},
 		},
 	}
@@ -62,8 +68,11 @@ func dataSourceVpcRouteV2Read(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	pages, err := routes.List(vpcRouteClient, listOpts).AllPages()
-	refinedRoutes, err := routes.ExtractRoutes(pages)
+	if err != nil {
+		return fmtp.Errorf("Unable to retrieve vpc routes: %s", err)
+	}
 
+	refinedRoutes, err := routes.ExtractRoutes(pages)
 	if err != nil {
 		return fmtp.Errorf("Unable to retrieve vpc routes: %s", err)
 	}

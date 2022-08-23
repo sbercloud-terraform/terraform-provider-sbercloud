@@ -13,11 +13,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/unknwon/com"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
 // MAXFieldLength is the maximum string length of single field when logging
-const MAXFieldLength int = 256
+const MAXFieldLength int = 1024
 
 var maxTimeout = 10 * time.Minute
 
@@ -25,7 +25,6 @@ var maxTimeout = 10 * time.Minute
 // customize the default http client RoundTripper to allow for logging.
 type LogRoundTripper struct {
 	Rt         http.RoundTripper
-	OsDebug    bool
 	MaxRetries int
 }
 
@@ -51,15 +50,13 @@ func (lrt *LogRoundTripper) RoundTrip(request *http.Request) (*http.Response, er
 
 	var err error
 
-	if lrt.OsDebug {
-		log.Printf("[DEBUG] API Request URL: %s %s", request.Method, request.URL)
-		log.Printf("[DEBUG] API Request Headers:\n%s", FormatHeaders(request.Header, "\n"))
+	log.Printf("[DEBUG] API Request URL: %s %s", request.Method, request.URL)
+	log.Printf("[DEBUG] API Request Headers:\n%s", FormatHeaders(request.Header, "\n"))
 
-		if request.Body != nil {
-			request.Body, err = lrt.logRequest(request.Body, request.Header.Get("Content-Type"))
-			if err != nil {
-				return nil, err
-			}
+	if request.Body != nil {
+		request.Body, err = lrt.logRequest(request.Body, request.Header.Get("Content-Type"))
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -76,28 +73,23 @@ func (lrt *LogRoundTripper) RoundTrip(request *http.Request) (*http.Response, er
 	for response == nil {
 
 		if retry > lrt.MaxRetries {
-			if lrt.OsDebug {
-				log.Printf("[DEBUG] connection error, retries exhausted. Aborting")
-			}
+			log.Printf("[DEBUG] connection error, retries exhausted. Aborting")
 			err = fmt.Errorf("connection error, retries exhausted. Aborting. Last error was: %s", err)
 			return nil, err
 		}
 
-		if lrt.OsDebug {
-			log.Printf("[DEBUG] connection error, retry number %d: %s", retry, err)
-		}
+		log.Printf("[DEBUG] connection error, retry number %d: %s", retry, err)
+
 		//lintignore:R018
 		time.Sleep(retryTimeout(retry))
 		response, err = lrt.Rt.RoundTrip(request)
 		retry++
 	}
 
-	if lrt.OsDebug {
-		log.Printf("[DEBUG] API Response Code: %d", response.StatusCode)
-		log.Printf("[DEBUG] API Response Headers:\n%s", FormatHeaders(response.Header, "\n"))
+	log.Printf("[DEBUG] API Response Code: %d", response.StatusCode)
+	log.Printf("[DEBUG] API Response Headers:\n%s", FormatHeaders(response.Header, "\n"))
 
-		response.Body, err = lrt.logResponse(response.Body, response.Header.Get("Content-Type"))
-	}
+	response.Body, err = lrt.logResponse(response.Body, response.Header.Get("Content-Type"))
 
 	return response, err
 }
@@ -184,17 +176,14 @@ func formatJSON(raw []byte, maskBody bool) string {
 	return string(pretty)
 }
 
-// REDACT_HEADERS is a list of headers that need to be redacted
-var REDACT_HEADERS = []string{
-	"x-auth-token", "x-security-token", "x-service-token",
-	"x-subject-token", "x-storage-token", "authorization",
-}
-
-// RedactHeaders processes a headers object, returning a redacted list
+// RedactHeaders processes a headers object, returning a redacted list.
 func RedactHeaders(headers http.Header) (processedHeaders []string) {
+	// sensitiveWords is a list of headers that need to be redacted.
+	var sensitiveWords = []string{"token", "authorization"}
+
 	for name, header := range headers {
 		for _, v := range header {
-			if com.IsSliceContainsStr(REDACT_HEADERS, name) {
+			if utils.IsStrContainsSliceElement(name, sensitiveWords, true, false) {
 				processedHeaders = append(processedHeaders, fmt.Sprintf("%v: %v", name, "***"))
 			} else {
 				processedHeaders = append(processedHeaders, fmt.Sprintf("%v: %v", name, v))
@@ -214,16 +203,15 @@ func FormatHeaders(headers http.Header, seperator string) string {
 
 func maskSecurityFields(data map[string]interface{}) bool {
 	for k, val := range data {
-		switch val.(type) {
+		switch val := val.(type) {
 		case string:
 			if isSecurityFields(k) {
 				data[k] = "***"
-			} else if len(val.(string)) > MAXFieldLength {
+			} else if len(val) > MAXFieldLength {
 				data[k] = "** large string **"
 			}
 		case map[string]interface{}:
-			subData := val.(map[string]interface{})
-			if masked := maskSecurityFields(subData); masked {
+			if masked := maskSecurityFields(val); masked {
 				return true
 			}
 		}
@@ -232,22 +220,20 @@ func maskSecurityFields(data map[string]interface{}) bool {
 }
 
 func isSecurityFields(field string) bool {
-	// "password" is apply to the most request JSON body
-	// "secret" is apply to the AK/SK response JSON body
-	// "securitytoken" is apply to the AK/SK response JSON body
-	if strings.Contains(field, "password") || strings.Contains(field, "secret") || strings.Contains(field, "securitytoken") {
+	checkField := strings.ToLower(field)
+	// 'password' is apply to the most request JSON body.
+	// 'secret' is apply to the AK/SK response JSON body.
+	// 'pwd' and 'token' is the high frequency sensitive keywords in the request and response bodies.
+	if strings.Contains(checkField, "password") || strings.Contains(checkField, "secret") ||
+		strings.HasSuffix(field, "pwd") || strings.HasSuffix(checkField, "token") {
 		return true
 	}
 
-	// "adminPass" is apply to the ecs/bms instance request JSON body
-	// "adminPwd" is apply to the css cluster request JSON body
+	// 'adminpass' is apply to the ecs/bms instance request JSON body
 	// 'encrypted_user_data' is apply to the function request JSON body of FunctionGraph
-	securityFields := []string{"adminPass", "adminPwd", "encrypted_user_data", "token"}
-	for _, key := range securityFields {
-		if key == field {
-			return true
-		}
-	}
-
-	return false
+	// 'nonce' is apply to the random string for authorization methods.
+	// 'email', 'phone' and 'sip_number' can uniquely identify a person.
+	// 'signature' are used for encryption.
+	securityFields := []string{"adminpass", "encrypted_user_data", "nonce", "email", "phone", "sip_number", "signature"}
+	return utils.StrSliceContains(securityFields, checkField)
 }
