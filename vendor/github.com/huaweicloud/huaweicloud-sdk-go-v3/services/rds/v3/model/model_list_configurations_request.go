@@ -11,8 +11,8 @@ import (
 
 // Request Object
 type ListConfigurationsRequest struct {
-	// 语言
 
+	// 语言
 	XLanguage *ListConfigurationsRequestXLanguage `json:"X-Language,omitempty"`
 }
 
@@ -43,6 +43,10 @@ func GetListConfigurationsRequestXLanguageEnum() ListConfigurationsRequestXLangu
 			value: "en-us",
 		},
 	}
+}
+
+func (c ListConfigurationsRequestXLanguage) Value() string {
+	return c.value
 }
 
 func (c ListConfigurationsRequestXLanguage) MarshalJSON() ([]byte, error) {

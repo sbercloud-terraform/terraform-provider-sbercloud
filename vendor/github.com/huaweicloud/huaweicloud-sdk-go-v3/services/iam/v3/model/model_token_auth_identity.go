@@ -11,8 +11,8 @@ import (
 
 //
 type TokenAuthIdentity struct {
-	// 认证方法，该字段内容为[\"token\"]。
 
+	// 认证方法，该字段内容为[\"token\"]。
 	Methods []TokenAuthIdentityMethods `json:"methods"`
 
 	Token *IdentityToken `json:"token,omitempty"`
@@ -43,6 +43,10 @@ func GetTokenAuthIdentityMethodsEnum() TokenAuthIdentityMethodsEnum {
 			value: "token",
 		},
 	}
+}
+
+func (c TokenAuthIdentityMethods) Value() string {
+	return c.value
 }
 
 func (c TokenAuthIdentityMethods) MarshalJSON() ([]byte, error) {

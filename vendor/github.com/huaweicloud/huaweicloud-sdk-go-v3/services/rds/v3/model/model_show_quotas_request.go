@@ -11,8 +11,8 @@ import (
 
 // Request Object
 type ShowQuotasRequest struct {
-	// 语言
 
+	// 语言
 	XLanguage *ShowQuotasRequestXLanguage `json:"X-Language,omitempty"`
 }
 
@@ -43,6 +43,10 @@ func GetShowQuotasRequestXLanguageEnum() ShowQuotasRequestXLanguageEnum {
 			value: "en-us",
 		},
 	}
+}
+
+func (c ShowQuotasRequestXLanguage) Value() string {
+	return c.value
 }
 
 func (c ShowQuotasRequestXLanguage) MarshalJSON() ([]byte, error) {

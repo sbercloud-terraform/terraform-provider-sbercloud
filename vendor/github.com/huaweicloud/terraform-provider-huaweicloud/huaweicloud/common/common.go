@@ -179,9 +179,20 @@ func refreshOrderStatus(c *golangsdk.ServiceClient, orderNum string) resource.St
 
 func CaseInsensitiveFunc() schema.SchemaDiffSuppressFunc {
 	return func(k, old, new string, d *schema.ResourceData) bool {
-		if strings.ToLower(old) == strings.ToLower(new) {
-			return true
-		}
-		return false
+		return strings.EqualFold(old, new)
 	}
+}
+
+// GetAutoPay is a method to return whether order is auto pay according to the user input.
+// auto_pay parameter inputs and returns:
+//
+//	false: false
+//	true, empty: true
+//
+// Before using this function, make sure the parameter behavior is auto pay (the default value is "true").
+func GetAutoPay(d *schema.ResourceData) string {
+	if d.Get("auto_pay").(string) == "false" {
+		return "false"
+	}
+	return "true"
 }

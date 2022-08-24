@@ -11,8 +11,8 @@ import (
 
 // Request Object
 type CreateInstanceRequest struct {
-	// 语言
 
+	// 语言
 	XLanguage *CreateInstanceRequestXLanguage `json:"X-Language,omitempty"`
 
 	Body *InstanceRequest `json:"body,omitempty"`
@@ -45,6 +45,10 @@ func GetCreateInstanceRequestXLanguageEnum() CreateInstanceRequestXLanguageEnum 
 			value: "en-us",
 		},
 	}
+}
+
+func (c CreateInstanceRequestXLanguage) Value() string {
+	return c.value
 }
 
 func (c CreateInstanceRequestXLanguage) MarshalJSON() ([]byte, error) {

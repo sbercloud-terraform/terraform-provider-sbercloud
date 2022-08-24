@@ -13,9 +13,10 @@ import (
 	"github.com/chnsz/golangsdk/openstack/identity/v3/projects"
 	"github.com/chnsz/golangsdk/openstack/identity/v3/users"
 	"github.com/chnsz/golangsdk/openstack/obs"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/logging"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/mutexkv"
+
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
 const (
@@ -171,7 +172,7 @@ func (c *Config) ObjectStorageClientWithSignature(region string) (*obs.ObsClient
 	}
 
 	// init log
-	if logging.IsDebugOrHigher() {
+	if utils.IsDebugOrHigher() {
 		if err := obs.InitLog(obsLogFile, obsLogFileSize10MB, 10, obs.LEVEL_DEBUG, false); err != nil {
 			log.Printf("[WARN] initial obs sdk log failed: %s", err)
 		}
@@ -191,7 +192,7 @@ func (c *Config) ObjectStorageClient(region string) (*obs.ObsClient, error) {
 	}
 
 	// init log
-	if logging.IsDebugOrHigher() {
+	if utils.IsDebugOrHigher() {
 		if err := obs.InitLog(obsLogFile, obsLogFileSize10MB, 10, obs.LEVEL_DEBUG, false); err != nil {
 			log.Printf("[WARN] initial obs sdk log failed: %s", err)
 		}
@@ -203,7 +204,10 @@ func (c *Config) ObjectStorageClient(region string) (*obs.ObsClient, error) {
 		timeNow := time.Now().Unix()
 		expairesAtInt := c.SecurityKeyExpiresAt.Unix()
 		if timeNow+keyExpiresDuration > expairesAtInt {
-			c.reloadSecurityKey()
+			err := c.reloadSecurityKey()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -229,7 +233,10 @@ func (c *Config) NewServiceClient(srv, region string) (*golangsdk.ServiceClient,
 		timeNow := time.Now().Unix()
 		expairesAtInt := c.SecurityKeyExpiresAt.Unix()
 		if timeNow+keyExpiresDuration > expairesAtInt {
-			c.reloadSecurityKey()
+			err := c.reloadSecurityKey()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -264,7 +271,7 @@ func (c *Config) newServiceClientByName(client *golangsdk.ProviderClient, catalo
 		if err != nil {
 			return nil, err
 		}
-		projectID, _ = c.RegionProjectIDMap[region]
+		projectID = c.RegionProjectIDMap[region]
 	}
 
 	// update ProjectID and region in ProviderClient
@@ -629,6 +636,10 @@ func (c *Config) SmnV2Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("smn", region)
 }
 
+func (c *Config) SmnV2TagClient(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("smn-tag", region)
+}
+
 // ********** client for Security **********
 func (c *Config) AntiDDosV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("anti-ddos", region)
@@ -725,6 +736,10 @@ func (c *Config) BcsV2Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("bcs", region)
 }
 
+func (c *Config) CseV2Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("cse", region)
+}
+
 func (c *Config) DcsV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("dcsv1", region)
 }
@@ -800,6 +815,10 @@ func (c *Config) BssV2Client(region string) (*golangsdk.ServiceClient, error) {
 
 func (c *Config) MaasV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("oms", region)
+}
+
+func (c *Config) SmsV3Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("sms", region)
 }
 
 func (c *Config) MlsV1Client(region string) (*golangsdk.ServiceClient, error) {

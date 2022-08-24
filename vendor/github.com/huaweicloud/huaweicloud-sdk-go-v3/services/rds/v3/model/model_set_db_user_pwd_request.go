@@ -11,11 +11,11 @@ import (
 
 // Request Object
 type SetDbUserPwdRequest struct {
+
 	// 语言
-
 	XLanguage *SetDbUserPwdRequestXLanguage `json:"X-Language,omitempty"`
-	// 实例ID。
 
+	// 实例ID。
 	InstanceId string `json:"instance_id"`
 
 	Body *DbUserPwdRequest `json:"body,omitempty"`
@@ -48,6 +48,10 @@ func GetSetDbUserPwdRequestXLanguageEnum() SetDbUserPwdRequestXLanguageEnum {
 			value: "en-us",
 		},
 	}
+}
+
+func (c SetDbUserPwdRequestXLanguage) Value() string {
+	return c.value
 }
 
 func (c SetDbUserPwdRequestXLanguage) MarshalJSON() ([]byte, error) {

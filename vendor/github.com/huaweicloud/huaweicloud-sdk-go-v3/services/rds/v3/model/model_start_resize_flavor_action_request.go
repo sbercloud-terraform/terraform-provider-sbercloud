@@ -11,11 +11,11 @@ import (
 
 // Request Object
 type StartResizeFlavorActionRequest struct {
+
 	// 语言
-
 	XLanguage *StartResizeFlavorActionRequestXLanguage `json:"X-Language,omitempty"`
-	// 实例ID。
 
+	// 实例ID。
 	InstanceId string `json:"instance_id"`
 
 	Body *ResizeFlavorRequest `json:"body,omitempty"`
@@ -48,6 +48,10 @@ func GetStartResizeFlavorActionRequestXLanguageEnum() StartResizeFlavorActionReq
 			value: "en-us",
 		},
 	}
+}
+
+func (c StartResizeFlavorActionRequestXLanguage) Value() string {
+	return c.value
 }
 
 func (c StartResizeFlavorActionRequestXLanguage) MarshalJSON() ([]byte, error) {

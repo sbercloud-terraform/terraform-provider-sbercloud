@@ -53,7 +53,7 @@ func ResourceApigInstanceV2() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 				ValidateFunc: validation.StringMatch(regexp.MustCompile("^([\u4e00-\u9fa5A-Za-z][\u4e00-\u9fa5A-Za-z-_0-9]{2,63})$"),
-					"The name contains of 3 to 64 characters, starting with a letter. Only letters, digits, "+
+					"The name consists of 3 to 64 characters, starting with a letter. Only letters, digits, "+
 						"hyphens (-) and underscore (_) are allowed."),
 			},
 			"edition": {
@@ -225,6 +225,10 @@ func ApigInstanceV2StateRefreshFunc(client *golangsdk.ServiceClient, id string) 
 			return allPages, "", fmtp.Errorf("Error getting APIG v2 dedicated instance by ID (%s): %s", id, err)
 		}
 		instances, err := instances.ExtractInstances(allPages)
+		if err != nil {
+			return allPages, "", fmtp.Errorf("Error getting APIG v2 dedicated instance by ID (%s): %s", id, err)
+		}
+
 		if len(instances) == 0 {
 			return instances, "DELETED", nil
 		}
@@ -358,7 +362,7 @@ func resourceApigInstanceV2Read(d *schema.ResourceData, meta interface{}) error 
 	}
 	resp, err := getApigInstanceFromServer(d, client)
 	if err != nil {
-		return fmtp.Errorf("Error getting APIG v2 dedicated instance (%s) form server: %s", d.Id(), err)
+		return common.CheckDeleted(d, err, fmt.Sprintf("error getting APIG dedicated instance (%s) form server", d.Id()))
 	}
 	return setApigInstanceParamters(d, config, *resp)
 }

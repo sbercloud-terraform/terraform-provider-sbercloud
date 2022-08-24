@@ -284,6 +284,67 @@ func ResourceComputeInstanceV2() *schema.Resource {
 				Optional:      true,
 				ConflictsWith: novaConflicts,
 			},
+			"delete_eip_on_termination": {
+				Type:          schema.TypeBool,
+				Optional:      true,
+				Default:       true,
+				ConflictsWith: novaConflicts,
+			},
+
+			"eip_id": {
+				Type:          schema.TypeString,
+				Optional:      true,
+				ForceNew:      true,
+				ConflictsWith: []string{"eip_type", "bandwidth"},
+			},
+			"eip_type": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				ValidateFunc: validation.StringInSlice([]string{
+					"5_bgp", "5_sbgp",
+				}, true),
+				ConflictsWith: []string{"eip_id"},
+				RequiredWith:  []string{"bandwidth"},
+			},
+			"bandwidth": {
+				Type:          schema.TypeList,
+				Optional:      true,
+				ForceNew:      true,
+				MaxItems:      1,
+				ConflictsWith: []string{"eip_id"},
+				RequiredWith:  []string{"eip_type"},
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"share_type": {
+							Type:     schema.TypeString,
+							Required: true,
+							ForceNew: true,
+							ValidateFunc: validation.StringInSlice([]string{
+								"PER", "WHOLE",
+							}, true),
+						},
+						"id": {
+							Type:          schema.TypeString,
+							Optional:      true,
+							ForceNew:      true,
+							ConflictsWith: []string{"bandwidth.0.size", "bandwidth.0.charge_mode"},
+						},
+						"size": {
+							Type:         schema.TypeInt,
+							Optional:     true,
+							ForceNew:     true,
+							RequiredWith: []string{"bandwidth.0.charge_mode"},
+						},
+						"charge_mode": {
+							Type:         schema.TypeString,
+							Optional:     true,
+							ForceNew:     true,
+							RequiredWith: []string{"bandwidth.0.size"},
+						},
+					},
+				},
+			},
 
 			// charge info: charging_mode, period_unit, period, auto_renew, auto_pay
 			"charging_mode": schemaChargingMode(novaConflicts),
@@ -298,6 +359,11 @@ func ResourceComputeInstanceV2() *schema.Resource {
 				ForceNew: true,
 			},
 			"agency_name": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+			},
+			"agent_list": {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
@@ -495,9 +561,10 @@ func resourceComputeInstanceV2Create(ctx context.Context, d *schema.ResourceData
 			VpcId:            vpcId,
 			SecurityGroups:   secGroups,
 			AvailabilityZone: d.Get("availability_zone").(string),
-			Nics:             resourceInstanceNicsV2(d),
 			RootVolume:       resourceInstanceRootVolumeV1(d),
 			DataVolumes:      resourceInstanceDataVolumesV1(d),
+			Nics:             buildInstanceNicsRequest(d),
+			PublicIp:         buildInstancePublicIPRequest(d),
 			UserData:         []byte(d.Get("user_data").(string)),
 		}
 
@@ -511,11 +578,7 @@ func resourceComputeInstanceV2Create(ctx context.Context, d *schema.ResourceData
 			extendParam.PeriodType = d.Get("period_unit").(string)
 			extendParam.PeriodNum = d.Get("period").(int)
 			extendParam.IsAutoRenew = d.Get("auto_renew").(string)
-			if d.Get("auto_pay").(string) == "false" {
-				extendParam.IsAutoPay = "false"
-			} else {
-				extendParam.IsAutoPay = "true"
-			}
+			extendParam.IsAutoPay = common.GetAutoPay(d)
 		}
 
 		epsID := GetEnterpriseProjectID(d, config)
@@ -531,6 +594,9 @@ func resourceComputeInstanceV2Create(ctx context.Context, d *schema.ResourceData
 
 		if hasFilledOpt(d, "agency_name") {
 			metadata.AgencyName = d.Get("agency_name").(string)
+		}
+		if hasFilledOpt(d, "agent_list") {
+			metadata.AgentList = d.Get("agent_list").(string)
 		}
 		if metadata != (cloudservers.MetaData{}) {
 			createOpts.MetaData = &metadata
@@ -755,6 +821,7 @@ func resourceComputeInstanceV2Read(_ context.Context, d *schema.ResourceData, me
 	d.Set("name", server.Name)
 	d.Set("status", server.Status)
 	d.Set("agency_name", server.Metadata.AgencyName)
+	d.Set("agent_list", server.Metadata.AgentList)
 
 	chageMode := server.Metadata.ChargingMode
 	if chageMode == "0" {
@@ -1013,10 +1080,7 @@ func resourceComputeInstanceV2Update(ctx context.Context, d *schema.ResourceData
 		}
 
 		extendParam := &cloudservers.ResizeExtendParam{
-			AutoPay: "true",
-		}
-		if d.Get("auto_pay").(string) == "false" {
-			extendParam.AutoPay = "false"
+			AutoPay: common.GetAutoPay(d),
 		}
 		resizeOpts := &cloudservers.ResizeOpts{
 			FlavorRef:   newFlavorId,
@@ -1065,9 +1129,9 @@ func resourceComputeInstanceV2Update(ctx context.Context, d *schema.ResourceData
 			},
 		}
 
-		if strings.EqualFold(d.Get("charging_mode").(string), "prePaid") && d.Get("auto_pay").(string) == "true" {
+		if strings.EqualFold(d.Get("charging_mode").(string), "prePaid") {
 			extendOpts.ChargeInfo = &cloudvolumes.ExtendChargeOpts{
-				IsAutoPay: "true",
+				IsAutoPay: common.GetAutoPay(d),
 			}
 		}
 
@@ -1144,8 +1208,14 @@ func resourceComputeInstanceV2Delete(ctx context.Context, d *schema.ResourceData
 	}
 
 	if d.Get("charging_mode") == "prePaid" {
-		if err := UnsubscribePrePaidResource(d, config, []string{d.Id()}); err != nil {
-			return diag.Errorf("error unsubscribe server: %s", err)
+		resources, err := calcUnsubscribeResources(d, config)
+		if err != nil {
+			return diag.Errorf("error unsubscribe ECS server: %s", err)
+		}
+
+		logp.Printf("[DEBUG] %v will be unsubscribed", resources)
+		if err := UnsubscribePrePaidResource(d, config, resources); err != nil {
+			return diag.Errorf("error unsubscribe ECS server: %s", err)
 		}
 	} else {
 		var serverRequests []cloudservers.Server
@@ -1155,8 +1225,9 @@ func resourceComputeInstanceV2Delete(ctx context.Context, d *schema.ResourceData
 		serverRequests = append(serverRequests, server)
 
 		deleteOpts := cloudservers.DeleteOpts{
-			Servers:      serverRequests,
-			DeleteVolume: d.Get("delete_disks_on_termination").(bool),
+			Servers:        serverRequests,
+			DeleteVolume:   d.Get("delete_disks_on_termination").(bool),
+			DeletePublicIP: d.Get("delete_eip_on_termination").(bool),
 		}
 
 		n, err := cloudservers.Delete(ecsClient, deleteOpts).ExtractJobResponse()
@@ -1302,6 +1373,52 @@ func validateComputeInstanceConfig(d *schema.ResourceData, config *config.Config
 	return nil
 }
 
+func buildInstanceNicsRequest(d *schema.ResourceData) []cloudservers.Nic {
+	var nicRequests []cloudservers.Nic
+
+	networks := d.Get("network").([]interface{})
+	for _, v := range networks {
+		network := v.(map[string]interface{})
+		nicRequest := cloudservers.Nic{
+			SubnetId:   network["uuid"].(string),
+			IpAddress:  network["fixed_ip_v4"].(string),
+			Ipv6Enable: network["ipv6_enable"].(bool),
+		}
+
+		nicRequests = append(nicRequests, nicRequest)
+	}
+	return nicRequests
+}
+
+func buildInstancePublicIPRequest(d *schema.ResourceData) *cloudservers.PublicIp {
+	if v, ok := d.GetOk("eip_id"); ok {
+		return &cloudservers.PublicIp{
+			Id: v.(string),
+		}
+	}
+
+	bandWidthRaw := d.Get("bandwidth").([]interface{})
+	if len(bandWidthRaw) != 1 {
+		return nil
+	}
+
+	bandWidth := bandWidthRaw[0].(map[string]interface{})
+	bwOpts := cloudservers.BandWidth{
+		ShareType:  bandWidth["share_type"].(string),
+		Id:         bandWidth["id"].(string),
+		ChargeMode: bandWidth["charge_mode"].(string),
+		Size:       bandWidth["size"].(int),
+	}
+
+	return &cloudservers.PublicIp{
+		Eip: &cloudservers.Eip{
+			IpType:    d.Get("eip_type").(string),
+			BandWidth: &bwOpts,
+		},
+		DeleteOnTermination: d.Get("delete_eip_on_termination").(bool),
+	}
+}
+
 func resourceInstanceSecGroupsV2(d *schema.ResourceData) []string {
 	rawSecGroups := d.Get("security_groups").(*schema.Set).List()
 	secgroups := make([]string, len(rawSecGroups))
@@ -1317,23 +1434,6 @@ func resourceInstanceMetadataV2(d *schema.ResourceData) map[string]string {
 		m[key] = val.(string)
 	}
 	return m
-}
-
-func resourceInstanceNicsV2(d *schema.ResourceData) []cloudservers.Nic {
-	var nicRequests []cloudservers.Nic
-
-	networks := d.Get("network").([]interface{})
-	for _, v := range networks {
-		network := v.(map[string]interface{})
-		nicRequest := cloudservers.Nic{
-			SubnetId:   network["uuid"].(string),
-			IpAddress:  network["fixed_ip_v4"].(string),
-			Ipv6Enable: network["ipv6_enable"].(bool),
-		}
-
-		nicRequests = append(nicRequests, nicRequest)
-	}
-	return nicRequests
 }
 
 func resourceInstanceBlockDevicesV2(d *schema.ResourceData, bds []interface{}) ([]bootfromvolume.BlockDevice, error) {
@@ -1694,4 +1794,34 @@ func updateSourceDestCheck(d *schema.ResourceData, client *golangsdk.ServiceClie
 	}
 
 	return nil
+}
+
+func calcUnsubscribeResources(d *schema.ResourceData, cfg *config.Config) ([]string, error) {
+	var mainResources = []string{d.Id()}
+
+	if shouldUnsubscribeEIP(d) {
+		region := cfg.GetRegion(d)
+		eipClient, err := cfg.NetworkingV1Client(region)
+		if err != nil {
+			return nil, fmt.Errorf("error creating networking client: %s", err)
+		}
+
+		eipAddr := d.Get("public_ip").(string)
+		if eipID, err := common.GetEipIDbyAddress(eipClient, eipAddr); err == nil {
+			mainResources = append(mainResources, eipID)
+		} else {
+			return nil, fmt.Errorf("error fetching EIP ID of ECS (%s): %s", d.Id(), err)
+		}
+	}
+
+	return mainResources, nil
+}
+
+func shouldUnsubscribeEIP(d *schema.ResourceData) bool {
+	deleteEIP := d.Get("delete_eip_on_termination").(bool)
+	eipAddr := d.Get("public_ip").(string)
+	eipType := d.Get("eip_type").(string)
+	_, sharebw := d.GetOk("bandwidth.0.id")
+
+	return deleteEIP && eipAddr != "" && eipType != "" && !sharebw
 }

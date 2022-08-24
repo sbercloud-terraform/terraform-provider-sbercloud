@@ -11,11 +11,11 @@ import (
 
 // Request Object
 type ResetPwdRequest struct {
+
 	// 语言
-
 	XLanguage *ResetPwdRequestXLanguage `json:"X-Language,omitempty"`
-	// 实例ID。
 
+	// 实例ID。
 	InstanceId string `json:"instance_id"`
 
 	Body *PwdResetRequest `json:"body,omitempty"`
@@ -48,6 +48,10 @@ func GetResetPwdRequestXLanguageEnum() ResetPwdRequestXLanguageEnum {
 			value: "en-us",
 		},
 	}
+}
+
+func (c ResetPwdRequestXLanguage) Value() string {
+	return c.value
 }
 
 func (c ResetPwdRequestXLanguage) MarshalJSON() ([]byte, error) {

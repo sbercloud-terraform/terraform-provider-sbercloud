@@ -11,11 +11,11 @@ import (
 
 // Request Object
 type StartInstanceSingleToHaActionRequest struct {
+
 	// 语言
-
 	XLanguage *StartInstanceSingleToHaActionRequestXLanguage `json:"X-Language,omitempty"`
-	// 实例ID。
 
+	// 实例ID。
 	InstanceId string `json:"instance_id"`
 
 	Body *Single2Ha `json:"body,omitempty"`
@@ -48,6 +48,10 @@ func GetStartInstanceSingleToHaActionRequestXLanguageEnum() StartInstanceSingleT
 			value: "en-us",
 		},
 	}
+}
+
+func (c StartInstanceSingleToHaActionRequestXLanguage) Value() string {
+	return c.value
 }
 
 func (c StartInstanceSingleToHaActionRequestXLanguage) MarshalJSON() ([]byte, error) {

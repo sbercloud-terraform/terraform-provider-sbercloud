@@ -3,10 +3,6 @@ package sbercloud
 import (
 	"sync"
 
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/mrs"
-
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ecs"
-
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -23,6 +19,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dli"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dms"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dws"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ecs"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/eip"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/eps"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/evs"
@@ -30,7 +27,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/iam"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ims"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/lb"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/mrs"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/rds"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/smn"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/vpc"
 )
 
@@ -163,7 +162,7 @@ func Provider() *schema.Provider {
 			"sbercloud_kms_key":                huaweicloud.DataSourceKmsKeyV1(),
 			"sbercloud_kms_data_key":           huaweicloud.DataSourceKmsDataKeyV1(),
 			"sbercloud_nat_gateway":            huaweicloud.DataSourceNatGatewayV2(),
-			"sbercloud_networking_port":        huaweicloud.DataSourceNetworkingPortV2(),
+			"sbercloud_networking_port":        vpc.DataSourceNetworkingPortV2(),
 			"sbercloud_networking_secgroup":    huaweicloud.DataSourceNetworkingSecGroup(),
 			"sbercloud_obs_bucket_object":      huaweicloud.DataSourceObsBucketObject(),
 			"sbercloud_rds_flavors":            rds.DataSourceRdsFlavor(),
@@ -190,7 +189,7 @@ func Provider() *schema.Provider {
 			"sbercloud_as_group":                        as.ResourceASGroup(),
 			"sbercloud_as_policy":                       as.ResourceASPolicy(),
 			"sbercloud_cbr_policy":                      cbr.ResourceCBRPolicyV3(),
-			"sbercloud_cbr_vault":                       cbr.ResourceCBRVaultV3(),
+			"sbercloud_cbr_vault":                       cbr.ResourceVault(),
 			"sbercloud_css_cluster":                     css.ResourceCssCluster(),
 			"sbercloud_cce_addon":                       huaweicloud.ResourceCCEAddonV3(),
 			"sbercloud_cce_cluster":                     huaweicloud.ResourceCCEClusterV3(),
@@ -261,8 +260,8 @@ func Provider() *schema.Provider {
 			"sbercloud_sfs_access_rule":                 huaweicloud.ResourceSFSAccessRuleV2(),
 			"sbercloud_sfs_file_system":                 huaweicloud.ResourceSFSFileSystemV2(),
 			"sbercloud_sfs_turbo":                       huaweicloud.ResourceSFSTurbo(),
-			"sbercloud_smn_subscription":                huaweicloud.ResourceSubscription(),
-			"sbercloud_smn_topic":                       huaweicloud.ResourceTopic(),
+			"sbercloud_smn_subscription":                smn.ResourceSubscription(),
+			"sbercloud_smn_topic":                       smn.ResourceTopic(),
 			"sbercloud_vpc":                             vpc.ResourceVirtualPrivateCloudV1(),
 			"sbercloud_vpc_bandwidth":                   eip.ResourceVpcBandWidthV2(),
 			"sbercloud_vpc_eip":                         eip.ResourceVpcEIPV1(),

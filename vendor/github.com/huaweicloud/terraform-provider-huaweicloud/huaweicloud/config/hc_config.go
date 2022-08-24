@@ -10,18 +10,23 @@ import (
 	"os"
 	"strings"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/logging"
 	"github.com/huaweicloud/huaweicloud-sdk-go-v3/core/auth/basic"
 	"github.com/huaweicloud/huaweicloud-sdk-go-v3/core/auth/global"
 	hcconfig "github.com/huaweicloud/huaweicloud-sdk-go-v3/core/config"
 	"github.com/huaweicloud/huaweicloud-sdk-go-v3/core/httphandler"
 	aomv2 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/aom/v2"
+	cdnv1 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/cdn/v1"
 	cptsv1 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/cpts/v1"
 	ctsv3 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/cts/v3"
 	iamv3 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/iam/v3"
+	iotdav5 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/iotda/v5"
 	kpsv3 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/kps/v3"
+	livev1 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/live/v1"
+	mpcv1 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/mpc/v1"
+	omsv2 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/oms/v2"
 	rdsv3 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/rds/v3"
 	tmsv1 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/tms/v1"
+	vodv1 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vod/v1"
 	vpcv3 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vpc/v3"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
 
@@ -54,8 +59,7 @@ func buildAuthCredentials(c *Config, region string) (*basic.Credentials, error) 
 		if err != nil {
 			return nil, err
 		}
-		// S1005
-		projectID, _ = c.RegionProjectIDMap[region]
+		projectID = c.RegionProjectIDMap[region]
 	}
 
 	credentials.ProjectId = projectID
@@ -201,6 +205,15 @@ func (c *Config) HcCptsV1Client(region string) (*cptsv1.CptsClient, error) {
 	return cptsv1.NewCptsClient(hcClient), nil
 }
 
+// HcVodV1Client is the AOM service client using huaweicloud-sdk-go-v3 package
+func (c *Config) HcVodV1Client(region string) (*vodv1.VodClient, error) {
+	hcClient, err := NewHcClient(c, region, "vod", false)
+	if err != nil {
+		return nil, err
+	}
+	return vodv1.NewVodClient(hcClient), nil
+}
+
 // HcAomV2Client is the AOM service client using huaweicloud-sdk-go-v3 package
 func (c *Config) HcAomV2Client(region string) (*aomv2.AomClient, error) {
 	hcClient, err := NewHcClient(c, region, "aom", false)
@@ -208,6 +221,51 @@ func (c *Config) HcAomV2Client(region string) (*aomv2.AomClient, error) {
 		return nil, err
 	}
 	return aomv2.NewAomClient(hcClient), nil
+}
+
+// HcLiveV1Client is the live service client using huaweicloud-sdk-go-v3 package
+func (c *Config) HcLiveV1Client(region string) (*livev1.LiveClient, error) {
+	hcClient, err := NewHcClient(c, region, "live", false)
+	if err != nil {
+		return nil, err
+	}
+	return livev1.NewLiveClient(hcClient), nil
+}
+
+// HcMpcV1Client is the MPC service client using huaweicloud-sdk-go-v3 package
+func (c *Config) HcMpcV1Client(region string) (*mpcv1.MpcClient, error) {
+	hcClient, err := NewHcClient(c, region, "mpc", false)
+	if err != nil {
+		return nil, err
+	}
+	return mpcv1.NewMpcClient(hcClient), nil
+}
+
+// HcIoTdaV5Client is the live service client using huaweicloud-sdk-go-v3 package
+func (c *Config) HcIoTdaV5Client(region string) (*iotdav5.IoTDAClient, error) {
+	hcClient, err := NewHcClient(c, region, "iotda", false)
+	if err != nil {
+		return nil, err
+	}
+	return iotdav5.NewIoTDAClient(hcClient), nil
+}
+
+// HcMpcV1Client is the MPC service client using huaweicloud-sdk-go-v3 package
+func (c *Config) HcOmsV2Client(region string) (*omsv2.OmsClient, error) {
+	hcClient, err := NewHcClient(c, region, "oms", false)
+	if err != nil {
+		return nil, err
+	}
+	return omsv2.NewOmsClient(hcClient), nil
+}
+
+// HcCdnV1Client is the CDN service client using huaweicloud-sdk-go-v3 package
+func (c *Config) HcCdnV1Client(region string) (*cdnv1.CdnClient, error) {
+	hcClient, err := NewHcClient(c, region, "cdn", false)
+	if err != nil {
+		return nil, err
+	}
+	return cdnv1.NewCdnClient(hcClient), nil
 }
 
 // NewHcClient is the common client using huaweicloud-sdk-go-v3 package
@@ -224,13 +282,13 @@ func NewHcClient(c *Config, region, product string, globalFlag bool) (*core.HcHt
 		if err != nil {
 			return nil, err
 		}
-		builder.WithCredentialsType("global.Credentials").WithCredential(*credentials)
+		builder.WithCredentialsType("global.Credentials").WithCredential(credentials)
 	} else {
 		credentials, err := buildAuthCredentials(c, region)
 		if err != nil {
 			return nil, err
 		}
-		builder.WithCredential(*credentials)
+		builder.WithCredential(credentials)
 	}
 
 	return builder.Build(), nil
@@ -251,10 +309,6 @@ func getProxyFromEnv() string {
 }
 
 func logRequestHandler(request http.Request) {
-	if !logging.IsDebugOrHigher() {
-		return
-	}
-
 	log.Printf("[DEBUG] API Request URL: %s %s", request.Method, request.URL)
 	log.Printf("[DEBUG] API Request Headers:\n%s", FormatHeaders(request.Header, "\n"))
 	if request.Body != nil {
@@ -265,10 +319,6 @@ func logRequestHandler(request http.Request) {
 }
 
 func logResponseHandler(response http.Response) {
-	if !logging.IsDebugOrHigher() {
-		return
-	}
-
 	log.Printf("[DEBUG] API Response Code: %d", response.StatusCode)
 	log.Printf("[DEBUG] API Response Headers:\n%s", FormatHeaders(response.Header, "\n"))
 
