@@ -1,4 +1,4 @@
-package sbercloud
+package cce
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 
 	"github.com/chnsz/golangsdk/openstack/cce/v3/nodepools"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -22,9 +23,9 @@ func TestAccCCENodePool_basic(t *testing.T) {
 	clusterName := "sbercloud_cce_cluster.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckCCENodePoolDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckCCENodePoolDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccCCENodePool_basic(rName),
@@ -74,9 +75,9 @@ func TestAccCCENodePool_tags(t *testing.T) {
 	clusterName := "sbercloud_cce_cluster.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckCCENodePoolDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckCCENodePoolDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccCCENodePool_tags(rName),
@@ -101,8 +102,8 @@ func TestAccCCENodePool_tags(t *testing.T) {
 }
 
 func testAccCheckCCENodePoolDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	cceClient, err := config.CceV3Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	cceClient, err := config.CceV3Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating SberCloud CCE client: %s", err)
 	}
@@ -167,8 +168,8 @@ func testAccCheckCCENodePoolExists(n string, cluster string, nodePool *nodepools
 			return fmt.Errorf("Cluster id is not set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		cceClient, err := config.CceV3Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		cceClient, err := config.CceV3Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud CCE client: %s", err)
 		}
@@ -217,7 +218,7 @@ func testAccCCENodePool_basic(rName string) string {
 resource "sbercloud_cce_node_pool" "test" {
   cluster_id               = sbercloud_cce_cluster.test.id
   name                     = "%s"
-  os                       = "EulerOS 2.5"
+  os                       = "Ubuntu 18.04"
   flavor_id                = "s6.large.2"
   initial_node_count       = 1
   availability_zone        = data.sbercloud_availability_zones.test.names[0]
@@ -248,7 +249,7 @@ func testAccCCENodePool_update(rName, updateName string) string {
 resource "sbercloud_cce_node_pool" "test" {
   cluster_id               = sbercloud_cce_cluster.test.id
   name                     = "%s"
-  os                       = "EulerOS 2.5"
+  os                       = "Ubuntu 18.04"
   flavor_id                = "s6.large.2"
   initial_node_count       = 2
   availability_zone        = data.sbercloud_availability_zones.test.names[0]
@@ -279,7 +280,7 @@ func testAccCCENodePool_volume_extendParams(rName string) string {
 resource "sbercloud_cce_node_pool" "test" {
   cluster_id               = sbercloud_cce_cluster.test.id
   name                     = "%s"
-  os                       = "EulerOS 2.5"
+  os                       = "Ubuntu 18.04"
   flavor_id                = "s6.large.2"
   initial_node_count       = 1
   availability_zone        = data.sbercloud_availability_zones.test.names[0]
@@ -325,7 +326,7 @@ func testAccCCENodePool_tags(rName string) string {
 resource "sbercloud_cce_node_pool" "test" {
   cluster_id               = sbercloud_cce_cluster.test.id
   name                     = "%s"
-  os                       = "EulerOS 2.5"
+  os                       = "Ubuntu 18.04"
   flavor_id                = "s6.large.2"
   initial_node_count       = 1
   availability_zone        = data.sbercloud_availability_zones.test.names[0]
@@ -361,7 +362,7 @@ func testAccCCENodePool_tags_update(rName string) string {
 resource "sbercloud_cce_node_pool" "test" {
   cluster_id               = sbercloud_cce_cluster.test.id
   name                     = "%s"
-  os                       = "EulerOS 2.5"
+  os                       = "Ubuntu 18.04"
   flavor_id                = "s6.large.2"
   initial_node_count       = 1
   availability_zone        = data.sbercloud_availability_zones.test.names[0]
