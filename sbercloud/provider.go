@@ -147,6 +147,8 @@ func Provider() *schema.Provider {
 			"sbercloud_cce_node_pool":          huaweicloud.DataSourceCCENodePoolV3(),
 			"sbercloud_cdm_flavors":            huaweicloud.DataSourceCdmFlavorV1(),
 			"sbercloud_compute_flavors":        huaweicloud.DataSourceEcsFlavors(),
+			"sbercloud_compute_instance":       huaweicloud.DataSourceComputeInstance(),
+			"sbercloud_compute_instances":      huaweicloud.DataSourceComputeInstances(),
 			"sbercloud_dcs_az":                 deprecated.DataSourceDcsAZV1(),
 			"sbercloud_dcs_maintainwindow":     dcs.DataSourceDcsMaintainWindow(),
 			"sbercloud_dcs_product":            deprecated.DataSourceDcsProductV1(),
