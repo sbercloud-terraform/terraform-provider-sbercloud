@@ -1,3 +1,20 @@
+## 1.9.0 (August 31, 2022)
+
+FEATURES:
+
+* **New Data Source:** `sbercloud_compute_instance` ([#148](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/148))
+* **New Data Source:** `sbercloud_compute_instances` ([#148](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/148))
+* **New Data Source:** `sbercloud_cce_clusters` ([#155](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/155)
+* **New Data Source:** `sbercloud_cce_nodes` ([#155](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/155)
+* **New Resource:** `sbercloud_cce_node_attach` ([#155](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/155)
+* **New Resource:** `sbercloud_cce_namespace` ([#155](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/155)
+* **New Resource:** `sbercloud_cce_pvc` ([#155](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/155)
+
+ENHANCEMENTS:
+
+* Update the documentation for Network ACL resources ([#141](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/141))
+* Update the documentation for CCE objects ([#155](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/155))
+
 ## 1.8.1 (June 24, 2022)
 
 ENHANCEMENTS:
