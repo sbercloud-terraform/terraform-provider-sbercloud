@@ -31,14 +31,15 @@ resource "sbercloud_cce_node" "node" {
   flavor_id         = "s3.large.2"
   availability_zone = data.sbercloud_availability_zones.myaz.names[0]
   key_pair          = sbercloud_compute_keypair.mykp.name
+  os                = "CentOS 7.6"
 
   root_volume {
-    size       = 40
-    volumetype = "SSD"
+    size       = 50
+    volumetype = "SAS"
   }
   data_volumes {
     size       = 100
-    volumetype = "SSD"
+    volumetype = "SAS"
   }
 }
 ```
@@ -52,14 +53,15 @@ resource "sbercloud_cce_node" "mynode" {
   flavor_id         = "s3.large.2"
   availability_zone = data.sbercloud_availability_zones.myaz.names[0]
   key_pair          = sbercloud_compute_keypair.mykp.name
+  os                = "CentOS 7.6"
 
   root_volume {
-    size       = 40
-    volumetype = "SSD"
+    size       = 50
+    volumetype = "SAS"
   }
   data_volumes {
     size       = 100
-    volumetype = "SSD"
+    volumetype = "SAS"
   }
 
   // Assign EIP
@@ -91,14 +93,15 @@ resource "sbercloud_cce_node" "mynode" {
   flavor_id         = "s3.large.2"
   availability_zone = data.sbercloud_availability_zones.myaz.names[0]
   key_pair          = sbercloud_compute_keypair.mykp.name
+  os                = "CentOS 7.6"
 
   root_volume {
-    size       = 40
-    volumetype = "SSD"
+    size       = 50
+    volumetype = "SAS"
   }
   data_volumes {
     size       = 100
-    volumetype = "SSD"
+    volumetype = "SAS"
   }
 
   // Assign existing EIP
@@ -115,9 +118,10 @@ resource "sbercloud_cce_node" "mynode" {
   flavor_id         = "s3.large.2"
   availability_zone = data.sbercloud_availability_zones.myaz.names[0]
   key_pair          = sbercloud_compute_keypair.mykp.name
+  os                = "CentOS 7.6"
 
   root_volume {
-    size       = 40
+    size       = 50
     volumetype = "SSD"
   }
   data_volumes {
@@ -398,7 +402,7 @@ CCE node can be imported using the cluster ID and node ID separated by a slash, 
 $ terraform import sbercloud_cce_node.my_node 5c20fdad-7288-11eb-b817-0255ac10158b/e9287dff-7288-11eb-b817-0255ac10158b
 ```
 
-Note that the imported state may not be identical to your resource definition, due to some attrubutes missing from the
+Note that the imported state may not be identical to your resource definition, due to some attributes missing from the
 API response, security or some other reason. The missing attributes include:
 `password`, `fixed_ip`, `eip_id`, `preinstall`, `postinstall`, `iptype`, `bandwidth_charge_mode`, `bandwidth_size`,
 `share_type`, `max_pods`, `extend_param`, `labels`, `taints` and arguments for pre-paid. It is generally recommended
