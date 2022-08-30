@@ -157,18 +157,18 @@ func testAccCCENodeV3_basic(rName string) string {
 resource "sbercloud_cce_node" "test" {
   cluster_id        = sbercloud_cce_cluster.test.id
   name              = "%s"
-  flavor_id         = "s6.small.1"
+  flavor_id         = "c6nl.large.2"
   availability_zone = data.sbercloud_availability_zones.test.names[0]
   key_pair          = sbercloud_compute_keypair.test.name
-  os                = "Ubuntu 18.04"
+  os                = "CentOS 7.6"
 
   root_volume {
-    size       = 40
-    volumetype = "SSD"
+    size       = 50
+    volumetype = "SAS"
   }
   data_volumes {
     size       = 100
-    volumetype = "SSD"
+    volumetype = "SAS"
   }
   tags = {
     foo = "bar"
@@ -185,18 +185,18 @@ func testAccCCENodeV3_update(rName, updateName string) string {
 resource "sbercloud_cce_node" "test" {
   cluster_id        = sbercloud_cce_cluster.test.id
   name              = "%s"
-  flavor_id         = "s6.small.1"
+  flavor_id         = "c6nl.large.2"
   availability_zone = data.sbercloud_availability_zones.test.names[0]
   key_pair          = sbercloud_compute_keypair.test.name
-  os                = "Ubuntu 18.04"
+  os                = "CentOS 7.6"
 
   root_volume {
-    size       = 40
-    volumetype = "SSD"
+    size       = 50
+    volumetype = "SAS"
   }
   data_volumes {
     size       = 100
-    volumetype = "SSD"
+    volumetype = "SAS"
   }
   tags = {
     foo = "bar"
@@ -213,18 +213,18 @@ func testAccCCENodeV3_auto_assign_eip(rName string) string {
 resource "sbercloud_cce_node" "test" {
   cluster_id        = sbercloud_cce_cluster.test.id
   name              = "%s"
-  flavor_id         = "s6.small.1"
+  flavor_id         = "c6nl.large.2"
   availability_zone = data.sbercloud_availability_zones.test.names[0]
   key_pair          = sbercloud_compute_keypair.test.name
-  os                = "Ubuntu 18.04"
+  os                = "CentOS 7.6"
 
   root_volume {
-    size       = 40
-    volumetype = "SSD"
+    size       = 50
+    volumetype = "SAS"
   }
   data_volumes {
     size       = 100
-    volumetype = "SSD"
+    volumetype = "SAS"
   }
 
   // Assign EIP
@@ -255,18 +255,18 @@ resource "sbercloud_vpc_eip" "test" {
 resource "sbercloud_cce_node" "test" {
   cluster_id        = sbercloud_cce_cluster.test.id
   name              = "%s"
-  flavor_id         = "s6.small.1"
+  flavor_id         = "c6nl.large.2"
   availability_zone = data.sbercloud_availability_zones.test.names[0]
   key_pair          = sbercloud_compute_keypair.test.name
-  os                = "Ubuntu 18.04"
+  os                = "CentOS 7.6"
 
   root_volume {
-    size       = 40
-    volumetype = "SSD"
+    size       = 50
+    volumetype = "SAS"
   }
   data_volumes {
     size       = 100
-    volumetype = "SSD"
+    volumetype = "SAS"
   }
 
   // Assign existing EIP

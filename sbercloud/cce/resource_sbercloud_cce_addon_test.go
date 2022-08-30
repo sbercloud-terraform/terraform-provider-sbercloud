@@ -161,7 +161,7 @@ func testAccCCEAddonV3_Base(rName string) string {
 resource "sbercloud_cce_node" "test" {
   cluster_id        = sbercloud_cce_cluster.test.id
   name              = "%s"
-  flavor_id         = "c6.large.2"
+  flavor_id         = "c6nl.large.2"
   availability_zone = data.sbercloud_availability_zones.test.names[0]
   key_pair          = sbercloud_compute_keypair.test.name
   os                = "CentOS 7.6"
@@ -199,7 +199,7 @@ resource "sbercloud_cce_node_pool" "test" {
   cluster_id         = sbercloud_cce_cluster.test.id
   name               = "%s"
   os                 = "CentOS 7.6"
-  flavor_id          = "c6.large.2"
+  flavor_id          = "c6nl.large.2"
   initial_node_count = 2
   availability_zone  = data.sbercloud_availability_zones.test.names[0]
   key_pair           = sbercloud_compute_keypair.test.name

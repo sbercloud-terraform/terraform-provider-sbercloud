@@ -52,6 +52,8 @@ func testAccCCEClusterV3DataSource_basic(rName string) string {
 
 data "sbercloud_cce_cluster" "test" {
   name = sbercloud_cce_cluster.test.name
+
+  depends_on = [sbercloud_cce_cluster.test]
 }
 `, testAccCCEClusterV3_basic(rName))
 }

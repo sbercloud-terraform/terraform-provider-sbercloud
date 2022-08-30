@@ -96,7 +96,7 @@ func TestAccCCEClusterV3_withEpsId(t *testing.T) {
 				Config: testAccCCEClusterV3_withEpsId(rName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckCCEClusterV3Exists(resourceName, &cluster),
-					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST),
+					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", acceptance.SBC_ENTERPRISE_PROJECT_ID),
 				),
 			},
 		},
@@ -247,5 +247,5 @@ resource "sbercloud_cce_cluster" "test" {
   enterprise_project_id  = "%s"
 }
 
-`, testAccCCEClusterV3_Base(rName), rName, acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST)
+`, testAccCCEClusterV3_Base(rName), rName, acceptance.SBC_ENTERPRISE_PROJECT_ID)
 }
