@@ -233,6 +233,10 @@ data "sbercloud_images_image" "test" {
   name        = "Ubuntu 18.04 server 64bit"
   most_recent = true
 }
+
+data "sbercloud_networking_secgroup" "test" {
+  name = "default"
+}
 `
 
 func testAccComputeV2Instance_basic(rName string) string {
