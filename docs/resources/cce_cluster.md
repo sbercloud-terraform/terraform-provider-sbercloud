@@ -2,7 +2,7 @@
 subcategory: "Cloud Container Engine (CCE)"
 ---
 
-# sbercloud\_cce\_cluster
+# sbercloud_cce_cluster
 
 Provides a CCE cluster resource.
 

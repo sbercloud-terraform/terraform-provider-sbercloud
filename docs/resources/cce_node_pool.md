@@ -16,7 +16,7 @@ variable "availability_zone" {}
 resource "sbercloud_cce_node_pool" "node_pool" {
   cluster_id               = var.cluster_id
   name                     = "testpool"
-  os                       = "EulerOS 2.5"
+  os                       = "CentOS 7.6"
   initial_node_count       = 2
   flavor_id                = "s3.large.4"
   availability_zone        = var.availability_zone
@@ -29,7 +29,7 @@ resource "sbercloud_cce_node_pool" "node_pool" {
   type                     = "vm"
 
   root_volume {
-    size       = 40
+    size       = 50
     volumetype = "SAS"
   }
   data_volumes {

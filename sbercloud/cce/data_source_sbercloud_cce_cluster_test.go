@@ -1,4 +1,4 @@
-package sbercloud
+package cce
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 )
 
 func TestAccCCEClusterV3DataSource_basic(t *testing.T) {
@@ -14,8 +15,8 @@ func TestAccCCEClusterV3DataSource_basic(t *testing.T) {
 	resourceName := "data.sbercloud_cce_cluster.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:  func() { testAccPreCheck(t) },
-		Providers: testAccProviders,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccCCEClusterV3DataSource_basic(rName),
@@ -51,6 +52,8 @@ func testAccCCEClusterV3DataSource_basic(rName string) string {
 
 data "sbercloud_cce_cluster" "test" {
   name = sbercloud_cce_cluster.test.name
+
+  depends_on = [sbercloud_cce_cluster.test]
 }
 `, testAccCCEClusterV3_basic(rName))
 }

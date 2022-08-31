@@ -1,10 +1,11 @@
-package sbercloud
+package cce
 
 import (
 	"fmt"
 	"testing"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -22,9 +23,9 @@ func TestAccCCEAddonV3_basic(t *testing.T) {
 	clusterName := "sbercloud_cce_cluster.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckCCEAddonV3Destroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckCCEAddonV3Destroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccCCEAddonV3_basic(rName),
@@ -52,10 +53,10 @@ func TestAccCCEAddonV3_values(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck: func() {
-			testAccPreCheck(t)
+			acceptance.TestAccPreCheck(t)
 		},
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckCCEAddonV3Destroy,
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckCCEAddonV3Destroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccCCEAddonV3_values(rName),
@@ -69,8 +70,8 @@ func TestAccCCEAddonV3_values(t *testing.T) {
 }
 
 func testAccCheckCCEAddonV3Destroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	cceClient, err := config.CceAddonV3Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	cceClient, err := config.CceAddonV3Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmtp.Errorf("Error creating SberCloud CCE Addon client: %s", err)
 	}
@@ -114,8 +115,8 @@ func testAccCheckCCEAddonV3Exists(n string, cluster string, addon *addons.Addon)
 			return fmtp.Errorf("Cluster id is not set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		cceClient, err := config.CceAddonV3Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		cceClient, err := config.CceAddonV3Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmtp.Errorf("Error creating SberCloud CCE Addon client: %s", err)
 		}
@@ -160,7 +161,7 @@ func testAccCCEAddonV3_Base(rName string) string {
 resource "sbercloud_cce_node" "test" {
   cluster_id        = sbercloud_cce_cluster.test.id
   name              = "%s"
-  flavor_id         = "c6.large.2"
+  flavor_id         = "c6nl.large.2"
   availability_zone = data.sbercloud_availability_zones.test.names[0]
   key_pair          = sbercloud_compute_keypair.test.name
   os                = "CentOS 7.6"
@@ -198,7 +199,7 @@ resource "sbercloud_cce_node_pool" "test" {
   cluster_id         = sbercloud_cce_cluster.test.id
   name               = "%s"
   os                 = "CentOS 7.6"
-  flavor_id          = "c6.large.2"
+  flavor_id          = "c6nl.large.2"
   initial_node_count = 2
   availability_zone  = data.sbercloud_availability_zones.test.names[0]
   key_pair           = sbercloud_compute_keypair.test.name
@@ -243,5 +244,5 @@ resource "sbercloud_cce_addon" "test" {
 
   depends_on = [sbercloud_cce_node_pool.test]
 }
-`, testAccCCENodePool_Base(rName), rName, SBC_PROJECT_ID)
+`, testAccCCENodePool_Base(rName), rName, acceptance.SBC_PROJECT_ID)
 }

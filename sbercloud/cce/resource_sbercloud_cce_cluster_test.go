@@ -1,4 +1,4 @@
-package sbercloud
+package cce
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 
 	"github.com/chnsz/golangsdk/openstack/cce/v3/clusters"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -19,9 +20,9 @@ func TestAccCCEClusterV3_basic(t *testing.T) {
 	resourceName := "sbercloud_cce_cluster.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckCCEClusterV3Destroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckCCEClusterV3Destroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccCCEClusterV3_basic(rName),
@@ -57,9 +58,9 @@ func TestAccCCEClusterV3_withEip(t *testing.T) {
 	resourceName := "sbercloud_cce_cluster.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckCCEClusterV3Destroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckCCEClusterV3Destroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccCCEClusterV3_withEip(rName),
@@ -87,15 +88,15 @@ func TestAccCCEClusterV3_withEpsId(t *testing.T) {
 	resourceName := "sbercloud_cce_cluster.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheckEpsID(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckCCEClusterV3Destroy,
+		PreCheck:          func() { acceptance.TestAccPreCheckEpsID(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckCCEClusterV3Destroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccCCEClusterV3_withEpsId(rName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckCCEClusterV3Exists(resourceName, &cluster),
-					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", SBC_ENTERPRISE_PROJECT_ID_TEST),
+					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", acceptance.SBC_ENTERPRISE_PROJECT_ID),
 				),
 			},
 		},
@@ -103,10 +104,10 @@ func TestAccCCEClusterV3_withEpsId(t *testing.T) {
 }
 
 func testAccCheckCCEClusterV3Destroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	cceClient, err := config.CceV3Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	cceClient, err := config.CceV3Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
-		return fmt.Errorf("Error creating HuaweiCloud CCE client: %s", err)
+		return fmt.Errorf("Error creating SberCloud CCE client: %s", err)
 	}
 
 	for _, rs := range s.RootModule().Resources {
@@ -134,10 +135,10 @@ func testAccCheckCCEClusterV3Exists(n string, cluster *clusters.Clusters) resour
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		cceClient, err := config.CceV3Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		cceClient, err := config.CceV3Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
-			return fmt.Errorf("Error creating HuaweiCloud CCE client: %s", err)
+			return fmt.Errorf("Error creating SberCloud CCE client: %s", err)
 		}
 
 		found, err := clusters.Get(cceClient, rs.Primary.ID).Extract()
@@ -246,5 +247,5 @@ resource "sbercloud_cce_cluster" "test" {
   enterprise_project_id  = "%s"
 }
 
-`, testAccCCEClusterV3_Base(rName), rName, SBC_ENTERPRISE_PROJECT_ID_TEST)
+`, testAccCCEClusterV3_Base(rName), rName, acceptance.SBC_ENTERPRISE_PROJECT_ID)
 }

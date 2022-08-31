@@ -1,4 +1,4 @@
-package sbercloud
+package cce
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 
 	"github.com/chnsz/golangsdk/openstack/cce/v3/nodes"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -23,9 +24,9 @@ func TestAccCCENodeV3_basic(t *testing.T) {
 	clusterName := "sbercloud_cce_cluster.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckCCENodeV3Destroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckCCENodeV3Destroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccCCENodeV3_basic(rName),
@@ -62,10 +63,10 @@ func TestAccCCENodeV3_basic(t *testing.T) {
 }
 
 func testAccCheckCCENodeV3Destroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	cceClient, err := config.CceV3Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	cceClient, err := config.CceV3Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
-		return fmt.Errorf("Error creating HuaweiCloud CCE client: %s", err)
+		return fmt.Errorf("Error creating SberCloud CCE client: %s", err)
 	}
 
 	var clusterId string
@@ -106,10 +107,10 @@ func testAccCheckCCENodeV3Exists(n string, cluster string, node *nodes.Nodes) re
 			return fmt.Errorf("Cluster id is not set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		cceClient, err := config.CceV3Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		cceClient, err := config.CceV3Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
-			return fmt.Errorf("Error creating HuaweiCloud CCE client: %s", err)
+			return fmt.Errorf("Error creating SberCloud CCE client: %s", err)
 		}
 
 		found, err := nodes.Get(cceClient, c.Primary.ID, rs.Primary.ID).Extract()
@@ -156,17 +157,18 @@ func testAccCCENodeV3_basic(rName string) string {
 resource "sbercloud_cce_node" "test" {
   cluster_id        = sbercloud_cce_cluster.test.id
   name              = "%s"
-  flavor_id         = "s6.small.1"
+  flavor_id         = "c6nl.large.2"
   availability_zone = data.sbercloud_availability_zones.test.names[0]
   key_pair          = sbercloud_compute_keypair.test.name
+  os                = "CentOS 7.6"
 
   root_volume {
-    size       = 40
-    volumetype = "SSD"
+    size       = 50
+    volumetype = "SAS"
   }
   data_volumes {
     size       = 100
-    volumetype = "SSD"
+    volumetype = "SAS"
   }
   tags = {
     foo = "bar"
@@ -183,17 +185,18 @@ func testAccCCENodeV3_update(rName, updateName string) string {
 resource "sbercloud_cce_node" "test" {
   cluster_id        = sbercloud_cce_cluster.test.id
   name              = "%s"
-  flavor_id         = "s6.small.1"
+  flavor_id         = "c6nl.large.2"
   availability_zone = data.sbercloud_availability_zones.test.names[0]
   key_pair          = sbercloud_compute_keypair.test.name
+  os                = "CentOS 7.6"
 
   root_volume {
-    size       = 40
-    volumetype = "SSD"
+    size       = 50
+    volumetype = "SAS"
   }
   data_volumes {
     size       = 100
-    volumetype = "SSD"
+    volumetype = "SAS"
   }
   tags = {
     foo = "bar"
@@ -210,17 +213,18 @@ func testAccCCENodeV3_auto_assign_eip(rName string) string {
 resource "sbercloud_cce_node" "test" {
   cluster_id        = sbercloud_cce_cluster.test.id
   name              = "%s"
-  flavor_id         = "s6.small.1"
+  flavor_id         = "c6nl.large.2"
   availability_zone = data.sbercloud_availability_zones.test.names[0]
   key_pair          = sbercloud_compute_keypair.test.name
+  os                = "CentOS 7.6"
 
   root_volume {
-    size       = 40
-    volumetype = "SSD"
+    size       = 50
+    volumetype = "SAS"
   }
   data_volumes {
     size       = 100
-    volumetype = "SSD"
+    volumetype = "SAS"
   }
 
   // Assign EIP
@@ -251,17 +255,18 @@ resource "sbercloud_vpc_eip" "test" {
 resource "sbercloud_cce_node" "test" {
   cluster_id        = sbercloud_cce_cluster.test.id
   name              = "%s"
-  flavor_id         = "s6.small.1"
+  flavor_id         = "c6nl.large.2"
   availability_zone = data.sbercloud_availability_zones.test.names[0]
   key_pair          = sbercloud_compute_keypair.test.name
+  os                = "CentOS 7.6"
 
   root_volume {
-    size       = 40
-    volumetype = "SSD"
+    size       = 50
+    volumetype = "SAS"
   }
   data_volumes {
     size       = 100
-    volumetype = "SSD"
+    volumetype = "SAS"
   }
 
   // Assign existing EIP

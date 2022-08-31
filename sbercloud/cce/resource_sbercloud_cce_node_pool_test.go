@@ -1,4 +1,4 @@
-package sbercloud
+package cce
 
 import (
 	"fmt"
@@ -7,9 +7,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 
 	"github.com/chnsz/golangsdk/openstack/cce/v3/nodepools"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
 )
 
 func TestAccCCENodePool_basic(t *testing.T) {
@@ -22,15 +24,16 @@ func TestAccCCENodePool_basic(t *testing.T) {
 	clusterName := "sbercloud_cce_cluster.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckCCENodePoolDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckCCENodePoolDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccCCENodePool_basic(rName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckCCENodePoolExists(resourceName, clusterName, &nodePool),
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttr(resourceName, "current_node_count", "1"),
 				),
 			},
 			{
@@ -38,12 +41,15 @@ func TestAccCCENodePool_basic(t *testing.T) {
 				ImportState:       true,
 				ImportStateVerify: true,
 				ImportStateIdFunc: testAccCCENodePoolImportStateIdFunc(),
+				ImportStateVerifyIgnore: []string{
+					"initial_node_count",
+				},
 			},
 			{
 				Config: testAccCCENodePool_update(rName, updateName),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "name", updateName),
-					resource.TestCheckResourceAttr(resourceName, "initial_node_count", "2"),
+					resource.TestCheckResourceAttr(resourceName, "current_node_count", "2"),
 					resource.TestCheckResourceAttr(resourceName, "scall_enable", "true"),
 					resource.TestCheckResourceAttr(resourceName, "min_node_count", "2"),
 					resource.TestCheckResourceAttr(resourceName, "max_node_count", "9"),
@@ -65,7 +71,7 @@ func TestAccCCENodePool_basic(t *testing.T) {
 	})
 }
 
-func TestAccCCENodePool_tags(t *testing.T) {
+func TestAccCCENodePool_tagsLabelsTaints(t *testing.T) {
 	var nodePool nodepools.NodePool
 
 	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
@@ -74,26 +80,39 @@ func TestAccCCENodePool_tags(t *testing.T) {
 	clusterName := "sbercloud_cce_cluster.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckCCENodePoolDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckCCENodePoolDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccCCENodePool_tags(rName),
+				Config: testAccCCENodePool_tagsLabelsTaints(rName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckCCENodePoolExists(resourceName, clusterName, &nodePool),
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
 					resource.TestCheckResourceAttr(resourceName, "tags.test1", "val1"),
 					resource.TestCheckResourceAttr(resourceName, "tags.test2", "val2"),
+					resource.TestCheckResourceAttr(resourceName, "labels.test1", "val1"),
+					resource.TestCheckResourceAttr(resourceName, "labels.test2", "val2"),
+					resource.TestCheckResourceAttr(resourceName, "taints.0.key", "test_key"),
+					resource.TestCheckResourceAttr(resourceName, "taints.0.value", "test_value"),
+					resource.TestCheckResourceAttr(resourceName, "taints.0.effect", "NoSchedule"),
 				),
 			},
 			{
-				Config: testAccCCENodePool_tags_update(rName),
+				Config: testAccCCENodePool_tagsLabelsTaints_update(rName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckCCENodePoolExists(resourceName, clusterName, &nodePool),
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
 					resource.TestCheckResourceAttr(resourceName, "tags.test1", "val1_update"),
 					resource.TestCheckResourceAttr(resourceName, "tags.test2_update", "val2_update"),
+					resource.TestCheckResourceAttr(resourceName, "labels.test1", "val1_update"),
+					resource.TestCheckResourceAttr(resourceName, "labels.test2_update", "val2_update"),
+					resource.TestCheckResourceAttr(resourceName, "taints.0.key", "test_key"),
+					resource.TestCheckResourceAttr(resourceName, "taints.0.value", "test_value_update"),
+					resource.TestCheckResourceAttr(resourceName, "taints.0.effect", "NoSchedule"),
+					resource.TestCheckResourceAttr(resourceName, "taints.1.key", "test_key_update"),
+					resource.TestCheckResourceAttr(resourceName, "taints.1.value", "test_value_update"),
+					resource.TestCheckResourceAttr(resourceName, "taints.1.effect", "NoSchedule"),
 				),
 			},
 		},
@@ -101,10 +120,10 @@ func TestAccCCENodePool_tags(t *testing.T) {
 }
 
 func testAccCheckCCENodePoolDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	cceClient, err := config.CceV3Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	cceClient, err := config.CceV3Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
-		return fmt.Errorf("Error creating SberCloud CCE client: %s", err)
+		return fmtp.Errorf("Error creating SberCloud CCE client: %s", err)
 	}
 
 	var clusterId string
@@ -125,7 +144,7 @@ func testAccCheckCCENodePoolDestroy(s *terraform.State) error {
 
 		_, err := nodepools.Get(cceClient, clusterId, nodepollId).Extract()
 		if err == nil {
-			return fmt.Errorf("Node still exists")
+			return fmtp.Errorf("Node still exists")
 		}
 	}
 
@@ -136,14 +155,14 @@ func testAccCCENodePoolImportStateIdFunc() resource.ImportStateIdFunc {
 	return func(s *terraform.State) (string, error) {
 		cluster, ok := s.RootModule().Resources["sbercloud_cce_cluster.test"]
 		if !ok {
-			return "", fmt.Errorf("Cluster not found: %s", cluster)
+			return "", fmtp.Errorf("Cluster not found: %s", cluster)
 		}
 		nodePool, ok := s.RootModule().Resources["sbercloud_cce_node_pool.test"]
 		if !ok {
-			return "", fmt.Errorf("Node pool not found: %s", nodePool)
+			return "", fmtp.Errorf("Node pool not found: %s", nodePool)
 		}
 		if cluster.Primary.ID == "" || nodePool.Primary.ID == "" {
-			return "", fmt.Errorf("resource not found: %s/%s", cluster.Primary.ID, nodePool.Primary.ID)
+			return "", fmtp.Errorf("resource not found: %s/%s", cluster.Primary.ID, nodePool.Primary.ID)
 		}
 		return fmt.Sprintf("%s/%s", cluster.Primary.ID, nodePool.Primary.ID), nil
 	}
@@ -153,22 +172,22 @@ func testAccCheckCCENodePoolExists(n string, cluster string, nodePool *nodepools
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
-			return fmt.Errorf("Not found: %s", n)
+			return fmtp.Errorf("Not found: %s", n)
 		}
 		c, ok := s.RootModule().Resources[cluster]
 		if !ok {
-			return fmt.Errorf("Cluster not found: %s", c)
+			return fmtp.Errorf("Cluster not found: %s", c)
 		}
 
 		if rs.Primary.ID == "" {
-			return fmt.Errorf("No ID is set")
+			return fmtp.Errorf("No ID is set")
 		}
 		if c.Primary.ID == "" {
-			return fmt.Errorf("Cluster id is not set")
+			return fmtp.Errorf("Cluster id is not set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		cceClient, err := config.CceV3Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		cceClient, err := config.CceV3Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud CCE client: %s", err)
 		}
@@ -179,7 +198,7 @@ func testAccCheckCCENodePoolExists(n string, cluster string, nodePool *nodepools
 		}
 
 		if found.Metadata.Id != rs.Primary.ID {
-			return fmt.Errorf("Node Pool not found")
+			return fmtp.Errorf("Node Pool not found")
 		}
 
 		*nodePool = *found
@@ -217,8 +236,8 @@ func testAccCCENodePool_basic(rName string) string {
 resource "sbercloud_cce_node_pool" "test" {
   cluster_id               = sbercloud_cce_cluster.test.id
   name                     = "%s"
-  os                       = "EulerOS 2.5"
-  flavor_id                = "s6.large.2"
+  os                       = "CentOS 7.6"
+  flavor_id                = "c6nl.large.2"
   initial_node_count       = 1
   availability_zone        = data.sbercloud_availability_zones.test.names[0]
   key_pair                 = sbercloud_compute_keypair.test.name
@@ -248,8 +267,8 @@ func testAccCCENodePool_update(rName, updateName string) string {
 resource "sbercloud_cce_node_pool" "test" {
   cluster_id               = sbercloud_cce_cluster.test.id
   name                     = "%s"
-  os                       = "EulerOS 2.5"
-  flavor_id                = "s6.large.2"
+  os                       = "CentOS 7.6"
+  flavor_id                = "c6nl.large.2"
   initial_node_count       = 2
   availability_zone        = data.sbercloud_availability_zones.test.names[0]
   key_pair                 = sbercloud_compute_keypair.test.name
@@ -279,8 +298,8 @@ func testAccCCENodePool_volume_extendParams(rName string) string {
 resource "sbercloud_cce_node_pool" "test" {
   cluster_id               = sbercloud_cce_cluster.test.id
   name                     = "%s"
-  os                       = "EulerOS 2.5"
-  flavor_id                = "s6.large.2"
+  os                       = "CentOS 7.6"
+  flavor_id                = "c6nl.large.2"
   initial_node_count       = 1
   availability_zone        = data.sbercloud_availability_zones.test.names[0]
   key_pair                 = sbercloud_compute_keypair.test.name
@@ -318,15 +337,15 @@ resource "sbercloud_cce_node_pool" "test" {
 `, testAccCCENodePool_Base(rName), rName)
 }
 
-func testAccCCENodePool_tags(rName string) string {
+func testAccCCENodePool_tagsLabelsTaints(rName string) string {
 	return fmt.Sprintf(`
 %s
 
 resource "sbercloud_cce_node_pool" "test" {
   cluster_id               = sbercloud_cce_cluster.test.id
   name                     = "%s"
-  os                       = "EulerOS 2.5"
-  flavor_id                = "s6.large.2"
+  os                       = "CentOS 7.6"
+  flavor_id                = "c6nl.large.2"
   initial_node_count       = 1
   availability_zone        = data.sbercloud_availability_zones.test.names[0]
   key_pair                 = sbercloud_compute_keypair.test.name
@@ -350,19 +369,31 @@ resource "sbercloud_cce_node_pool" "test" {
 	test1 = "val1"
 	test2 = "val2"
   }
+
+  labels = {
+	test1 = "val1"
+	test2 = "val2"
+  }
+
+  taints {
+	key    = "test_key"
+	value  = "test_value"
+	effect = "NoSchedule"
+  }
+
 }
 `, testAccCCENodePool_Base(rName), rName)
 }
 
-func testAccCCENodePool_tags_update(rName string) string {
+func testAccCCENodePool_tagsLabelsTaints_update(rName string) string {
 	return fmt.Sprintf(`
 %s
 
 resource "sbercloud_cce_node_pool" "test" {
   cluster_id               = sbercloud_cce_cluster.test.id
   name                     = "%s"
-  os                       = "EulerOS 2.5"
-  flavor_id                = "s6.large.2"
+  os                       = "CentOS 7.6"
+  flavor_id                = "c6nl.large.2"
   initial_node_count       = 1
   availability_zone        = data.sbercloud_availability_zones.test.names[0]
   key_pair                 = sbercloud_compute_keypair.test.name
@@ -385,6 +416,23 @@ resource "sbercloud_cce_node_pool" "test" {
   tags = {
 	test1        = "val1_update"
 	test2_update = "val2_update"
+  }
+
+  labels = {
+	test1        = "val1_update"
+	test2_update = "val2_update"
+  }
+
+  taints {
+	key    = "test_key"
+	value  = "test_value_update"
+	effect = "NoSchedule"
+  }
+
+  taints {
+	key    = "test_key_update"
+	value  = "test_value_update"
+	effect = "NoSchedule"
   }
 }
 `, testAccCCENodePool_Base(rName), rName)

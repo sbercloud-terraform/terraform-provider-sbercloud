@@ -9,6 +9,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/mutexkv"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/as"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cbr"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cce"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cdm"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ces"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/css"
@@ -143,7 +144,9 @@ func Provider() *schema.Provider {
 			"sbercloud_cbr_vaults":             cbr.DataSourceCbrVaultsV3(),
 			"sbercloud_cce_addon_template":     huaweicloud.DataSourceCCEAddonTemplateV3(),
 			"sbercloud_cce_cluster":            huaweicloud.DataSourceCCEClusterV3(),
+			"sbercloud_cce_clusters":           cce.DataSourceCCEClusters(),
 			"sbercloud_cce_node":               huaweicloud.DataSourceCCENodeV3(),
+			"sbercloud_cce_nodes":              cce.DataSourceCCENodes(),
 			"sbercloud_cce_node_pool":          huaweicloud.DataSourceCCENodePoolV3(),
 			"sbercloud_cdm_flavors":            huaweicloud.DataSourceCdmFlavorV1(),
 			"sbercloud_compute_flavors":        huaweicloud.DataSourceEcsFlavors(),
@@ -193,8 +196,11 @@ func Provider() *schema.Provider {
 			"sbercloud_css_cluster":                     css.ResourceCssCluster(),
 			"sbercloud_cce_addon":                       huaweicloud.ResourceCCEAddonV3(),
 			"sbercloud_cce_cluster":                     huaweicloud.ResourceCCEClusterV3(),
+			"sbercloud_cce_namespace":                   cce.ResourceCCENamespaceV1(),
 			"sbercloud_cce_node":                        huaweicloud.ResourceCCENodeV3(),
+			"sbercloud_cce_node_attach":                 huaweicloud.ResourceCCENodeAttachV3(),
 			"sbercloud_cce_node_pool":                   huaweicloud.ResourceCCENodePool(),
+			"sbercloud_cce_pvc":                         cce.ResourceCcePersistentVolumeClaimsV1(),
 			"sbercloud_cdm_cluster":                     cdm.ResourceCdmCluster(),
 			"sbercloud_compute_instance":                ResourceComputeInstanceV2(),
 			"sbercloud_compute_interface_attach":        huaweicloud.ResourceComputeInterfaceAttachV2(),
