@@ -2,7 +2,7 @@
 subcategory: "Elastic Load Balance (ELB)"
 ---
 
-# sbercloud\_lb\_certificate
+# sbercloud_lb_certificate
 
 Manages an ELB certificate resource within SberCloud.
 
@@ -67,12 +67,6 @@ i34R7EQDtFeiSvBdeKRsPp8c0KT8H1B4lXNkkCQs2WX5p4lm99+ZtLD4glw8x6Ic
 i1YhgnQbn5E0hz55OLu5jvOkKQjPCW+8Kg==
 -----END CERTIFICATE-----
 EOT
-
-  timeouts {
-    create = "5m"
-    update = "5m"
-    delete = "5m"
-  }
 }
 ```
 
@@ -80,27 +74,28 @@ EOT
 
 The following arguments are supported:
 
-* `region` - (Optional, String, ForceNew) The region in which to create the ELB certificate resource.
-    If omitted, the provider-level region will be used.
-    Changing this creates a new certificate.
+* `region` - (Optional, String, ForceNew) The region in which to create the ELB certificate resource. If omitted, the
+  provider-level region will be used. Changing this creates a new certificate.
 
-* `name` - (Optional, String) Human-readable name for the Certificate. Does not have
-    to be unique.
+* `name` - (Optional, String) Human-readable name for the Certificate. Does not have to be unique.
 
 * `description` - (Optional, String) Human-readable description for the Certificate.
 
-* `type` - (Optional, String, ForceNew) Specifies the certificate type. The default value is "server".
-    The value can be one of the following:
-    - server: indicates the server certificate.
-    - client: indicates the CA certificate.
+* `type` - (Optional, String, ForceNew) Specifies the certificate type. The default value is "server". The value can be
+  one of the following:
+  + server: indicates the server certificate.
+  + client: indicates the CA certificate.
 
 * `certificate` - (Required, String) The public encrypted key of the Certificate, PEM format.
 
-* `private_key` - (Optional, String) The private encrypted key of the Certificate, PEM format.
-    This parameter is valid and mandatory only when `type` is set to "server".
+* `private_key` - (Optional, String) The private encrypted key of the Certificate, PEM format. This parameter is valid
+  and mandatory only when `type` is set to "server".
 
-* `domain` - (Optional, String) The domain of the Certificate. The value contains a maximum of 100 characters.
-    This parameter is valid only when `type` is set to "server".
+* `domain` - (Optional, String) The domain of the Certificate. The value contains a maximum of 100 characters. This
+  parameter is valid only when `type` is set to "server".
+
+* `enterprise_project_id` - (Optional, String, ForceNew) The enterprise project ID of the certificate. Changing this
+  creates a new certificate.
 
 ## Attributes Reference
 
@@ -111,7 +106,35 @@ In addition to all arguments above, the following attributes are exported:
 * `create_time` - Indicates the creation time.
 
 ## Timeouts
+
 This resource provides the following timeouts configuration options:
-- `create` - Default is 10 minute.
-- `update` - Default is 10 minute.
-- `delete` - Default is 5 minute.
+
+* `create` - Default is 10 minute.
+* `update` - Default is 10 minute.
+* `delete` - Default is 5 minute.
+
+## Import
+
+ELB certificate can be imported using the certificate ID, e.g.
+
+```
+$ terraform import sbercloud_lb_certificate.certificate_1 5c20fdad-7288-11eb-b817-0255ac10158b
+```
+
+Note that the imported state may not be identical to your resource definition, due to some attributes missing from the
+API response, security or some other reason. The missing attributes include: `enterprise_project_id`.
+It is generally recommended running `terraform plan` after importing a certificate.
+You can then decide if changes should be applied to the certificate, or the resource
+definition should be updated to align with the certificate. Also, you can ignore changes as below.
+
+```
+resource "sbercloud_lb_certificate" "certificate_1" {
+    ...
+
+  lifecycle {
+    ignore_changes = [
+      enterprise_project_id,
+    ]
+  }
+}
+```
