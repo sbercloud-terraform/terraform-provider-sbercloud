@@ -7,6 +7,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/mutexkv"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/aom"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/as"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cbr"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cdm"
@@ -183,6 +184,7 @@ func Provider() *schema.Provider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
+			"sbercloud_aom_service_discovery_rule":      aom.ResourceServiceDiscoveryRule(),
 			"sbercloud_api_gateway_api":                 huaweicloud.ResourceAPIGatewayAPI(),
 			"sbercloud_api_gateway_group":               huaweicloud.ResourceAPIGatewayGroup(),
 			"sbercloud_as_configuration":                as.ResourceASConfiguration(),
