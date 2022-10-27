@@ -30,6 +30,11 @@ var (
 	SBC_ADMIN       = os.Getenv("SBC_ADMIN")
 	SBC_DOMAIN_ID   = os.Getenv("SBC_DOMAIN_ID")
 	SBC_DOMAIN_NAME = os.Getenv("SBC_DOMAIN_NAME")
+
+	SBC_ACCESS_KEY = os.Getenv("SBC_ACCESS_KEY")
+	SBC_SECRET_KEY = os.Getenv("SBC_SECRET_KEY")
+
+	SBC_DLI_FLINK_JAR_OBS_PATH = os.Getenv("SBC_DLI_FLINK_JAR_OBS_PATH")
 )
 
 // TestAccProviderFactories is a static map containing only the main provider instance
@@ -68,10 +73,11 @@ const (
 
 /*
 InitDataSourceCheck build a 'resourceCheck' object. Only used to check datasource attributes.
-  Parameters:
-    resourceName:    The resource name is used to check in the terraform.State.e.g. : sbercloud_waf_domain.domain_1.
-  Return:
-    *resourceCheck: resourceCheck object
+
+	Parameters:
+	  resourceName:    The resource name is used to check in the terraform.State.e.g. : sbercloud_waf_domain.domain_1.
+	Return:
+	  *resourceCheck: resourceCheck object
 */
 func InitDataSourceCheck(sourceName string) *resourceCheck {
 	return &resourceCheck{
@@ -82,12 +88,13 @@ func InitDataSourceCheck(sourceName string) *resourceCheck {
 
 /*
 InitResourceCheck build a 'resourceCheck' object. The common test methods are provided in 'resourceCheck'.
-  Parameters:
-    resourceName:    The resource name is used to check in the terraform.State.e.g. : sbercloud_waf_domain.domain_1.
-    resourceObject:  Resource object, used to check whether the resource exists in SberCloud.
-    getResourceFunc: The function used to get the resource object.
-  Return:
-    *resourceCheck: resourceCheck object
+
+	Parameters:
+	  resourceName:    The resource name is used to check in the terraform.State.e.g. : sbercloud_waf_domain.domain_1.
+	  resourceObject:  Resource object, used to check whether the resource exists in SberCloud.
+	  getResourceFunc: The function used to get the resource object.
+	Return:
+	  *resourceCheck: resourceCheck object
 */
 func InitResourceCheck(resourceName string, resourceObject interface{}, getResourceFunc ServiceFunc) *resourceCheck {
 	return &resourceCheck{
@@ -131,13 +138,14 @@ func parseVariableToName(varStr string) (string, string, error) {
 
 /*
 TestCheckResourceAttrWithVariable validates the variable in state for the given name/key combination.
-  Parameters:
-    resourceName: The resource name is used to check in the terraform.State.
-    key:          The field name of the resource.
-    variable:     The variable name of the value to be checked.
 
-    variable such like ${sbercloud_waf_certificate.certificate_1.id}
-    or ${data.sbercloud_waf_policies.policies_2.policies.0.id}
+	Parameters:
+	  resourceName: The resource name is used to check in the terraform.State.
+	  key:          The field name of the resource.
+	  variable:     The variable name of the value to be checked.
+
+	  variable such like ${sbercloud_waf_certificate.certificate_1.id}
+	  or ${data.sbercloud_waf_policies.policies_2.policies.0.id}
 */
 func TestCheckResourceAttrWithVariable(resourceName, key, varStr string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
@@ -270,6 +278,12 @@ func TestAccPreCheckProject(t *testing.T) {
 func TestAccPreCheckAdminOnly(t *testing.T) {
 	if SBC_ADMIN == "" {
 		t.Skip("Skipping test because it requires the admin privileges")
+	}
+}
+
+func TestAccPreCheckOBS(t *testing.T) {
+	if SBC_ACCESS_KEY == "" || SBC_SECRET_KEY == "" {
+		t.Skip("SBC_ACCESS_KEY and SBC_SECRET_KEY must be set for OBS acceptance tests")
 	}
 }
 
