@@ -1,3 +1,17 @@
+## 1.10.0 (October 28, 2022)
+
+FEATURES:
+
+* **New Resource:** `sbercloud_aom_service_discovery_rule` ([#151](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/151)
+* **New Resource:** `sbercloud_dli_database` ([#161](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/161)
+* **New Resource:** `sbercloud_dli_package` ([#161](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/161)
+* **New Resource:** `sbercloud_dli_spark_job` ([#161](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/161)
+
+ENHANCEMENTS:
+
+* Update the documentation for ELB resources ([#159](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/159))
+* Update the documentation for DLI resources ([#161](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/161)
+
 ## 1.9.0 (August 31, 2022)
 
 FEATURES:
