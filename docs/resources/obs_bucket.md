@@ -262,7 +262,7 @@ The `noncurrent_version_transition` object supports the following
 In addition to all arguments above, the following attributes are exported:
 
 * `id` - The name of the bucket.
-* `bucket_domain_name` - The bucket domain name. Will be of format `bucketname.obs.region.myhuaweicloud.com`.
+* `bucket_domain_name` - The bucket domain name. Will be of format `bucketname.obs.region.mysbercloud.com`.
 * `region` - The region where this bucket resides in.
 
 ## Import
