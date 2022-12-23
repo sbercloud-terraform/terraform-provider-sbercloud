@@ -13,8 +13,8 @@ resource "sbercloud_nat_gateway" "nat_1" {
   name                = "Terraform"
   description         = "test for terraform"
   spec                = "3"
-  router_id           = "2c1fe4bd-ebad-44ca-ae9d-e94e63847b75"
-  internal_network_id = "dc8632e2-d9ff-41b1-aa0c-d455557314a0"
+  vpc_id              = "2c1fe4bd-ebad-44ca-ae9d-e94e63847b75"
+  subnet_id           = "dc8632e2-d9ff-41b1-aa0c-d455557314a0"
 }
 ```
 
@@ -29,11 +29,11 @@ The following arguments are supported:
 * `name` - (Required, String) Specifies the nat gateway name. The name can
     contain only digits, letters, underscores (_), and hyphens(-).
 
-* `internal_network_id` - (Required, String, ForceNew) Specifies the network ID
+* `subnet_id` (previously `internal_network_id`) - (Required, String, ForceNew) Specifies the network ID
     of the downstream interface (the next hop of the DVR) of the NAT gateway.
     Changing this creates a new nat gateway.
 
-* `router_id` - (Required, String, ForceNew) Specifies the ID of the router
+* `vpc_id` (previously `router_id`) - (Required, String, ForceNew) Specifies the ID of the router
     this nat gateway belongs to. Changing this creates a new nat gateway.
 
 * `spec` - (Required, String) Specifies the nat gateway type.
