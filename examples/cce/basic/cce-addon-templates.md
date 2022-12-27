@@ -12,6 +12,7 @@ Following addon templates exist in the addon template list:
 - [`everest`](#everest)
 - [`metrics-server`](#metrics-server)
 - [`gpu-beta`](#gpu-beta)
+- [`nginx-ingress`](#nginx-ingress)
 
 All addons accept `basic` and some can accept `custom`, `flavor` input values.
 It is recommended to use `basic_json`, `custom_json` and `flavor_json` for more flexible input.
@@ -237,4 +238,128 @@ A device plugin for nvidia.com/gpu resource on nvidia driver.
   "is_driver_from_nvidia": true,
   "nvidia_driver_download_url": ""
 }
+```
+
+### nginx-ingress
+
+#### basic
+
+```json
+{
+  "swr_addr": "swr.ru-moscow-1.mysbercloud.com",
+  "swr_user": "hwofficial",
+  "tag": "v0.46.0"
+}
+```
+
+#### custom
+
+```json
+{
+  "config": {},
+  "defaultBackend": {
+    "enabled": true
+  },
+  "defaultBackendService": "",
+  "headers": {},
+  "service": {
+    "annotations": {},
+    "loadBalancerIP": ""
+  },
+  "tcp": {},
+  "udp": {}
+}
+```
+
+#### flavor
+
+Should be passed as `flavor_json`.
+
+```json
+{
+  "description": "custom resources",
+  "name": "custom-resources",
+  "replicas": 2,
+  "resources": [
+    {
+      "limitsCpu": "8000m",
+      "limitsMem": "4000Mi",
+      "name": "nginx-ingress",
+      "requestsCpu": "8000m",
+      "requestsMem": "4000Mi"
+    }
+  ]
+}
+```
+
+Overall structure looks like this:
+
+```json
+{
+  "basic":
+  {
+    "swr_addr": "swr.ru-moscow-1.mysbercloud.com",
+    "swr_user": "hwofficial",
+    "tag": "v0.46.0"
+  },
+  "parameters":
+  {
+    "custom":
+    {
+      "config":
+      {},
+      "defaultBackend":
+      {
+        "enabled": true
+      },
+      "defaultBackendService": "",
+      "headers":
+      {},
+      "service":
+      {
+        "annotations":
+        {},
+        "loadBalancerIP": ""
+      },
+      "tcp":
+      {},
+      "udp":
+      {}
+    },
+    "flavor1":
+    {
+      "description": "custom resources",
+      "name": "custom-resources",
+      "replicas": 2,
+      "resources":
+      [
+        {
+          "limitsCpu": "8000m",
+          "limitsMem": "4000Mi",
+          "name": "nginx-ingress",
+          "requestsCpu": "8000m",
+          "requestsMem": "4000Mi"
+        }
+      ]
+    }
+  }
+}
+```
+
+Friendly reminder, that `flavor_json` should be `jsonencode`d after `merge`.
+
+```hcl
+flavor_json = jsonencode(merge(
+  jsondecode(data.sbercloud_cce_addon_template.nginx_ingress_template.spec).parameters.flavor1,
+  {
+    "resources" = [
+      {
+        "limitsCpu": "200m",
+        "limitsMem": "512Mi",
+        "requestsCpu": "200m",
+        "requestsMem": "256Mi"
+      }
+    ]
+  }
+))
 ```
