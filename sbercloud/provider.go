@@ -157,6 +157,7 @@ func Provider() *schema.Provider {
 			"sbercloud_dcs_maintainwindow":     dcs.DataSourceDcsMaintainWindow(),
 			"sbercloud_dcs_product":            deprecated.DataSourceDcsProductV1(),
 			"sbercloud_dds_flavors":            dds.DataSourceDDSFlavorV3(),
+			"sbercloud_dns_zone":               DataSourceDNSZoneV2(),
 			"sbercloud_dms_az":                 deprecated.DataSourceDmsAZ(),
 			"sbercloud_dms_product":            dms.DataSourceDmsProduct(),
 			"sbercloud_dms_maintainwindow":     dms.DataSourceDmsMaintainWindow(),
