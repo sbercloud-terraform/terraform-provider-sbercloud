@@ -150,11 +150,11 @@ func resourceBCSInstanceV2() *schema.Resource {
 								Schema: map[string]*schema.Schema{
 									"domain_port": {
 										Type:     schema.TypeString,
-										Required: true,
+										Computed: true,
 									},
 									"ip_port": {
 										Type:     schema.TypeString,
-										Required: true,
+										Computed: true,
 									},
 								},
 							},
@@ -178,6 +178,7 @@ func resourceBCSInstanceV2() *schema.Resource {
 						"org_names": {
 							Type:     schema.TypeList,
 							Optional: true,
+							ForceNew: true,
 							Computed: true,
 							Elem:     &schema.Schema{Type: schema.TypeString},
 						},
@@ -548,7 +549,7 @@ func resourceBCSInstanceV2Delete(d *schema.ResourceData, meta interface{}) error
 		stateConf := &resource.StateChangeConf{
 			Pending:    []string{"DELETING", "RUNNING"},
 			Target:     []string{"DELETED"},
-			Refresh:    dms.DmsKafkaInstanceStateRefreshFunc(dmsClient, kafkaID),
+			Refresh:    dms.KafkaInstanceStateRefreshFunc(dmsClient, kafkaID),
 			Timeout:    d.Timeout(schema.TimeoutDelete),
 			Delay:      10 * time.Second,
 			MinTimeout: 3 * time.Second,

@@ -20,6 +20,7 @@ import (
 	"github.com/chnsz/golangsdk/openstack/rds/v3/securities"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/hashcode"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
@@ -79,7 +80,6 @@ func ResourceRdsInstance() *schema.Resource {
 							Type:      schema.TypeString,
 							Sensitive: true,
 							Required:  true,
-							ForceNew:  true,
 						},
 						"type": {
 							Type:             schema.TypeString,
@@ -193,6 +193,12 @@ func ResourceRdsInstance() *schema.Resource {
 				ForceNew: true,
 			},
 
+			"collation": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+			},
+
 			"ssl_enable": {
 				Type:     schema.TypeBool,
 				Optional: true,
@@ -205,6 +211,25 @@ func ResourceRdsInstance() *schema.Resource {
 				Optional: true,
 				Computed: true,
 				ForceNew: true,
+			},
+
+			"parameters": {
+				Type: schema.TypeSet,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"name": {
+							Type:     schema.TypeString,
+							Required: true,
+						},
+						"value": {
+							Type:     schema.TypeString,
+							Required: true,
+						},
+					},
+				},
+				Set:      parameterToHash,
+				Optional: true,
+				Computed: true,
 			},
 
 			"nodes": {
@@ -266,7 +291,7 @@ func ResourceRdsInstance() *schema.Resource {
 			"charging_mode": common.SchemaChargingMode(nil),
 			"period_unit":   common.SchemaPeriodUnit(nil),
 			"period":        common.SchemaPeriod(nil),
-			"auto_renew":    common.SchemaAutoRenew(nil),
+			"auto_renew":    common.SchemaAutoRenewUpdatable(nil),
 			"auto_pay":      common.SchemaAutoPay(nil),
 		},
 	}
@@ -303,6 +328,7 @@ func resourceRdsInstanceCreate(ctx context.Context, d *schema.ResourceData, meta
 		TimeZone:            d.Get("time_zone").(string),
 		FixedIp:             d.Get("fixed_ip").(string),
 		DiskEncryptionId:    d.Get("volume.0.disk_encryption_id").(string),
+		Collation:           d.Get("collation").(string),
 		Port:                buildRdsInstanceDBPort(d),
 		EnterpriseProjectId: config.GetEnterpriseProjectID(d),
 		Region:              region,
@@ -392,6 +418,78 @@ func resourceRdsInstanceCreate(ctx context.Context, d *schema.ResourceData, meta
 		taglist := utils.ExpandResourceTags(tagRaw)
 		if tagErr := tags.Create(client, "instances", instanceID, taglist).ExtractErr(); tagErr != nil {
 			return diag.Errorf("error setting tags of RDS instance (%s): %s", instanceID, tagErr)
+		}
+	}
+
+	// Set Parameters
+	parametersRaw := d.Get("parameters").(*schema.Set)
+	if parametersRaw.Len() > 0 {
+		configOpts := buildRdsInstanceParameters(parametersRaw)
+		err = resource.RetryContext(ctx, d.Timeout(schema.TimeoutCreate), func() *resource.RetryError {
+			_, err = instances.ModifyConfiguration(client, instanceID, configOpts).Extract()
+			retryable, err := handleMultiOperationsError(err)
+			if retryable {
+				return resource.RetryableError(err)
+			}
+			if err != nil {
+				return resource.NonRetryableError(err)
+			}
+			return nil
+		})
+		if err != nil {
+			return diag.Errorf("error modifying parameters for RDS instance (%s): %s", instanceID, err)
+		}
+
+		// Check if we need to restart
+		configs, err := instances.GetConfigurations(client, instanceID).Extract()
+		if err != nil {
+			return diag.Errorf("error fetching the instance parameters (%s): %s", instanceID, err)
+		}
+
+		restart := false
+		for _, parameter := range parametersRaw.List() {
+			name := parameter.(map[string]interface{})["name"]
+			for _, v := range configs.Parameters {
+				if v.Name == name {
+					if v.Restart {
+						restart = true
+					}
+					break
+				}
+			}
+			if restart {
+				break
+			}
+		}
+
+		if restart {
+			// If parameters which requires restart changed, reboot the instance.
+			err = resource.RetryContext(ctx, d.Timeout(schema.TimeoutCreate), func() *resource.RetryError {
+				_, err = instances.RebootInstance(client, instanceID).Extract()
+				retryable, err := handleMultiOperationsError(err)
+				if retryable {
+					return resource.RetryableError(err)
+				}
+				if err != nil {
+					return resource.NonRetryableError(err)
+				}
+				return nil
+			})
+			if err != nil {
+				return diag.Errorf("error rebooting for RDS instance (%s): %s", instanceID, err)
+			}
+
+			// wait for the instance state to be 'ACTIVE'.
+			stateConf := &resource.StateChangeConf{
+				Target:       []string{"ACTIVE"},
+				Refresh:      rdsInstanceStateRefreshFunc(client, instanceID),
+				Timeout:      d.Timeout(schema.TimeoutDefault),
+				Delay:        5 * time.Second,
+				PollInterval: 5 * time.Second,
+			}
+			if _, err = stateConf.WaitForStateContext(ctx); err != nil {
+				return diag.Errorf("error waiting for RDS instance (%s) become active state: %s", instanceID, err)
+			}
 		}
 	}
 
@@ -510,6 +608,46 @@ func resourceRdsInstanceRead(ctx context.Context, d *schema.ResourceData, meta i
 		d.Set("availability_zone", []string{az1})
 	}
 
+	// Set Parameters
+	configs, err := instances.GetConfigurations(client, instanceID).Extract()
+	if err != nil {
+		log.Printf("[WARN] error fetching parameters of instance (%s): %s", instanceID, err)
+	} else {
+		var restart []string
+		var params []map[string]interface{}
+		for _, parameter := range d.Get("parameters").(*schema.Set).List() {
+			name := parameter.(map[string]interface{})["name"]
+			for _, v := range configs.Parameters {
+				if v.Name == name {
+					p := map[string]interface{}{
+						"name":  v.Name,
+						"value": v.Value,
+					}
+					params = append(params, p)
+					if v.Restart {
+						restart = append(restart, v.Name)
+					}
+					break
+				}
+			}
+		}
+
+		if len(params) > 0 {
+			if err := d.Set("parameters", params); err != nil {
+				log.Printf("error saving parameters to RDS instance (%s): %s", instanceID, err)
+			}
+			if len(restart) > 0 && ctx.Value("parametersChanged") == "true" {
+				return diag.Diagnostics{
+					diag.Diagnostic{
+						Severity: diag.Warning,
+						Summary:  "Parameters Changed",
+						Detail:   fmt.Sprintf("Parameters %s changed which needs reboot.", restart),
+					},
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -564,11 +702,45 @@ func resourceRdsInstanceUpdate(ctx context.Context, d *schema.ResourceData, meta
 		return diag.FromErr(err)
 	}
 
+	if err := updateRdsRootPassword(d, client, instanceID); err != nil {
+		return diag.FromErr(err)
+	}
+
 	if d.HasChange("tags") {
 		tagErr := utils.UpdateResourceTags(client, d, "instances", instanceID)
 		if tagErr != nil {
 			return diag.Errorf("error updating tags of RDS instance (%s): %s", instanceID, tagErr)
 		}
+	}
+
+	if d.HasChange("auto_renew") {
+		bssClient, err := config.BssV2Client(config.GetRegion(d))
+		if err != nil {
+			return diag.Errorf("error creating BSS V2 client: %s", err)
+		}
+		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), d.Id()); err != nil {
+			return diag.Errorf("error updating the auto-renew of the instance (%s): %s", d.Id(), err)
+		}
+	}
+
+	if d.HasChange("parameters") {
+		type ctxType string
+		err = resource.RetryContext(ctx, d.Timeout(schema.TimeoutUpdate), func() *resource.RetryError {
+			err := updateRdsParameters(d, client, instanceID)
+			retryable, err := handleMultiOperationsError(err)
+			if retryable {
+				return resource.RetryableError(err)
+			}
+			if err != nil {
+				return resource.NonRetryableError(err)
+			}
+			return nil
+		})
+		if err != nil {
+			return diag.Errorf("error updating parameters of RDS instance (%s): %s", instanceID, err)
+		}
+		// Sending parametersChanged to Read to warn users the instance needs a reboot.
+		ctx = context.WithValue(ctx, ctxType("parametersChanged"), "true")
 	}
 
 	return resourceRdsInstanceRead(ctx, d, meta)
@@ -620,7 +792,7 @@ func GetRdsInstanceByID(client *golangsdk.ServiceClient, instanceID string) (*in
 	}
 	pages, err := instances.List(client, listOpts).AllPages()
 	if err != nil {
-		return nil, fmt.Errorf("An error occured while querying rds instance %s: %s", instanceID, err)
+		return nil, fmt.Errorf("An error occurred while querying rds instance %s: %s", instanceID, err)
 	}
 
 	resp, err := instances.ExtractRdsInstances(pages)
@@ -701,6 +873,19 @@ func buildRdsInstanceHaReplicationMode(d *schema.ResourceData) *instances.Ha {
 	return ha
 }
 
+func buildRdsInstanceParameters(params *schema.Set) instances.ModifyConfigurationOpts {
+	var configOpts instances.ModifyConfigurationOpts
+
+	values := make(map[string]string)
+	for _, v := range params.List() {
+		key := v.(map[string]interface{})["name"].(string)
+		value := v.(map[string]interface{})["value"].(string)
+		values[key] = value
+	}
+	configOpts.Values = values
+	return configOpts
+}
+
 func updateRdsInstanceName(d *schema.ResourceData, client *golangsdk.ServiceClient, instanceID string) error {
 	if !d.HasChange("name") {
 		return nil
@@ -736,10 +921,11 @@ func updateRdsInstanceFlavor(d *schema.ResourceData, config *config.Config, clie
 	}
 
 	resizeFlavor := instances.SpecCode{
-		Speccode: d.Get("flavor").(string),
+		Speccode:  d.Get("flavor").(string),
+		IsAutoPay: true,
 	}
-	if isSupportAutoPay && d.Get("auto_pay").(string) != "false" {
-		resizeFlavor.IsAutoPay = true
+	if isSupportAutoPay && d.Get("auto_pay").(string) == "false" {
+		resizeFlavor.IsAutoPay = false
 	}
 	var resizeFlavorOpts instances.ResizeFlavorOpts
 	resizeFlavorOpts.ResizeFlavor = &resizeFlavor
@@ -891,6 +1077,31 @@ func updateRdsInstanceSSLConfig(d *schema.ResourceData, client *golangsdk.Servic
 	return configRdsInstanceSSL(d, client, instanceID)
 }
 
+func updateRdsParameters(d *schema.ResourceData, client *golangsdk.ServiceClient, instanceID string) error {
+	values := make(map[string]string)
+
+	o, n := d.GetChange("parameters")
+	os, ns := o.(*schema.Set), n.(*schema.Set)
+	change := ns.Difference(os).List()
+	if len(change) > 0 {
+		for _, v := range change {
+			key := v.(map[string]interface{})["name"].(string)
+			value := v.(map[string]interface{})["value"].(string)
+			values[key] = value
+		}
+
+		configOpts := instances.ModifyConfigurationOpts{
+			Values: values,
+		}
+		_, err := instances.ModifyConfiguration(client, instanceID, configOpts).Extract()
+		if err != nil {
+			return fmt.Errorf("error modifying parameters for RDS instance (%s): %s", instanceID, err)
+		}
+	}
+
+	return nil
+}
+
 func configRdsInstanceSSL(d *schema.ResourceData, client *golangsdk.ServiceClient, instanceID string) error {
 	sslEnable := d.Get("ssl_enable").(bool)
 	udpateOpts := securities.SSLOpts{
@@ -907,7 +1118,7 @@ func configRdsInstanceSSL(d *schema.ResourceData, client *golangsdk.ServiceClien
 func checkRDSInstanceJobFinish(client *golangsdk.ServiceClient, jobID string, timeout time.Duration) error {
 	stateConf := &resource.StateChangeConf{
 		Pending:      []string{"Running"},
-		Target:       []string{"Completed", "Failed"},
+		Target:       []string{"Completed"},
 		Refresh:      rdsInstanceJobRefreshFunc(client, jobID),
 		Timeout:      timeout,
 		Delay:        20 * time.Second,
@@ -945,4 +1156,24 @@ func rdsInstanceStateRefreshFunc(client *golangsdk.ServiceClient, instanceID str
 
 		return instance, instance.Status, nil
 	}
+}
+
+func updateRdsRootPassword(d *schema.ResourceData, client *golangsdk.ServiceClient, instanceID string) error {
+	if !d.HasChange("db.0.password") {
+		return nil
+	}
+
+	updateOpts := instances.RestRootPasswordOpts{
+		DbUserPwd: d.Get("db.0.password").(string),
+	}
+	_, err := instances.RestRootPassword(client, instanceID, updateOpts)
+	if err != nil {
+		return fmt.Errorf("error resetting the root password: %s", err)
+	}
+	return nil
+}
+
+func parameterToHash(v interface{}) int {
+	m := v.(map[string]interface{})
+	return hashcode.String(m["name"].(string) + m["value"].(string))
 }

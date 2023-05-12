@@ -92,6 +92,12 @@ type CreateOps struct {
 
 	// Enterprise project name.
 	EnterpriseProjectName string `json:"enterprise_project_name,omitempty"`
+
+	// Port customization.
+	Port int `json:"port,omitempty"`
+
+	// DCS instance specification code.
+	SpecCode string `json:"spec_code,omitempty"`
 }
 
 // InstanceBackupPolicy for dcs
@@ -173,12 +179,12 @@ func Delete(client *golangsdk.ServiceClient, id string) (r DeleteResult) {
 	return
 }
 
-//UpdateOptsBuilder is an interface which can build the map paramter of update function
+// UpdateOptsBuilder is an interface which can build the map paramter of update function
 type UpdateOptsBuilder interface {
 	ToInstanceUpdateMap() (map[string]interface{}, error)
 }
 
-//UpdateOpts is a struct which represents the parameters of update function
+// UpdateOpts is a struct which represents the parameters of update function
 type UpdateOpts struct {
 	// DCS instance name.
 	// An instance name is a string of 4–64 characters
@@ -232,12 +238,12 @@ func Get(client *golangsdk.ServiceClient, id string) (r GetResult) {
 	return
 }
 
-//UpdatePasswordOptsBuilder is an interface which can build the map paramter of update password function
+// UpdatePasswordOptsBuilder is an interface which can build the map paramter of update password function
 type UpdatePasswordOptsBuilder interface {
 	ToPasswordUpdateMap() (map[string]interface{}, error)
 }
 
-//UpdatePasswordOpts is a struct which represents the parameters of update function
+// UpdatePasswordOpts is a struct which represents the parameters of update function
 type UpdatePasswordOpts struct {
 	// Old password. It may be empty.
 	OldPassword string `json:"old_password" required:"true"`
@@ -274,12 +280,12 @@ func UpdatePassword(client *golangsdk.ServiceClient, id string, opts UpdatePassw
 	return
 }
 
-//ExtendOptsBuilder is an interface which can build the map paramter of extend function
+// ExtendOptsBuilder is an interface which can build the map paramter of extend function
 type ExtendOptsBuilder interface {
 	ToExtendMap() (map[string]interface{}, error)
 }
 
-//ExtendOpts is a struct which represents the parameters of extend function
+// ExtendOpts is a struct which represents the parameters of extend function
 type ExtendOpts struct {
 	// New specifications (memory space) of the DCS instance.
 	// The new specification value to which the DCS instance

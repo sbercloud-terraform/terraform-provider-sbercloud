@@ -21,23 +21,29 @@ type FunctionCodeOpts struct {
 
 //function struct
 type CreateOpts struct {
-	FuncName            string           `json:"func_name" required:"true"`
-	Package             string           `json:"package" required:"true"`
-	CodeType            string           `json:"code_type" required:"true"`
-	CodeUrl             string           `json:"code_url,omitempty"`
-	Description         string           `json:"description,omitempty"`
-	CodeFilename        string           `json:"code_filename,omitempty"`
-	Handler             string           `json:"handler" required:"true"`
-	MemorySize          int              `json:"memory_size" required:"true"`
-	Runtime             string           `json:"runtime" required:"true"`
-	Timeout             int              `json:"timeout" required:"true"`
-	UserData            string           `json:"user_data,omitempty"`
-	EncryptedUserData   string           `json:"encrypted_user_data,omitempty"`
-	Xrole               string           `json:"xrole,omitempty"`
-	AppXrole            string           `json:"app_xrole,omitempty"`
-	FuncCode            FunctionCodeOpts `json:"func_code,omitempty"`
-	EnterpriseProjectID string           `json:"enterprise_project_id,omitempty"`
-	Type                string           `json:"type,omitempty"`
+	FuncName            string            `json:"func_name" required:"true"`
+	MemorySize          int               `json:"memory_size" required:"true"`
+	Package             string            `json:"package" required:"true"`
+	Runtime             string            `json:"runtime" required:"true"`
+	Timeout             int               `json:"timeout" required:"true"`
+	AppXrole            string            `json:"app_xrole,omitempty"`
+	CodeFilename        string            `json:"code_filename,omitempty"`
+	CodeType            string            `json:"code_type,omitempty"`
+	CodeUrl             string            `json:"code_url,omitempty"`
+	CustomImage         *CustomImage      `json:"custom_image,omitempty"`
+	Description         string            `json:"description,omitempty"`
+	EncryptedUserData   string            `json:"encrypted_user_data,omitempty"`
+	EnterpriseProjectID string            `json:"enterprise_project_id,omitempty"`
+	FuncCode            *FunctionCodeOpts `json:"func_code,omitempty"`
+	Handler             string            `json:"handler,omitempty"`
+	Type                string            `json:"type,omitempty"`
+	UserData            string            `json:"user_data,omitempty"`
+	Xrole               string            `json:"xrole,omitempty"`
+}
+
+type CustomImage struct {
+	Enabled bool   `json:"enabled" required:"true"`
+	Image   string `json:"image" required:"true"`
 }
 
 func (opts CreateOpts) ToCreateFunctionMap() (map[string]interface{}, error) {
@@ -148,6 +154,7 @@ type UpdateMetadataOpts struct {
 	AppXrole           string       `json:"app_xrole,omitempty"`
 	InitializerHandler string       `json:"initializer_handler,omitempty"`
 	InitializerTimeout int          `json:"initializer_timeout,omitempty"`
+	CustomImage        *CustomImage `json:"custom_image,omitempty"`
 }
 
 func (opts UpdateMetadataOpts) ToUpdateMap() (map[string]interface{}, error) {
@@ -282,4 +289,68 @@ func Invoke(c *golangsdk.ServiceClient, m map[string]interface{}, functionUrn st
 func AsyncInvoke(c *golangsdk.ServiceClient, m map[string]interface{}, functionUrn string) (r CreateResult) {
 	_, r.Err = c.Post(asyncInvokeURL(c, functionUrn), m, &r.Body, &golangsdk.RequestOpts{OkCodes: []int{202}})
 	return
+}
+
+// AsyncInvokeConfigOpts is the structure that used to modify the asynchronous invocation configuration.
+type AsyncInvokeConfigOpts struct {
+	// The maximum validity period of a message.
+	MaxAsyncEventAgeInSeconds int `json:"max_async_event_age_in_seconds,omitempty"`
+	// The maximum number of retry attempts to be made if asynchronous invocation fails.
+	MaxAsyncRetryAttempts int `json:"max_async_retry_attempts,omitempty"`
+	// Asynchronous invocation target.
+	DestinationConfig DestinationConfig `json:"destination_config,omitempty"`
+	// Whether to enable asynchronous invocation status persistence.
+	EnableAsyncStatusLog *bool `json:"enable_async_status_log,omitempty"`
+}
+
+// DestinationConfig is the structure that represents the asynchronous invocation target.
+type DestinationConfig struct {
+	// The target to be invoked when a function is successfully executed.
+	OnSuccess DestinationConfigDetails `json:"on_success,omitempty"`
+	// The target to be invoked when a function fails to be executed due to a  system error or an internal error.
+	OnFailure DestinationConfigDetails `json:"on_failure,omitempty"`
+}
+
+// DestinationConfigDetails is the structure that represents the configuration details of the asynchronous invocation.
+type DestinationConfigDetails struct {
+	// The object type.
+	Destination string `json:"destination,omitempty"`
+	// The parameters (in JSON format) corresponding to the target service.
+	Param string `json:"param,omitempty"`
+}
+
+var requestOpts = golangsdk.RequestOpts{
+	MoreHeaders: map[string]string{"Content-Type": "application/json", "X-Language": "en-us"},
+}
+
+// UpdateAsyncInvokeConfig is the method that used to enable or modify the asynchronous invocation.
+func UpdateAsyncInvokeConfig(c *golangsdk.ServiceClient, functionUrn string,
+	opts AsyncInvokeConfigOpts) (*AsyncInvokeConfig, error) {
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var r AsyncInvokeConfig
+	_, err = c.Put(asyncInvokeConfigURL(c, functionUrn), b, &r, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return &r, err
+}
+
+// GetAsyncInvokeConfig is the method that used to query the configuration details of the asynchronous invocation.
+func GetAsyncInvokeConfig(c *golangsdk.ServiceClient, functionUrn string) (*AsyncInvokeConfig, error) {
+	var r AsyncInvokeConfig
+	_, err := c.Get(asyncInvokeConfigURL(c, functionUrn), &r, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return &r, err
+}
+
+// DeleteAsyncInvokeConfig is the method that used to delete the asynchronous invocation.
+func DeleteAsyncInvokeConfig(c *golangsdk.ServiceClient, functionUrn string) error {
+	_, err := c.Delete(asyncInvokeConfigURL(c, functionUrn), &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return err
 }

@@ -14,6 +14,8 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
 )
 
+var PaidType = "prePaid"
+
 const (
 	PROTOCOL_HTTP  = "HTTP"
 	PROTOCOL_HTTPS = "HTTPS"
@@ -102,6 +104,20 @@ func ResourceWafDomainV1() *schema.Resource {
 				Optional: true,
 				Default:  false,
 			},
+			"charging_mode": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Default:  PaidType,
+				ValidateFunc: validation.StringInSlice([]string{
+					"prePaid", "postPaid",
+				}, false),
+			},
+			"enterprise_project_id": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+			},
 			"protect_status": {
 				Type:     schema.TypeInt,
 				Computed: true,
@@ -146,11 +162,13 @@ func resourceWafDomainV1Create(d *schema.ResourceData, meta interface{}) error {
 	proxy := d.Get("proxy").(bool)
 
 	createOpts := domains.CreateOpts{
-		HostName:        d.Get("domain").(string),
-		CertificateId:   d.Get("certificate_id").(string),
-		CertificateName: d.Get("certificate_name").(string),
-		Servers:         buildWafDomainServers(d),
-		Proxy:           &proxy,
+		HostName:            d.Get("domain").(string),
+		CertificateId:       d.Get("certificate_id").(string),
+		CertificateName:     d.Get("certificate_name").(string),
+		Servers:             buildWafDomainServers(d),
+		Proxy:               &proxy,
+		PaidType:            d.Get("charging_mode").(string),
+		EnterpriseProjectId: config.GetEnterpriseProjectID(d),
 	}
 	logp.Printf("[DEBUG] CreateOpts: %#v", createOpts)
 
@@ -165,8 +183,10 @@ func resourceWafDomainV1Create(d *schema.ResourceData, meta interface{}) error {
 	if v, ok := d.GetOk("policy_id"); ok {
 		policyID := v.(string)
 		hosts := []string{d.Id()}
+		epsID := config.GetEnterpriseProjectID(d)
 		updateHostsOpts := policies.UpdateHostsOpts{
-			Hosts: hosts,
+			Hosts:               hosts,
+			EnterpriseProjectId: epsID,
 		}
 
 		logp.Printf("[DEBUG] Bind Waf domain %s to policy %s", d.Id(), policyID)
@@ -176,7 +196,7 @@ func resourceWafDomainV1Create(d *schema.ResourceData, meta interface{}) error {
 		}
 
 		// delete the policy that was auto-created by domain
-		err = policies.Delete(wafClient, domain.PolicyId).ExtractErr()
+		err = policies.DeleteWithEpsID(wafClient, domain.PolicyId, epsID).ExtractErr()
 		if err != nil {
 			logp.Printf("[WARN] error deleting WAF Policy %s: %s", domain.PolicyId, err)
 		}
@@ -192,11 +212,12 @@ func resourceWafDomainV1Read(d *schema.ResourceData, meta interface{}) error {
 		return fmtp.Errorf("error creating HuaweiCloud WAF client: %s", err)
 	}
 
-	n, err := domains.Get(wafClient, d.Id()).Extract()
+	n, err := domains.GetWithEpsID(wafClient, d.Id(), config.GetEnterpriseProjectID(d)).Extract()
 	if err != nil {
 		return common.CheckDeleted(d, err, "Error obtain WAF domain information")
 	}
 
+	// keep_policy and charging_mode not returned by API
 	mErr := multierror.Append(nil,
 		d.Set("region", config.GetRegion(d)),
 		d.Set("domain", n.HostName),
@@ -238,10 +259,11 @@ func resourceWafDomainV1Update(d *schema.ResourceData, meta interface{}) error {
 		proxy := d.Get("proxy").(bool)
 
 		updateOpts := domains.UpdateOpts{
-			CertificateId:   d.Get("certificate_id").(string),
-			CertificateName: d.Get("certificate_name").(string),
-			Servers:         buildWafDomainServers(d),
-			Proxy:           &proxy,
+			CertificateId:       d.Get("certificate_id").(string),
+			CertificateName:     d.Get("certificate_name").(string),
+			Servers:             buildWafDomainServers(d),
+			Proxy:               &proxy,
+			EnterpriseProjectId: config.GetEnterpriseProjectID(d),
 		}
 
 		logp.Printf("[DEBUG] updateOpts: %#v", updateOpts)
@@ -254,8 +276,10 @@ func resourceWafDomainV1Update(d *schema.ResourceData, meta interface{}) error {
 	if d.HasChanges("proxy_id") {
 		oVal, nVal := d.GetChange("proxy_id")
 		policyId := nVal.(string)
+		epsID := config.GetEnterpriseProjectID(d)
 		updateHostsOpts := policies.UpdateHostsOpts{
-			Hosts: []string{policyId},
+			Hosts:               []string{policyId},
+			EnterpriseProjectId: epsID,
 		}
 
 		logp.Printf("[DEBUG] Bind Waf domain %s to policy %s", d.Id(), policyId)
@@ -265,7 +289,7 @@ func resourceWafDomainV1Update(d *schema.ResourceData, meta interface{}) error {
 		}
 
 		// delete the old policy
-		err = policies.Delete(wafClient, oVal.(string)).ExtractErr()
+		err = policies.DeleteWithEpsID(wafClient, oVal.(string), epsID).ExtractErr()
 		if err != nil {
 			logp.Printf("[WARN] error deleting WAF Policy %s: %s", oVal.(string), err)
 		}
@@ -281,7 +305,8 @@ func resourceWafDomainV1Delete(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	delOpts := domains.DeleteOpts{
-		KeepPolicy: d.Get("keep_policy").(bool),
+		KeepPolicy:          d.Get("keep_policy").(bool),
+		EnterpriseProjectId: config.GetEnterpriseProjectID(d),
 	}
 	logp.Printf("[DEBUG] delete WAF Domain: %#v", d.Get("keep_policy"))
 	err = domains.Delete(wafClient, d.Id(), delOpts).ExtractErr()

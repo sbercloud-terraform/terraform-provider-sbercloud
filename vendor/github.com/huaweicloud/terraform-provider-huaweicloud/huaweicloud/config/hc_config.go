@@ -17,9 +17,13 @@ import (
 	aomv2 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/aom/v2"
 	cdnv1 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/cdn/v1"
 	cptsv1 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/cpts/v1"
+	cssv1 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/css/v1"
+	cssv2 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/css/v2"
 	ctsv3 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/cts/v3"
+	hssv5 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/hss/v5"
 	iamv3 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/iam/v3"
 	iotdav5 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/iotda/v5"
+	dmsv2 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/kafka/v2"
 	kpsv3 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/kps/v3"
 	livev1 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/live/v1"
 	mpcv1 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/mpc/v1"
@@ -118,27 +122,6 @@ func buildHTTPConfig(c *Config) *hcconfig.HttpConfig {
 	}
 
 	return httpConfig
-}
-
-// try to get the endpoint from customizing map
-func getServiceEndpoint(c *Config, srv, region string) string {
-	if endpoint, ok := c.Endpoints[srv]; ok {
-		return endpoint
-	}
-
-	// get the endpoint from build-in catalog
-	catalog, ok := allServiceCatalog[srv]
-	if !ok {
-		return ""
-	}
-
-	var ep string
-	if catalog.Scope == "global" && !c.RegionClient {
-		ep = fmt.Sprintf("https://%s.%s/", catalog.Name, c.Cloud)
-	} else {
-		ep = fmt.Sprintf("https://%s.%s.%s/", catalog.Name, region, c.Cloud)
-	}
-	return ep
 }
 
 // HcVpcV3Client is the VPC service client using huaweicloud-sdk-go-v3 package
@@ -259,6 +242,24 @@ func (c *Config) HcOmsV2Client(region string) (*omsv2.OmsClient, error) {
 	return omsv2.NewOmsClient(hcClient), nil
 }
 
+// HcCssV1Client is the css service client using huaweicloud-sdk-go-v3 package
+func (c *Config) HcCssV1Client(region string) (*cssv1.CssClient, error) {
+	hcClient, err := NewHcClient(c, region, "css", false)
+	if err != nil {
+		return nil, err
+	}
+	return cssv1.NewCssClient(hcClient), nil
+}
+
+// HcCssV2Client is the css service client using huaweicloud-sdk-go-v3 package
+func (c *Config) HcCssV2Client(region string) (*cssv2.CssClient, error) {
+	hcClient, err := NewHcClient(c, region, "css", false)
+	if err != nil {
+		return nil, err
+	}
+	return cssv2.NewCssClient(hcClient), nil
+}
+
 // HcCdnV1Client is the CDN service client using huaweicloud-sdk-go-v3 package
 func (c *Config) HcCdnV1Client(region string) (*cdnv1.CdnClient, error) {
 	hcClient, err := NewHcClient(c, region, "cdn", false)
@@ -268,9 +269,27 @@ func (c *Config) HcCdnV1Client(region string) (*cdnv1.CdnClient, error) {
 	return cdnv1.NewCdnClient(hcClient), nil
 }
 
+// HcDmsV2Client is the DMS service client using huaweicloud-sdk-go-v3 package
+func (c *Config) HcDmsV2Client(region string) (*dmsv2.KafkaClient, error) {
+	hcClient, err := NewHcClient(c, region, "dmsv2", false)
+	if err != nil {
+		return nil, err
+	}
+	return dmsv2.NewKafkaClient(hcClient), nil
+}
+
+// HcHssV5Client is the HSS service client using huaweicloud-sdk-go-v3 package
+func (c *Config) HcHssV5Client(region string) (*hssv5.HssClient, error) {
+	hcClient, err := NewHcClient(c, region, "hss", false)
+	if err != nil {
+		return nil, err
+	}
+	return hssv5.NewHssClient(hcClient), nil
+}
+
 // NewHcClient is the common client using huaweicloud-sdk-go-v3 package
 func NewHcClient(c *Config, region, product string, globalFlag bool) (*core.HcHttpClient, error) {
-	endpoint := getServiceEndpoint(c, product, region)
+	endpoint := GetServiceEndpoint(c, product, region)
 	if endpoint == "" {
 		return nil, fmt.Errorf("failed to get the endpoint of %q service in region %s", product, region)
 	}
@@ -291,7 +310,15 @@ func NewHcClient(c *Config, region, product string, globalFlag bool) (*core.HcHt
 		builder.WithCredential(credentials)
 	}
 
-	return builder.Build(), nil
+	headers := make(map[string]string)
+	customUserAgent := os.Getenv("HW_TF_CUSTOM_UA")
+	if customUserAgent != "" {
+		headers["User-Agent"] = fmt.Sprintf("%s;%s", providerUserAgent, customUserAgent)
+	} else {
+		headers["User-Agent"] = providerUserAgent
+	}
+
+	return builder.Build().PreInvoke(headers), nil
 }
 
 func getProxyFromEnv() string {

@@ -25,6 +25,7 @@ type CreateOpts struct {
 	ChargeInfo          *ChargeInfo     `json:"charge_info,omitempty"`
 	TimeZone            string          `json:"time_zone,omitempty"`
 	FixedIp             string          `json:"data_vip,omitempty"`
+	Collation           string          `json:"collation,omitempty"`
 }
 
 type CreateReplicaOpts struct {
@@ -71,6 +72,14 @@ type CreateRdsBuilder interface {
 	ToInstancesCreateMap() (map[string]interface{}, error)
 }
 
+type RestRootPasswordOpts struct {
+	DbUserPwd string `json:"db_user_pwd" required:"true"`
+}
+
+var RequestOpts = golangsdk.RequestOpts{
+	MoreHeaders: map[string]string{"Content-Type": "application/json", "X-Language": "en-us"},
+}
+
 func (opts CreateOpts) ToInstancesCreateMap() (map[string]interface{}, error) {
 	b, err := golangsdk.BuildRequestBody(opts, "")
 	if err != nil {
@@ -108,7 +117,7 @@ func CreateReplica(client *golangsdk.ServiceClient, opts CreateRdsBuilder) (r Cr
 	}
 
 	_, r.Err = client.Post(createURL(client), b, &r.Body, &golangsdk.RequestOpts{
-		OkCodes: []int{202},
+		OkCodes: []int{200, 202},
 	})
 
 	return
@@ -435,4 +444,54 @@ func ListEngine(client *golangsdk.ServiceClient, dbName string) (*Engine, error)
 		return &s, err
 	}
 	return nil, err
+}
+
+func RestRootPassword(c *golangsdk.ServiceClient, instanceID string, opts RestRootPasswordOpts) (*ErrorResponse, error) {
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var r ErrorResponse
+	_, err = c.Post(resetRootPasswordURL(c, instanceID), b, &r, &golangsdk.RequestOpts{
+		MoreHeaders: RequestOpts.MoreHeaders,
+	})
+	return &r, err
+}
+
+type ModifyConfigurationOpts struct {
+	Values map[string]string `json:"values" required:"true"`
+}
+
+func ModifyConfiguration(c *golangsdk.ServiceClient, instanceID string, opts ModifyConfigurationOpts) (r ModifyConfigurationResult) {
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		r.Err = err
+		return
+	}
+
+	_, r.Err = c.Put(configurationsURL(c, instanceID), b, &r.Body, &golangsdk.RequestOpts{
+		OkCodes: []int{200, 202},
+	})
+	return
+}
+
+func GetConfigurations(c *golangsdk.ServiceClient, instanceID string) (r GetConfigurationResult) {
+	_, r.Err = c.Get(configurationsURL(c, instanceID), &r.Body, &golangsdk.RequestOpts{
+		MoreHeaders: map[string]string{"Content-Type": "application/json"},
+	})
+	return
+}
+
+func RebootInstance(c *golangsdk.ServiceClient, instanceID string) (r RebootResult) {
+	b, err := golangsdk.BuildRequestBody(struct{}{}, "restart")
+	if err != nil {
+		r.Err = err
+		return
+	}
+
+	_, r.Err = c.Post(actionURL(c, instanceID), b, &r.Body, &golangsdk.RequestOpts{
+		OkCodes: []int{200, 202},
+	})
+	return
 }

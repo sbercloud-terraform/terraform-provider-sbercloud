@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math"
 	"net/http"
@@ -113,7 +112,7 @@ func (lrt *LogRoundTripper) logRequest(original io.ReadCloser, contentType strin
 		log.Printf("[DEBUG] Not logging because the request body isn't JSON")
 	}
 
-	return ioutil.NopCloser(strings.NewReader(bs.String())), nil
+	return io.NopCloser(strings.NewReader(bs.String())), nil
 }
 
 // logResponse will log the HTTP Response details.
@@ -130,7 +129,7 @@ func (lrt *LogRoundTripper) logResponse(original io.ReadCloser, contentType stri
 		if debugInfo != "" {
 			log.Printf("[DEBUG] API Response Body: %s", debugInfo)
 		}
-		return ioutil.NopCloser(strings.NewReader(bs.String())), nil
+		return io.NopCloser(strings.NewReader(bs.String())), nil
 	}
 
 	log.Printf("[DEBUG] Not logging because the response body isn't JSON")
@@ -201,7 +200,7 @@ func FormatHeaders(headers http.Header, seperator string) string {
 	return strings.Join(redactedHeaders, seperator)
 }
 
-func maskSecurityFields(data map[string]interface{}) bool {
+func maskSecurityFields(data map[string]interface{}) {
 	for k, val := range data {
 		switch val := val.(type) {
 		case string:
@@ -211,12 +210,13 @@ func maskSecurityFields(data map[string]interface{}) bool {
 				data[k] = "** large string **"
 			}
 		case map[string]interface{}:
-			if masked := maskSecurityFields(val); masked {
-				return true
+			if isSecurityFields(k) {
+				data[k] = map[string]string{"***": "***"}
+			} else {
+				maskSecurityFields(val)
 			}
 		}
 	}
-	return false
 }
 
 func isSecurityFields(field string) bool {
@@ -225,7 +225,7 @@ func isSecurityFields(field string) bool {
 	// 'secret' is apply to the AK/SK response JSON body.
 	// 'pwd' and 'token' is the high frequency sensitive keywords in the request and response bodies.
 	if strings.Contains(checkField, "password") || strings.Contains(checkField, "secret") ||
-		strings.HasSuffix(field, "pwd") || strings.HasSuffix(checkField, "token") {
+		strings.HasSuffix(checkField, "pwd") || strings.HasSuffix(checkField, "token") {
 		return true
 	}
 
@@ -234,6 +234,9 @@ func isSecurityFields(field string) bool {
 	// 'nonce' is apply to the random string for authorization methods.
 	// 'email', 'phone' and 'sip_number' can uniquely identify a person.
 	// 'signature' are used for encryption.
-	securityFields := []string{"adminpass", "encrypted_user_data", "nonce", "email", "phone", "sip_number", "signature"}
+	// 'user_passwd' is apply to the dms/kafka user request JSON body
+	// 'auth' is apply to kms keypairs associate or disassociate request JSON body
+	securityFields := []string{"adminpass", "encrypted_user_data", "nonce", "email", "phone", "sip_number",
+		"signature", "user_passwd", "auth"}
 	return utils.StrSliceContains(securityFields, checkField)
 }

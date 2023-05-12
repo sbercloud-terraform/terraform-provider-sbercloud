@@ -25,6 +25,15 @@ func TagsForceNewSchema() *schema.Schema {
 	}
 }
 
+// TagsComputedSchema returns the schema to use for tags as an attribute
+func TagsComputedSchema() *schema.Schema {
+	return &schema.Schema{
+		Type:     schema.TypeMap,
+		Computed: true,
+		Elem:     &schema.Schema{Type: schema.TypeString},
+	}
+}
+
 func SchemaChargingMode(conflicts []string) *schema.Schema {
 	resourceSchema := schema.Schema{
 		Type:     schema.TypeString,
@@ -73,6 +82,19 @@ func SchemaAutoRenew(conflicts []string) *schema.Schema {
 		Type:     schema.TypeString,
 		Optional: true,
 		ForceNew: true,
+		ValidateFunc: validation.StringInSlice([]string{
+			"true", "false",
+		}, false),
+		ConflictsWith: conflicts,
+	}
+
+	return &resourceSchema
+}
+
+func SchemaAutoRenewUpdatable(conflicts []string) *schema.Schema {
+	resourceSchema := schema.Schema{
+		Type:     schema.TypeString,
+		Optional: true,
 		ValidateFunc: validation.StringInSlice([]string{
 			"true", "false",
 		}, false),

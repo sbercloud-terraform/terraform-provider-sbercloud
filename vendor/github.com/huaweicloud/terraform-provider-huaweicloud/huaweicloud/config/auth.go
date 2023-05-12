@@ -5,7 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -106,7 +106,11 @@ func genClient(c *Config, ao golangsdk.AuthOptionsProvider) (*golangsdk.Provider
 	}
 
 	// Set UserAgent
-	client.UserAgent.Prepend("terraform-provider-iac")
+	client.UserAgent.Prepend(providerUserAgent)
+	customUserAgent := os.Getenv("HW_TF_CUSTOM_UA")
+	if customUserAgent != "" {
+		client.UserAgent.Prepend(customUserAgent)
+	}
 
 	config, err := generateTLSConfig(c)
 	if err != nil {
@@ -232,12 +236,13 @@ func buildClientByAKSK(c *Config) error {
 		ao.IdentityEndpoint = c.IdentityEndpoint
 		ao.AccessKey = c.AccessKey
 		ao.SecretKey = c.SecretKey
+		ao.WithUserCatalog = true
+
 		if c.Region != "" {
 			ao.Region = c.Region
 		}
 		if c.SecurityToken != "" {
 			ao.SecurityToken = c.SecurityToken
-			ao.WithUserCatalog = true
 		}
 	}
 	return genClients(c, projectAuthOptions, domainAuthOptions)
@@ -256,7 +261,7 @@ func buildClientByConfig(c *Config) error {
 		return fmt.Errorf("The specified shared config file %s does not exist", profilePath)
 	}
 
-	data, err := ioutil.ReadFile(profilePath)
+	data, err := os.ReadFile(profilePath)
 	if err != nil {
 		return fmt.Errorf("Err reading from shared config file: %s", err)
 	}
@@ -409,7 +414,7 @@ func getAuthConfigByMeta(c *Config) error {
 	var parsedBody interface{}
 
 	defer resp.Body.Close()
-	rawBody, err := ioutil.ReadAll(resp.Body)
+	rawBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("Error parsing metadata API response: %s", err.Error())
 	}

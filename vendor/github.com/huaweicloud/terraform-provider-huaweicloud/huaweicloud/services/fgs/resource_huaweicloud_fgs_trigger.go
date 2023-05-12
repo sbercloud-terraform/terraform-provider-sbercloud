@@ -32,6 +32,7 @@ const (
 	kafkaTrigger         = "KAFKA"
 	apigTrigger          = "APIG"
 	dedicatedApigTrigger = "DEDICATEDGATEWAY"
+	ltsTrigger           = "LTS"
 
 	obsEventCreated             = "ObjectCreated"
 	obsEventPut                 = "Put"
@@ -74,7 +75,7 @@ func ResourceFunctionGraphTrigger() *schema.Resource {
 				Required: true,
 				ForceNew: true,
 				ValidateFunc: validation.StringInSlice([]string{
-					timingTrigger, obsTrigger, smnTrigger, disTrigger, kafkaTrigger, apigTrigger, dedicatedApigTrigger,
+					timingTrigger, obsTrigger, smnTrigger, disTrigger, kafkaTrigger, apigTrigger, dedicatedApigTrigger, ltsTrigger,
 				}, false),
 			},
 			// SMN trigger does not support status.
@@ -92,7 +93,7 @@ func ResourceFunctionGraphTrigger() *schema.Resource {
 				ForceNew:     true,
 				MaxItems:     1,
 				Elem:         timerSchemaResource(),
-				ExactlyOneOf: []string{"obs", "smn", "dis", "kafka", "apig"},
+				ExactlyOneOf: []string{"obs", "smn", "dis", "kafka", "apig", "lts"},
 			},
 			"obs": {
 				Type:     schema.TypeList,
@@ -128,6 +129,13 @@ func ResourceFunctionGraphTrigger() *schema.Resource {
 				ForceNew: true,
 				MaxItems: 1,
 				Elem:     apigSchemaResource(),
+			},
+			"lts": {
+				Type:     schema.TypeList,
+				Optional: true,
+				ForceNew: true,
+				MaxItems: 1,
+				Elem:     ltsSchemaResource(),
 			},
 		},
 	}
@@ -333,6 +341,23 @@ func apigSchemaResource() *schema.Resource {
 	}
 }
 
+func ltsSchemaResource() *schema.Resource {
+	return &schema.Resource{
+		Schema: map[string]*schema.Schema{
+			"log_group_id": {
+				Type:     schema.TypeString,
+				Required: true,
+				ForceNew: true,
+			},
+			"log_topic_id": {
+				Type:     schema.TypeString,
+				Required: true,
+				ForceNew: true,
+			},
+		},
+	}
+}
+
 func buildTimingEventData(d *schema.ResourceData) map[string]interface{} {
 	event := make(map[string]interface{})
 
@@ -406,6 +431,13 @@ func buildKafkaEventData(d *schema.ResourceData) map[string]interface{} {
 	}
 }
 
+func buildLtsEventData(d *schema.ResourceData) map[string]interface{} {
+	return map[string]interface{}{
+		"log_group_id": d.Get("lts.0.log_group_id").(string),
+		"log_topic_id": d.Get("lts.0.log_topic_id").(string),
+	}
+}
+
 // Obtain environment ID and sub-domain of shared APIG.
 func getSharedApigSubDomainAndEnvId(d *schema.ResourceData, config *config.Config) (string, string, error) {
 	var envId, subDomain string
@@ -459,7 +491,7 @@ func getDedicatedApigSubDomainAndEnvId(d *schema.ResourceData, config *config.Co
 	}
 	envList, err := dedicatedEnvs.ExtractEnvironments(pages)
 	if err != nil {
-		return envId, subDomain, fmtp.Errorf("Unable to retrive the response to list: %s", err)
+		return envId, subDomain, fmtp.Errorf("Unable to retrieve the response to list: %s", err)
 	}
 	if len(envList) <= 0 {
 		return envId, subDomain, fmtp.Errorf("There is no environment named %s: %s", envName, err)
@@ -536,6 +568,8 @@ func buildFunctionGraphTriggerParameters(d *schema.ResourceData, config *config.
 		opts.EventData = buildDisEventData(d)
 	case kafkaTrigger:
 		opts.EventData = buildKafkaEventData(d)
+	case ltsTrigger:
+		opts.EventData = buildLtsEventData(d)
 	case apigTrigger, dedicatedApigTrigger:
 		eventData, err := buildApigEventData(d, config)
 		if err != nil {
@@ -543,7 +577,7 @@ func buildFunctionGraphTriggerParameters(d *schema.ResourceData, config *config.
 		}
 		opts.EventData = eventData
 	default:
-		return opts, fmtp.Errorf("Currently, trigger type only support 'TIMER', 'OBS', 'SMN', 'DIS', 'KAFKA', 'APIG' " +
+		return opts, fmtp.Errorf("Currently, trigger type only support 'TIMER', 'OBS', 'SMN', 'DIS', 'KAFKA', 'APIG', 'LTS' " +
 			"and 'DEDICATEDGATEWAY'.")
 	}
 	return opts, nil
@@ -569,7 +603,7 @@ func resourceFunctionGraphTriggerCreate(d *schema.ResourceData, meta interface{}
 	d.SetId(resp.TriggerId)
 
 	if resp.TriggerTypeCode == kafkaTrigger {
-		// The defualt status of terraform DMS kafka trigger is 'ACTIVE'.
+		// The default status of terraform DMS kafka trigger is 'ACTIVE'.
 		if d.Get("status").(string) == "" {
 			d.Set("status", statusActive)
 		}
@@ -677,6 +711,16 @@ func setKafkaEventData(d *schema.ResourceData, eventData map[string]interface{})
 	return d.Set("kafka", result)
 }
 
+func setLtsEventData(d *schema.ResourceData, eventData map[string]interface{}) error {
+	result := []map[string]interface{}{
+		{
+			"log_group_id": eventData["log_group_id"],
+			"log_topic_id": eventData["log_topic_id"],
+		},
+	}
+	return d.Set("lts", result)
+}
+
 func setApigEventData(d *schema.ResourceData, eventData map[string]interface{}) error {
 	result := make([]map[string]interface{}, 1)
 	funcInfo := eventData["func_info"].(map[string]interface{})
@@ -708,8 +752,10 @@ func setTriggerEventData(d *schema.ResourceData, resp *trigger.Trigger) error {
 		return setKafkaEventData(d, resp.EventData)
 	case apigTrigger, dedicatedApigTrigger:
 		return setApigEventData(d, resp.EventData)
+	case ltsTrigger:
+		return setLtsEventData(d, resp.EventData)
 	}
-	return fmtp.Errorf("The type of trigger currently only support 'TIMER', 'OBS', 'SMN', 'DIS', 'KAFKA', 'APIG' and " +
+	return fmtp.Errorf("The type of trigger currently only support 'TIMER', 'OBS', 'SMN', 'DIS', 'KAFKA', 'APIG', 'LTS' and " +
 		"'DEDICATEDGATEWAY'.")
 }
 
