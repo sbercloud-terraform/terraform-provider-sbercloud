@@ -3,16 +3,15 @@ package utils
 import (
 	"bytes"
 	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math/big"
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -233,6 +232,17 @@ func RemoveNil(data map[string]interface{}) map[string]interface{} {
 		switch v := v.(type) {
 		case map[string]interface{}:
 			withoutNil[k] = RemoveNil(v)
+		case []map[string]interface{}:
+			rv := make([]map[string]interface{}, 0, len(v))
+			for _, vv := range v {
+				rst := RemoveNil(vv)
+				if len(rst) > 0 {
+					rv = append(rv, rst)
+				}
+			}
+			if len(rv) > 0 {
+				withoutNil[k] = rv
+			}
 		default:
 			withoutNil[k] = v
 		}
@@ -249,9 +259,26 @@ func IsResourceNotFound(err error) bool {
 	return ok
 }
 
+// GetTimezoneCode calculates the time zone code and returns a signed number.
+// For example, the time zone code for 'Asia/Shanghai' is 8, and the time zone code for 'America/Alaska' is -4.
+func GetTimezoneCode() int {
+	timeStr := strings.Split(time.Now().String(), " ")[2]
+	timezoneNum, _ := strconv.Atoi(timeStr)
+	return timezoneNum / 100
+}
+
 // FormatTimeStampRFC3339 is used to unify the time format to RFC-3339 and return a time string.
-func FormatTimeStampRFC3339(timestamp int64) string {
+// We can use "isUTC" parameter to reset the timezone. If omitted, the method will return local time.
+// Parameter "customFormat" allows you to use a custom RFC3339 format, such as: "2006-01-02T15:04:05.000Z", this
+// parameter can be omitted.
+func FormatTimeStampRFC3339(timestamp int64, isUTC bool, customFormat ...string) string {
 	createTime := time.Unix(timestamp, 0)
+	if isUTC {
+		createTime = createTime.UTC()
+	}
+	if len(customFormat) > 0 {
+		return createTime.Format(customFormat[0])
+	}
 	return createTime.Format(time.RFC3339)
 }
 
@@ -267,20 +294,6 @@ func FormatUTCTimeStamp(utcTime string) (int64, error) {
 		return 0, fmt.Errorf("unable to prase the time: %s", utcTime)
 	}
 	return timestamp.Unix(), nil
-}
-
-// EncodeBase64String is used to encode a string by base64.
-func EncodeBase64String(str string) string {
-	strByte := []byte(str)
-	return base64.StdEncoding.EncodeToString(strByte)
-}
-
-// EncodeBase64IfNot is used to encode a string by base64 if it not a base64 string.
-func EncodeBase64IfNot(str string) string {
-	if _, err := base64.StdEncoding.DecodeString(str); err != nil {
-		return base64.StdEncoding.EncodeToString([]byte(str))
-	}
-	return str
 }
 
 // IsIPv4Address is used to check whether the addr string is IPv4 format
@@ -329,7 +342,7 @@ func hasMapContain(rawMap map[string]string, filterKey, filterValue string) bool
 // WriteToPemFile is used to write the keypair to Pem file.
 func WriteToPemFile(path, privateKey string) (err error) {
 	// If the private key exists, give it write permission for editing (-rw-------) for root user.
-	if _, err = ioutil.ReadFile(path); err == nil {
+	if _, err = os.ReadFile(path); err == nil {
 		err = os.Chmod(path, 0600)
 		if err != nil {
 			return
@@ -341,7 +354,7 @@ func WriteToPemFile(path, privateKey string) (err error) {
 			err = mErr.ErrorOrNil()
 		}()
 	}
-	if err = ioutil.WriteFile(path, []byte(privateKey), 0600); err != nil {
+	if err = os.WriteFile(path, []byte(privateKey), 0600); err != nil {
 		return err
 	}
 	return nil
@@ -425,8 +438,7 @@ func isValidLogLevel(level string) bool {
 // PathSearch evaluates a JMESPath expression against input data and returns the result.
 func PathSearch(expression string, obj interface{}, defaultValue interface{}) interface{} {
 	v, err := jmespath.Search(expression, obj)
-	if err != nil {
-		log.Printf("Error fetching metadata access: %s", err.Error())
+	if err != nil || v == nil {
 		return defaultValue
 	}
 	return v
@@ -438,7 +450,7 @@ func FlattenResponse(resp *http.Response) (interface{}, error) {
 	defer resp.Body.Close()
 	// Don't decode JSON when there is no content
 	if resp.StatusCode == http.StatusNoContent {
-		_, err := io.Copy(ioutil.Discard, resp.Body)
+		_, err := io.Copy(io.Discard, resp.Body)
 		return resp, err
 	}
 
@@ -446,4 +458,14 @@ func FlattenResponse(resp *http.Response) (interface{}, error) {
 		return nil, err
 	}
 	return respBody, nil
+}
+
+// Reverse is a function that used to reverse the order of the characters in the given string.
+func Reverse(s string) string {
+	bs := []byte(s)
+	for left, right := 0, len(s)-1; left < right; left++ {
+		bs[left], bs[right] = bs[right], bs[left]
+		right--
+	}
+	return string(bs)
 }

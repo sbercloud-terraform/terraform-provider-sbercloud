@@ -1,5 +1,9 @@
 package config
 
+import (
+	"fmt"
+)
+
 // ServiceCatalog defines a struct which was used to generate a service client for huaweicloud.
 // the endpoint likes https://{Name}.{Region}.myhuaweicloud.com/{Version}/{project_id}/{ResourceBase}
 // For more information, please refer to Config.NewServiceClient
@@ -25,8 +29,9 @@ var multiCatalogKeys = map[string][]string{
 	"vpc":          {"networkv2", "vpcv3", "fwv2"},
 	"elb":          {"elbv2", "elbv3"},
 	"dns":          {"dns_region"},
-	"kms":          {"kmsv1"},
+	"kms":          {"kmsv1", "kmsv3"},
 	"mrs":          {"mrsv2"},
+	"nat":          {"natv3"},
 	"rds":          {"rdsv1"},
 	"waf":          {"waf-dedicated"},
 	"geminidb":     {"geminidbv31"},
@@ -39,6 +44,8 @@ var multiCatalogKeys = map[string][]string{
 	"modelarts":    {"modelartsv2"},
 	"servicestage": {"servicestagev2"},
 	"smn":          {"smn-tag"},
+	"ces":          {"cesv2"},
+	"ims":          {"imsv1"},
 }
 
 // GetServiceDerivedCatalogKeys returns the derived catalog keys of a service.
@@ -125,6 +132,12 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Version: "autoscaling-api/v1",
 		Product: "AS",
 	},
+	"imsv1": {
+		Name:             "ims",
+		Version:          "v1",
+		WithOutProjectID: true,
+		Product:          "IMS",
+	},
 	"ims": {
 		Name:             "ims",
 		Version:          "v2",
@@ -181,6 +194,11 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Version: "v1",
 		Product: "BMS",
 	},
+	"aos": {
+		Name:    "aos",
+		Version: "v1",
+		Product: "AOS",
+	},
 
 	// ******* catalog for storage ******
 	"evs": {
@@ -202,6 +220,11 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Name:    "sfs-turbo",
 		Version: "v1",
 		Product: "SFSTurbo",
+	},
+	"cbh": {
+		Name:    "cbh",
+		Version: "v1",
+		Product: "CBH",
 	},
 	"cbr": {
 		Name:    "cbr",
@@ -240,6 +263,11 @@ var allServiceCatalog = map[string]ServiceCatalog{
 	"nat": {
 		Name:    "nat",
 		Version: "v2",
+		Product: "NAT",
+	},
+	"natv3": {
+		Name:    "nat",
+		Version: "v3",
 		Product: "NAT",
 	},
 	"elbv2": {
@@ -281,6 +309,38 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Version:          "v2",
 		WithOutProjectID: true,
 		Product:          "DNS",
+	},
+	"workspace": {
+		Name:    "workspace",
+		Version: "v2",
+		Product: "Workspace",
+	},
+	"er": {
+		Name:    "er",
+		Version: "v3",
+		Product: "ER",
+	},
+	"vpn": {
+		Name:    "vpn",
+		Version: "v5",
+		Product: "VPN",
+	},
+	"ga": {
+		Name:             "ga",
+		Version:          "v1",
+		WithOutProjectID: true,
+		Scope:            "global",
+		Product:          "GA",
+	},
+	"dc": {
+		Name:    "dcaas",
+		Version: "v3",
+		Product: "DC",
+	},
+	"cfw": {
+		Name:    "cfw",
+		Version: "v1",
+		Product: "CFW",
 	},
 
 	// catalog for database
@@ -331,6 +391,11 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Version: "V1.0",
 		Product: "CES",
 	},
+	"cesv2": {
+		Name:    "ces",
+		Version: "v2",
+		Product: "CES",
+	},
 	"cts": {
 		Name:    "cts",
 		Version: "v1.0",
@@ -340,6 +405,12 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Name:    "lts",
 		Version: "v2",
 		Product: "LTS",
+	},
+	"apm": {
+		Name:             "apm2",
+		Version:          "v1",
+		Product:          "APM",
+		WithOutProjectID: true,
 	},
 	"smn": {
 		Name:         "smn",
@@ -366,8 +437,30 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		WithOutProjectID: true,
 		Product:          "TMS",
 	},
+	"rms": {
+		Name:             "rms",
+		Scope:            "global",
+		Version:          "v1",
+		WithOutProjectID: true,
+		Product:          "RMS",
+	},
+	// catalog for Meeting service, only used for API scan
+	"meeting": {
+		Name:             "api.meeting",
+		Version:          "v1",
+		Scope:            "global",
+		WithOutProjectID: true,
+		Product:          "Meeting",
+	},
 
 	// catalog for Security service
+	"aad": {
+		Name:             "aad",
+		Version:          "v1",
+		Scope:            "global",
+		WithOutProjectID: true,
+		Product:          "AAD",
+	},
 	"anti-ddos": {
 		Name:    "antiddos",
 		Version: "v1",
@@ -384,6 +477,11 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Version: "v1",
 		Product: "DEW",
 	},
+	"kmsv3": {
+		Name:    "kms",
+		Version: "v3",
+		Product: "DEW",
+	},
 	"waf": {
 		Name:         "waf",
 		Version:      "v1",
@@ -395,6 +493,16 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Version:      "v1",
 		ResourceBase: "premium-waf",
 		Product:      "WAF",
+	},
+	"dbss": {
+		Name:    "dbss",
+		Version: "v2",
+		Product: "DBSS",
+	},
+	"hss": {
+		Name:    "hss",
+		Version: "v5",
+		Product: "HSS",
 	},
 
 	// catalog for Enterprise Intelligence
@@ -417,6 +525,11 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Name:    "modelarts",
 		Version: "v2",
 		Product: "ModelArts",
+	},
+	"dataarts": {
+		Name:    "dayu",
+		Version: "v1",
+		Product: "DataArtsStudio",
 	},
 	"dws": {
 		Name:    "dws",
@@ -555,11 +668,6 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Version: "v1",
 		Product: "OMS",
 	},
-	"mls": {
-		Name:    "mls",
-		Version: "v1.0",
-		Product: "MLS",
-	},
 	"scm": {
 		Name:             "scm",
 		Version:          "v3",
@@ -567,13 +675,13 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Product:          "SCM",
 	},
 
-	// catalog for Joint-Operation Cloud only
-	// no need to put the key into allServiceCatalog
-	"natv2": {
-		Name:             "nat",
-		Version:          "v2.0",
+	// catalog for cc
+	"cc": {
+		Name:             "cc",
+		Version:          "v3",
+		Scope:            "global",
 		WithOutProjectID: true,
-		Product:          "NAT",
+		Product:          "CC",
 	},
 
 	"cpts": {
@@ -605,4 +713,84 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Version: "v1",
 		Product: "VOD",
 	},
+
+	"cmdb": {
+		Name:    "cmdb",
+		Version: "v1",
+		Scope:   "global",
+		Product: "AOM",
+	},
+
+	"ddm": {
+		Name:             "ddm",
+		WithOutProjectID: true,
+		Product:          "DDM",
+	},
+
+	// catalog for Developer Services
+	"codehub": {
+		Name:    "codehub-ext",
+		Product: "CodeHub",
+	},
+
+	"projectman": {
+		Name:    "projectman-ext",
+		Version: "v4",
+		Product: "ProjectMan",
+	},
+
+	// catalog for Data Security Center
+	"dsc": {
+		Name:    "sdg",
+		Product: "DSC",
+	},
+
+	// catalog for Cloud Phone
+	"cph": {
+		Name:    "cph",
+		Product: "CPH",
+	},
+
+	// catalog for Joint-Operation Cloud only
+	// it should be at the end of this map, and no necessary to put the key into allServiceCatalog
+	"mls": {
+		Name:    "mls",
+		Version: "v1.0",
+		Product: "MLS",
+	},
+	"natv2": {
+		Name:             "nat",
+		Version:          "v2.0",
+		WithOutProjectID: true,
+		Product:          "NAT",
+	},
+}
+
+// GetServiceEndpoint try to get the endpoint from customizing map
+func GetServiceEndpoint(c *Config, srv, region string) string {
+	if endpoint, ok := c.Endpoints[srv]; ok {
+		return endpoint
+	}
+
+	// get the endpoint from build-in catalog
+	catalog, ok := allServiceCatalog[srv]
+	if !ok {
+		return ""
+	}
+
+	var ep string
+	if catalog.Scope == "global" && !c.RegionClient {
+		ep = fmt.Sprintf("https://%s.%s/", catalog.Name, c.Cloud)
+	} else {
+		ep = fmt.Sprintf("https://%s.%s.%s/", catalog.Name, region, c.Cloud)
+	}
+	return ep
+}
+
+// GetServiceCatalog returns the catalog object of a service
+func GetServiceCatalog(service string) *ServiceCatalog {
+	if catalog, ok := allServiceCatalog[service]; ok {
+		return &catalog
+	}
+	return nil
 }

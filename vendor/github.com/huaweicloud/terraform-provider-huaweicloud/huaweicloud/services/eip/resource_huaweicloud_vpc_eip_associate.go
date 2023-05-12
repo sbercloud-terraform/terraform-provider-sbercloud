@@ -127,7 +127,8 @@ func resourceEIPAssociateCreate(ctx context.Context, d *schema.ResourceData, met
 	}
 
 	publicIP := d.Get("public_ip").(string)
-	publicID, err := getEIPByAddress(vpcClient, publicIP)
+	epsID := "all_granted_eps"
+	publicID, err := common.GetEipIDbyAddress(vpcClient, publicIP, epsID)
 	if err != nil {
 		return fmtp.DiagErrorf("Unable to get ID of public IP %s: %s", publicIP, err)
 	}
@@ -197,7 +198,7 @@ func resourceEIPAssociateRead(_ context.Context, d *schema.ResourceData, meta in
 		d.Set("fixed_ip", eIP.PrivateAddress),
 		d.Set("network_id", associatedPort.NetworkId),
 		d.Set("mac_address", associatedPort.MacAddress),
-		d.Set("status", NormalizeEIPStatus(eIP.Status)),
+		d.Set("status", NormalizeEipStatus(eIP.Status)),
 	)
 
 	if err = mErr.ErrorOrNil(); err != nil {
@@ -224,27 +225,6 @@ func resourceEIPAssociateDelete(_ context.Context, d *schema.ResourceData, meta 
 	return nil
 }
 
-func getEIPByAddress(client *golangsdk.ServiceClient, address string) (string, error) {
-	listOpts := eips.ListOpts{
-		PublicIp: []string{address},
-	}
-
-	pages, err := eips.List(client, listOpts).AllPages()
-	if err != nil {
-		return "", err
-	}
-	allEips, err := eips.ExtractPublicIPs(pages)
-	if err != nil {
-		return "", fmtp.Errorf("Unable to retrieve EIPs: %s ", err)
-	}
-
-	if len(allEips) != 1 {
-		return "", fmtp.Errorf("unable to determine the ID of %s", address)
-	}
-
-	return allEips[0].ID, nil
-}
-
 func bindPort(client *golangsdk.ServiceClient, eipID, portID string, timeout time.Duration) error {
 	logp.Printf("[DEBUG] Bind EIP %s to port %s", eipID, portID)
 	return actionOnPort(client, eipID, portID, timeout)
@@ -264,7 +244,17 @@ func actionOnPort(client *golangsdk.ServiceClient, eipID, portID string, timeout
 		return err
 	}
 
-	return waitForEIPActive(client, eipID, timeout)
+	stateConf := &resource.StateChangeConf{
+		Target:     []string{"COMPLETED"},
+		Refresh:    eipStatusRefreshFunc(client, eipID, []string{"DOWN", "ACTIVE"}),
+		Timeout:    timeout,
+		Delay:      5 * time.Second,
+		MinTimeout: 3 * time.Second,
+	}
+
+	//nolint directives: sa1019
+	_, err = stateConf.WaitForState()
+	return err
 }
 
 func getPortbyFixedIP(client *golangsdk.ServiceClient, networkID, fixedIP string) (string, error) {

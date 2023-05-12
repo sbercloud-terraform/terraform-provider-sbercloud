@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -24,6 +25,8 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+var DefaultVersion = "CSE2"
+
 func ResourceMicroserviceEngine() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceMicroserviceEngineCreate,
@@ -31,7 +34,7 @@ func ResourceMicroserviceEngine() *schema.Resource {
 		DeleteContext: resourceMicroserviceEngineDelete,
 
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			StateContext: resourceEngineImportState,
 		},
 
 		Timeouts: &schema.ResourceTimeout{
@@ -63,7 +66,7 @@ func ResourceMicroserviceEngine() *schema.Resource {
 				ForceNew: true,
 			},
 			"availability_zones": {
-				Type:     schema.TypeList,
+				Type:     schema.TypeSet,
 				Required: true,
 				ForceNew: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
@@ -80,6 +83,12 @@ func ResourceMicroserviceEngine() *schema.Resource {
 				ValidateFunc: validation.StringInSlice([]string{
 					"RBAC", "NONE",
 				}, false),
+			},
+			"version": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Default:  DefaultVersion,
 			},
 			"admin_pass": {
 				Type:      schema.TypeString,
@@ -173,13 +182,14 @@ func resourceMicroserviceEngineCreate(ctx context.Context, d *schema.ResourceDat
 	}
 
 	authType := d.Get("auth_type").(string)
+	epsId := conf.GetEnterpriseProjectID(d)
 	createOpts := engines.CreateOpts{
 		Payment:             "1",
-		SpecType:            "CSE2",
+		SpecType:            d.Get("version").(string),
 		Name:                d.Get("name").(string),
 		Description:         d.Get("description").(string),
 		Flavor:              d.Get("flavor").(string),
-		AvailabilityZones:   utils.ExpandToStringList(d.Get("availability_zones").([]interface{})),
+		AvailabilityZones:   utils.ExpandToStringListBySet(d.Get("availability_zones").(*schema.Set)),
 		AuthType:            authType,
 		VpcName:             vpcResp.Name,
 		VpcId:               vpcResp.ID,
@@ -187,7 +197,7 @@ func resourceMicroserviceEngineCreate(ctx context.Context, d *schema.ResourceDat
 		SubnetCidr:          subnetResp.CIDR,
 		PublicIpId:          d.Get("eip_id").(string),
 		Inputs:              d.Get("extend_params").(map[string]interface{}),
-		EnterpriseProjectId: common.GetEnterpriseProjectID(d, conf),
+		EnterpriseProjectId: epsId,
 	}
 
 	if authType == "RBAC" {
@@ -206,7 +216,7 @@ func resourceMicroserviceEngineCreate(ctx context.Context, d *schema.ResourceDat
 	stateConf := &resource.StateChangeConf{
 		Pending:      []string{"Init", "Executing"},
 		Target:       []string{"Finished"},
-		Refresh:      MicroserviceJobRefreshFunc(client, d.Id(), strconv.Itoa(resp.JobId)),
+		Refresh:      MicroserviceJobRefreshFunc(client, d.Id(), strconv.Itoa(resp.JobId), epsId),
 		Timeout:      d.Timeout(schema.TimeoutCreate),
 		Delay:        180 * time.Second,
 		PollInterval: 15 * time.Second,
@@ -261,7 +271,7 @@ func resourceMicroserviceEngineRead(_ context.Context, d *schema.ResourceData, m
 		return diag.Errorf("error creating CSE v2 client: %s", err)
 	}
 
-	resp, err := engines.Get(client, d.Id(), common.GetEnterpriseProjectID(d, conf))
+	resp, err := engines.Get(client, d.Id(), conf.GetEnterpriseProjectID(d))
 	if err != nil {
 		return common.CheckDeletedDiag(d, parseEngineJobError(err), "error retrieving Microservice engine")
 	}
@@ -272,6 +282,7 @@ func resourceMicroserviceEngineRead(_ context.Context, d *schema.ResourceData, m
 		d.Set("flavor", resp.Flavor),
 		d.Set("availability_zones", resp.Reference.AzList),
 		d.Set("auth_type", resp.AuthType),
+		d.Set("version", resp.SpecType),
 		d.Set("enterprise_project_id", resp.EnterpriseProjectId),
 		d.Set("network_id", resp.Reference.NetworkId),
 		d.Set("description", resp.Description),
@@ -322,7 +333,8 @@ func resourceMicroserviceEngineDelete(ctx context.Context, d *schema.ResourceDat
 		return diag.Errorf("error creating CSE v2 client: %s", err)
 	}
 
-	resp, err := engines.Delete(client, d.Id(), common.GetEnterpriseProjectID(d, conf))
+	epsId := common.GetEnterpriseProjectID(d, conf)
+	resp, err := engines.Delete(client, d.Id(), epsId)
 	if err != nil {
 		return diag.Errorf("error getting Microservice engine: %s", err)
 	}
@@ -331,7 +343,7 @@ func resourceMicroserviceEngineDelete(ctx context.Context, d *schema.ResourceDat
 	stateConf := &resource.StateChangeConf{
 		Pending:      []string{"Init", "Executing"},
 		Target:       []string{"Deleted"},
-		Refresh:      MicroserviceJobRefreshFunc(client, d.Id(), strconv.Itoa(resp.JobId)),
+		Refresh:      MicroserviceJobRefreshFunc(client, d.Id(), strconv.Itoa(resp.JobId), epsId),
 		Timeout:      d.Timeout(schema.TimeoutCreate),
 		Delay:        120 * time.Second,
 		PollInterval: 15 * time.Second,
@@ -353,7 +365,17 @@ func parseEngineJobError(respErr error) error {
 		if pErr == nil && (apiErr.ErrCode == "SVCSTG.00501116") {
 			return golangsdk.ErrDefault404{
 				ErrUnexpectedResponseCode: golangsdk.ErrUnexpectedResponseCode{
-					Body: []byte("the Microservice engine has been deleted"),
+					Body: []byte("the microservice engine has been deleted"),
+				},
+			}
+		}
+	}
+	if errCode, ok := respErr.(golangsdk.ErrDefault401); ok {
+		pErr := json.Unmarshal(errCode.Body, &apiErr)
+		if pErr == nil && (apiErr.ErrCode == "SVCSTG.00501125") {
+			return golangsdk.ErrDefault404{
+				ErrUnexpectedResponseCode: golangsdk.ErrUnexpectedResponseCode{
+					Body: []byte("the microservice engine has been deleted"),
 				},
 			}
 		}
@@ -361,9 +383,9 @@ func parseEngineJobError(respErr error) error {
 	return respErr
 }
 
-func MicroserviceJobRefreshFunc(c *golangsdk.ServiceClient, engineId, jobId string) resource.StateRefreshFunc {
+func MicroserviceJobRefreshFunc(c *golangsdk.ServiceClient, engineId, jobId, epsId string) resource.StateRefreshFunc {
 	return func() (interface{}, string, error) {
-		resp, err := engines.GetJob(c, engineId, jobId)
+		resp, err := engines.GetJob(c, engineId, jobId, epsId)
 		if newErr := parseEngineJobError(err); newErr != nil {
 			if _, ok := newErr.(golangsdk.ErrDefault404); ok {
 				return resp, "Deleted", nil
@@ -372,4 +394,20 @@ func MicroserviceJobRefreshFunc(c *golangsdk.ServiceClient, engineId, jobId stri
 		}
 		return resp, resp.Status, nil
 	}
+}
+
+func resourceEngineImportState(_ context.Context, d *schema.ResourceData,
+	_ interface{}) ([]*schema.ResourceData, error) {
+	importedId := d.Id()
+	parts := strings.SplitN(importedId, "/", 2)
+	switch len(parts) {
+	case 1:
+		d.SetId(parts[0])
+		return []*schema.ResourceData{d}, nil
+	case 2:
+		d.SetId(parts[0])
+		return []*schema.ResourceData{d}, d.Set("enterprise_project_id", parts[1])
+	}
+	return nil, fmt.Errorf("The imported ID specifies an invalid format: want '<id>' or "+
+		"'<id>/<enterprise_project_id>', but '%s'", importedId)
 }

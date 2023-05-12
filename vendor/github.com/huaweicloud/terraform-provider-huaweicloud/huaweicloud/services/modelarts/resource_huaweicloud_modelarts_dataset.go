@@ -45,7 +45,7 @@ func ResourceDataset() *schema.Resource {
 					validation.StringLenBetween(1, 100),
 					validation.StringMatch(regexp.MustCompile("^[\\-_A-Za-z0-9\u4e00-\u9fa5]+$"),
 						"The name consists of 1 to 100 characters, starting with a letter. "+
-							"Only letters, digits, chinese charactors, underscores (_) and hyphens (-) are allowed."),
+							"Only letters, digits, chinese characters, underscores (_) and hyphens (-) are allowed."),
 				),
 			},
 
@@ -90,6 +90,7 @@ func ResourceDataset() *schema.Resource {
 						"type": {
 							Type:     schema.TypeString,
 							Required: true,
+							ForceNew: true,
 							ValidateFunc: validation.StringInSlice([]string{"String", "Short", "Int", "Long", "Double",
 								"Float", "Byte", "Date", "Timestamp", "Boolean"}, false),
 						},
@@ -97,6 +98,7 @@ func ResourceDataset() *schema.Resource {
 						"name": {
 							Type:     schema.TypeString,
 							Required: true,
+							ForceNew: true,
 						},
 					},
 				},

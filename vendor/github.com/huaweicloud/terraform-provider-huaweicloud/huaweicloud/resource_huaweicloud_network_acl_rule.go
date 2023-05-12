@@ -4,6 +4,7 @@ import (
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/networking/v2/extensions/fwaas_v2/policies"
 	"github.com/chnsz/golangsdk/openstack/networking/v2/extensions/fwaas_v2/rules"
+	"github.com/chnsz/golangsdk/pagination"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -262,4 +263,28 @@ func normalizeNetworkACLRuleProtocol(p string) rules.Protocol {
 	}
 
 	return protocol
+}
+
+func assignedPolicyID(fwClient *golangsdk.ServiceClient, ruleID string) (string, error) {
+	pager := policies.List(fwClient, policies.ListOpts{})
+	policyID := ""
+	err := pager.EachPage(func(page pagination.Page) (b bool, err error) {
+		policyList, err := policies.ExtractPolicies(page)
+		if err != nil {
+			return false, err
+		}
+		for _, policy := range policyList {
+			for _, rule := range policy.Rules {
+				if rule == ruleID {
+					policyID = policy.ID
+					return false, nil
+				}
+			}
+		}
+		return true, nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return policyID, nil
 }

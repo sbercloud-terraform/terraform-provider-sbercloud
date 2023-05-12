@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,15 +15,13 @@ import (
 	"github.com/chnsz/golangsdk/openstack/identity/v3/projects"
 	"github.com/chnsz/golangsdk/openstack/identity/v3/users"
 	"github.com/chnsz/golangsdk/openstack/obs"
+	"github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/mutexkv"
-
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
 const (
-	obsLogFile         string = "./.obs-sdk.log"
-	obsLogFileSize10MB int64  = 1024 * 1024 * 10
+	providerUserAgent string = "terraform-provider-iac"
 )
 
 // MutexKV is a global lock on all resources, it can lock the specified shared string (such as resource ID, resource
@@ -161,6 +161,12 @@ func retryBackoffFunc(ctx context.Context, respErr *golangsdk.ErrUnexpectedRespo
 
 func getObsEndpoint(c *Config, region string) string {
 	if endpoint, ok := c.Endpoints["obs"]; ok {
+		// replace the region in customizing OBS endpoint
+		subparts := strings.Split(endpoint, ".")
+		if len(subparts) >= 3 && subparts[1] != region {
+			subparts[1] = region
+			return strings.Join(subparts, ".")
+		}
 		return endpoint
 	}
 	return fmt.Sprintf("https://obs.%s.%s/", region, c.Cloud)
@@ -171,31 +177,20 @@ func (c *Config) ObjectStorageClientWithSignature(region string) (*obs.ObsClient
 		return nil, fmt.Errorf("missing credentials for OBS, need access_key and secret_key values for provider")
 	}
 
-	// init log
-	if utils.IsDebugOrHigher() {
-		if err := obs.InitLog(obsLogFile, obsLogFileSize10MB, 10, obs.LEVEL_DEBUG, false); err != nil {
-			log.Printf("[WARN] initial obs sdk log failed: %s", err)
-		}
-	}
-
+	clientConfigure := obs.WithHttpClient(&c.DomainClient.HTTPClient)
+	userAgentConfigure := obs.WithUserAgent(buildObsUserAgent())
 	obsEndpoint := getObsEndpoint(c, region)
 	if c.SecurityToken != "" {
 		return obs.New(c.AccessKey, c.SecretKey, obsEndpoint,
-			obs.WithSignature("OBS"), obs.WithSecurityToken(c.SecurityToken))
+			obs.WithSignature("OBS"), obs.WithSecurityToken(c.SecurityToken), clientConfigure,
+			userAgentConfigure)
 	}
-	return obs.New(c.AccessKey, c.SecretKey, obsEndpoint, obs.WithSignature("OBS"))
+	return obs.New(c.AccessKey, c.SecretKey, obsEndpoint, obs.WithSignature("OBS"), clientConfigure, userAgentConfigure)
 }
 
 func (c *Config) ObjectStorageClient(region string) (*obs.ObsClient, error) {
 	if c.AccessKey == "" || c.SecretKey == "" {
 		return nil, fmt.Errorf("missing credentials for OBS, need access_key and secret_key values for provider")
-	}
-
-	// init log
-	if utils.IsDebugOrHigher() {
-		if err := obs.InitLog(obsLogFile, obsLogFileSize10MB, 10, obs.LEVEL_DEBUG, false); err != nil {
-			log.Printf("[WARN] initial obs sdk log failed: %s", err)
-		}
 	}
 
 	if !c.SecurityKeyExpiresAt.IsZero() {
@@ -211,11 +206,23 @@ func (c *Config) ObjectStorageClient(region string) (*obs.ObsClient, error) {
 		}
 	}
 
+	clientConfigure := obs.WithHttpClient(&c.DomainClient.HTTPClient)
+	userAgentConfigure := obs.WithUserAgent(buildObsUserAgent())
 	obsEndpoint := getObsEndpoint(c, region)
 	if c.SecurityToken != "" {
-		return obs.New(c.AccessKey, c.SecretKey, obsEndpoint, obs.WithSecurityToken(c.SecurityToken))
+		return obs.New(c.AccessKey, c.SecretKey, obsEndpoint, obs.WithSecurityToken(c.SecurityToken), clientConfigure,
+			userAgentConfigure)
 	}
-	return obs.New(c.AccessKey, c.SecretKey, obsEndpoint)
+	return obs.New(c.AccessKey, c.SecretKey, obsEndpoint, clientConfigure, userAgentConfigure)
+}
+
+func buildObsUserAgent() string {
+	var agent string = providerUserAgent
+	if customUserAgent := os.Getenv("HW_TF_CUSTOM_UA"); customUserAgent != "" {
+		agent = fmt.Sprintf("%s %s", customUserAgent, providerUserAgent)
+	}
+
+	return agent
 }
 
 // NewServiceClient create a ServiceClient which was assembled from ServiceCatalog.
@@ -424,6 +431,24 @@ func (c *Config) loadUserProjects(client *golangsdk.ProviderClient, region strin
 	return nil
 }
 
+// GetProjectID is used to get the project ID for services
+func (c *Config) GetProjectID(region string) string {
+	c.RPLock.Lock()
+	defer c.RPLock.Unlock()
+
+	projectID, ok := c.RegionProjectIDMap[region]
+	if !ok {
+		// Not find in the map, then try to query and store.
+		if err := c.loadUserProjects(c.DomainClient, region); err != nil {
+			log.Printf("[WARN] can not find the project ID of %s: %s", region, err)
+			return ""
+		}
+		projectID = c.RegionProjectIDMap[region]
+	}
+
+	return projectID
+}
+
 // GetRegion returns the region that was specified in the resource. If a
 // region was not set, the provider-level region is checked. The provider-level
 // region can either be set by the region argument or by HW_REGION_NAME.
@@ -498,6 +523,10 @@ func (c *Config) AutoscalingV1Client(region string) (*golangsdk.ServiceClient, e
 	return c.NewServiceClient("autoscaling", region)
 }
 
+func (c *Config) ImageV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("imsv1", region)
+}
+
 func (c *Config) ImageV2Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("ims", region)
 }
@@ -536,6 +565,23 @@ func (c *Config) SwrV2Client(region string) (*golangsdk.ServiceClient, error) {
 
 func (c *Config) BmsV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("bms", region)
+}
+
+func (c *Config) AosV1Client(region string) (*golangsdk.ServiceClient, error) {
+	client, err := c.NewServiceClient("aos", region)
+	if err != nil {
+		return nil, err
+	}
+	u, err := uuid.GenerateUUID()
+	if err != nil {
+		return nil, err
+	}
+	client.MoreHeaders = map[string]string{
+		"Content-Type":      "application/json",
+		"X-Language":        "en-us",
+		"Client-Request-Id": u,
+	}
+	return client, nil
 }
 
 // ********** client for Storage **********
@@ -592,6 +638,11 @@ func (c *Config) NatGatewayClient(region string) (*golangsdk.ServiceClient, erro
 	return c.NewServiceClient("nat", region)
 }
 
+// NatV3Client has the endpoint: https://nat.{{region}}/{{cloud}}/v3/
+func (c *Config) NatV3Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("natv3", region)
+}
+
 // ElbV2Client is the client for elb v2.0 (openstack) api
 func (c *Config) ElbV2Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("elbv2", region)
@@ -619,6 +670,14 @@ func (c *Config) DnsWithRegionClient(region string) (*golangsdk.ServiceClient, e
 	return c.NewServiceClient("dns_region", region)
 }
 
+func (c *Config) ErV3Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("er", region)
+}
+
+func (c *Config) DcV3Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("dc", region)
+}
+
 // ********** client for Management **********
 func (c *Config) CtsV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("cts", region)
@@ -626,6 +685,10 @@ func (c *Config) CtsV1Client(region string) (*golangsdk.ServiceClient, error) {
 
 func (c *Config) CesV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("ces", region)
+}
+
+func (c *Config) CesV2Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("cesv2", region)
 }
 
 func (c *Config) LtsV2Client(region string) (*golangsdk.ServiceClient, error) {
@@ -640,9 +703,17 @@ func (c *Config) SmnV2TagClient(region string) (*golangsdk.ServiceClient, error)
 	return c.NewServiceClient("smn-tag", region)
 }
 
+func (c *Config) RmsV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("rms", region)
+}
+
 // ********** client for Security **********
 func (c *Config) AntiDDosV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("anti-ddos", region)
+}
+
+func (c *Config) AadV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("aad", region)
 }
 
 func (c *Config) KmsKeyV1Client(region string) (*golangsdk.ServiceClient, error) {
@@ -651,6 +722,10 @@ func (c *Config) KmsKeyV1Client(region string) (*golangsdk.ServiceClient, error)
 
 func (c *Config) KmsV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("kmsv1", region)
+}
+
+func (c *Config) KmsV3Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("kmsv3", region)
 }
 
 // WafV1Client is not avaliable in HuaweiCloud, will be imported by other clouds
@@ -721,6 +796,14 @@ func (c *Config) ModelArtsV1Client(region string) (*golangsdk.ServiceClient, err
 
 func (c *Config) ModelArtsV2Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("modelartsv2", region)
+}
+
+func (c *Config) DataArtsV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("dataarts", region)
+}
+
+func (c *Config) WorkspaceV2Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("workspace", region)
 }
 
 // ********** client for Application **********
@@ -821,15 +904,16 @@ func (c *Config) SmsV3Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("sms", region)
 }
 
-func (c *Config) MlsV1Client(region string) (*golangsdk.ServiceClient, error) {
-	return c.NewServiceClient("mls", region)
-}
-
 func (c *Config) ScmV3Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("scm", region)
 }
 
 // the following clients are used for Joint-Operation Cloud only
+
+// MlsV1Client has the endpoint: https://mls.{{region}}/{{cloud}}/v1.0/{{project_id}}
+func (c *Config) MlsV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("mls", region)
+}
 
 // NatV2Client has the endpoint: https://nat.{{region}}/{{cloud}}/v2.0/
 func (c *Config) NatV2Client(region string) (*golangsdk.ServiceClient, error) {

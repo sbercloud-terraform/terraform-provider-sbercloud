@@ -10,9 +10,14 @@ import (
 
 // TurboResponse contains the information of creating response
 type TurboResponse struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
+	// The ID of the SFS Turbo file system.
+	ID string `json:"id"`
+	// The name of the SFS Turbo file system.
+	Name string `json:"name"`
+	// The status of the SFS Turbo file system.
 	Status string `json:"status"`
+	// The order ID.
+	OrderId string `json:"orderId"`
 }
 
 // Turbo contains all information associated with an SFS Turbo file system
@@ -61,6 +66,15 @@ type Turbo struct {
 	CreatedAt time.Time `json:"-"`
 	// The enterprise project ID
 	EnterpriseProjectId string `json:"enterprise_project_id"`
+}
+
+type TurboExpandResponse struct {
+	// The ID of the SFS Turbo file system.
+	ID string `json:"id"`
+	// The name of the SFS Turbo file system.
+	Name string `json:"name"`
+	// The order ID.
+	OrderId string `json:"orderId"`
 }
 
 func (r *Turbo) UnmarshalJSON(b []byte) error {
@@ -118,6 +132,13 @@ func (r GetResult) Extract() (*Turbo, error) {
 	return &object, err
 }
 
+// Extract will get the Turbo expand response from the ExpandResult
+func (r ExpandResult) Extract() (*TurboExpandResponse, error) {
+	var resp TurboExpandResponse
+	err := r.ExtractInto(&resp)
+	return &resp, err
+}
+
 // TurboPage is the page returned by a pager when traversing over a
 // collection of Shares.
 type TurboPage struct {
@@ -153,4 +174,9 @@ func (r TurboPage) NextPageURL() (string, error) {
 		return "", err
 	}
 	return golangsdk.ExtractNextURL(s.Links)
+}
+
+type PagedList struct {
+	Count  int     `json:"count"`
+	Shares []Turbo `json:"shares"`
 }

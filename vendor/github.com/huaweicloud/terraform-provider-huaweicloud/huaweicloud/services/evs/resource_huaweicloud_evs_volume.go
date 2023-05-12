@@ -58,9 +58,6 @@ func ResourceEvsVolume() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
-				ValidateFunc: validation.StringInSlice([]string{
-					"GPSSD", "SSD", "ESSD", "SAS",
-				}, true),
 			},
 			"device_type": {
 				Type:         schema.TypeString,
@@ -112,7 +109,7 @@ func ResourceEvsVolume() *schema.Resource {
 			"charging_mode": common.SchemaChargingMode(nil),
 			"period_unit":   common.SchemaPeriodUnit(nil),
 			"period":        common.SchemaPeriod(nil),
-			"auto_renew":    common.SchemaAutoRenew(nil),
+			"auto_renew":    common.SchemaAutoRenewUpdatable(nil),
 			"auto_pay":      common.SchemaAutoPay(nil),
 			"tags":          common.TagsSchema(),
 			"enterprise_project_id": {
@@ -236,20 +233,29 @@ func resourceEvsVolumeCreate(ctx context.Context, d *schema.ResourceData, meta i
 
 	// If charging mode is PrePaid, wait for the order to be completed.
 	if job.OrderID != "" {
-		err = common.WaitOrderComplete(ctx, d, config, job.OrderID)
+		bssClient, err := config.BssV2Client(config.GetRegion(d))
+		if err != nil {
+			return diag.Errorf("error creating BSS v2 client: %s", err)
+		}
+		err = common.WaitOrderComplete(ctx, bssClient, job.OrderID, d.Timeout(schema.TimeoutCreate))
 		if err != nil {
 			return fmtp.DiagErrorf("The order is not completed while creating EVS volume (%s): %#v", d.Id(), err)
+		}
+		_, err = common.WaitOrderResourceComplete(ctx, bssClient, job.OrderID, d.Timeout(schema.TimeoutCreate))
+		if err != nil {
+			return diag.FromErr(err)
 		}
 	}
 
 	logp.Printf("[DEBUG] Waiting for the EVS volume to become available, the volume ID is %s.", d.Id())
 	stateConf := &resource.StateChangeConf{
-		Pending:    []string{"creating"},
-		Target:     []string{"available"},
-		Refresh:    CloudVolumeRefreshFunc(evsV2Client, d.Id()),
-		Timeout:    d.Timeout(schema.TimeoutCreate),
-		Delay:      3 * time.Second,
-		MinTimeout: 5 * time.Second,
+		Pending:                   []string{"creating"},
+		Target:                    []string{"available"},
+		Refresh:                   CloudVolumeRefreshFunc(evsV2Client, d.Id()),
+		Timeout:                   d.Timeout(schema.TimeoutCreate),
+		Delay:                     3 * time.Second,
+		MinTimeout:                5 * time.Second,
+		ContinuousTargetOccurence: 2,
 	}
 	_, err = stateConf.WaitForStateContext(ctx)
 	if err != nil {
@@ -379,7 +385,11 @@ func resourceEvsVolumeUpdate(ctx context.Context, d *schema.ResourceData, meta i
 		}
 
 		if strings.EqualFold(d.Get("charging_mode").(string), "prePaid") {
-			err = common.WaitOrderComplete(ctx, d, config, resp.OrderID)
+			bssClient, err := config.BssV2Client(config.GetRegion(d))
+			if err != nil {
+				return diag.Errorf("error creating BSS v2 client: %s", err)
+			}
+			err = common.WaitOrderComplete(ctx, bssClient, resp.OrderID, d.Timeout(schema.TimeoutUpdate))
 			if err != nil {
 				return fmtp.DiagErrorf("The order (%s) is not completed while extending EVS volume (%s) size: %#v",
 					resp.OrderID, d.Id(), err)
@@ -398,6 +408,16 @@ func resourceEvsVolumeUpdate(ctx context.Context, d *schema.ResourceData, meta i
 		_, err = stateConf.WaitForStateContext(ctx)
 		if err != nil {
 			return fmtp.DiagErrorf("Error waiting for EVS volume (%s) to become ready: %s", d.Id(), err)
+		}
+	}
+
+	if d.HasChange("auto_renew") {
+		bssClient, err := config.BssV2Client(config.GetRegion(d))
+		if err != nil {
+			return fmtp.DiagErrorf("error creating BSS V2 client: %s", err)
+		}
+		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), d.Id()); err != nil {
+			return fmtp.DiagErrorf("error updating the auto-renew of the volume (%s): %s", d.Id(), err)
 		}
 	}
 
