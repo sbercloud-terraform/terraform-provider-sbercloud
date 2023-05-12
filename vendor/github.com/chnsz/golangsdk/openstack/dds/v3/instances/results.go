@@ -14,6 +14,7 @@ type CreateResult struct {
 }
 
 type Instance struct {
+	OrderId             string            `json:"order_id"`
 	Id                  string            `json:"id"`
 	Name                string            `json:"name"`
 	DataStore           DataStore         `json:"datastore"`
@@ -52,6 +53,17 @@ func (r CreateResult) Extract() (*Instance, error) {
 
 type UpdateInstanceResult struct {
 	commonResult
+}
+
+type UpdateResp struct {
+	JobId   string `json:"job_id"`
+	OrderId string `json:"order_id"`
+}
+
+func (r UpdateInstanceResult) Extract() (*UpdateResp, error) {
+	var resp UpdateResp
+	err := r.ExtractInto(&resp)
+	return &resp, err
 }
 
 type DeleteInstanceResult struct {
@@ -143,4 +155,12 @@ func ExtractInstances(r pagination.Page) (ListInstanceResponse, error) {
 	var s ListInstanceResponse
 	err := (r.(InstancePage)).ExtractInto(&s)
 	return s, err
+}
+
+// PortUpdateResp is the structure that represents the detail of the database user.
+type PortUpdateResp struct {
+	// Job ID.
+	JobId string `json:"job_id"`
+	// Database access port.
+	Port int `json:"port"`
 }

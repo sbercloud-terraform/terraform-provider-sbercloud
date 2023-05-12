@@ -38,6 +38,18 @@ type EnlargeVolumeResult struct {
 	commonResult
 }
 
+type ModifyConfigurationResult struct {
+	commonResult
+}
+
+type GetConfigurationResult struct {
+	commonResult
+}
+
+type RebootResult struct {
+	commonResult
+}
+
 type Instance struct {
 	Id                  string         `json:"id"`
 	Name                string         `json:"name"`
@@ -126,6 +138,49 @@ func (r EnlargeVolumeResult) Extract() (*EnlargeVolumeResp, error) {
 	return &response, err
 }
 
+type ModifyConfigurationResp struct {
+	JobId   string `json:"job_id"`
+	Restart bool   `json:"restart_required"`
+}
+
+func (r ModifyConfigurationResult) Extract() (*ModifyConfigurationResp, error) {
+	var response ModifyConfigurationResp
+	err := r.ExtractInto(&response)
+	return &response, err
+}
+
+type RebootResp struct {
+	JobId string `json:"job_id"`
+}
+
+func (r RebootResult) Extract() (*RebootResp, error) {
+	var response RebootResp
+	err := r.ExtractInto(&response)
+	return &response, err
+}
+
+type ConfigParams struct {
+	Name        string `json:"name"`
+	Value       string `json:"value"`
+	Restart     bool   `json:"restart_required"`
+	ReadOnly    bool   `json:"readonly"`
+	ValueRange  string `json:"value_range"`
+	Type        string `json:"type"`
+	Description string `json:"description"`
+}
+
+type GetConfigurationResp struct {
+	DatastoreVersion string         `json:"datastore_version_name"`
+	DatastoreName    string         `json:"datastore_name"`
+	Parameters       []ConfigParams `json:"configuration_parameters"`
+}
+
+func (r GetConfigurationResult) Extract() (*GetConfigurationResp, error) {
+	var response GetConfigurationResp
+	err := r.ExtractInto(&response)
+	return &response, err
+}
+
 type ListRdsResult struct {
 	commonResult
 }
@@ -181,6 +236,11 @@ type RelatedInstance struct {
 
 type RdsPage struct {
 	pagination.SinglePageBase
+}
+
+type ErrorResponse struct {
+	ErrorCode string `json:"error_code"`
+	ErrorMsg  string `json:"error_msg"`
 }
 
 func (r RdsPage) IsEmpty() (bool, error) {

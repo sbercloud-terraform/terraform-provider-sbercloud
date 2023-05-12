@@ -1,9 +1,10 @@
 package vpc
 
 import (
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
+	"context"
+	"log"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
@@ -14,7 +15,7 @@ import (
 
 func DataSourceNetworkingPortV2() *schema.Resource {
 	return &schema.Resource{
-		Read: dataSourceNetworkingPortV2Read,
+		ReadContext: dataSourceNetworkingPortV2Read,
 
 		Schema: map[string]*schema.Schema{
 			"region": {
@@ -48,36 +49,6 @@ func DataSourceNetworkingPortV2() *schema.Resource {
 				Optional: true,
 				Computed: true,
 			},
-
-			// will be deprecated or change to computed
-			"name": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
-			},
-			"admin_state_up": {
-				Type:     schema.TypeBool,
-				Optional: true,
-				Computed: true,
-			},
-			"tenant_id": {
-				Type:     schema.TypeString,
-				Optional: true,
-			},
-			"project_id": {
-				Type:     schema.TypeString,
-				Optional: true,
-			},
-			"device_owner": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
-			},
-			"device_id": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
-			},
 			"security_group_ids": {
 				Type:     schema.TypeSet,
 				Optional: true,
@@ -85,7 +56,32 @@ func DataSourceNetworkingPortV2() *schema.Resource {
 				Set:      schema.HashString,
 			},
 
+			// marked as computed
+			"name": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
+				Description: "schema: Computed",
+			},
+			"device_owner": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
+				Description: "schema: Computed",
+			},
+			"device_id": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
+				Description: "schema: Computed",
+			},
+
 			// Computed
+			"all_allowed_ips": {
+				Type:     schema.TypeList,
+				Computed: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
+			},
 			"all_fixed_ips": {
 				Type:     schema.TypeList,
 				Computed: true,
@@ -96,17 +92,29 @@ func DataSourceNetworkingPortV2() *schema.Resource {
 				Computed: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
+
+			// marked as deprecated
+			"admin_state_up": {
+				Type:       schema.TypeBool,
+				Optional:   true,
+				Computed:   true,
+				Deprecated: "this field is deprecated",
+			},
+			"tenant_id": {
+				Type:       schema.TypeString,
+				Optional:   true,
+				Deprecated: "this field is deprecated",
+			},
+			"project_id": {
+				Type:       schema.TypeString,
+				Optional:   true,
+				Deprecated: "this field is deprecated",
+			},
 		},
 	}
 }
 
-func dataSourceNetworkingPortV2Read(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*config.Config)
-	networkingClient, err := config.NetworkingV2Client(config.GetRegion(d))
-	if err != nil {
-		return fmtp.Errorf("Error creating HuaweiCloud networking client: %s", err)
-	}
-
+func getNetworkingPortOpts(d *schema.ResourceData) ports.ListOpts {
 	listOpts := ports.ListOpts{}
 
 	if v, ok := d.GetOk("port_id"); ok {
@@ -142,20 +150,32 @@ func dataSourceNetworkingPortV2Read(d *schema.ResourceData, meta interface{}) er
 		listOpts.DeviceID = v.(string)
 	}
 
+	return listOpts
+}
+
+func dataSourceNetworkingPortV2Read(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	config := meta.(*config.Config)
+	networkingClient, err := config.NetworkingV2Client(config.GetRegion(d))
+	if err != nil {
+		return diag.Errorf("error creating networking client: %s", err)
+	}
+
+	listOpts := getNetworkingPortOpts(d)
+
 	allPages, err := ports.List(networkingClient, listOpts).AllPages()
 	if err != nil {
-		return fmtp.Errorf("Unable to list huaweicloud_networking_ports_v2: %s", err)
+		return diag.Errorf("unable to list networking ports v2: %s", err)
 	}
 
 	var allPorts []ports.Port
 
 	err = ports.ExtractPortsInto(allPages, &allPorts)
 	if err != nil {
-		return fmtp.Errorf("Unable to retrieve huaweicloud_networking_ports_v2: %s", err)
+		return diag.Errorf("unable to retrieve networking ports v2: %s", err)
 	}
 
 	if len(allPorts) == 0 {
-		return fmtp.Errorf("No huaweicloud_networking_port found")
+		return diag.Errorf("no networking port found")
 	}
 
 	var portsList []ports.Port
@@ -170,8 +190,8 @@ func dataSourceNetworkingPortV2Read(d *schema.ResourceData, meta interface{}) er
 			}
 		}
 		if len(portsList) == 0 {
-			logp.Printf("No huaweicloud_networking_port found after the 'fixed_ip' filter")
-			return fmtp.Errorf("No huaweicloud_networking_port found")
+			log.Printf("No networking port found after the 'fixed_ip' filter")
+			return diag.Errorf("no networking port found")
 		}
 	} else {
 		portsList = allPorts
@@ -189,19 +209,19 @@ func dataSourceNetworkingPortV2Read(d *schema.ResourceData, meta interface{}) er
 			}
 		}
 		if len(sgPorts) == 0 {
-			logp.Printf("[DEBUG] No huaweicloud_networking_port found after the 'security_group_ids' filter")
-			return fmtp.Errorf("No huaweicloud_networking_port found")
+			log.Printf("[DEBUG] No networking port found after the 'security_group_ids' filter")
+			return diag.Errorf("no networking port found")
 		}
 		portsList = sgPorts
 	}
 
 	if len(portsList) > 1 {
-		return fmtp.Errorf("More than one huaweicloud_networking_port found (%d)", len(portsList))
+		return diag.Errorf("more than one networking port found (%d)", len(portsList))
 	}
 
 	port := portsList[0]
 
-	logp.Printf("[DEBUG] Retrieved huaweicloud_networking_port %s: %+v", port.ID, port)
+	log.Printf("[DEBUG] Retrieved networking port %s: %+v", port.ID, port)
 	d.SetId(port.ID)
 
 	d.Set("port_id", port.ID)
@@ -214,9 +234,19 @@ func dataSourceNetworkingPortV2Read(d *schema.ResourceData, meta interface{}) er
 	d.Set("device_id", port.DeviceID)
 	d.Set("region", config.GetRegion(d))
 	d.Set("all_security_group_ids", port.SecurityGroups)
+	d.Set("all_allowed_ips", expandNetworkingPortAllowedAddressPairToStringSlice(port.AllowedAddressPairs))
 	d.Set("all_fixed_ips", expandNetworkingPortFixedIPToStringSlice(port.FixedIPs))
 
 	return nil
+}
+
+func expandNetworkingPortAllowedAddressPairToStringSlice(addressPairs []ports.AddressPair) []string {
+	s := make([]string, len(addressPairs))
+	for i, addressPair := range addressPairs {
+		s[i] = addressPair.IPAddress
+	}
+
+	return s
 }
 
 func expandNetworkingPortFixedIPToStringSlice(fixedIPs []ports.IP) []string {

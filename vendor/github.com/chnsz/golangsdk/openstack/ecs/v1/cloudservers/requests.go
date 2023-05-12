@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 
 	"github.com/chnsz/golangsdk"
+	"github.com/chnsz/golangsdk/openstack/common/tags"
 	"github.com/chnsz/golangsdk/pagination"
 )
 
@@ -48,7 +49,9 @@ type CreateOpts struct {
 
 	Tags []string `json:"tags,omitempty"`
 
-	ServerTags []ServerTags `json:"server_tags,omitempty"`
+	ServerTags []tags.ResourceTag `json:"server_tags,omitempty"`
+
+	Description string `json:"description,omitempty"`
 }
 
 // CreateOptsBuilder allows extensions to add additional parameters to the
@@ -156,21 +159,28 @@ type VolumeMetadata struct {
 }
 
 type ServerExtendParam struct {
-	ChargingMode string `json:"chargingMode,omitempty"`
-
-	RegionID string `json:"regionID,omitempty"`
-
-	PeriodType string `json:"periodType,omitempty"`
-
-	PeriodNum int `json:"periodNum,omitempty"`
-
-	IsAutoRenew string `json:"isAutoRenew,omitempty"`
-
-	IsAutoPay string `json:"isAutoPay,omitempty"`
-
+	ChargingMode        string `json:"chargingMode,omitempty"`
+	RegionID            string `json:"regionID,omitempty"`
+	PeriodType          string `json:"periodType,omitempty"`
+	PeriodNum           int    `json:"periodNum,omitempty"`
+	IsAutoRenew         string `json:"isAutoRenew,omitempty"`
+	IsAutoPay           string `json:"isAutoPay,omitempty"`
 	EnterpriseProjectId string `json:"enterprise_project_id,omitempty"`
-
 	SupportAutoRecovery string `json:"support_auto_recovery,omitempty"`
+
+	// Specifies whether to support the function of creating a disk and then ECS: true of false
+	DiskPrior string `json:"diskPrior,omitempty"`
+
+	// When creating a spot ECS, set the parameter value to "spot"
+	MarketType string `json:"marketType,omitempty"`
+	// Specifies the highest price per hour you accept for a spot ECS
+	SpotPrice string `json:"spotPrice,omitempty"`
+	// Specifies the service duration of the spot ECS in hours
+	SpotDurationHours int `json:"spot_duration_hours,omitempty"`
+	// Specifies the number of time periods in the service duration
+	SpotDurationCount int `json:"spot_duration_count,omitempty"`
+	// Specifies the spot ECS interruption policy, which can only be set to "immediate" currently
+	InterruptionPolicy string `json:"interruption_policy,omitempty"`
 }
 
 type MetaData struct {
@@ -192,11 +202,6 @@ type SchedulerHints struct {
 
 	// DedicatedHostID specifies a DeH ID.
 	DedicatedHostID string `json:"dedicated_host_id,omitempty"`
-}
-
-type ServerTags struct {
-	Key   string `json:"key" required:"true"`
-	Value string `json:"value,omitempty"`
 }
 
 // Create requests a server to be provisioned to the user in the current tenant.
@@ -372,5 +377,49 @@ func Resize(client *golangsdk.ServiceClient, opts ResizeOptsBuilder, serverId st
 	}
 
 	_, r.Err = client.Post(resizeURL(client, serverId), reqBody, &r.Body, &golangsdk.RequestOpts{OkCodes: []int{200}})
+	return
+}
+
+// ChangeAdminPassword alters the administrator or root password for a specified
+// server.
+func ChangeAdminPassword(client *golangsdk.ServiceClient, id, newPassword string) (r PasswordResult) {
+	b := map[string]interface{}{
+		"reset-password": map[string]string{
+			"new_password": newPassword,
+		},
+	}
+	_, r.Err = client.Put(passwordURL(client, id), b, nil, &golangsdk.RequestOpts{OkCodes: []int{204}})
+	return
+}
+
+// UpdateOptsBuilder allows extensions to add additional attributes to the
+// Update request.
+type UpdateOptsBuilder interface {
+	ToServerUpdateMap() (map[string]interface{}, error)
+}
+
+// UpdateOpts specifies the base attributes that may be updated on an existing
+// server.
+type UpdateOpts struct {
+	Name        string  `json:"name,omitempty"`
+	Description *string `json:"description,omitempty"`
+	Hostname    string  `json:"hostname,omitempty"`
+}
+
+// ToServerUpdateMap formats an UpdateOpts structure into a request body.
+func (opts UpdateOpts) ToServerUpdateMap() (map[string]interface{}, error) {
+	return golangsdk.BuildRequestBody(opts, "server")
+}
+
+// Update requests that various attributes of the indicated server be changed.
+func Update(client *golangsdk.ServiceClient, id string, opts UpdateOptsBuilder) (r UpdateResult) {
+	b, err := opts.ToServerUpdateMap()
+	if err != nil {
+		r.Err = err
+		return
+	}
+	_, r.Err = client.Put(updateURL(client, id), b, &r.Body, &golangsdk.RequestOpts{
+		OkCodes: []int{200},
+	})
 	return
 }

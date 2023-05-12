@@ -3,6 +3,7 @@ package dcs
 import (
 	"context"
 	"errors"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -89,16 +90,18 @@ func ResourceDcsInstance() *schema.Resource {
 				Required: true,
 			},
 			"flavor": {
-				Type:     schema.TypeString,
-				Computed: true,
-				Optional: true,
+				Type:        schema.TypeString,
+				Computed:    true,
+				Optional:    true,
+				Description: "schema: Required",
 			},
 			"availability_zones": {
-				Type:     schema.TypeList,
-				Optional: true,
-				Computed: true,
-				ForceNew: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
+				Type:        schema.TypeList,
+				Optional:    true,
+				Computed:    true,
+				ForceNew:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Description: "schema: Required",
 			},
 			"vpc_id": {
 				Type:     schema.TypeString,
@@ -235,7 +238,7 @@ func ResourceDcsInstance() *schema.Resource {
 			"charging_mode": common.SchemaChargingMode(nil),
 			"period_unit":   common.SchemaPeriodUnit(nil),
 			"period":        common.SchemaPeriod(nil),
-			"auto_renew":    common.SchemaAutoRenew(nil),
+			"auto_renew":    common.SchemaAutoRenewUpdatable(nil),
 			"auto_pay":      common.SchemaAutoPay(nil),
 			"tags":          common.TagsSchema(),
 			"order_id": {
@@ -576,10 +579,18 @@ func resourceDcsInstancesCreate(ctx context.Context, d *schema.ResourceData, met
 
 	// If charging mode is PrePaid, wait for the order to be completed.
 	if strings.EqualFold(d.Get("charging_mode").(string), chargeModePrePaid) {
-		err = common.WaitOrderComplete(ctx, d, conf, r.OrderId)
+		bssClient, err := conf.BssV2Client(conf.GetRegion(d))
+		if err != nil {
+			return diag.Errorf("error creating BSS v2 client: %s", err)
+		}
+		err = common.WaitOrderComplete(ctx, bssClient, r.OrderId, d.Timeout(schema.TimeoutCreate))
 		if err != nil {
 			return fmtp.DiagErrorf("[DEBUG] Error the order is not completed while "+
 				"creating DCS instance. %s : %#v", d.Id(), err)
+		}
+		_, err = common.WaitOrderResourceComplete(ctx, bssClient, r.OrderId, d.Timeout(schema.TimeoutCreate))
+		if err != nil {
+			return diag.FromErr(err)
 		}
 	}
 
@@ -590,8 +601,9 @@ func resourceDcsInstancesCreate(ctx context.Context, d *schema.ResourceData, met
 		return diag.FromErr(err)
 	}
 
-	// create whiteList if configured.
-	if d.Get("whitelists").(*schema.Set).Len() > 0 {
+	// create whitelist when the function is enabled and configured
+	enabled := d.Get("whitelist_enable").(bool)
+	if enabled && d.Get("whitelists").(*schema.Set).Len() > 0 {
 		whitelistOpts := buildWhiteListParams(d)
 		logp.Printf("[DEBUG] Create whitelist options: %#v", whitelistOpts)
 
@@ -730,12 +742,14 @@ func resourceDcsInstancesRead(ctx context.Context, d *schema.ResourceData, meta 
 	}
 
 	// set white list
+	// some regions (cn-south-1) will fail to call the API due to the cloud reason
+	// ignore the error temporarily.
 	wList, err := whitelists.Get(client, d.Id()).Extract()
-	if err != nil {
-		return fmtp.DiagErrorf("Error setting whitelists for DCS instance, error: %s", err)
+	if err != nil || wList == nil {
+		logp.Printf("[WARN] Error fetching whitelists for DCS instance, error: %s", err)
 	}
-	logp.Printf("[DEBUG] Find DCS instance white list : %#v", r)
 
+	logp.Printf("[DEBUG] Find DCS instance white list : %#v", wList.Groups)
 	whiteList := make([]map[string]interface{}, len(wList.Groups))
 	for i, group := range wList.Groups {
 		whiteList[i] = map[string]interface{}{
@@ -822,6 +836,16 @@ func resourceDcsInstancesUpdate(ctx context.Context, d *schema.ResourceData, met
 		}
 	}
 
+	if d.HasChange("auto_renew") {
+		bssClient, err := config.BssV2Client(config.GetRegion(d))
+		if err != nil {
+			return diag.Errorf("error creating BSS V2 client: %s", err)
+		}
+		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), d.Id()); err != nil {
+			return diag.Errorf("error updating the auto-renew of the instance (%s): %s", d.Id(), err)
+		}
+	}
+
 	return resourceDcsInstancesRead(ctx, d, meta)
 }
 
@@ -901,7 +925,11 @@ func resizeDcsInstance(ctx context.Context, d *schema.ResourceData, meta interfa
 
 		if d.Get("charging_mode").(string) == chargeModePrePaid {
 			// wait for order pay
-			err = common.WaitOrderComplete(ctx, d, config, r.OrderId)
+			bssClient, err := config.BssV2Client(config.GetRegion(d))
+			if err != nil {
+				return fmt.Errorf("error creating BSS v2 client: %s", err)
+			}
+			err = common.WaitOrderComplete(ctx, bssClient, r.OrderId, d.Timeout(schema.TimeoutUpdate))
 			if err != nil {
 				return err
 			}

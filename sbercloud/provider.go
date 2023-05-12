@@ -1,6 +1,10 @@
 package sbercloud
 
 import (
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dew"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dns"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/nat"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/obs"
 	"sync"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -143,16 +147,16 @@ func Provider() *schema.Provider {
 		DataSourcesMap: map[string]*schema.Resource{
 			"sbercloud_availability_zones":     huaweicloud.DataSourceAvailabilityZones(),
 			"sbercloud_cbr_vaults":             cbr.DataSourceCbrVaultsV3(),
-			"sbercloud_cce_addon_template":     huaweicloud.DataSourceCCEAddonTemplateV3(),
-			"sbercloud_cce_cluster":            huaweicloud.DataSourceCCEClusterV3(),
+			"sbercloud_cce_addon_template":     cce.DataSourceCCEAddonTemplateV3(),
+			"sbercloud_cce_cluster":            cce.DataSourceCCEClusterV3(),
 			"sbercloud_cce_clusters":           cce.DataSourceCCEClusters(),
-			"sbercloud_cce_node":               huaweicloud.DataSourceCCENodeV3(),
+			"sbercloud_cce_node":               cce.DataSourceCCENodeV3(),
 			"sbercloud_cce_nodes":              cce.DataSourceCCENodes(),
-			"sbercloud_cce_node_pool":          huaweicloud.DataSourceCCENodePoolV3(),
+			"sbercloud_cce_node_pool":          cce.DataSourceCCENodePoolV3(),
 			"sbercloud_cdm_flavors":            huaweicloud.DataSourceCdmFlavorV1(),
-			"sbercloud_compute_flavors":        huaweicloud.DataSourceEcsFlavors(),
-			"sbercloud_compute_instance":       huaweicloud.DataSourceComputeInstance(),
-			"sbercloud_compute_instances":      huaweicloud.DataSourceComputeInstances(),
+			"sbercloud_compute_flavors":        ecs.DataSourceEcsFlavors(),
+			"sbercloud_compute_instance":       ecs.DataSourceComputeInstance(),
+			"sbercloud_compute_instances":      ecs.DataSourceComputeInstances(),
 			"sbercloud_dcs_az":                 deprecated.DataSourceDcsAZV1(),
 			"sbercloud_dcs_maintainwindow":     dcs.DataSourceDcsMaintainWindow(),
 			"sbercloud_dcs_product":            deprecated.DataSourceDcsProductV1(),
@@ -165,12 +169,13 @@ func Provider() *schema.Provider {
 			"sbercloud_identity_custom_role":   iam.DataSourceIdentityCustomRole(),
 			"sbercloud_identity_group":         iam.DataSourceIdentityGroup(),
 			"sbercloud_images_image":           ims.DataSourceImagesImageV2(),
-			"sbercloud_kms_key":                huaweicloud.DataSourceKmsKeyV1(),
+			"sbercloud_kms_key":                dew.DataSourceKmsKey(), // ?
 			"sbercloud_kms_data_key":           huaweicloud.DataSourceKmsDataKeyV1(),
-			"sbercloud_nat_gateway":            huaweicloud.DataSourceNatGatewayV2(),
+			"sbercloud_nat_gateway":            nat.DataSourcePublicGateway(), // ? по коду тоже самое
 			"sbercloud_networking_port":        vpc.DataSourceNetworkingPortV2(),
 			"sbercloud_networking_secgroup":    huaweicloud.DataSourceNetworkingSecGroup(),
-			"sbercloud_obs_bucket_object":      huaweicloud.DataSourceObsBucketObject(),
+			"sbercloud_obs_buckets":            obs.DataSourceObsBuckets(), // new
+			"sbercloud_obs_bucket_object":      obs.DataSourceObsBucketObject(),
 			"sbercloud_rds_flavors":            rds.DataSourceRdsFlavor(),
 			"sbercloud_sfs_file_system":        huaweicloud.DataSourceSFSFileSystemV2(),
 			"sbercloud_vpc":                    vpc.DataSourceVpcV1(),
@@ -198,19 +203,19 @@ func Provider() *schema.Provider {
 			"sbercloud_cbr_policy":                      cbr.ResourceCBRPolicyV3(),
 			"sbercloud_cbr_vault":                       cbr.ResourceVault(),
 			"sbercloud_css_cluster":                     css.ResourceCssCluster(),
-			"sbercloud_cce_addon":                       huaweicloud.ResourceCCEAddonV3(),
-			"sbercloud_cce_cluster":                     huaweicloud.ResourceCCEClusterV3(),
+			"sbercloud_cce_addon":                       cce.ResourceCCEAddonV3(),
+			"sbercloud_cce_cluster":                     cce.ResourceCCEClusterV3(),
 			"sbercloud_cce_namespace":                   cce.ResourceCCENamespaceV1(),
-			"sbercloud_cce_node":                        huaweicloud.ResourceCCENodeV3(),
-			"sbercloud_cce_node_attach":                 huaweicloud.ResourceCCENodeAttachV3(),
-			"sbercloud_cce_node_pool":                   huaweicloud.ResourceCCENodePool(),
+			"sbercloud_cce_node":                        cce.ResourceCCENodeV3(),
+			"sbercloud_cce_node_attach":                 cce.ResourceCCENodeAttachV3(),
+			"sbercloud_cce_node_pool":                   cce.ResourceCCENodePool(),
 			"sbercloud_cce_pvc":                         cce.ResourceCcePersistentVolumeClaimsV1(),
 			"sbercloud_cdm_cluster":                     cdm.ResourceCdmCluster(),
 			"sbercloud_compute_instance":                ResourceComputeInstanceV2(),
-			"sbercloud_compute_interface_attach":        huaweicloud.ResourceComputeInterfaceAttachV2(),
+			"sbercloud_compute_interface_attach":        ecs.ResourceComputeInterfaceAttach(), // ?
 			"sbercloud_compute_keypair":                 huaweicloud.ResourceComputeKeypairV2(),
-			"sbercloud_compute_servergroup":             huaweicloud.ResourceComputeServerGroupV2(),
-			"sbercloud_compute_eip_associate":           huaweicloud.ResourceComputeFloatingIPAssociateV2(),
+			"sbercloud_compute_servergroup":             ecs.ResourceComputeServerGroup(),  // ?
+			"sbercloud_compute_eip_associate":           ecs.ResourceComputeEIPAssociate(), // ??
 			"sbercloud_compute_volume_attach":           ecs.ResourceComputeVolumeAttach(),
 			"sbercloud_ces_alarmrule":                   ces.ResourceAlarmRule(),
 			"sbercloud_dcs_instance":                    dcs.ResourceDcsInstance(),
@@ -224,8 +229,8 @@ func Provider() *schema.Provider {
 			"sbercloud_dms_kafka_instance":              dms.ResourceDmsKafkaInstance(),
 			"sbercloud_dms_kafka_topic":                 dms.ResourceDmsKafkaTopic(),
 			"sbercloud_dms_rabbitmq_instance":           dms.ResourceDmsRabbitmqInstance(),
-			"sbercloud_dns_recordset":                   huaweicloud.ResourceDNSRecordSetV2(),
-			"sbercloud_dns_zone":                        huaweicloud.ResourceDNSZoneV2(),
+			"sbercloud_dns_recordset":                   dns.ResourceDNSRecordSetV2(), // dns.ResourceDNSRecordset(), на хуавее так
+			"sbercloud_dns_zone":                        dns.ResourceDNSZone(),        // ?
 			"sbercloud_dws_cluster":                     dws.ResourceDwsCluster(),
 			"sbercloud_enterprise_project":              eps.ResourceEnterpriseProject(),
 			"sbercloud_evs_snapshot":                    huaweicloud.ResourceEvsSnapshotV2(),
@@ -239,15 +244,15 @@ func Provider() *schema.Provider {
 			"sbercloud_identity_group_membership":       iam.ResourceIdentityGroupMembershipV3(),
 			"sbercloud_identity_project":                iam.ResourceIdentityProjectV3(),
 			"sbercloud_identity_role":                   iam.ResourceIdentityRole(),
-			"sbercloud_identity_role_assignment":        iam.ResourceIdentityRoleAssignmentV3(),
+			"sbercloud_identity_role_assignment":        iam.ResourceIdentityGroupRoleAssignment(), // -V3 ??
 			"sbercloud_identity_user":                   iam.ResourceIdentityUserV3(),
-			"sbercloud_images_image":                    huaweicloud.ResourceImsImage(),
-			"sbercloud_kms_key":                         huaweicloud.ResourceKmsKeyV1(),
+			"sbercloud_images_image":                    ims.ResourceImsImage(), // ?
+			"sbercloud_kms_key":                         dew.ResourceKmsKey(),   // ?
 			"sbercloud_lb_certificate":                  lb.ResourceCertificateV2(),
 			"sbercloud_lb_l7policy":                     lb.ResourceL7PolicyV2(),
 			"sbercloud_lb_l7rule":                       lb.ResourceL7RuleV2(),
-			"sbercloud_lb_listener":                     lb.ResourceListenerV2(),
-			"sbercloud_lb_loadbalancer":                 lb.ResourceLoadBalancerV2(),
+			"sbercloud_lb_listener":                     lb.ResourceListener(),     // ? - V2
+			"sbercloud_lb_loadbalancer":                 lb.ResourceLoadBalancer(), // ? - V2
 			"sbercloud_lb_member":                       lb.ResourceMemberV2(),
 			"sbercloud_lb_monitor":                      lb.ResourceMonitorV2(),
 			"sbercloud_lb_pool":                         lb.ResourcePoolV2(),
@@ -256,17 +261,17 @@ func Provider() *schema.Provider {
 			"sbercloud_lts_stream":                      huaweicloud.ResourceLTSStreamV2(),
 			"sbercloud_mapreduce_cluster":               mrs.ResourceMRSClusterV2(),
 			"sbercloud_mapreduce_job":                   mrs.ResourceMRSJobV2(),
-			"sbercloud_nat_dnat_rule":                   huaweicloud.ResourceNatDnatRuleV2(),
-			"sbercloud_nat_gateway":                     huaweicloud.ResourceNatGatewayV2(),
-			"sbercloud_nat_snat_rule":                   huaweicloud.ResourceNatSnatRuleV2(),
+			"sbercloud_nat_dnat_rule":                   nat.ResourcePublicDnatRule(), // ? ----
+			"sbercloud_nat_gateway":                     nat.ResourcePublicGateway(),  // ?
+			"sbercloud_nat_snat_rule":                   nat.ResourcePublicSnatRule(), // ?
 			"sbercloud_network_acl":                     huaweicloud.ResourceNetworkACL(),
 			"sbercloud_network_acl_rule":                huaweicloud.ResourceNetworkACLRule(),
 			"sbercloud_networking_eip_associate":        eip.ResourceEIPAssociate(),
 			"sbercloud_networking_secgroup":             huaweicloud.ResourceNetworkingSecGroup(),
 			"sbercloud_networking_secgroup_rule":        huaweicloud.ResourceNetworkingSecGroupRule(),
-			"sbercloud_obs_bucket":                      huaweicloud.ResourceObsBucket(),
-			"sbercloud_obs_bucket_object":               huaweicloud.ResourceObsBucketObject(),
-			"sbercloud_obs_bucket_policy":               huaweicloud.ResourceObsBucketPolicy(),
+			"sbercloud_obs_bucket":                      obs.ResourceObsBucket(),       // ?
+			"sbercloud_obs_bucket_object":               obs.ResourceObsBucketObject(), // ?
+			"sbercloud_obs_bucket_policy":               obs.ResourceObsBucketPolicy(), // ?
 			"sbercloud_rds_instance":                    rds.ResourceRdsInstance(),
 			"sbercloud_rds_parametergroup":              rds.ResourceRdsConfiguration(),
 			"sbercloud_rds_read_replica_instance":       rds.ResourceRdsReadReplicaInstance(),
@@ -284,7 +289,7 @@ func Provider() *schema.Provider {
 			"sbercloud_vpc_route_table":                 vpc.ResourceVPCRouteTable(),
 			"sbercloud_vpc_subnet":                      vpc.ResourceVpcSubnetV1(),
 			// Legacy
-			"sbercloud_identity_role_assignment_v3":  iam.ResourceIdentityRoleAssignmentV3(),
+			"sbercloud_identity_role_assignment_v3":  iam.ResourceIdentityGroupRoleAssignment(), // ?
 			"sbercloud_identity_user_v3":             iam.ResourceIdentityUserV3(),
 			"sbercloud_identity_group_v3":            iam.ResourceIdentityGroupV3(),
 			"sbercloud_identity_group_membership_v3": iam.ResourceIdentityGroupMembershipV3(),

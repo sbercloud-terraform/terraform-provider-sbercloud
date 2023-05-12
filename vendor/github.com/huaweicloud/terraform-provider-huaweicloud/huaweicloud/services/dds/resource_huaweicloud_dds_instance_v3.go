@@ -3,12 +3,14 @@ package dds
 import (
 	"context"
 	"fmt"
+	"log"
 	"strconv"
 	"time"
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/common/tags"
 	"github.com/chnsz/golangsdk/openstack/dds/v3/instances"
+	"github.com/chnsz/golangsdk/openstack/dds/v3/jobs"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -101,6 +103,15 @@ func ResourceDdsInstanceV3() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 			},
+			"port": {
+				Type:     schema.TypeInt,
+				Optional: true,
+				Computed: true,
+				ValidateFunc: validation.Any(
+					validation.IntBetween(2100, 9500),
+					validation.IntBetween(27017, 27019),
+				),
+			},
 			"password": {
 				Type:      schema.TypeString,
 				Sensitive: true,
@@ -118,6 +129,25 @@ func ResourceDdsInstanceV3() *schema.Resource {
 				ValidateFunc: validation.StringInSlice([]string{
 					"Sharding", "ReplicaSet", "Single",
 				}, true),
+			},
+			"configuration": {
+				Type:     schema.TypeList,
+				Optional: true,
+				ForceNew: true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"type": {
+							Type:     schema.TypeString,
+							Required: true,
+							ForceNew: true,
+						},
+						"id": {
+							Type:     schema.TypeString,
+							Required: true,
+							ForceNew: true,
+						},
+					},
+				},
 			},
 			"flavor": {
 				Type:     schema.TypeList,
@@ -185,17 +215,18 @@ func ResourceDdsInstanceV3() *schema.Resource {
 				ForceNew: true,
 				Computed: true,
 			},
-			"tags": common.TagsSchema(),
+			"charging_mode": common.SchemaChargingMode(nil),
+			"period_unit":   common.SchemaPeriodUnit(nil),
+			"period":        common.SchemaPeriod(nil),
+			"auto_renew":    common.SchemaAutoRenew(nil),
+			"auto_pay":      common.SchemaAutoPay(nil),
+			"tags":          common.TagsSchema(),
 			"db_username": {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
 			"status": {
 				Type:     schema.TypeString,
-				Computed: true,
-			},
-			"port": {
-				Type:     schema.TypeInt,
 				Computed: true,
 			},
 			"nodes": {
@@ -249,6 +280,22 @@ func resourceDdsDataStore(d *schema.ResourceData) instances.DataStore {
 	}
 	logp.Printf("[DEBUG] datastore: %+v", dataStore)
 	return dataStore
+}
+
+func resourceDdsConfiguration(d *schema.ResourceData) []instances.Configuration {
+	var configurations []instances.Configuration
+	configurationRaw := d.Get("configuration").([]interface{})
+	log.Printf("[DEBUG] configurationRaw: %+v", configurationRaw)
+	for i := range configurationRaw {
+		configuration := configurationRaw[i].(map[string]interface{})
+		flavorReq := instances.Configuration{
+			Type: configuration["type"].(string),
+			Id:   configuration["id"].(string),
+		}
+		configurations = append(configurations, flavorReq)
+	}
+	log.Printf("[DEBUG] configurations: %+v", configurations)
+	return configurations
 }
 
 func resourceDdsFlavors(d *schema.ResourceData) []instances.Flavor {
@@ -315,6 +362,21 @@ func DdsInstanceStateRefreshFunc(client *golangsdk.ServiceClient, instanceID str
 	}
 }
 
+func buildChargeInfoParams(d *schema.ResourceData) instances.ChargeInfo {
+	chargeInfo := instances.ChargeInfo{
+		ChargeMode: d.Get("charging_mode").(string),
+		PeriodType: d.Get("period_unit").(string),
+		PeriodNum:  d.Get("period").(int),
+	}
+	if d.Get("auto_pay").(string) != "false" {
+		chargeInfo.IsAutoPay = true
+	}
+	if d.Get("auto_renew").(string) == "true" {
+		chargeInfo.IsAutoRenew = true
+	}
+	return chargeInfo
+}
+
 func resourceDdsInstanceV3Create(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := meta.(*config.Config)
 	client, err := config.DdsV3Client(config.GetRegion(d))
@@ -332,6 +394,7 @@ func resourceDdsInstanceV3Create(ctx context.Context, d *schema.ResourceData, me
 		SecurityGroupId:     d.Get("security_group_id").(string),
 		DiskEncryptionId:    d.Get("disk_encryption_id").(string),
 		Mode:                d.Get("mode").(string),
+		Configuration:       resourceDdsConfiguration(d),
 		Flavor:              resourceDdsFlavors(d),
 		BackupStrategy:      resourceDdsBackupStrategy(d),
 		EnterpriseProjectID: config.GetEnterpriseProjectID(d),
@@ -341,9 +404,17 @@ func resourceDdsInstanceV3Create(ctx context.Context, d *schema.ResourceData, me
 	} else {
 		createOpts.Ssl = "0"
 	}
+	if d.Get("charging_mode").(string) == "prePaid" {
+		chargeInfo := buildChargeInfoParams(d)
+		createOpts.ChargeInfo = &chargeInfo
+	}
 	logp.Printf("[DEBUG] Create Options: %#v", createOpts)
 	// Add password here so it wouldn't go in the above log entry
 	createOpts.Password = d.Get("password").(string)
+
+	if val, ok := d.GetOk("port"); ok {
+		createOpts.Port = strconv.Itoa(val.(int))
+	}
 
 	instance, err := instances.Create(client, createOpts).Extract()
 	if err != nil {
@@ -351,7 +422,26 @@ func resourceDdsInstanceV3Create(ctx context.Context, d *schema.ResourceData, me
 	}
 	logp.Printf("[DEBUG] Create : instance %s: %#v", instance.Id, instance)
 
-	d.SetId(instance.Id)
+	if instance.OrderId != "" {
+		bssClient, err := config.BssV2Client(config.GetRegion(d))
+		if err != nil {
+			return diag.Errorf("error creating BSS v2 client: %s", err)
+		}
+		err = common.WaitOrderComplete(ctx, bssClient, instance.OrderId, d.Timeout(schema.TimeoutCreate))
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		resourceId, err := common.WaitOrderResourceComplete(ctx, bssClient, instance.OrderId,
+			d.Timeout(schema.TimeoutCreate))
+		if err != nil {
+			return diag.FromErr(err)
+		}
+
+		d.SetId(resourceId)
+	} else {
+		d.SetId(instance.Id)
+	}
+
 	stateConf := &resource.StateChangeConf{
 		Pending:    []string{"creating", "updating"},
 		Target:     []string{"normal"},
@@ -467,11 +557,47 @@ func resourceDdsInstanceV3Read(_ context.Context, d *schema.ResourceData, meta i
 	return nil
 }
 
+func JobStateRefreshFunc(client *golangsdk.ServiceClient, jobId string) resource.StateRefreshFunc {
+	return func() (interface{}, string, error) {
+		resp, err := jobs.Get(client, jobId)
+		if err != nil {
+			return nil, "", err
+		}
+
+		return resp, resp.Status, nil
+	}
+}
+
+func waitForInstanceReady(ctx context.Context, client *golangsdk.ServiceClient, instanceId string, timeout time.Duration) error {
+	stateConf := &resource.StateChangeConf{
+		Pending:    []string{"updating"},
+		Target:     []string{"normal"},
+		Refresh:    DdsInstanceStateRefreshFunc(client, instanceId),
+		Timeout:    timeout,
+		Delay:      15 * time.Second,
+		MinTimeout: 10 * time.Second,
+	}
+
+	_, err := stateConf.WaitForStateContext(ctx)
+	if err != nil {
+		return fmtp.Errorf(
+			"Error waiting for instance (%s) to become ready: %s ",
+			instanceId, err)
+	}
+
+	return nil
+}
+
 func resourceDdsInstanceV3Update(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := meta.(*config.Config)
 	client, err := config.DdsV3Client(config.GetRegion(d))
 	if err != nil {
 		return fmtp.DiagErrorf("Error creating HuaweiCloud DDS client: %s ", err)
+	}
+
+	err = waitForInstanceReady(ctx, client, d.Id(), d.Timeout(schema.TimeoutUpdate))
+	if err != nil {
+		return diag.FromErr(err)
 	}
 
 	var opts []instances.UpdateOpt
@@ -532,25 +658,48 @@ func resourceDdsInstanceV3Update(ctx context.Context, d *schema.ResourceData, me
 	}
 
 	if len(opts) > 0 {
-		r := instances.Update(client, d.Id(), opts)
-		if r.Err != nil {
-			return fmtp.DiagErrorf("Error updating instance from result: %s ", r.Err)
+		resp, err := instances.Update(client, d.Id(), opts).Extract()
+		if err != nil {
+			return fmtp.DiagErrorf("Error updating instance from result: %s ", err)
+		}
+		if resp.OrderId != "" {
+			bssClient, err := config.BssV2Client(config.GetRegion(d))
+			if err != nil {
+				return diag.Errorf("error creating BSS v2 client: %s", err)
+			}
+			err = common.WaitOrderComplete(ctx, bssClient, resp.OrderId, d.Timeout(schema.TimeoutCreate))
+			if err != nil {
+				return diag.FromErr(err)
+			}
 		}
 
+		err = waitForInstanceReady(ctx, client, d.Id(), d.Timeout(schema.TimeoutUpdate))
+		if err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	if d.HasChange("port") {
+		resp, err := instances.UpdatePort(client, d.Id(), d.Get("port").(int))
+		if err != nil {
+			return diag.Errorf("error updating database access port: %s", err)
+		}
 		stateConf := &resource.StateChangeConf{
-			Pending:    []string{"updating"},
-			Target:     []string{"normal"},
-			Refresh:    DdsInstanceStateRefreshFunc(client, d.Id()),
-			Timeout:    d.Timeout(schema.TimeoutUpdate),
-			Delay:      15 * time.Second,
-			MinTimeout: 10 * time.Second,
+			Pending:      []string{"Running"},
+			Target:       []string{"Completed"},
+			Refresh:      JobStateRefreshFunc(client, resp.JobId),
+			Timeout:      d.Timeout(schema.TimeoutUpdate),
+			PollInterval: 10 * time.Second,
 		}
 
 		_, err = stateConf.WaitForStateContext(ctx)
 		if err != nil {
-			return fmtp.DiagErrorf(
-				"Error waiting for instance (%s) to become ready: %s ",
-				d.Id(), err)
+			return fmtp.DiagErrorf("error waiting for the job (%s) completed: %s ", resp.JobId, err)
+		}
+
+		err = waitForInstanceReady(ctx, client, d.Id(), d.Timeout(schema.TimeoutCreate))
+		if err != nil {
+			return diag.FromErr(err)
 		}
 	}
 
@@ -558,6 +707,11 @@ func resourceDdsInstanceV3Update(ctx context.Context, d *schema.ResourceData, me
 		tagErr := utils.UpdateResourceTags(client, d, "instances", d.Id())
 		if tagErr != nil {
 			return fmtp.DiagErrorf("Error updating tags of DDS instance:%s, err:%s", d.Id(), tagErr)
+		}
+
+		err := waitForInstanceReady(ctx, client, d.Id(), d.Timeout(schema.TimeoutUpdate))
+		if err != nil {
+			return diag.FromErr(err)
 		}
 	}
 
@@ -567,20 +721,25 @@ func resourceDdsInstanceV3Update(ctx context.Context, d *schema.ResourceData, me
 			numIndex := fmt.Sprintf("flavor.%d.num", i)
 			volumeSizeIndex := fmt.Sprintf("flavor.%d.size", i)
 			specCodeIndex := fmt.Sprintf("flavor.%d.spec_code", i)
-			if d.HasChange(numIndex) {
-				err := flavorNumUpdate(ctx, client, d, i)
+
+			// The update operation of the volume size must ahead of the update operation of the number. Because the
+			// size and number are updated at the same time and the number is increased, and the request will fail.
+			// For example, when the number is increased from 2 to 3, and the size of all nodes is increased from 20 to
+			// 30, the newly added node will prompt that the storage update failed and cannot be updated from 30 to 30.
+			if d.HasChange(volumeSizeIndex) {
+				err := flavorSizeUpdate(ctx, config, client, d, i)
 				if err != nil {
 					return diag.FromErr(err)
 				}
 			}
-			if d.HasChange(volumeSizeIndex) {
-				err := flavorSizeUpdate(ctx, client, d, i)
+			if d.HasChange(numIndex) {
+				err := flavorNumUpdate(ctx, config, client, d, i)
 				if err != nil {
 					return diag.FromErr(err)
 				}
 			}
 			if d.HasChange(specCodeIndex) {
-				err := flavorSpecCodeUpdate(ctx, client, d, i)
+				err := flavorSpecCodeUpdate(ctx, config, client, d, i)
 				if err != nil {
 					return diag.FromErr(err)
 				}
@@ -599,10 +758,19 @@ func resourceDdsInstanceV3Delete(ctx context.Context, d *schema.ResourceData, me
 	}
 
 	instanceId := d.Id()
-	result := instances.Delete(client, instanceId)
-	if result.Err != nil {
-		return diag.FromErr(err)
+	// for prePaid mode, we should unsubscribe the resource
+	if d.Get("charging_mode").(string) == "prePaid" {
+		err = common.UnsubscribePrePaidResource(d, config, []string{instanceId})
+		if err != nil {
+			return diag.Errorf("error unsubscribing DDS instance : %s", err)
+		}
+	} else {
+		result := instances.Delete(client, instanceId)
+		if result.Err != nil {
+			return diag.FromErr(result.Err)
+		}
 	}
+
 	stateConf := &resource.StateChangeConf{
 		Pending:    []string{"normal", "abnormal", "frozen", "createfail", "enlargefail", "data_disk_full"},
 		Target:     []string{"deleted"},
@@ -712,32 +880,33 @@ func getDdsInstanceV3MongosNodeID(client *golangsdk.ServiceClient, d *schema.Res
 
 }
 
-func flavorUpdate(ctx context.Context, client *golangsdk.ServiceClient, d *schema.ResourceData, opts []instances.UpdateOpt) error {
-	r := instances.Update(client, d.Id(), opts)
-	if r.Err != nil {
-		return fmtp.Errorf("Error updating instance from result: %s ", r.Err)
-	}
-
-	stateConf := &resource.StateChangeConf{
-		Pending:    []string{"updating"},
-		Target:     []string{"normal"},
-		Refresh:    DdsInstanceStateRefreshFunc(client, d.Id()),
-		Timeout:    d.Timeout(schema.TimeoutUpdate),
-		Delay:      15 * time.Second,
-		MinTimeout: 10 * time.Second,
-	}
-
-	_, err := stateConf.WaitForStateContext(ctx)
+func flavorUpdate(ctx context.Context, config *config.Config, client *golangsdk.ServiceClient, d *schema.ResourceData,
+	opts []instances.UpdateOpt) error {
+	resp, err := instances.Update(client, d.Id(), opts).Extract()
 	if err != nil {
-		return fmtp.Errorf(
-			"Error waiting for instance (%s) to become ready: %s ",
-			d.Id(), err)
+		return fmtp.Errorf("Error updating instance from result: %s ", err)
+	}
+
+	if resp.OrderId != "" {
+		bssClient, err := config.BssV2Client(config.GetRegion(d))
+		if err != nil {
+			return fmt.Errorf("error creating BSS v2 client: %s", err)
+		}
+		err = common.WaitOrderComplete(ctx, bssClient, resp.OrderId, d.Timeout(schema.TimeoutCreate))
+		if err != nil {
+			return err
+		}
+	}
+
+	err = waitForInstanceReady(ctx, client, d.Id(), d.Timeout(schema.TimeoutUpdate))
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func flavorNumUpdate(ctx context.Context, client *golangsdk.ServiceClient, d *schema.ResourceData, i int) error {
+func flavorNumUpdate(ctx context.Context, config *config.Config, client *golangsdk.ServiceClient, d *schema.ResourceData, i int) error {
 	groupTypeIndex := fmt.Sprintf("flavor.%d.type", i)
 	groupType := d.Get(groupTypeIndex).(string)
 	if groupType != "mongos" && groupType != "shard" {
@@ -757,43 +926,53 @@ func flavorNumUpdate(ctx context.Context, client *golangsdk.ServiceClient, d *sc
 	var numUpdateOpts []instances.UpdateOpt
 
 	if groupType == "mongos" {
+		updateNodeNumOpts := instances.UpdateNodeNumOpts{
+			Type:     groupType,
+			SpecCode: d.Get(specCodeIndex).(string),
+			Num:      newNum - oldNum,
+		}
+		if d.Get("charging_mode").(string) == "prePaid" && d.Get("auto_pay").(string) != "false" {
+			updateNodeNumOpts.IsAutoPay = true
+
+		}
 		opt := instances.UpdateOpt{
-			Param: "",
-			Value: instances.UpdateNodeNumOpts{
-				Type:     groupType,
-				SpecCode: d.Get(specCodeIndex).(string),
-				Num:      newNum - oldNum,
-			},
+			Param:  "",
+			Value:  updateNodeNumOpts,
 			Action: "enlarge",
 			Method: "post",
 		}
+
 		numUpdateOpts = append(numUpdateOpts, opt)
 	} else {
-		volume := instances.UpdateVolumeOpts{
+		volume := instances.VolumeOpts{
 			Size: &volumeSize,
 		}
+		updateNodeNumOpts := instances.UpdateNodeNumOpts{
+			Type:     groupType,
+			SpecCode: d.Get(specCodeIndex).(string),
+			Num:      newNum - oldNum,
+			Volume:   &volume,
+		}
+		if d.Get("charging_mode").(string) == "prePaid" && d.Get("auto_pay").(string) != "false" {
+			updateNodeNumOpts.IsAutoPay = true
 
+		}
 		opt := instances.UpdateOpt{
-			Param: "",
-			Value: instances.UpdateNodeNumOpts{
-				Type:     groupType,
-				SpecCode: d.Get(specCodeIndex).(string),
-				Num:      newNum - oldNum,
-				Volume:   &volume,
-			},
+			Param:  "",
+			Value:  updateNodeNumOpts,
 			Action: "enlarge",
 			Method: "post",
 		}
 		numUpdateOpts = append(numUpdateOpts, opt)
 	}
-	err := flavorUpdate(ctx, client, d, numUpdateOpts)
+	err := flavorUpdate(ctx, config, client, d, numUpdateOpts)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func flavorSizeUpdate(ctx context.Context, client *golangsdk.ServiceClient, d *schema.ResourceData, i int) error {
+func flavorSizeUpdate(ctx context.Context, config *config.Config, client *golangsdk.ServiceClient, d *schema.ResourceData, i int) error {
 	volumeSizeIndex := fmt.Sprintf("flavor.%d.size", i)
 	oldSizeRaw, newSizeRaw := d.GetChange(volumeSizeIndex)
 	oldSize := oldSizeRaw.(int)
@@ -815,33 +994,47 @@ func flavorSizeUpdate(ctx context.Context, client *golangsdk.ServiceClient, d *s
 
 		for _, groupID := range groupIDs {
 			var sizeUpdateOpts []instances.UpdateOpt
-			opt := instances.UpdateOpt{
-				Param: "volume",
-				Value: instances.UpdateVolumeOpts{
+			updateVolumeOpts := instances.UpdateVolumeOpts{
+				Volume: instances.VolumeOpts{
 					GroupID: groupID,
 					Size:    &newSize,
 				},
+			}
+			if d.Get("charging_mode").(string) == "prePaid" && d.Get("auto_pay").(string) != "false" {
+				updateVolumeOpts.IsAutoPay = true
+
+			}
+			opt := instances.UpdateOpt{
+				Param:  "",
+				Value:  updateVolumeOpts,
 				Action: "enlarge-volume",
 				Method: "post",
 			}
 			sizeUpdateOpts = append(sizeUpdateOpts, opt)
-			err := flavorUpdate(ctx, client, d, sizeUpdateOpts)
+			err := flavorUpdate(ctx, config, client, d, sizeUpdateOpts)
 			if err != nil {
 				return err
 			}
 		}
 	} else {
 		var sizeUpdateOpts []instances.UpdateOpt
-		opt := instances.UpdateOpt{
-			Param: "volume",
-			Value: instances.UpdateVolumeOpts{
+		updateVolumeOpts := instances.UpdateVolumeOpts{
+			Volume: instances.VolumeOpts{
 				Size: &newSize,
 			},
+		}
+		if d.Get("charging_mode").(string) == "prePaid" && d.Get("auto_pay").(string) != "false" {
+			updateVolumeOpts.IsAutoPay = true
+
+		}
+		opt := instances.UpdateOpt{
+			Param:  "volume",
+			Value:  updateVolumeOpts,
 			Action: "enlarge-volume",
 			Method: "post",
 		}
 		sizeUpdateOpts = append(sizeUpdateOpts, opt)
-		err := flavorUpdate(ctx, client, d, sizeUpdateOpts)
+		err := flavorUpdate(ctx, config, client, d, sizeUpdateOpts)
 		if err != nil {
 			return err
 		}
@@ -849,7 +1042,7 @@ func flavorSizeUpdate(ctx context.Context, client *golangsdk.ServiceClient, d *s
 	return nil
 }
 
-func flavorSpecCodeUpdate(ctx context.Context, client *golangsdk.ServiceClient, d *schema.ResourceData, i int) error {
+func flavorSpecCodeUpdate(ctx context.Context, config *config.Config, client *golangsdk.ServiceClient, d *schema.ResourceData, i int) error {
 	specCodeIndex := fmt.Sprintf("flavor.%d.spec_code", i)
 	groupTypeIndex := fmt.Sprintf("flavor.%d.type", i)
 	groupType := d.Get(groupTypeIndex).(string)
@@ -863,18 +1056,25 @@ func flavorSpecCodeUpdate(ctx context.Context, client *golangsdk.ServiceClient, 
 		}
 		for _, ID := range nodeIDs {
 			var specUpdateOpts []instances.UpdateOpt
-			opt := instances.UpdateOpt{
-				Param: "resize",
-				Value: instances.UpdateSpecOpts{
+			updateSpecOpts := instances.UpdateSpecOpts{
+				Resize: instances.SpecOpts{
 					TargetType:     "mongos",
 					TargetID:       ID,
 					TargetSpecCode: d.Get(specCodeIndex).(string),
 				},
+			}
+			if d.Get("charging_mode").(string) == "prePaid" && d.Get("auto_pay").(string) != "false" {
+				updateSpecOpts.IsAutoPay = true
+
+			}
+			opt := instances.UpdateOpt{
+				Param:  "",
+				Value:  updateSpecOpts,
 				Action: "resize",
 				Method: "post",
 			}
 			specUpdateOpts = append(specUpdateOpts, opt)
-			err := flavorUpdate(ctx, client, d, specUpdateOpts)
+			err := flavorUpdate(ctx, config, client, d, specUpdateOpts)
 			if err != nil {
 				return err
 			}
@@ -887,35 +1087,49 @@ func flavorSpecCodeUpdate(ctx context.Context, client *golangsdk.ServiceClient, 
 
 		for _, ID := range groupIDs {
 			var specUpdateOpts []instances.UpdateOpt
-			opt := instances.UpdateOpt{
-				Param: "resize",
-				Value: instances.UpdateSpecOpts{
+			updateSpecOpts := instances.UpdateSpecOpts{
+				Resize: instances.SpecOpts{
 					TargetType:     "shard",
 					TargetID:       ID,
 					TargetSpecCode: d.Get(specCodeIndex).(string),
 				},
+			}
+			if d.Get("charging_mode").(string) == "prePaid" && d.Get("auto_pay").(string) != "false" {
+				updateSpecOpts.IsAutoPay = true
+
+			}
+			opt := instances.UpdateOpt{
+				Param:  "resize",
+				Value:  updateSpecOpts,
 				Action: "resize",
 				Method: "post",
 			}
 			specUpdateOpts = append(specUpdateOpts, opt)
-			err := flavorUpdate(ctx, client, d, specUpdateOpts)
+			err := flavorUpdate(ctx, config, client, d, specUpdateOpts)
 			if err != nil {
 				return err
 			}
 		}
 	} else {
 		var specUpdateOpts []instances.UpdateOpt
-		opt := instances.UpdateOpt{
-			Param: "resize",
-			Value: instances.UpdateSpecOpts{
+		updateSpecOpts := instances.UpdateSpecOpts{
+			Resize: instances.SpecOpts{
 				TargetID:       d.Id(),
 				TargetSpecCode: d.Get(specCodeIndex).(string),
 			},
+		}
+		if d.Get("charging_mode").(string) == "prePaid" && d.Get("auto_pay").(string) != "false" {
+			updateSpecOpts.IsAutoPay = true
+
+		}
+		opt := instances.UpdateOpt{
+			Param:  "resize",
+			Value:  updateSpecOpts,
 			Action: "resize",
 			Method: "post",
 		}
 		specUpdateOpts = append(specUpdateOpts, opt)
-		err := flavorUpdate(ctx, client, d, specUpdateOpts)
+		err := flavorUpdate(ctx, config, client, d, specUpdateOpts)
 		if err != nil {
 			return err
 		}

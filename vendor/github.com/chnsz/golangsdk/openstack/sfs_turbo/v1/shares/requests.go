@@ -5,15 +5,27 @@ import (
 	"github.com/chnsz/golangsdk/pagination"
 )
 
+var requestOpts = golangsdk.RequestOpts{
+	MoreHeaders: map[string]string{"Content-Type": "application/json", "X-Language": "en-us"},
+}
+
 // CreateOptsBuilder allows extensions to add additional parameters to the
 // Create request.
 type CreateOptsBuilder interface {
 	ToShareCreateMap() (map[string]interface{}, error)
 }
 
+// CreateOpts is the structure used to create a new SFS Turbo resource.
+type CreateOpts struct {
+	// Turbo configuration details.
+	Share Share `json:"share" required:"share"`
+	// The configuration of pre-paid billing mode.
+	BssParam *BssParam `json:"bss_param,omitempty"`
+}
+
 // CreateOpts contains the options for create an SFS Turbo. This object is
 // passed to shares.Create().
-type CreateOpts struct {
+type Share struct {
 	// Defines the SFS Turbo file system name
 	Name string `json:"name" required:"true"`
 	// Defines the SFS Turbo file system protocol to use, the vaild value is NFS.
@@ -50,10 +62,30 @@ type Metadata struct {
 	DedicatedStorageID    string `json:"dedicated_storage_id,omitempty"`
 }
 
+// BssParam is an object that represents the prepaid configuration.
+type BssParam struct {
+	// The number of cycles for prepaid.
+	// + minimum: 1
+	// + maximum: 11
+	PeriodNum int `json:"period_num" required:"true"`
+	// The prepaid type.
+	// + 2: month
+	// + 3: year
+	PeriodType int `json:"period_type" require:"true"`
+	// Whether to automatically renew.
+	// + 0: manual renew.
+	// + 1: automatic renew.
+	IsAutoRenew *int `json:"is_auto_renew,omitempty"`
+	// Whether to pay automatically.
+	// + 0: manual payment.
+	// + 1: automatic payment.
+	IsAutoPay *int `json:"is_auto_pay,omitempty"`
+}
+
 // ToShareCreateMap assembles a request body based on the contents of a
 // CreateOpts.
 func (opts CreateOpts) ToShareCreateMap() (map[string]interface{}, error) {
-	return golangsdk.BuildRequestBody(opts, "share")
+	return golangsdk.BuildRequestBody(opts, "")
 }
 
 // Create will create a new SFS Turbo file system based on the values in CreateOpts. To extract
@@ -84,6 +116,52 @@ func List(c *golangsdk.ServiceClient) ([]Turbo, error) {
 	return ExtractTurbos(pages)
 }
 
+// ListOptsBuilder allows extensions to add additional parameters to the List
+// request.
+type ListOptsBuilder interface {
+	ToVolumeListQuery() (string, error)
+}
+
+// ListOpts holds options for listing Volumes. It is passed to the volumes.List
+// function.
+type ListOpts struct {
+	// Requests a page size of items.
+	Limit int `q:"limit"`
+	// Used in conjunction with limit to return a slice of items.
+	Offset int `q:"offset"`
+}
+
+// ToVolumeListQuery formats a ListOpts into a query string.
+func (opts ListOpts) ToVolumeListQuery() (string, error) {
+	q, err := golangsdk.BuildQueryString(opts)
+	return q.String(), err
+}
+
+// ListPage returns one page limited by the conditions provided in Opts.
+func ListPage(client *golangsdk.ServiceClient, opts ListOptsBuilder) (*PagedList, error) {
+	url := listURL(client)
+	if opts != nil {
+		query, err := opts.ToVolumeListQuery()
+		if err != nil {
+			return nil, err
+		}
+		url += query
+	}
+
+	var rst golangsdk.Result
+	_, err := client.Get(url, &rst.Body, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	var r PagedList
+	err = rst.ExtractInto(&r)
+	return &r, err
+}
+
 // Get will get a single SFS Trubo file system with given UUID
 func Get(client *golangsdk.ServiceClient, id string) (r GetResult) {
 	_, r.Err = client.Get(resourceURL(client, id), &r.Body, nil)
@@ -110,9 +188,19 @@ type ExpandOpts struct {
 	Extend ExtendOpts `json:"extend" required:"true"`
 }
 
+// BssParamExtend is an object that represents the payment detail.
+type BssParamExtend struct {
+	// Whether to pay automatically.
+	// + 0: manual payment.
+	// + 1: automatic payment.
+	IsAutoPay *int `json:"is_auto_pay,omitempty"`
+}
+
 type ExtendOpts struct {
 	// Specifies the post-expansion capacity (GB) of the shared file system.
 	NewSize int `json:"new_size" required:"true"`
+	// The configuration of pre-paid billing mode.
+	BssParam *BssParamExtend `json:"bss_param,omitempty"`
 }
 
 // ToShareExpandMap assembles a request body based on the contents of a
@@ -122,13 +210,13 @@ func (opts ExpandOpts) ToShareExpandMap() (map[string]interface{}, error) {
 }
 
 // Expand will expand a SFS Turbo based on the values in ExpandOpts.
-func Expand(client *golangsdk.ServiceClient, share_id string, opts ExpandOptsBuilder) (r ExpandResult) {
+func Expand(client *golangsdk.ServiceClient, shareId string, opts ExpandOptsBuilder) (r ExpandResult) {
 	b, err := opts.ToShareExpandMap()
 	if err != nil {
 		r.Err = err
 		return
 	}
-	_, r.Err = client.Post(actionURL(client, share_id), b, nil, &golangsdk.RequestOpts{
+	_, r.Err = client.Post(actionURL(client, shareId), b, &r.Body, &golangsdk.RequestOpts{
 		OkCodes: []int{202},
 	})
 	return

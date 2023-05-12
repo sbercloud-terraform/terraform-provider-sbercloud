@@ -14,6 +14,7 @@ import (
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/elb/v3/pools"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
@@ -107,6 +108,13 @@ func ResourcePoolV3() *schema.Resource {
 							Optional: true,
 							ForceNew: true,
 						},
+
+						"timeout": {
+							Type:     schema.TypeInt,
+							Optional: true,
+							ForceNew: true,
+							Computed: true,
+						},
 					},
 				},
 			},
@@ -115,31 +123,17 @@ func ResourcePoolV3() *schema.Resource {
 }
 
 func resourcePoolV3Create(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	elbClient, err := config.ElbV3Client(config.GetRegion(d))
+	cfg := meta.(*config.Config)
+	elbClient, err := cfg.ElbV3Client(cfg.GetRegion(d))
 	if err != nil {
-		return diag.Errorf("error creating elb client: %s", err)
+		return diag.Errorf("error creating ELB client: %s", err)
 	}
 
 	var persistence pools.SessionPersistence
 	if p, ok := d.GetOk("persistence"); ok {
-		pV := (p.([]interface{}))[0].(map[string]interface{})
-
-		persistence = pools.SessionPersistence{
-			Type: pV["type"].(string),
-		}
-
-		if persistence.Type == "APP_COOKIE" {
-			if pV["cookie_name"].(string) == "" {
-				return diag.Errorf(
-					"Persistence cookie_name needs to be set if using 'APP_COOKIE' persistence type")
-			}
-			persistence.CookieName = pV["cookie_name"].(string)
-		} else {
-			if pV["cookie_name"].(string) != "" {
-				return diag.Errorf(
-					"Persistence cookie_name can only be set if using 'APP_COOKIE' persistence type")
-			}
+		persistence, err = buildPersistence(p)
+		if err != nil {
+			return diag.FromErr(err)
 		}
 	}
 
@@ -175,10 +169,10 @@ func resourcePoolV3Create(ctx context.Context, d *schema.ResourceData, meta inte
 }
 
 func resourcePoolV3Read(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	elbClient, err := config.ElbV3Client(config.GetRegion(d))
+	cfg := meta.(*config.Config)
+	elbClient, err := cfg.ElbV3Client(cfg.GetRegion(d))
 	if err != nil {
-		return diag.Errorf("error creating elb client: %s", err)
+		return diag.Errorf("error creating ELB client: %s", err)
 	}
 
 	pool, err := pools.Get(elbClient, d.Id()).Extract()
@@ -193,7 +187,7 @@ func resourcePoolV3Read(_ context.Context, d *schema.ResourceData, meta interfac
 		d.Set("protocol", pool.Protocol),
 		d.Set("description", pool.Description),
 		d.Set("name", pool.Name),
-		d.Set("region", config.GetRegion(d)),
+		d.Set("region", cfg.GetRegion(d)),
 	)
 
 	if len(pool.Loadbalancers) != 0 {
@@ -213,10 +207,11 @@ func resourcePoolV3Read(_ context.Context, d *schema.ResourceData, meta interfac
 	}
 
 	if pool.Persistence.Type != "" {
-		var persistence []map[string]interface{} = make([]map[string]interface{}, 1)
+		var persistence = make([]map[string]interface{}, 1)
 		params := make(map[string]interface{})
 		params["cookie_name"] = pool.Persistence.CookieName
 		params["type"] = pool.Persistence.Type
+		params["timeout"] = pool.Persistence.PersistenceTimeout
 		persistence[0] = params
 		mErr = multierror.Append(mErr, d.Set("persistence", persistence))
 	}
@@ -229,10 +224,10 @@ func resourcePoolV3Read(_ context.Context, d *schema.ResourceData, meta interfac
 }
 
 func resourcePoolV3Update(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	elbClient, err := config.ElbV3Client(config.GetRegion(d))
+	cfg := meta.(*config.Config)
+	elbClient, err := cfg.ElbV3Client(cfg.GetRegion(d))
 	if err != nil {
-		return diag.Errorf("error creating elb client: %s", err)
+		return diag.Errorf("error creating ELB client: %s", err)
 	}
 
 	var updateOpts pools.UpdateOpts
@@ -246,6 +241,13 @@ func resourcePoolV3Update(ctx context.Context, d *schema.ResourceData, meta inte
 	if d.HasChange("description") {
 		description := d.Get("description").(string)
 		updateOpts.Description = &description
+	}
+	if d.HasChange("persistence") {
+		persistence, err := buildPersistence(d.Get("persistence"))
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		updateOpts.Persistence = &persistence
 	}
 
 	log.Printf("[DEBUG] Updating pool %s with options: %#v", d.Id(), updateOpts)
@@ -264,10 +266,10 @@ func resourcePoolV3Update(ctx context.Context, d *schema.ResourceData, meta inte
 }
 
 func resourcePoolV3Delete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	elbClient, err := config.ElbV3Client(config.GetRegion(d))
+	cfg := meta.(*config.Config)
+	elbClient, err := cfg.ElbV3Client(cfg.GetRegion(d))
 	if err != nil {
-		return diag.Errorf("error creating elb client: %s", err)
+		return diag.Errorf("error creating ELB client: %s", err)
 	}
 
 	log.Printf("[DEBUG] Attempting to delete pool %s", d.Id())
@@ -286,7 +288,8 @@ func resourcePoolV3Delete(ctx context.Context, d *schema.ResourceData, meta inte
 	return nil
 }
 
-func waitForElbV3Pool(ctx context.Context, elbClient *golangsdk.ServiceClient, id string, target string, pending []string, timeout time.Duration) error {
+func waitForElbV3Pool(ctx context.Context, elbClient *golangsdk.ServiceClient, id string, target string, pending []string,
+	timeout time.Duration) error {
 	log.Printf("[DEBUG] Waiting for pool %s to become %s.", id, target)
 
 	stateConf := &resource.StateChangeConf{
@@ -324,4 +327,31 @@ func resourceElbV3PoolRefreshFunc(elbClient *golangsdk.ServiceClient, poolID str
 		// The pool resource has no Status attribute, so a successful Get is the best we can do
 		return pool, "ACTIVE", nil
 	}
+}
+
+func buildPersistence(p interface{}) (pools.SessionPersistence, error) {
+	pV := (p.([]interface{}))[0].(map[string]interface{})
+
+	persistence := pools.SessionPersistence{
+		Type: pV["type"].(string),
+	}
+
+	if persistence.Type == "APP_COOKIE" {
+		if pV["cookie_name"].(string) == "" {
+			return persistence, fmt.Errorf(
+				"persistence cookie_name needs to be set if using 'APP_COOKIE' persistence type")
+		}
+		persistence.CookieName = pV["cookie_name"].(string)
+
+		if pV["timeout"].(int) != 0 {
+			return persistence, fmt.Errorf(
+				"persistence timeout is invalid when type is set to 'APP_COOKIE'")
+		}
+	} else if pV["cookie_name"].(string) != "" {
+		return persistence, fmt.Errorf(
+			"persistence cookie_name can only be set if using 'APP_COOKIE' persistence type")
+	}
+
+	persistence.PersistenceTimeout = pV["timeout"].(int)
+	return persistence, nil
 }

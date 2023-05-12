@@ -43,14 +43,6 @@ func ResourceFgsFunctionV2() *schema.Resource {
 				Required: true,
 				ForceNew: true,
 			},
-			"code_type": {
-				Type:     schema.TypeString,
-				Required: true,
-			},
-			"handler": {
-				Type:     schema.TypeString,
-				Required: true,
-			},
 			"memory_size": {
 				Type:     schema.TypeInt,
 				Required: true,
@@ -63,6 +55,17 @@ func ResourceFgsFunctionV2() *schema.Resource {
 			"timeout": {
 				Type:     schema.TypeInt,
 				Required: true,
+			},
+			"code_type": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+			},
+			"handler": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
+				Description: `schema: Required; The entry point of the function.`,
 			},
 			"functiongraph_version": {
 				Type:     schema.TypeString,
@@ -87,6 +90,7 @@ func ResourceFgsFunctionV2() *schema.Resource {
 				Type:          schema.TypeString,
 				Optional:      true,
 				ConflictsWith: []string{"package"},
+				Description:   "schema: Required",
 			},
 			"code_url": {
 				Type:     schema.TypeString,
@@ -198,6 +202,23 @@ func ResourceFgsFunctionV2() *schema.Resource {
 					},
 				},
 			},
+			"custom_image": {
+				Type:     schema.TypeList,
+				Optional: true,
+				Computed: true,
+				MaxItems: 1,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"url": {
+							Type:     schema.TypeString,
+							Required: true,
+						},
+					},
+				},
+				ConflictsWith: []string{
+					"code_type",
+				},
+			},
 			"version": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -207,6 +228,18 @@ func ResourceFgsFunctionV2() *schema.Resource {
 				Computed: true,
 			},
 		},
+	}
+}
+
+func buildCustomImage(imageConfig []interface{}) *function.CustomImage {
+	if len(imageConfig) < 1 {
+		return nil
+	}
+
+	config := imageConfig[0].(map[string]interface{})
+	return &function.CustomImage{
+		Enabled: true,
+		Image:   config["url"].(string),
 	}
 }
 
@@ -247,12 +280,13 @@ func buildFgsFunctionV2Parameters(d *schema.ResourceData, config *config.Config)
 		EncryptedUserData:   d.Get("encrypted_user_data").(string),
 		Xrole:               agency_v,
 		EnterpriseProjectID: config.GetEnterpriseProjectID(d),
+		CustomImage:         buildCustomImage(d.Get("custom_image").([]interface{})),
 	}
 	if v, ok := d.GetOk("func_code"); ok {
 		funcCode := function.FunctionCodeOpts{
-			File: utils.TryBase64EncodeToString(v.(string)),
+			File: utils.TryBase64EncodeString(v.(string)),
 		}
-		result.FuncCode = funcCode
+		result.FuncCode = &funcCode
 	}
 	return result, nil
 }
@@ -346,6 +380,17 @@ func setFuncionMountConfig(d *schema.ResourceData, mountConfig function.MountCon
 	return nil
 }
 
+func flattenFgsCustomImage(imageConfig function.CustomImage) []map[string]interface{} {
+	if (imageConfig != function.CustomImage{}) {
+		return []map[string]interface{}{
+			{
+				"url": imageConfig.Image,
+			},
+		}
+	}
+	return nil
+}
+
 func resourceFgsFunctionV2Read(d *schema.ResourceData, meta interface{}) error {
 	config := meta.(*config.Config)
 	fgsClient, err := config.FgsV2Client(config.GetRegion(d))
@@ -379,6 +424,7 @@ func resourceFgsFunctionV2Read(d *schema.ResourceData, meta interface{}) error {
 		d.Set("initializer_timeout", f.InitializerTimeout),
 		d.Set("enterprise_project_id", f.EnterpriseProjectID),
 		d.Set("functiongraph_version", f.Type),
+		d.Set("custom_image", flattenFgsCustomImage(f.CustomImage)),
 		setFgsFunctionApp(d, f.Package),
 		setFgsFunctionAgency(d, f.Xrole),
 		setFgsFunctionVpcAccess(d, f.FuncVpc),
@@ -410,7 +456,7 @@ func resourceFgsFunctionV2Update(d *schema.ResourceData, meta interface{}) error
 	//lintignore:R019
 	if d.HasChanges("app", "handler", "depend_list", "memory_size", "timeout", "encrypted_user_data",
 		"user_data", "agency", "app_agency", "description", "initializer_handler", "initializer_timeout",
-		"vpc_id", "network_id", "mount_user_id", "mount_user_group_id", "func_mounts") {
+		"vpc_id", "network_id", "mount_user_id", "mount_user_group_id", "func_mounts", "custom_image") {
 		err := resourceFgsFunctionV2MetadataUpdate(fgsClient, urn, d)
 		if err != nil {
 			return err
@@ -472,6 +518,7 @@ func resourceFgsFunctionV2MetadataUpdate(fgsClient *golangsdk.ServiceClient, urn
 		AppXrole:           d.Get("app_agency").(string),
 		InitializerHandler: d.Get("initializer_handler").(string),
 		InitializerTimeout: d.Get("initializer_timeout").(int),
+		CustomImage:        buildCustomImage(d.Get("custom_image").([]interface{})),
 	}
 
 	if _, ok := d.GetOk("vpc_id"); ok {
@@ -509,7 +556,7 @@ func resourceFgsFunctionV2CodeUpdate(fgsClient *golangsdk.ServiceClient, urn str
 
 	if v, ok := d.GetOk("func_code"); ok {
 		funcCode := function.FunctionCodeOpts{
-			File: utils.TryBase64EncodeToString(v.(string)),
+			File: utils.TryBase64EncodeString(v.(string)),
 		}
 		updateCodeOpts.FuncCode = funcCode
 	}

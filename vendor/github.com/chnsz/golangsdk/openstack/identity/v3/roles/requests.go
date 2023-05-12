@@ -27,6 +27,16 @@ type ListOpts struct {
 	// policy: system-defined policy; role: system-defined role
 	PermissionType string `q:"permission_type"`
 
+	// The number of pages of data for paging query, the minimum value is 1.
+	// Need to exist at the same time as "PerPage" parameter. When the "DomainID" parameter is passed in to query the
+	// custom policies, it can be used together.
+	Page int `q:"page"`
+
+	// The number of data per page in paging query, the value range is from 1 to 300, the default value is 300.
+	// It needs to exist at the same time as "Page" parameter. When the "Page" and "PerPage" parameters are not passed,
+	// a maximum of 300 permissions are returned per page.
+	PerPage int `q:"per_page"`
+
 	// Display mode of the permission. The options include domain, project, and all.
 	Type string `q:"type"`
 
@@ -53,6 +63,27 @@ func List(client *golangsdk.ServiceClient, opts ListOptsBuilder) pagination.Page
 
 	return pagination.NewPager(client, url, func(r pagination.PageResult) pagination.Page {
 		return RolePage{pagination.LinkedPageBase{PageResult: r}}
+	})
+}
+
+// ListWithPages is a method to query role pages via page size and page number.
+func ListWithPages(client *golangsdk.ServiceClient, opts ListOpts) pagination.Pager {
+	url := listURL(client)
+	if opts.PerPage == 0 {
+		opts.PerPage = 300
+	}
+	if opts.Page == 0 {
+		opts.Page = 1
+	}
+
+	query, err := opts.ToRoleListQuery()
+	if err != nil {
+		return pagination.Pager{Err: err}
+	}
+	url += query
+
+	return pagination.NewPager(client, url, func(r pagination.PageResult) pagination.Page {
+		return RoleOffsetPage{pagination.OffsetPageBase{PageResult: r}}
 	})
 }
 
@@ -330,6 +361,31 @@ func Unassign(client *golangsdk.ServiceClient, roleID string, opts UnassignOpts)
 	}
 
 	_, r.Err = client.Delete(assignURL(client, targetType, targetID, actorType, actorID, roleID), &golangsdk.RequestOpts{
+		OkCodes: []int{204},
+	})
+	return
+}
+
+// AssignAllResources is the operation responsible for granting a user group permissions for all resources,
+// including those in enterprise projects, region-specific projects, and global services.
+func AssignAllResources(client *golangsdk.ServiceClient, domainID, groupID, roleID string) (r AssignmentResult) {
+	_, r.Err = client.Put(assignInheritedURL(client, domainID, groupID, roleID), nil, nil, &golangsdk.RequestOpts{
+		OkCodes: []int{204},
+	})
+	return
+}
+
+// UnassignAllResources is the operation responsible for unassigning a user group permissions for all resources.
+func UnassignAllResources(client *golangsdk.ServiceClient, domainID, groupID, roleID string) (r AssignmentResult) {
+	_, r.Err = client.Delete(assignInheritedURL(client, domainID, groupID, roleID), &golangsdk.RequestOpts{
+		OkCodes: []int{204},
+	})
+	return
+}
+
+// CheckAllResourcesPermission is provided for the administrator to check whether a user group has specified permissions for all resources.
+func CheckAllResourcesPermission(client *golangsdk.ServiceClient, domainID, groupID, roleID string) (r CheckResult) {
+	_, r.Err = client.Head(assignInheritedURL(client, domainID, groupID, roleID), &golangsdk.RequestOpts{
 		OkCodes: []int{204},
 	})
 	return

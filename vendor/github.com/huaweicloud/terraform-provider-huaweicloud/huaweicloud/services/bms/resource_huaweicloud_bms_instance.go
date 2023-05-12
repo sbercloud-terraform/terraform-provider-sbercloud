@@ -123,6 +123,7 @@ func ResourceBmsInstance() *schema.Resource {
 			"security_groups": {
 				Type:     schema.TypeSet,
 				Optional: true,
+				ForceNew: true,
 				Computed: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 				Set:      schema.HashString,
@@ -136,12 +137,9 @@ func ResourceBmsInstance() *schema.Resource {
 				},
 			},
 			"iptype": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
-				ValidateFunc: validation.StringInSlice([]string{
-					"5_bgp", "5_sbgp",
-				}, true),
+				Type:          schema.TypeString,
+				Optional:      true,
+				ForceNew:      true,
 				ConflictsWith: []string{"eip_id"},
 				RequiredWith: []string{
 					"eip_charge_mode", "sharetype", "bandwidth_size",
@@ -193,9 +191,6 @@ func ResourceBmsInstance() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
-				ValidateFunc: validation.StringInSlice([]string{
-					"SAS", "SSD", "GPSSD", "ESSD",
-				}, true),
 				RequiredWith: []string{
 					"system_disk_size",
 				},
@@ -231,7 +226,7 @@ func ResourceBmsInstance() *schema.Resource {
 			"charging_mode": common.SchemaChargingMode([]string{}),
 			"period_unit":   common.SchemaPeriodUnit([]string{}),
 			"period":        common.SchemaPeriod([]string{}),
-			"auto_renew":    common.SchemaAutoRenew([]string{}),
+			"auto_renew":    common.SchemaAutoRenewUpdatable(nil),
 
 			"tags": common.TagsForceNewSchema(),
 			"enterprise_project_id": {
@@ -350,22 +345,21 @@ func resourceBmsInstanceCreate(ctx context.Context, d *schema.ResourceData, meta
 		return fmtp.DiagErrorf("Error creating HuaweiCloud BMS server: %s", err)
 	}
 
-	jobID := n.JobID
-	if err := baremetalservers.WaitForJobSuccess(bmsClient, int(d.Timeout(schema.TimeoutCreate)/time.Second), jobID); err != nil {
+	bssClient, err := config.BssV2Client(config.GetRegion(d))
+	if err != nil {
+		return diag.Errorf("error creating BSS v2 client: %s", err)
+	}
+	err = common.WaitOrderComplete(ctx, bssClient, n.OrderID, d.Timeout(schema.TimeoutCreate))
+	if err != nil {
 		return diag.FromErr(err)
 	}
-
-	entity, err := baremetalservers.GetJobEntity(bmsClient, jobID, "server_id")
+	resourceId, err := common.WaitOrderResourceComplete(ctx, bssClient, n.OrderID, d.Timeout(schema.TimeoutCreate))
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	if serverID := entity.(string); serverID != "" {
-		d.SetId(serverID)
-		return resourceBmsInstanceRead(ctx, d, meta)
-	}
-
-	return fmtp.DiagErrorf("Unexpected conversion error in resourceBmsInstanceCreate")
+	d.SetId(resourceId)
+	return resourceBmsInstanceRead(ctx, d, meta)
 }
 
 func resourceBmsInstanceRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -441,6 +435,16 @@ func resourceBmsInstanceUpdate(ctx context.Context, d *schema.ResourceData, meta
 		}
 	}
 
+	if d.HasChange("auto_renew") {
+		bssClient, err := config.BssV2Client(config.GetRegion(d))
+		if err != nil {
+			return diag.Errorf("error creating BSS V2 client: %s", err)
+		}
+		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), d.Id()); err != nil {
+			return diag.Errorf("error updating the auto-renew of the instance (%s): %s", d.Id(), err)
+		}
+	}
+
 	return resourceBmsInstanceRead(ctx, d, meta)
 }
 
@@ -472,7 +476,8 @@ func resourceBmsInstanceDelete(ctx context.Context, d *schema.ResourceData, meta
 			return fmtp.DiagErrorf("Error creating networking client: %s", err)
 		}
 
-		if eipID, err := common.GetEipIDbyAddress(eipClient, publicIP); err == nil {
+		epsID := "all_granted_eps"
+		if eipID, err := common.GetEipIDbyAddress(eipClient, publicIP, epsID); err == nil {
 			resourceIDs = append(resourceIDs, eipID)
 		} else {
 			return fmtp.DiagErrorf("Error fetching EIP ID of BMS server (%s): %s", d.Id(), err)

@@ -11,6 +11,13 @@ type cloudServerResult struct {
 	golangsdk.Result
 }
 
+type PasswordResult struct {
+	golangsdk.ErrResult
+}
+
+type UpdateResult struct {
+	golangsdk.ErrResult
+}
 type Flavor struct {
 	Disk  string `json:"disk"`
 	Vcpus string `json:"vcpus"`

@@ -132,6 +132,26 @@ type CreateOps struct {
 
 	// Indicates the tags of the instance
 	Tags []tags.ResourceTag `json:"tags,omitempty"`
+
+	// Indicates the parameter related to the yearly/monthly billing mode.
+	BssParam BssParam `json:"bss_param,omitempty"`
+}
+
+type BssParam struct {
+	// Indicates the charging mode of the instance.
+	ChargingMode string `json:"charging_mode" required:"true"`
+
+	// Indicates the charging period unit of the instance
+	PeriodType string `json:"period_type,omitempty"`
+
+	// Indicates the charging period of the instance.
+	PeriodNum int `json:"period_num,omitempty"`
+
+	// Indicates whether auto renew is enabled.
+	IsAutoRenew *bool `json:"is_auto_renew,omitempty"`
+
+	// Indicates whether the order is automatically or manually paid.
+	IsAutoPay *bool `json:"is_auto_pay,omitempty"`
 }
 
 // ToInstanceCreateMap is used for type convert
@@ -162,12 +182,12 @@ func Delete(client *golangsdk.ServiceClient, id string) (r DeleteResult) {
 	return
 }
 
-//UpdateOptsBuilder is an interface which can build the map paramter of update function
+// UpdateOptsBuilder is an interface which can build the map paramter of update function
 type UpdateOptsBuilder interface {
 	ToInstanceUpdateMap() (map[string]interface{}, error)
 }
 
-//UpdateOpts is a struct which represents the parameters of update function
+// UpdateOpts is a struct which represents the parameters of update function
 type UpdateOpts struct {
 	// Indicates the name of an instance.
 	// An instance name starts with a letter,
@@ -266,8 +286,12 @@ func List(client *golangsdk.ServiceClient, opts ListOpsBuilder) pagination.Pager
 }
 
 type ResizeInstanceOpts struct {
-	NewSpecCode     string `json:"new_spec_code,omitempty"`
-	NewStorageSpace int    `json:"new_storage_space,omitempty"`
+	NewSpecCode     *string `json:"new_spec_code,omitempty"`
+	NewStorageSpace *int    `json:"new_storage_space,omitempty"`
+	OperType        *string `json:"oper_type,omitempty"`
+	NewBrokerNum    *int    `json:"new_broker_num,omitempty"`
+	NewProductID    *string `json:"new_product_id,omitempty"`
+	PublicIpID      *string `json:"publicip_id,omitempty"`
 }
 
 func Resize(client *golangsdk.ServiceClient, id string, opts ResizeInstanceOpts) (string, error) {
@@ -285,8 +309,33 @@ func Resize(client *golangsdk.ServiceClient, id string, opts ResizeInstanceOpts)
 		var r struct {
 			JobID string `json:"job_id"`
 		}
-		rst.ExtractInto(&r)
+		if err = rst.ExtractInto(&r); err != nil {
+			return "", err
+		}
 		return r.JobID, nil
 	}
 	return "", err
+}
+
+// CrossVpcUpdateOpts is the structure required by the UpdateCrossVpc method to update the internal IP address for
+// cross-VPC access.
+type CrossVpcUpdateOpts struct {
+	// User-defined advertised IP contents key-value pair.
+	// The key is the listeners IP.
+	// The value is advertised.listeners IP, or domain name.
+	Contents map[string]string `json:"advertised_ip_contents" required:"true"`
+}
+
+// UpdateCrossVpc is a method to update the internal IP address for cross-VPC access using given parameters.
+func UpdateCrossVpc(c *golangsdk.ServiceClient, instanceId string, opts CrossVpcUpdateOpts) (*CrossVpc, error) {
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var r CrossVpc
+	_, err = c.Post(crossVpcURL(c, instanceId), b, &r, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return &r, err
 }

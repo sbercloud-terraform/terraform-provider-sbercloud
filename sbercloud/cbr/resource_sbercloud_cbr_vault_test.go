@@ -383,7 +383,7 @@ resource "sbercloud_cbr_vault" "test" {
 		testAccCBRV3Vault_policy(rName), rName, acceptance.SBC_ENTERPRISE_PROJECT_ID)
 }
 
-//Vaults of type 'turbo'
+// Vaults of type 'turbo'
 func testAccCBRV3Vault_turboBase(rName string) string {
 	return fmt.Sprintf(`
 data "sbercloud_availability_zones" "test" {}

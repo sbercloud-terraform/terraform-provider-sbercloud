@@ -8,26 +8,34 @@ import (
 )
 
 type CreateOpts struct {
-	Name                string         `json:"name"  required:"true"`
-	DataStore           DataStore      `json:"datastore" required:"true"`
-	Region              string         `json:"region" required:"true"`
-	AvailabilityZone    string         `json:"availability_zone" required:"true"`
-	VpcId               string         `json:"vpc_id" required:"true"`
-	SubnetId            string         `json:"subnet_id" required:"true"`
-	SecurityGroupId     string         `json:"security_group_id" required:"true"`
-	Password            string         `json:"password" required:"true"`
-	DiskEncryptionId    string         `json:"disk_encryption_id,omitempty"`
-	Ssl                 string         `json:"ssl_option,omitempty"`
-	Mode                string         `json:"mode" required:"true"`
-	Flavor              []Flavor       `json:"flavor" required:"true"`
-	BackupStrategy      BackupStrategy `json:"backup_strategy,omitempty"`
-	EnterpriseProjectID string         `json:"enterprise_project_id,omitempty"`
+	Name                string          `json:"name"  required:"true"`
+	DataStore           DataStore       `json:"datastore" required:"true"`
+	Region              string          `json:"region" required:"true"`
+	AvailabilityZone    string          `json:"availability_zone" required:"true"`
+	VpcId               string          `json:"vpc_id" required:"true"`
+	SubnetId            string          `json:"subnet_id" required:"true"`
+	SecurityGroupId     string          `json:"security_group_id" required:"true"`
+	Password            string          `json:"password" required:"true"`
+	Port                string          `json:"port,omitempty"`
+	DiskEncryptionId    string          `json:"disk_encryption_id,omitempty"`
+	Ssl                 string          `json:"ssl_option,omitempty"`
+	Mode                string          `json:"mode" required:"true"`
+	Configuration       []Configuration `json:"configurations,omitempty"`
+	Flavor              []Flavor        `json:"flavor" required:"true"`
+	BackupStrategy      BackupStrategy  `json:"backup_strategy,omitempty"`
+	EnterpriseProjectID string          `json:"enterprise_project_id,omitempty"`
+	ChargeInfo          *ChargeInfo     `json:"charge_info,omitempty"`
 }
 
 type DataStore struct {
 	Type          string `json:"type" required:"true"`
 	Version       string `json:"version" required:"true"`
 	StorageEngine string `json:"storage_engine" required:"true"`
+}
+
+type Configuration struct {
+	Type string `json:"type" required:"true"`
+	Id   string `json:"configuration_id" required:"true"`
 }
 
 type Flavor struct {
@@ -42,6 +50,14 @@ type BackupStrategy struct {
 	StartTime string `json:"start_time" required:"true"`
 	KeepDays  *int   `json:"keep_days,omitempty"`
 	Period    string `json:"period,omitempty"`
+}
+
+type ChargeInfo struct {
+	ChargeMode  string `json:"charge_mode" required:"true"`
+	PeriodType  string `json:"period_type,omitempty"`
+	PeriodNum   int    `json:"period_num,omitempty"`
+	IsAutoRenew bool   `json:"is_auto_renew,omitempty"`
+	IsAutoPay   bool   `json:"is_auto_pay,omitempty"`
 }
 
 type CreateInstanceBuilder interface {
@@ -146,21 +162,32 @@ type UpdateOpt struct {
 }
 
 type UpdateVolumeOpts struct {
+	Volume    VolumeOpts `json:"volume" required:"true"`
+	IsAutoPay bool       `json:"is_auto_pay,omitempty"`
+}
+
+type VolumeOpts struct {
 	GroupID string `json:"group_id,omitempty"`
 	Size    *int   `json:"size,omitempty"`
 }
 
 type UpdateNodeNumOpts struct {
-	Type     string            `json:"type" required:"true"`
-	SpecCode string            `json:"spec_code" required:"true"`
-	Num      int               `json:"num" required:"true"`
-	Volume   *UpdateVolumeOpts `json:"volume,omitempty"`
+	Type      string      `json:"type" required:"true"`
+	SpecCode  string      `json:"spec_code" required:"true"`
+	Num       int         `json:"num" required:"true"`
+	Volume    *VolumeOpts `json:"volume,omitempty"`
+	IsAutoPay bool        `json:"is_auto_pay,omitempty"`
 }
 
-type UpdateSpecOpts struct {
+type SpecOpts struct {
 	TargetType     string `json:"target_type,omitempty"`
 	TargetID       string `json:"target_id" required:"true"`
 	TargetSpecCode string `json:"target_spec_code" required:"true"`
+}
+
+type UpdateSpecOpts struct {
+	Resize    SpecOpts `json:"resize" required:"true"`
+	IsAutoPay bool     `json:"is_auto_pay,omitempty"`
 }
 
 func Update(client *golangsdk.ServiceClient, instanceId string, opts []UpdateOpt) (r UpdateInstanceResult) {
@@ -191,4 +218,30 @@ func Update(client *golangsdk.ServiceClient, instanceId string, opts []UpdateOpt
 		}
 	}
 	return
+}
+
+var requestOpts golangsdk.RequestOpts = golangsdk.RequestOpts{
+	MoreHeaders: map[string]string{"Content-Type": "application/json", "X-Language": "en-us"},
+}
+
+// PortOpts is the structure required by the UpdatePort method to modify the database access port.
+type PortOpts struct {
+	Port int `json:"port"`
+}
+
+// UpdatePort is a method to update the database access port using given parameters.
+func UpdatePort(c *golangsdk.ServiceClient, instanceId string, port int) (*PortUpdateResp, error) {
+	opts := PortOpts{
+		Port: port,
+	}
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var r PortUpdateResp
+	_, err = c.Post(portModifiedURL(c, instanceId), b, &r, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return &r, err
 }
