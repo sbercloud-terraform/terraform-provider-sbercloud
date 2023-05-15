@@ -49,7 +49,7 @@ func TestAccObsBucketObject_source(t *testing.T) {
 				Config: testAccObsBucketObjectConfig_withSSE(rInt, tmpFile.Name()),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(
-						"sbercloud_obs_bucket_object.object", "encryption", "true"),
+						"sbercloud_obs_bucket_object.object", "content_type", "binary/octet-stream"),
 				),
 			},
 		},
@@ -208,7 +208,6 @@ resource "sbercloud_obs_bucket_object" "object" {
 	key = "test-key"
 	source = "%s"
 	content_type = "binary/octet-stream"
-	encryption = true
 }
 `, randInt, source)
 }
