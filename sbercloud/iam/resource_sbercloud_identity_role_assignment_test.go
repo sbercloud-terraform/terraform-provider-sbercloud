@@ -2,9 +2,9 @@ package iam
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/iam"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 
@@ -90,7 +90,7 @@ func testAccCheckIdentityV3RoleAssignmentExists(n string, role *roles.Role, grou
 			return fmtp.Errorf("Error creating SberCloud identity client: %s", err)
 		}
 
-		domainID, projectID, groupID, roleID := iam.ExtractRoleAssignmentID(rs.Primary.ID)
+		domainID, projectID, groupID, roleID := extractRoleAssignmentID(rs.Primary.ID)
 
 		opts := roles.ListAssignmentsOpts{
 			GroupID:        groupID,
@@ -169,4 +169,9 @@ resource "sbercloud_identity_role_assignment" "role_assignment_1" {
   domain_id = "%s"
 }
 `, rName, acceptance.SBC_DOMAIN_ID)
+}
+
+func extractRoleAssignmentID(roleAssignmentID string) (string, string, string, string) {
+	split := strings.Split(roleAssignmentID, "/")
+	return split[0], split[1], split[2], split[3]
 }
