@@ -249,7 +249,7 @@ resource "sbercloud_dds_instance" "instance" {
   vpc_id            = data.sbercloud_vpc.test.id
   subnet_id         = data.sbercloud_vpc_subnet.test.id
   security_group_id = sbercloud_networking_secgroup.secgroup_acc.id
-  password          = "Test@123"
+  password          = "Test@123Pass!"
   mode              = "Sharding"
 
   datastore {
@@ -312,7 +312,7 @@ resource "sbercloud_dds_instance" "instance" {
   vpc_id            = data.sbercloud_vpc.test.id
   subnet_id         = data.sbercloud_vpc_subnet.test.id
   security_group_id = sbercloud_networking_secgroup.secgroup_acc.id
-  password          = "Test@123"
+  password          = "Test@123Pass!"
   mode              = "Sharding"
 
   datastore {
@@ -375,7 +375,7 @@ resource "sbercloud_dds_instance" "instance" {
   vpc_id            = data.sbercloud_vpc.test.id
   subnet_id         = data.sbercloud_vpc_subnet.test.id
   security_group_id = sbercloud_networking_secgroup.secgroup_acc.id
-  password          = "Test@123"
+  password          = "Test@123Pass!"
   mode              = "Sharding"
 
   datastore {
@@ -438,7 +438,7 @@ resource "sbercloud_dds_instance" "instance" {
   vpc_id            = data.sbercloud_vpc.test.id
   subnet_id         = data.sbercloud_vpc_subnet.test.id
   security_group_id = sbercloud_networking_secgroup.secgroup_acc.id
-  password          = "Test@123"
+  password          = "Test@123Pass!"
   mode              = "Sharding"
 
   datastore {
@@ -501,7 +501,7 @@ resource "sbercloud_dds_instance" "instance" {
   vpc_id            = data.sbercloud_vpc.test.id
   subnet_id         = data.sbercloud_vpc_subnet.test.id
   security_group_id = sbercloud_networking_secgroup.secgroup_acc.id
-  password          = "Test@123"
+  password          = "Test@123Pass!"
   mode              = "Sharding"
 
   datastore {
@@ -564,7 +564,7 @@ resource "sbercloud_dds_instance" "instance" {
   vpc_id                = data.sbercloud_vpc.test.id
   subnet_id             = data.sbercloud_vpc_subnet.test.id
   security_group_id     = sbercloud_networking_secgroup.secgroup_acc.id
-  password              = "Test@123"
+  password              = "Test@123Pass!"
   mode                  = "Sharding"
   enterprise_project_id = "%s"
 

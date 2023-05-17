@@ -123,7 +123,7 @@ resource "sbercloud_lb_pool" "pool_1" {
 }
 
 resource "sbercloud_lb_member" "member_1" {
-  address       = "192.168.0.10"
+  address       = "192.168.10.10"
   protocol_port = 8080
   pool_id       = sbercloud_lb_pool.pool_1.id
   subnet_id     = data.sbercloud_vpc_subnet.test.subnet_id
@@ -136,7 +136,7 @@ resource "sbercloud_lb_member" "member_1" {
 }
 
 resource "sbercloud_lb_member" "member_2" {
-  address       = "192.168.0.11"
+  address       = "192.168.10.11"
   protocol_port = 8080
   pool_id       = sbercloud_lb_pool.pool_1.id
   subnet_id     = data.sbercloud_vpc_subnet.test.subnet_id
@@ -176,7 +176,7 @@ resource "sbercloud_lb_pool" "pool_1" {
 }
 
 resource "sbercloud_lb_member" "member_1" {
-  address        = "192.168.0.10"
+  address        = "192.168.10.10"
   protocol_port  = 8080
   weight         = 10
   admin_state_up = "true"
@@ -191,7 +191,7 @@ resource "sbercloud_lb_member" "member_1" {
 }
 
 resource "sbercloud_lb_member" "member_2" {
-  address        = "192.168.0.11"
+  address        = "192.168.10.11"
   protocol_port  = 8080
   weight         = 15
   admin_state_up = "true"

@@ -74,7 +74,7 @@ func testAccIdentityAccessKey_basic(userName string) string {
 	return fmt.Sprintf(`
 resource "sbercloud_identity_user" "user_1" {
   name        = "%s"
-  password    = "password123@!"
+  password    = "WleWQxWh0~WCT#wx|0yh93bojK"
   enabled     = true
   description = "tested by terraform"
 }
@@ -91,7 +91,7 @@ func testAccIdentityAccessKey_update(userName string) string {
 	return fmt.Sprintf(`
 resource "sbercloud_identity_user" "user_1" {
   name        = "%s"
-  password    = "password123@!"
+  password    = "WleWQxWh0~WCT#wx|0yh93bojK"
   enabled     = true
   description = "tested by terraform"
 }
