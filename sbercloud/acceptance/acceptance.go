@@ -3,6 +3,7 @@ package acceptance
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud"
 	"os"
 	"regexp"
 	"strings"
@@ -15,7 +16,6 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
-	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud"
 )
 
 var (

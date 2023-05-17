@@ -164,6 +164,7 @@ func Provider() *schema.Provider {
 			"sbercloud_dms_az":                 deprecated.DataSourceDmsAZ(),
 			"sbercloud_dms_product":            dms.DataSourceDmsProduct(),
 			"sbercloud_dms_maintainwindow":     dms.DataSourceDmsMaintainWindow(),
+			"sbercloud_dms_kafka_instances":    dms.DataSourceDmsKafkaInstances(),
 			"sbercloud_enterprise_project":     eps.DataSourceEnterpriseProject(),
 			"sbercloud_identity_role":          iam.DataSourceIdentityRoleV3(),
 			"sbercloud_identity_custom_role":   iam.DataSourceIdentityCustomRole(),

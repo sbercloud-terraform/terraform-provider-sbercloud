@@ -1,7 +1,8 @@
-package sbercloud
+package dms
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/chnsz/golangsdk/openstack/dms/v1/instances"
@@ -17,9 +18,9 @@ func TestAccDmsInstancesV1_Rabbitmq(t *testing.T) {
 	resourceName := "sbercloud_dms_instance.instance_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckDmsV1InstanceDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckDmsV1InstanceDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccDmsV1Instance_basic(instanceName),
@@ -41,9 +42,9 @@ func TestAccDmsInstancesV1_Kafka(t *testing.T) {
 	resourceName := "sbercloud_dms_instance.instance_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckDmsV1InstanceDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckDmsV1InstanceDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccDmsV1Instance_KafkaInstance(instanceName),
@@ -59,8 +60,8 @@ func TestAccDmsInstancesV1_Kafka(t *testing.T) {
 }
 
 func testAccCheckDmsV1InstanceDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	dmsClient, err := config.DmsV1Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	dmsClient, err := config.DmsV1Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating SberCloud instance client: %s", err)
 	}
@@ -89,8 +90,8 @@ func testAccCheckDmsV1InstanceExists(n string, instance instances.Instance) reso
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		dmsClient, err := config.DmsV1Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		dmsClient, err := config.DmsV1Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud instance client: %s", err)
 		}
