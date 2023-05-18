@@ -76,6 +76,11 @@ type Instance struct {
 	ChargeMode int `json:"charging_mode"`
 	// Yearly/Monthly subscription order ID.
 	CbcMetadata string `json:"cbc_metadata"`
+	// The type of load balancer used by the instance.
+	// The valid values are as follows:
+	// + lvs: Linux virtual server
+	// + elb: Elastic load balance
+	LoadbalancerProvider string `json:"loadbalancer_provider"`
 	// Description about the APIG dedicated instance.
 	Description string `json:"description"`
 	// VPC ID.
@@ -110,6 +115,35 @@ type Instance struct {
 	Version string `json:"instance_version"`
 	// Supported features.
 	SupportedFeatures []string `json:"supported_features"`
+	// THe list of endpoint service.
+	EndpointServices []EndpointService `json:"endpoint_services"`
+	// The IP of the serivce node.
+	NodeIp NodeIp `json:"node_ips"`
+	// The ingress address list of public network.
+	PublicIps []IpDetail `json:"publicips"`
+	// The ingress address list of private network.
+	PrivateIps []IpDetail `json:"privateips"`
+}
+
+type EndpointService struct {
+	// The service name of the endpoint node.
+	ServiceName string `json:"service_name"`
+	// The create time of the endpoint node.
+	CreatedAt string `json:"created_at"`
+}
+
+type NodeIp struct {
+	// The IP address list of the livedata node.
+	LiveData []string `json:"livedata"`
+	// The IP address list of the shubao node.
+	Shubao []string `json:"shubao"`
+}
+
+type IpDetail struct {
+	// IP address.
+	IpAddress string `json:"ip_address"`
+	// Bandwidth size.
+	BandwidthSize int `json:"bandwidth_size"`
 }
 
 // Call its Extract method to interpret it as a Instance.
@@ -251,4 +285,38 @@ func (r EnableIngressResult) Extract() (*Ingress, error) {
 // DisableIngressResult represents the result of a DisableIngressAccess operation.
 type DisableIngressResult struct {
 	golangsdk.ErrResult
+}
+
+// Feature represents the result of a feature configuration.
+type Feature struct {
+	// Feature ID.
+	ID string `json:"id"`
+	// Feature name.
+	Name string `json:"name"`
+	// Whether to enable the feature.
+	Enable bool `json:"enable"`
+	// Parameter configuration.
+	Config string `json:"config"`
+	// Dedicated APIG instance ID.
+	InstanceId string `json:"instance_id"`
+	// Feature update time.
+	UpdatedAt string `json:"update_time"`
+}
+
+// FeaturePage is a single page maximum result representing a query by offset page.
+type FeaturePage struct {
+	pagination.OffsetPageBase
+}
+
+// IsEmpty checks whether a FeaturePage struct is empty.
+func (b FeaturePage) IsEmpty() (bool, error) {
+	arr, err := ExtractFeatures(b)
+	return len(arr) == 0, err
+}
+
+// ExtractFeatures is a method to extract the list of feature configuration details for APIG instance.
+func ExtractFeatures(r pagination.Page) ([]Feature, error) {
+	var s []Feature
+	err := r.(FeaturePage).Result.ExtractIntoSlicePtr(&s, "features")
+	return s, err
 }

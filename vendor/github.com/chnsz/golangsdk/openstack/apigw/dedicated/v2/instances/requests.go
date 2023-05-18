@@ -41,6 +41,11 @@ type CreateOpts struct {
 	AvailableZoneIds []string `json:"available_zone_ids,omitempty"`
 	// Whether public access with an IPv6 address is supported.
 	Ipv6Enable bool `json:"ipv6_enable,omitempty"`
+	// The type of load balancer used by the instance.
+	// The valid values are as follows:
+	// + lvs: Linux virtual server
+	// + elb: Elastic load balance
+	LoadbalancerProvider string `json:"loadbalancer_provider,omitempty"`
 }
 
 type CreateOptsBuilder interface {
@@ -114,7 +119,7 @@ func List(client *golangsdk.ServiceClient, opts ListOptsBuilder) pagination.Page
 // UpdateOpts allows to update an existing APIG dedicated instance using given parameters.
 type UpdateOpts struct {
 	// Description about the APIG dedicated instance.
-	Description string `json:"description,omitempty"`
+	Description *string `json:"description,omitempty"`
 	// Start time of the maintenance time window in the format "xx:00:00".
 	// The value of xx can be 02, 06, 10, 14, 18, or 22.
 	MaintainBegin string `json:"maintain_begin,omitempty"`
@@ -235,4 +240,61 @@ func DisableIngressAccess(client *golangsdk.ServiceClient, id string) (r Disable
 		OkCodes: []int{200},
 	})
 	return
+}
+
+// FeatureOpts allows to update the dedicated APIG instance features.
+type FeatureOpts struct {
+	// Feature name.
+	Name string `json:"name" required:"true"`
+	// Whether to enable the feature.
+	Enable *bool `json:"enable" required:"true"`
+	// Parameter configuration.
+	Config string `json:"config,omitempty"`
+}
+
+var requestOpts = golangsdk.RequestOpts{
+	MoreHeaders: map[string]string{"Content-Type": "application/json", "X-Language": "en-us"},
+}
+
+// UpdateFeature is a method used to update the feature configuration.
+func UpdateFeature(c *golangsdk.ServiceClient, instanceId string, opts FeatureOpts) (*Feature, error) {
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var r Feature
+	_, err = c.Post(featureURL(c, instanceId), b, &r, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return &r, err
+}
+
+type ListFeaturesOpts struct {
+	// Offset from which the query starts.
+	// If the offset is less than 0, the value is automatically converted to 0. Defaults to 0.
+	Offset int `q:"offset"`
+	// Number of items displayed on each page.
+	// Defaults to 20. The maximum value is 500.
+	Limit int `q:"limit"`
+}
+
+// ListFeatures is a method used to obtain the list of feature configuration details.
+func ListFeatures(c *golangsdk.ServiceClient, instanceId string, opts ListFeaturesOpts) ([]Feature, error) {
+	url := featureURL(c, instanceId)
+	query, err := golangsdk.BuildQueryString(opts)
+	if err != nil {
+		return nil, err
+	}
+	url += query.String()
+
+	pages, err := pagination.NewPager(c, url, func(r pagination.PageResult) pagination.Page {
+		p := FeaturePage{pagination.OffsetPageBase{PageResult: r}}
+		return p
+	}).AllPages()
+
+	if err != nil {
+		return nil, err
+	}
+	return ExtractFeatures(pages)
 }

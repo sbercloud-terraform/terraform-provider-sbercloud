@@ -9,10 +9,10 @@ import (
 // 配置项。
 type Configs struct {
 
-	// 回源请求头配置
+	// 回源请求头改写 该功能将覆盖原有配置（清空之前的配置），在使用此接口时，请上传全量头部信息。
 	OriginRequestHeader *[]OriginRequestHeader `json:"origin_request_header,omitempty"`
 
-	// http header配置
+	// http header配置 该功能将覆盖原有配置（清空之前的配置），在使用此接口时，请上传全量头部信息。
 	HttpResponseHeader *[]HttpResponseHeader `json:"http_response_header,omitempty"`
 
 	UrlAuth *UrlAuth `json:"url_auth,omitempty"`
@@ -30,6 +30,23 @@ type Configs struct {
 	Compress *Compress `json:"compress,omitempty"`
 
 	CacheUrlParameterFilter *CacheUrlParameterFilter `json:"cache_url_parameter_filter,omitempty"`
+
+	// ipv6设置（1：打开；0：关闭）
+	Ipv6Accelerate *int32 `json:"ipv6_accelerate,omitempty"`
+
+	// 状态码缓存时间
+	ErrorCodeCache *[]ErrorCodeCache `json:"error_code_cache,omitempty"`
+
+	// Range回源，即分片回源 开启Range回源的前提是您的源站支持Range请求，即HTTP请求头中包含Range字段，否则可能导致回源失败。 开启: on 关闭: off
+	OriginRangeStatus *string `json:"origin_range_status,omitempty"`
+
+	UserAgentFilter *UserAgentFilter `json:"user_agent_filter,omitempty"`
+
+	// 改写回源URL，最多配置20条。
+	OriginRequestUrlRewrite *[]OriginRequestUrlRewrite `json:"origin_request_url_rewrite,omitempty"`
+
+	// 自定义错误页面
+	ErrorCodeRedirectRules *[]ErrorCodeRedirectRules `json:"error_code_redirect_rules,omitempty"`
 }
 
 func (o Configs) String() string {

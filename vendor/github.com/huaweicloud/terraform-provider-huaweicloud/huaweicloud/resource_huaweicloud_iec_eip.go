@@ -53,6 +53,7 @@ func resourceIecNetworkEip() *schema.Resource {
 				Optional:     true,
 				Computed:     true,
 				ValidateFunc: validation.IntInSlice([]int{4}),
+				Description:  "schema: Computed",
 			},
 			"port_id": {
 				Type:     schema.TypeString,
@@ -183,7 +184,7 @@ func resourceIecEipV1Read(d *schema.ResourceData, meta interface{}) error {
 	d.Set("bandwidth_size", n.BandwidthSize)
 	d.Set("bandwidth_share_type", n.BandwidthShareType)
 	d.Set("site_info", n.SiteInfo)
-	d.Set("status", eip.NormalizeEIPStatus(n.Status))
+	d.Set("status", eip.NormalizeEipStatus(n.Status))
 
 	return nil
 }

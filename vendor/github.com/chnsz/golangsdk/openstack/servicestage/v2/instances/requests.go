@@ -96,7 +96,7 @@ type Configuration struct {
 	// Lifecycle.
 	Lifecycle *Lifecycle `json:"lifecycle,omitempty"`
 	// Policy list of log collection.
-	LogCollectionPolicies []LogCollectionPolicy `json:"log,omitempty"`
+	LogCollectionPolicies []LogCollectionPolicy `json:"logs,omitempty"`
 	// Scheduling policy.
 	Scheduler *Scheduler `json:"scheduler,omitempty"`
 	// Health check.
@@ -132,10 +132,12 @@ type Storage struct {
 type StorageParams struct {
 	// Host path. This parameter is applicable to the HostPath storage type.
 	Path string `json:"path,omitempty"`
-	// Name of a configuration item or secret. This parameter is applicable to the ConfigMap and Secret storage type.
+	// Name of a configuration item. This parameter is applicable to the ConfigMap storage type.
 	Name string `json:"name,omitempty"`
 	// PVC name. This parameter is applicable to the PersistentVolumeClaim storage type.
 	ClaimName string `json:"claimName,omitempty"`
+	// Secret name. This parameter is applicable to the Secret storage type.
+	SecretName string `json:"secretName,omitempty"`
 }
 
 // Mount is an object that specifies the directory mounted to the container.
@@ -143,9 +145,9 @@ type Mount struct {
 	// Specifies the mounted disk path.
 	Path string `json:"path" required:"true"`
 	// Specifies the mounted disk permission is read-only or read-write.
-	ReadOnly bool `json:"readOnly" required:"true"`
+	ReadOnly *bool `json:"readOnly" required:"true"`
 	// Specifies the subpath of the mounted disk.
-	SubPath string `json:"subpath,omitempty"`
+	SubPath string `json:"subPath,omitempty"`
 }
 
 // Strategy is an object that specifies the upgrade type, including in-place upgrade and rolling upgrade.

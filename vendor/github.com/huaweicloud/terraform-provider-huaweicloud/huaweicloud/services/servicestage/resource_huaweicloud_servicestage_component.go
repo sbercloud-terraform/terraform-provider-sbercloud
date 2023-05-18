@@ -79,7 +79,7 @@ func ResourceComponent() *schema.Resource {
 							Type:     schema.TypeString,
 							Required: true,
 							ValidateFunc: validation.StringInSlice([]string{
-								"GitHub", "GitLab", "Gitee", "Bitbucket", "package",
+								"GitHub", "GitLab", "Gitee", "Bitbucket", "package", "DevCloud",
 							}, false),
 						},
 						"url": {
@@ -92,10 +92,45 @@ func ResourceComponent() *schema.Resource {
 							Computed:     true,
 							ExactlyOneOf: []string{"source.0.storage_type"},
 						},
+						"repo_ref": {
+							Type:          schema.TypeString,
+							Optional:      true,
+							ConflictsWith: []string{"source.0.storage_type"},
+						},
+						"repo_namespace": {
+							Type:          schema.TypeString,
+							Optional:      true,
+							ConflictsWith: []string{"source.0.storage_type"},
+						},
 						"storage_type": {
 							Type:     schema.TypeString,
 							Optional: true,
 							Computed: true,
+						},
+						"properties": {
+							Type:     schema.TypeList,
+							Optional: true,
+							Computed: true,
+							MaxItems: 1,
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{
+									"endpoint": {
+										Type:     schema.TypeString,
+										Optional: true,
+										Computed: true,
+									},
+									"bucket": {
+										Type:     schema.TypeString,
+										Optional: true,
+										Computed: true,
+									},
+									"key": {
+										Type:     schema.TypeString,
+										Optional: true,
+										Computed: true,
+									},
+								},
+							},
 						},
 					},
 				},
@@ -115,8 +150,28 @@ func ResourceComponent() *schema.Resource {
 							Type:     schema.TypeString,
 							Required: true,
 						},
+						"cluster_name": {
+							Type:     schema.TypeString,
+							Optional: true,
+							Computed: true,
+						},
+						"cluster_type": {
+							Type:     schema.TypeString,
+							Optional: true,
+							Computed: true,
+						},
 						"cmd": {
 							Type:     schema.TypeString,
+							Optional: true,
+							Computed: true,
+						},
+						"dockerfile_path": {
+							Type:     schema.TypeString,
+							Optional: true,
+							Computed: true,
+						},
+						"use_public_cluster": {
+							Type:     schema.TypeBool,
 							Optional: true,
 							Computed: true,
 						},
@@ -132,17 +187,35 @@ func ResourceComponent() *schema.Resource {
 	}
 }
 
+func buildPropertiesStructure(params []interface{}) components.Properties {
+	if len(params) < 1 {
+		return components.Properties{}
+	}
+
+	param := params[0].(map[string]interface{})
+	return components.Properties{
+		Endpoint: param["endpoint"].(string),
+		Bucket:   param["bucket"].(string),
+		Key:      param["key"].(string),
+	}
+}
+
 func buildRepoBuilderStructure(params []interface{}) *components.Builder {
 	if len(params) < 1 {
 		return nil
 	}
 
 	param := params[0].(map[string]interface{})
+
 	return &components.Builder{
 		Parameter: components.Parameter{
 			BuildCmd:          param["cmd"].(string),
 			ArtifactNamespace: param["organization"].(string),
 			ClusterId:         param["cluster_id"].(string),
+			ClusterName:       param["cluster_name"].(string),
+			ClusterType:       param["cluster_type"].(string),
+			UsePublicCluster:  param["use_public_cluster"].(bool),
+			DockerfilePath:    param["dockerfile_path"].(string),
 			NodeLabelSelector: param["node_label"].(map[string]interface{}),
 		},
 	}
@@ -161,18 +234,21 @@ func buildRepoSourceStructure(sources []interface{}) *components.Source {
 		result = components.Source{
 			Kind: "artifact",
 			Spec: components.Spec{
-				Type:    rType,
-				Storage: source["storage_type"].(string),
-				Url:     source["url"].(string),
+				Type:       rType,
+				Storage:    source["storage_type"].(string),
+				Url:        source["url"].(string),
+				Properties: buildPropertiesStructure(source["properties"].([]interface{})),
 			},
 		}
-	case "GitHub", "GitLab", "Gitee", "Bitbucket":
+	case "GitHub", "GitLab", "Gitee", "Bitbucket", "DevCloud":
 		result = components.Source{
 			Kind: "code",
 			Spec: components.Spec{
-				RepoType: rType,
-				RepoAuth: source["authorization"].(string),
-				RepoUrl:  source["url"].(string),
+				RepoType:      rType,
+				RepoAuth:      source["authorization"].(string),
+				RepoUrl:       source["url"].(string),
+				RepoRef:       source["repo_ref"].(string),
+				RepoNamespace: source["repo_namespace"].(string),
 			},
 		}
 	default:
@@ -215,10 +291,14 @@ func flattenRepoBuilder(builder components.Builder) (result []map[string]interfa
 
 	if !reflect.DeepEqual(builder, components.Builder{}) {
 		result = append(result, map[string]interface{}{
-			"cmd":          builder.Parameter.BuildCmd,
-			"organization": builder.Parameter.ArtifactNamespace,
-			"cluster_id":   builder.Parameter.ClusterId,
-			"node_label":   builder.Parameter.NodeLabelSelector,
+			"cmd":                builder.Parameter.BuildCmd,
+			"organization":       builder.Parameter.ArtifactNamespace,
+			"cluster_id":         builder.Parameter.ClusterId,
+			"cluster_name":       builder.Parameter.ClusterName,
+			"cluster_type":       builder.Parameter.ClusterType,
+			"dockerfile_path":    builder.Parameter.DockerfilePath,
+			"use_public_cluster": builder.Parameter.UsePublicCluster,
+			"node_label":         builder.Parameter.NodeLabelSelector,
 		})
 	}
 
@@ -240,11 +320,13 @@ func flattenRepoSource(source components.Source) (result []map[string]interface{
 				"url":          source.Spec.Url,
 			})
 		} else if source.Spec.RepoType == "GitHub" || source.Spec.Type == "GitLab" ||
-			source.Spec.Type == "Gitee" || source.Spec.Type == "Bitbucket" {
+			source.Spec.Type == "Gitee" || source.Spec.Type == "Bitbucket" || source.Spec.Type == "DevCloud" {
 			result = append(result, map[string]interface{}{
-				"type":          source.Spec.RepoType,
-				"authorization": source.Spec.RepoAuth,
-				"url":           source.Spec.RepoUrl,
+				"type":           source.Spec.RepoType,
+				"authorization":  source.Spec.RepoAuth,
+				"url":            source.Spec.RepoUrl,
+				"repo_ref":       source.Spec.RepoRef,
+				"repo_namespace": source.Spec.RepoNamespace,
 			})
 		}
 	}

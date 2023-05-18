@@ -80,7 +80,7 @@ func testAccIdentityV3User_basic(userName string) string {
 	return fmt.Sprintf(`
 resource "sbercloud_identity_user" "user_1" {
   name        = "%s"
-  password    = "password123@!"
+  password    = "WleWQxWh0~WCT#wx|0yh93bojK"
   enabled     = true
   email       = "user_1@abc.com"
   description = "tested by terraform"
@@ -92,7 +92,7 @@ func testAccIdentityV3User_update(userName string) string {
 	return fmt.Sprintf(`
 resource "sbercloud_identity_user" "user_1" {
   name        = "%s"
-  password    = "password123@!"
+  password    = "WleWQxWh0~WCT#wx|0yh93bojK"
   pwd_reset   = false
   enabled     = false
   email       = "user_1@abcd.com"

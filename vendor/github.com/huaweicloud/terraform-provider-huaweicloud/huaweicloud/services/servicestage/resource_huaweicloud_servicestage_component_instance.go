@@ -42,18 +42,21 @@ func lifecycleProcessSchemaResource() *schema.Resource {
 					Schema: map[string]*schema.Schema{
 						"commands": {
 							Type:     schema.TypeList,
-							Required: true,
+							Optional: true,
+							Computed: true,
 							Elem:     &schema.Schema{Type: schema.TypeString},
+						},
+						"host": {
+							Type:     schema.TypeString,
+							Optional: true,
+							Computed: true,
 						},
 						"port": {
 							Type:     schema.TypeInt,
-							Required: true,
+							Optional: true,
+							Computed: true,
 						},
 						"path": {
-							Type:     schema.TypeString,
-							Required: true,
-						},
-						"host": {
 							Type:     schema.TypeString,
 							Optional: true,
 							Computed: true,
@@ -122,7 +125,7 @@ func probeDetailSchemaResource() *schema.Resource {
 				MaxItems: 1,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
-						"protocol": {
+						"scheme": {
 							Type:     schema.TypeString,
 							Required: true,
 							ValidateFunc: validation.StringInSlice([]string{
@@ -402,6 +405,11 @@ func ResourceComponentInstance() *schema.Resource {
 													Optional: true,
 													Computed: true,
 												},
+												"secret_name": {
+													Type:     schema.TypeString,
+													Optional: true,
+													Computed: true,
+												},
 											},
 										},
 									},
@@ -492,13 +500,13 @@ func ResourceComponentInstance() *schema.Resource {
 							},
 						},
 						"log_collection_policy": {
-							Type:     schema.TypeList,
+							Type:     schema.TypeSet,
 							Optional: true,
 							Computed: true,
 							Elem: &schema.Resource{
 								Schema: map[string]*schema.Schema{
 									"container_mounting": {
-										Type:     schema.TypeList,
+										Type:     schema.TypeSet,
 										Required: true,
 										Elem: &schema.Resource{
 											Schema: map[string]*schema.Schema{
@@ -706,13 +714,13 @@ func buildMountsList(mounts *schema.Set) []instances.Mount {
 		return nil
 	}
 
-	result := make([]instances.Mount, 0, mounts.Len())
+	result := make([]instances.Mount, mounts.Len())
 	for i, val := range mounts.List() {
 		mount := val.(map[string]interface{})
 		result[i] = instances.Mount{
 			Path:     mount["path"].(string),
 			SubPath:  mount["subpath"].(string),
-			ReadOnly: mount["readonly"].(bool),
+			ReadOnly: utils.Bool(mount["readonly"].(bool)),
 		}
 	}
 
@@ -733,12 +741,13 @@ func buildStoragesList(storages *schema.Set) []instances.Storage {
 			parameters.Path = parameter["path"].(string)
 			parameters.Name = parameter["name"].(string)
 			parameters.ClaimName = parameter["claim_name"].(string)
+			parameters.SecretName = parameter["secret_name"].(string)
 		}
 
 		result[i] = instances.Storage{
 			Type:       storage["type"].(string),
 			Parameters: &parameters,
-			Mounts:     buildMountsList(storage["mounts"].(*schema.Set)),
+			Mounts:     buildMountsList(storage["mount"].(*schema.Set)),
 		}
 	}
 
@@ -763,14 +772,17 @@ func buildLifecycleProcess(processes []interface{}) *instances.Process {
 	}
 
 	process := processes[0].(map[string]interface{})
+	// The configuration structure of the process parameters is required.
+	parameters := process["parameters"].([]interface{})
+	param := parameters[0].(map[string]interface{})
 
 	return &instances.Process{
 		Type: process["type"].(string),
 		Parameters: &instances.ProcessParams{
-			Commands: utils.ExpandToStringList(process["commands"].([]interface{})),
-			Port:     process["port"].(int),
-			Path:     process["path"].(string),
-			Host:     process["host"].(string),
+			Commands: utils.ExpandToStringList(param["commands"].([]interface{})),
+			Port:     param["port"].(int),
+			Path:     param["path"].(string),
+			Host:     param["host"].(string),
 		},
 	}
 }
@@ -797,17 +809,17 @@ func buildLifecycleStructure(lifecycles []interface{}) *instances.Lifecycle {
 	return &result
 }
 
-func buildLogCollectionPoliciesStructure(policies []interface{}) []instances.LogCollectionPolicy {
-	if len(policies) < 1 {
+func buildLogCollectionPoliciesStructure(policies *schema.Set) []instances.LogCollectionPolicy {
+	if policies.Len() < 1 {
 		return nil
 	}
 
-	result := make([]instances.LogCollectionPolicy, 0, len(policies))
-	for _, val := range policies {
+	result := make([]instances.LogCollectionPolicy, 0, policies.Len())
+	for _, val := range policies.List() {
 		policy := val.(map[string]interface{})
 		hostPath := policy["host_path"].(string)
-		cmList := policy["container_mounting"].([]interface{})
-		for _, val := range cmList {
+		cmSet := policy["container_mounting"].(*schema.Set)
+		for _, val := range cmSet.List() {
 			cm := val.(map[string]interface{})
 			result = append(result, instances.LogCollectionPolicy{
 				LogPath:        cm["path"].(string),
@@ -938,8 +950,8 @@ func buildConfigurationStructure(configs []interface{}) (instances.Configuration
 		Storages:              buildStoragesList(config["storage"].(*schema.Set)),
 		Strategy:              buildStrategyStructure(config["strategy"].([]interface{})),
 		Lifecycle:             buildLifecycleStructure(config["lifecycle"].([]interface{})),
-		LogCollectionPolicies: buildLogCollectionPoliciesStructure(config["log_collection_policy"].([]interface{})),
-		Scheduler:             buildSchedulerStructure(config["lifecycle"].([]interface{})),
+		LogCollectionPolicies: buildLogCollectionPoliciesStructure(config["log_collection_policy"].(*schema.Set)),
+		Scheduler:             buildSchedulerStructure(config["scheduler"].([]interface{})),
 		Probe:                 probe,
 	}, nil
 }
@@ -1155,12 +1167,13 @@ func flattenStorages(storages []instances.StorageResp) (result []map[string]inte
 			"type": val.Type,
 			"parameter": []map[string]interface{}{
 				{
-					"path":       val.Parameters.Path,
-					"name":       val.Parameters.Name,
-					"claim_name": val.Parameters.ClaimName,
+					"path":        val.Parameters.Path,
+					"name":        val.Parameters.Name,
+					"claim_name":  val.Parameters.ClaimName,
+					"secret_name": val.Parameters.SecretName,
 				},
 			},
-			"mounts": flattenMounts(val.Mounts),
+			"mount": flattenMounts(val.Mounts),
 		})
 	}
 

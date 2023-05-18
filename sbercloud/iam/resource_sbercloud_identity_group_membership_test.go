@@ -128,7 +128,7 @@ resource "sbercloud_identity_group" "group_1" {
 
 resource "sbercloud_identity_user" "user_1" {
   name     = "%s"
-  password = "password123@#"
+  password = "WleWQxWh0~WCT#wx|0yh93bojK"
   enabled  = true
 }
    
@@ -147,13 +147,13 @@ resource "sbercloud_identity_group" "group_1" {
 
 resource "sbercloud_identity_user" "user_1" {
   name     = "%s"
-  password = "password123@#"
+  password = "WleWQxWh0~WCT#wx|0yh93bojK"
   enabled  = true
 }
 
 resource "sbercloud_identity_user" "user_2" {
   name     = "%s"
-  password = "password123@#"
+  password = "WleWQxWh0~WCT#wx|0yh93bojK"
   enabled  = true
 }
 
@@ -173,7 +173,7 @@ resource "sbercloud_identity_group" "group_1" {
 
 resource "sbercloud_identity_user" "user_2" {
   name     = "%s"
-  password = "password123@#"
+  password = "WleWQxWh0~WCT#wx|0yh93bojK"
   enabled  = true
 }
 
