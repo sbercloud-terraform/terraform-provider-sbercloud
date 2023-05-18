@@ -269,6 +269,8 @@ func Provider() *schema.Provider {
 			"sbercloud_networking_eip_associate":        eip.ResourceEIPAssociate(),
 			"sbercloud_networking_secgroup":             huaweicloud.ResourceNetworkingSecGroup(),
 			"sbercloud_networking_secgroup_rule":        huaweicloud.ResourceNetworkingSecGroupRule(),
+			"sbercloud_networking_vip":                  vpc.ResourceNetworkingVip(),            
+			"sbercloud_networking_vip_associate":        vpc.ResourceNetworkingVIPAssociateV2(), 
 			"sbercloud_obs_bucket":                      obs.ResourceObsBucket(),
 			"sbercloud_obs_bucket_object":               obs.ResourceObsBucketObject(),
 			"sbercloud_obs_bucket_policy":               obs.ResourceObsBucketPolicy(),
