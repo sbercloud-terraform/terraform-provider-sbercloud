@@ -124,7 +124,6 @@ resource "sbercloud_compute_instance" "test" {
 
   network {
     uuid              = data.sbercloud_vpc_subnet.test.id
-    source_dest_check = false
   }
 }
 `, testAccCompute_data, rName)
