@@ -39,10 +39,10 @@ data "sbercloud_dms_kafka_instances" "test" {
 * `name` - (Optional, String) Specifies the kafka instance name for data-source queries.
 
 * `fuzzy_match` - (Optional, Bool) Specifies whether to match the instance name fuzzily, the default is a exact
-  match (`flase`).
+    match (`flase`).
 
 * `enterprise_project_id` - (Optional, String) Specifies the enterprise project ID to which all instances of the list
-  belong.
+   belong.
 
 * `status` - (Optional, String) Specifies the kafka instance status for data-source queries.
 
@@ -80,7 +80,7 @@ The `instances` block supports:
 
 * `vpc_id` - The VPC ID to which the instance belongs.
 
-* `subnet_id` - The subnet ID to which the instance belongs.
+* `network_id` - The subnet ID to which the instance belongs.
 
 * `security_group_id` - The security group ID associated with the instance.
 
@@ -131,10 +131,6 @@ The `instances` block supports:
 
 The `cross_vpc_accesses` block supports:
 
-* `listener_ip` - The listener IP address.
-
-* `advertised_ip` - The advertised IP Address.
-
 * `port` - The port number.
 
-* `port_id` - The port ID associated with the address.
+
