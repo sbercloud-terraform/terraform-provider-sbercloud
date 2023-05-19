@@ -142,6 +142,28 @@ func Provider() *schema.Provider {
 				Description: descriptions["max_retries"],
 				DefaultFunc: schema.EnvDefaultFunc("SBC_MAX_RETRIES", 5),
 			},
+			"domain_id": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: descriptions["domain_id"],
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					"SBC_DOMAIN_ID",
+					"OS_DOMAIN_ID",
+					"OS_USER_DOMAIN_ID",
+					"OS_PROJECT_DOMAIN_ID",
+				}, ""),
+			},
+			"domain_name": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: descriptions["domain_name"],
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					"SBC_DOMAIN_NAME",
+					"OS_DOMAIN_NAME",
+					"OS_USER_DOMAIN_NAME",
+					"OS_PROJECT_DOMAIN_NAME",
+				}, ""),
+			},
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{
