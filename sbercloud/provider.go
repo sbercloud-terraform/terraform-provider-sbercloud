@@ -179,6 +179,7 @@ func Provider() *schema.Provider {
 			"sbercloud_compute_flavors":        ecs.DataSourceEcsFlavors(),
 			"sbercloud_compute_instance":       ecs.DataSourceComputeInstance(),
 			"sbercloud_compute_instances":      ecs.DataSourceComputeInstances(),
+			"sbercloud_dcs_flavors":            dcs.DataSourceDcsFlavorsV2(),
 			"sbercloud_dcs_az":                 deprecated.DataSourceDcsAZV1(),
 			"sbercloud_dcs_maintainwindow":     dcs.DataSourceDcsMaintainWindow(),
 			"sbercloud_dcs_product":            deprecated.DataSourceDcsProductV1(),
