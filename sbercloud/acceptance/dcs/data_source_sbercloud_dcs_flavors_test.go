@@ -32,7 +32,7 @@ func testAccDcsFlavorsV2_conf() string {
 	return `
 data "sbercloud_dcs_flavors" "flavors" {
   engine   = "Redis"
-  capacity = 0.125
+  capacity = 1
 }
 `
 }
