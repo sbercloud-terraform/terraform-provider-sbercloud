@@ -11,11 +11,6 @@ Manages a RDS ParameterGroup resource within SberCloud.
 ```hcl
 resource "sbercloud_rds_parametergroup" "pg_1" {
   name        = "pg_1"
-  description = "description_1"
-  values = {
-    max_connections = "10"
-    autocommit      = "OFF"
-  }
   datastore {
     type    = "mysql"
     version = "5.6"
