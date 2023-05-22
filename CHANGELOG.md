@@ -2,15 +2,15 @@
 
 FEATURES:
 
-* **New Resource:** `sbercloud_aom_service_discovery_rule` ([#151](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/151)
-* **New Resource:** `sbercloud_dli_database` ([#161](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/161)
-* **New Resource:** `sbercloud_dli_package` ([#161](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/161)
-* **New Resource:** `sbercloud_dli_spark_job` ([#161](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/161)
+* **New Resource:** `sbercloud_aom_service_discovery_rule` ([#151](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/151))
+* **New Resource:** `sbercloud_dli_database` ([#161](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/161))
+* **New Resource:** `sbercloud_dli_package` ([#161](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/161))
+* **New Resource:** `sbercloud_dli_spark_job` ([#161](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/161))
 
 ENHANCEMENTS:
 
 * Update the documentation for ELB resources ([#159](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/pull/159))
-* Update the documentation for DLI resources ([#161](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/161)
+* Update the documentation for DLI resources ([#161](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/161))
 
 ## 1.9.0 (August 31, 2022)
 
@@ -18,11 +18,11 @@ FEATURES:
 
 * **New Data Source:** `sbercloud_compute_instance` ([#148](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/148))
 * **New Data Source:** `sbercloud_compute_instances` ([#148](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/148))
-* **New Data Source:** `sbercloud_cce_clusters` ([#155](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/155)
-* **New Data Source:** `sbercloud_cce_nodes` ([#155](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/155)
-* **New Resource:** `sbercloud_cce_node_attach` ([#155](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/155)
-* **New Resource:** `sbercloud_cce_namespace` ([#155](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/155)
-* **New Resource:** `sbercloud_cce_pvc` ([#155](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/155)
+* **New Data Source:** `sbercloud_cce_clusters` ([#155](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/155))
+* **New Data Source:** `sbercloud_cce_nodes` ([#155](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/155))
+* **New Resource:** `sbercloud_cce_node_attach` ([#155](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/155))
+* **New Resource:** `sbercloud_cce_namespace` ([#155](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/155))
+* **New Resource:** `sbercloud_cce_pvc` ([#155](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/155))
 
 ENHANCEMENTS:
 

@@ -142,6 +142,28 @@ func Provider() *schema.Provider {
 				Description: descriptions["max_retries"],
 				DefaultFunc: schema.EnvDefaultFunc("SBC_MAX_RETRIES", 5),
 			},
+			"domain_id": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: descriptions["domain_id"],
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					"SBC_DOMAIN_ID",
+					"OS_DOMAIN_ID",
+					"OS_USER_DOMAIN_ID",
+					"OS_PROJECT_DOMAIN_ID",
+				}, ""),
+			},
+			"domain_name": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: descriptions["domain_name"],
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					"SBC_DOMAIN_NAME",
+					"OS_DOMAIN_NAME",
+					"OS_USER_DOMAIN_NAME",
+					"OS_PROJECT_DOMAIN_NAME",
+				}, ""),
+			},
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{
@@ -157,6 +179,7 @@ func Provider() *schema.Provider {
 			"sbercloud_compute_flavors":        ecs.DataSourceEcsFlavors(),
 			"sbercloud_compute_instance":       ecs.DataSourceComputeInstance(),
 			"sbercloud_compute_instances":      ecs.DataSourceComputeInstances(),
+			"sbercloud_dcs_flavors":            dcs.DataSourceDcsFlavorsV2(),
 			"sbercloud_dcs_az":                 deprecated.DataSourceDcsAZV1(),
 			"sbercloud_dcs_maintainwindow":     dcs.DataSourceDcsMaintainWindow(),
 			"sbercloud_dcs_product":            deprecated.DataSourceDcsProductV1(),
@@ -164,6 +187,7 @@ func Provider() *schema.Provider {
 			"sbercloud_dms_az":                 deprecated.DataSourceDmsAZ(),
 			"sbercloud_dms_product":            dms.DataSourceDmsProduct(),
 			"sbercloud_dms_maintainwindow":     dms.DataSourceDmsMaintainWindow(),
+			"sbercloud_dms_kafka_instances":    dms.DataSourceDmsKafkaInstances(),
 			"sbercloud_enterprise_project":     eps.DataSourceEnterpriseProject(),
 			"sbercloud_identity_role":          iam.DataSourceIdentityRoleV3(),
 			"sbercloud_identity_custom_role":   iam.DataSourceIdentityCustomRole(),

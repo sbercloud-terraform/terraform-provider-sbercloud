@@ -1,7 +1,8 @@
-package sbercloud
+package dms
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/chnsz/golangsdk"
@@ -18,9 +19,9 @@ func TestAccDmsKafkaTopic_basic(t *testing.T) {
 	resourceName := "sbercloud_dms_kafka_topic.topic"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckDmsKafkaTopicDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckDmsKafkaTopicDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccDmsKafkaTopic_basic(rName),
@@ -57,8 +58,8 @@ func TestAccDmsKafkaTopic_basic(t *testing.T) {
 }
 
 func testAccCheckDmsKafkaTopicDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	dmsClient, err := config.DmsV2Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	dmsClient, err := config.DmsV2Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating SberCloud DMS client: %s", err)
 	}
@@ -98,8 +99,8 @@ func testAccCheckDmsKafkaTopicExists(n string, topic *topics.Topic) resource.Tes
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		dmsClient, err := config.DmsV2Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		dmsClient, err := config.DmsV2Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud DMS client: %s", err)
 		}
