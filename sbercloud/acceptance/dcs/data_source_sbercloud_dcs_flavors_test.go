@@ -21,7 +21,7 @@ func TestAccDataSourceDcsFlavorsV2_basic(t *testing.T) {
 					dc.CheckResourceExists(),
 					resource.TestCheckResourceAttrSet(dataSourceName, "flavors.#"),
 					resource.TestCheckResourceAttr(dataSourceName, "flavors.0.engine", "redis"),
-					resource.TestCheckResourceAttr(dataSourceName, "flavors.0.capacity", "0.125"),
+					resource.TestCheckResourceAttr(dataSourceName, "flavors.0.capacity", "1"),
 				),
 			},
 		},
