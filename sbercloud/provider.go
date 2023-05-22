@@ -192,6 +192,7 @@ func Provider() *schema.Provider {
 			"sbercloud_identity_role":          iam.DataSourceIdentityRoleV3(),
 			"sbercloud_identity_custom_role":   iam.DataSourceIdentityCustomRole(),
 			"sbercloud_identity_group":         iam.DataSourceIdentityGroup(),
+			"sbercloud_identity_projects":      iam.DataSourceIdentityProjects(), //!!!!!
 			"sbercloud_images_image":           ims.DataSourceImagesImageV2(),
 			"sbercloud_kms_key":                dew.DataSourceKmsKey(),
 			"sbercloud_kms_data_key":           huaweicloud.DataSourceKmsDataKeyV1(),
@@ -292,6 +293,8 @@ func Provider() *schema.Provider {
 			"sbercloud_networking_eip_associate":        eip.ResourceEIPAssociate(),
 			"sbercloud_networking_secgroup":             huaweicloud.ResourceNetworkingSecGroup(),
 			"sbercloud_networking_secgroup_rule":        huaweicloud.ResourceNetworkingSecGroupRule(),
+			"sbercloud_networking_vip":                  vpc.ResourceNetworkingVip(),            
+			"sbercloud_networking_vip_associate":        vpc.ResourceNetworkingVIPAssociateV2(), 
 			"sbercloud_obs_bucket":                      obs.ResourceObsBucket(),
 			"sbercloud_obs_bucket_object":               obs.ResourceObsBucketObject(),
 			"sbercloud_obs_bucket_policy":               obs.ResourceObsBucketPolicy(),
