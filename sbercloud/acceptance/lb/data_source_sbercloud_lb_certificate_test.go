@@ -36,12 +36,12 @@ func TestAccDataSourceLBCertificateV2_basic(t *testing.T) {
 func testAccLBCertificateSourceV2_conf(name string) string {
 	return fmt.Sprintf(`
 data "sbercloud_lb_certificate" "cert_1" {
-  name = sbercloud_elb_certificate.certificate_1.name
+  name = sbercloud_lb_certificate.certificate_1.name
 
-  depends_on = [sbercloud_elb_certificate.certificate_1]
+  depends_on = [sbercloud_lb_certificate.certificate_1]
 }
 
-resource "sbercloud_elb_certificate" "certificate_1" {
+resource "sbercloud_lb_certificate" "certificate_1" {
   name        = "%s"
   description = "terraform test certificate"
   domain      = "www.elb.com"

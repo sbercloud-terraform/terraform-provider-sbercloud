@@ -12,7 +12,7 @@ import (
 func TestAccDatasourceListeners_basic(t *testing.T) {
 	var (
 		rName            = acceptance.RandomAccResourceNameWithDash()
-		dcByName         = acceptance.InitDataSourceCheck("data.cloud_lb_listeners.by_name")
+		dcByName         = acceptance.InitDataSourceCheck("data.sbercloud_lb_listeners.by_name")
 		dcByProtocol     = acceptance.InitDataSourceCheck("data.sbercloud_lb_listeners.by_protocol")
 		dcByProtocolPort = acceptance.InitDataSourceCheck("data.sbercloud_lb_listeners.by_protocol_port")
 	)

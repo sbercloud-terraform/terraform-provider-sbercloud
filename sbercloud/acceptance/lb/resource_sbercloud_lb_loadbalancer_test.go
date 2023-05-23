@@ -188,6 +188,38 @@ func testAccCheckLBV2LoadBalancerHasSecGroup(
 	}
 }
 
+func testAccCheckNetworkingV2SecGroupExists(n string, security_group *groups.SecGroup) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+		if !ok {
+			return fmt.Errorf("Not found: %s", n)
+		}
+
+		if rs.Primary.ID == "" {
+			return fmt.Errorf("No ID is set")
+		}
+
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		networkingClient, err := config.NetworkingV2Client(acceptance.SBC_REGION_NAME)
+		if err != nil {
+			return fmt.Errorf("Error creating HuaweiCloud networking client: %s", err)
+		}
+
+		found, err := groups.Get(networkingClient, rs.Primary.ID).Extract()
+		if err != nil {
+			return err
+		}
+
+		if found.ID != rs.Primary.ID {
+			return fmt.Errorf("Security group not found")
+		}
+
+		*security_group = *found
+
+		return nil
+	}
+}
+
 func testAccLBV2LoadBalancerConfig_basic(rName string) string {
 	return fmt.Sprintf(`
 data "sbercloud_vpc_subnet" "test" {
@@ -306,34 +338,3 @@ resource "sbercloud_lb_loadbalancer" "loadbalancer_1" {
 `, rNameSecg1, rNameSecg2, rName)
 }
 
-func testAccCheckNetworkingV2SecGroupExists(n string, security_group *groups.SecGroup) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		rs, ok := s.RootModule().Resources[n]
-		if !ok {
-			return fmt.Errorf("Not found: %s", n)
-		}
-
-		if rs.Primary.ID == "" {
-			return fmt.Errorf("No ID is set")
-		}
-
-		config := acceptance.TestAccProvider.Meta().(*config.Config)
-		networkingClient, err := config.NetworkingV2Client(acceptance.SBC_REGION_NAME)
-		if err != nil {
-			return fmt.Errorf("Error creating HuaweiCloud networking client: %s", err)
-		}
-
-		found, err := groups.Get(networkingClient, rs.Primary.ID).Extract()
-		if err != nil {
-			return err
-		}
-
-		if found.ID != rs.Primary.ID {
-			return fmt.Errorf("Security group not found")
-		}
-
-		*security_group = *found
-
-		return nil
-	}
-}
