@@ -1,7 +1,8 @@
-package sbercloud
+package dcs
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/chnsz/golangsdk/openstack/dcs/v1/instances"
@@ -17,9 +18,9 @@ func TestAccDcsInstancesV1_basic(t *testing.T) {
 	resourceName := "sbercloud_dcs_instance.instance_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckDcsV1InstanceDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckDcsV1InstanceDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccDcsV1Instance_basic(instanceName),
@@ -53,9 +54,9 @@ func TestAccDcsInstancesV1_single(t *testing.T) {
 	resourceName := "sbercloud_dcs_instance.instance_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckDcsV1InstanceDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckDcsV1InstanceDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccDcsV1Instance_single(instanceName),
@@ -72,8 +73,8 @@ func TestAccDcsInstancesV1_single(t *testing.T) {
 }
 
 func testAccCheckDcsV1InstanceDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	dcsClient, err := config.DcsV1Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	dcsClient, err := config.DcsV1Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating SberCloud instance client: %s", err)
 	}
@@ -102,8 +103,8 @@ func testAccCheckDcsV1InstanceExists(n string, instance instances.Instance) reso
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		dcsClient, err := config.DcsV1Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		dcsClient, err := config.DcsV1Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud instance client: %s", err)
 		}
