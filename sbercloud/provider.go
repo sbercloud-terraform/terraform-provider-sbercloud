@@ -5,6 +5,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dns"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/nat"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/obs"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/swr"
 	"sync"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -306,6 +307,10 @@ func Provider() *schema.Provider {
 			"sbercloud_sfs_turbo":                       huaweicloud.ResourceSFSTurbo(),
 			"sbercloud_smn_subscription":                smn.ResourceSubscription(),
 			"sbercloud_smn_topic":                       smn.ResourceTopic(),
+			"sbercloud_swr_organization":                swr.ResourceSWROrganization(),
+			"sbercloud_swr_organization_permissions":    swr.ResourceSWROrganizationPermissions(),
+			"sbercloud_swr_repository":                  swr.ResourceSWRRepository(),
+			"sbercloud_swr_repository_sharing":          swr.ResourceSWRRepositorySharing(),
 			"sbercloud_vpc":                             vpc.ResourceVirtualPrivateCloudV1(),
 			"sbercloud_vpc_bandwidth":                   eip.ResourceVpcBandWidthV2(),
 			"sbercloud_vpc_eip":                         eip.ResourceVpcEIPV1(),
