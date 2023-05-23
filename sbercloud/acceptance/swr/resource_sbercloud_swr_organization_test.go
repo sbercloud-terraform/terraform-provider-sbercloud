@@ -25,7 +25,7 @@ func TestAccSWROrganization_basic(t *testing.T) {
 	var org namespaces.Namespace
 	rName := acceptance.RandomAccResourceName()
 	resourceName := "sbercloud_swr_organization.test"
-	loginServer := fmt.Sprintf("swr.%s.myhuaweicloud.com", acceptance.SBC_REGION_NAME)
+	loginServer := fmt.Sprintf("swr.%s.sbercloud.ru", acceptance.SBC_REGION_NAME) // "swr.%s.myhuaweicloud.com" было
 
 	rc := acceptance.InitResourceCheck(
 		resourceName,
