@@ -23,7 +23,7 @@ The following arguments are supported:
 
 * `capacity` - (Required, Float) The total memory of the cache, in GB.
     + **Redis4.0 and Redis5.0**: Stand-alone and active/standby type instance values:
-      `0.125`, `0.25`, `0.5`, `1`, `2`, `4`, `8`, `16`, `32` and `64`.
+      `1`, `2`, `4`, `8`, `16`, `32` and `64`.
       Cluster instance specifications support `24`, `32`, `48`, `64`, `96`, `128`, `192`, `256`, `384`, `512`, `768` and
       `1024`.
     + **Redis3.0**: Stand-alone and active/standby type instance values: `2`, `4`, `8`, `16`, `32` and `64`.
