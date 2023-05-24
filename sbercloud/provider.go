@@ -267,6 +267,8 @@ func Provider() *schema.Provider {
 			"sbercloud_identity_group":                  iam.ResourceIdentityGroupV3(),
 			"sbercloud_identity_group_membership":       iam.ResourceIdentityGroupMembershipV3(),
 			"sbercloud_identity_project":                iam.ResourceIdentityProjectV3(),
+			"sbercloud_identity_provider":               iam.ResourceIdentityProvider(),
+			"sbercloud_identity_provider_conversion":    iam.ResourceIAMProviderConversion(),
 			"sbercloud_identity_role":                   iam.ResourceIdentityRole(),
 			"sbercloud_identity_role_assignment":        iam.ResourceIdentityGroupRoleAssignment(),
 			"sbercloud_identity_user":                   iam.ResourceIdentityUserV3(),
