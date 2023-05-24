@@ -21,7 +21,7 @@ func TestAccDataSourceDcsFlavorsV2_basic(t *testing.T) {
 					dc.CheckResourceExists(),
 					resource.TestCheckResourceAttrSet(dataSourceName, "flavors.#"),
 					resource.TestCheckResourceAttr(dataSourceName, "flavors.0.engine", "redis"),
-					resource.TestCheckResourceAttr(dataSourceName, "flavors.0.capacity", "0.125"),
+					resource.TestCheckResourceAttr(dataSourceName, "flavors.0.capacity", "1"),
 				),
 			},
 		},
@@ -32,7 +32,7 @@ func testAccDcsFlavorsV2_conf() string {
 	return `
 data "sbercloud_dcs_flavors" "flavors" {
   engine   = "Redis"
-  capacity = 0.125
+  capacity = 1
 }
 `
 }

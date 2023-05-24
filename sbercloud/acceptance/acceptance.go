@@ -35,6 +35,8 @@ var (
 	SBC_SECRET_KEY = os.Getenv("SBC_SECRET_KEY")
 
 	SBC_DLI_FLINK_JAR_OBS_PATH = os.Getenv("SBC_DLI_FLINK_JAR_OBS_PATH")
+
+	SBC_SWR_SHARING_ACCOUNT = os.Getenv("SBC_SWR_SHARING_ACCOUNT")
 )
 
 // TestAccProviderFactories is a static map containing only the main provider instance
@@ -284,6 +286,14 @@ func TestAccPreCheckAdminOnly(t *testing.T) {
 func TestAccPreCheckOBS(t *testing.T) {
 	if SBC_ACCESS_KEY == "" || SBC_SECRET_KEY == "" {
 		t.Skip("SBC_ACCESS_KEY and SBC_SECRET_KEY must be set for OBS acceptance tests")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckSWRDomian(t *testing.T) {
+	if SBC_SWR_SHARING_ACCOUNT == "" {
+		t.Skip("SBC_SWR_SHARING_ACCOUNT must be set for swr domian tests, " +
+			"the value of SBC_SWR_SHARING_ACCOUNT should be another IAM user name")
 	}
 }
 
