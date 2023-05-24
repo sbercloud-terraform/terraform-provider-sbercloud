@@ -307,7 +307,6 @@ func Provider() *schema.Provider {
 			"sbercloud_swr_organization":                swr.ResourceSWROrganization(),
 			"sbercloud_swr_organization_permissions":    swr.ResourceSWROrganizationPermissions(),
 			"sbercloud_swr_repository":                  swr.ResourceSWRRepository(),
-			"sbercloud_swr_repository_sharing":          swr.ResourceSWRRepositorySharing(),
 			"sbercloud_vpc":                             vpc.ResourceVirtualPrivateCloudV1(),
 			"sbercloud_vpc_bandwidth":                   eip.ResourceVpcBandWidthV2(),
 			"sbercloud_vpc_eip":                         eip.ResourceVpcEIPV1(),
