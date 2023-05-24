@@ -1,7 +1,8 @@
-package sbercloud
+package lb
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/chnsz/golangsdk/openstack/networking/v2/extensions/lbaas_v2/whitelists"
@@ -17,8 +18,7 @@ func TestAccLBV2Whitelist_basic(t *testing.T) {
 	resourceName := "sbercloud_lb_whitelist.whitelist_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
+		PreCheck:     func() { acceptance.TestAccPreCheck(t) },
 		CheckDestroy: testAccCheckLBV2WhitelistDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -38,8 +38,8 @@ func TestAccLBV2Whitelist_basic(t *testing.T) {
 }
 
 func testAccCheckLBV2WhitelistDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	elbClient, err := config.ElbV2Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	elbClient, err := config.ElbV2Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating SberCloud elb client: %s", err)
 	}
@@ -69,8 +69,8 @@ func testAccCheckLBV2WhitelistExists(n string, whitelist *whitelists.Whitelist) 
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		elbClient, err := config.ElbV2Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		elbClient, err := config.ElbV2Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud elb client: %s", err)
 		}

@@ -1,7 +1,8 @@
-package sbercloud
+package lb
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"regexp"
 	"testing"
 
@@ -19,8 +20,7 @@ func TestAccLBV2L7Policy_basic(t *testing.T) {
 	resourceName := "sbercloud_lb_l7policy.l7policy_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
+		PreCheck:     func() { acceptance.TestAccPreCheck(t) },
 		CheckDestroy: testAccCheckLBV2L7PolicyDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -40,8 +40,8 @@ func TestAccLBV2L7Policy_basic(t *testing.T) {
 }
 
 func testAccCheckLBV2L7PolicyDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	lbClient, err := config.ElbV2Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	lbClient, err := config.ElbV2Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating Sbercloud load balancing client: %s", err)
 	}
@@ -71,8 +71,8 @@ func testAccCheckLBV2L7PolicyExists(n string, l7Policy *l7policies.L7Policy) res
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		lbClient, err := config.ElbV2Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		lbClient, err := config.ElbV2Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating Sbercloud load balancing client: %s", err)
 		}

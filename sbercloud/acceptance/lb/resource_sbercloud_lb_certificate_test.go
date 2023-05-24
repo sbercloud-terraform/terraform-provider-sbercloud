@@ -1,7 +1,8 @@
-package sbercloud
+package lb
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -18,8 +19,7 @@ func TestAccLBV2Certificate_basic(t *testing.T) {
 	resourceName := "sbercloud_lb_certificate.certificate_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
+		PreCheck:     func() { acceptance.TestAccPreCheck(t) },
 		CheckDestroy: testAccCheckLBV2CertificateDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -46,8 +46,7 @@ func TestAccLBV2Certificate_client(t *testing.T) {
 	resourceName := "sbercloud_lb_certificate.certificate_client"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
+		PreCheck:     func() { acceptance.TestAccPreCheck(t) },
 		CheckDestroy: testAccCheckLBV2CertificateDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -63,8 +62,8 @@ func TestAccLBV2Certificate_client(t *testing.T) {
 }
 
 func testAccCheckLBV2CertificateDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	elbClient, err := config.ElbV2Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	elbClient, err := config.ElbV2Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating Sbercloud elb client: %s", err)
 	}
@@ -95,8 +94,8 @@ func testAccCheckLBV2CertificateExists(
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		elbClient, err := config.ElbV2Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		elbClient, err := config.ElbV2Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating Sbercloud elb client: %s", err)
 		}

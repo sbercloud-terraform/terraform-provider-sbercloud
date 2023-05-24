@@ -1,7 +1,8 @@
-package sbercloud
+package lb
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"regexp"
 	"testing"
 
@@ -15,6 +16,18 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
+func getLoadBalancerResourceFunc(conf *config.Config, state *terraform.ResourceState) (interface{}, error) {
+	c, err := conf.LoadBalancerClient(acceptance.SBC_REGION_NAME)
+	if err != nil {
+		return nil, fmt.Errorf("error creating ELB v2 Client: %s", err)
+	}
+	resp, err := loadbalancers.Get(c, state.Primary.ID).Extract()
+	if resp == nil && err == nil {
+		return resp, fmt.Errorf("unable to find the LoadBalancer (%s)", state.Primary.ID)
+	}
+	return resp, err
+}
+
 func TestAccLBV2LoadBalancer_basic(t *testing.T) {
 	var lb loadbalancers.LoadBalancer
 	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
@@ -22,8 +35,7 @@ func TestAccLBV2LoadBalancer_basic(t *testing.T) {
 	resourceName := "sbercloud_lb_loadbalancer.loadbalancer_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
+		PreCheck:     func() { acceptance.TestAccPreCheck(t) },
 		CheckDestroy: testAccCheckLBV2LoadBalancerDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -54,8 +66,7 @@ func TestAccLBV2LoadBalancer_secGroup(t *testing.T) {
 	resourceName := "sbercloud_lb_loadbalancer.loadbalancer_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
+		PreCheck:     func() { acceptance.TestAccPreCheck(t) },
 		CheckDestroy: testAccCheckLBV2LoadBalancerDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -100,8 +111,8 @@ func TestAccLBV2LoadBalancer_secGroup(t *testing.T) {
 }
 
 func testAccCheckLBV2LoadBalancerDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	elbClient, err := config.ElbV2Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	elbClient, err := config.ElbV2Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating SberCloud elb client: %s", err)
 	}
@@ -132,8 +143,8 @@ func testAccCheckLBV2LoadBalancerExists(
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		elbClient, err := config.ElbV2Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		elbClient, err := config.ElbV2Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud networking client: %s", err)
 		}
@@ -156,8 +167,8 @@ func testAccCheckLBV2LoadBalancerExists(
 func testAccCheckLBV2LoadBalancerHasSecGroup(
 	lb *loadbalancers.LoadBalancer, sg *groups.SecGroup) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		config := testAccProvider.Meta().(*config.Config)
-		networkingClient, err := config.NetworkingV2Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		networkingClient, err := config.NetworkingV2Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud networking client: %s", err)
 		}
@@ -174,6 +185,38 @@ func testAccCheckLBV2LoadBalancerHasSecGroup(
 		}
 
 		return fmt.Errorf("LoadBalancer does not have the security group")
+	}
+}
+
+func testAccCheckNetworkingV2SecGroupExists(n string, security_group *groups.SecGroup) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+		if !ok {
+			return fmt.Errorf("Not found: %s", n)
+		}
+
+		if rs.Primary.ID == "" {
+			return fmt.Errorf("No ID is set")
+		}
+
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		networkingClient, err := config.NetworkingV2Client(acceptance.SBC_REGION_NAME)
+		if err != nil {
+			return fmt.Errorf("Error creating HuaweiCloud networking client: %s", err)
+		}
+
+		found, err := groups.Get(networkingClient, rs.Primary.ID).Extract()
+		if err != nil {
+			return err
+		}
+
+		if found.ID != rs.Primary.ID {
+			return fmt.Errorf("Security group not found")
+		}
+
+		*security_group = *found
+
+		return nil
 	}
 }
 
@@ -294,3 +337,4 @@ resource "sbercloud_lb_loadbalancer" "loadbalancer_1" {
 }
 `, rNameSecg1, rNameSecg2, rName)
 }
+

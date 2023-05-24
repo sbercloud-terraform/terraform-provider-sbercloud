@@ -1,7 +1,8 @@
-package sbercloud
+package lb
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/chnsz/golangsdk/openstack/networking/v2/extensions/lbaas_v2/pools"
@@ -17,8 +18,7 @@ func TestAccLBV2Member_basic(t *testing.T) {
 	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
+		PreCheck:     func() { acceptance.TestAccPreCheck(t) },
 		CheckDestroy: testAccCheckLBV2MemberDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -42,8 +42,8 @@ func TestAccLBV2Member_basic(t *testing.T) {
 }
 
 func testAccCheckLBV2MemberDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	elbClient, err := config.ElbV2Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	elbClient, err := config.ElbV2Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating SberCloud elb client: %s", err)
 	}
@@ -74,8 +74,8 @@ func testAccCheckLBV2MemberExists(n string, member *pools.Member) resource.TestC
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		elbClient, err := config.ElbV2Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		elbClient, err := config.ElbV2Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud elb client: %s", err)
 		}
