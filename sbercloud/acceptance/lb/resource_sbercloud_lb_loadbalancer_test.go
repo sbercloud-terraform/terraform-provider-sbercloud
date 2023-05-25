@@ -337,4 +337,3 @@ resource "sbercloud_lb_loadbalancer" "loadbalancer_1" {
 }
 `, rNameSecg1, rNameSecg2, rName)
 }
-
