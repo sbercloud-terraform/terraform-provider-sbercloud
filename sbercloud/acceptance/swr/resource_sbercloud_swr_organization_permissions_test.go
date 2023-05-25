@@ -92,19 +92,19 @@ resource "sbercloud_swr_organization" "test" {
 resource "sbercloud_identity_user" "user_1" {
   name     = "%[2]s_1"
   enabled  = true
-  password = "password12345!"
+  password = "|j~#zlRAWdDjdhiHKTGj"
 }
 
 resource "sbercloud_identity_user" "user_2" {
   name     = "%[2]s_2"
   enabled  = true
-  password = "password12345!"
+  password = "|j~#zlRAWdDjdhiHKTGj"
 }
 
 resource "sbercloud_identity_user" "user_3" {
   name     = "%[2]s_3"
   enabled  = true
-  password = "password12345!"
+  password = "|j~#zlRAWdDjdhiHKTGj"
 }
 
 resource "sbercloud_swr_organization_permissions" "test" {
@@ -137,25 +137,25 @@ resource "sbercloud_swr_organization" "test" {
 resource "sbercloud_identity_user" "user_1" {
   name     = "%[2]s_1"
   enabled  = true
-  password = "password12345!"
+  password = "|j~#zlRAWdDjdhiHKTGj"
 }
 
 resource "sbercloud_identity_user" "user_2" {
   name     = "%[2]s_2"
   enabled  = true
-  password = "password12345!"
+  password = "|j~#zlRAWdDjdhiHKTGj"
 }
 
 resource "sbercloud_identity_user" "user_4" {
   name     = "%[2]s_4"
   enabled  = true
-  password = "password12345!"
+  password = "|j~#zlRAWdDjdhiHKTGj"
 }
 
 resource "sbercloud_identity_user" "user_5" {
   name     = "%[2]s_5"
   enabled  = true
-  password = "password12345!"
+  password = "|j~#zlRAWdDjdhiHKTGj"
 }
 
 resource "sbercloud_swr_organization_permissions" "test" {
