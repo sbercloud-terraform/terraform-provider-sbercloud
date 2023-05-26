@@ -28,6 +28,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dws"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ecs"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/eip"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/elb"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/eps"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/evs"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/fgs"
@@ -189,6 +190,9 @@ func Provider() *schema.Provider {
 			"sbercloud_dms_product":            dms.DataSourceDmsProduct(),
 			"sbercloud_dms_maintainwindow":     dms.DataSourceDmsMaintainWindow(),
 			"sbercloud_dms_kafka_instances":    dms.DataSourceDmsKafkaInstances(),
+			"sbercloud_elb_certificate":        elb.DataSourceELBCertificateV3(),
+			"sbercloud_elb_flavors":            elb.DataSourceElbFlavorsV3(),
+			"sbercloud_elb_pools":              elb.DataSourcePools(),
 			"sbercloud_enterprise_project":     eps.DataSourceEnterpriseProject(),
 			"sbercloud_identity_role":          iam.DataSourceIdentityRoleV3(),
 			"sbercloud_identity_custom_role":   iam.DataSourceIdentityCustomRole(),
@@ -261,6 +265,16 @@ func Provider() *schema.Provider {
 			"sbercloud_dns_recordset":                   dns.ResourceDNSRecordSetV2(),
 			"sbercloud_dns_zone":                        dns.ResourceDNSZone(),
 			"sbercloud_dws_cluster":                     dws.ResourceDwsCluster(),
+			"sbercloud_elb_certificate":                 elb.ResourceCertificateV3(),
+			"sbercloud_elb_l7policy":                    elb.ResourceL7PolicyV3(),
+			"sbercloud_elb_l7rule":                      elb.ResourceL7RuleV3(),
+			"sbercloud_elb_listener":                    elb.ResourceListenerV3(),
+			"sbercloud_elb_loadbalancer":                elb.ResourceLoadBalancerV3(),
+			"sbercloud_elb_monitor":                     elb.ResourceMonitorV3(),
+			"sbercloud_elb_ipgroup":                     elb.ResourceIpGroupV3(),
+			"sbercloud_elb_pool":                        elb.ResourcePoolV3(),
+			"sbercloud_elb_member":                      elb.ResourceMemberV3(),
+			"sbercloud_elb_security_policy":             elb.ResourceSecurityPolicy(),
 			"sbercloud_enterprise_project":              eps.ResourceEnterpriseProject(),
 			"sbercloud_evs_snapshot":                    huaweicloud.ResourceEvsSnapshotV2(),
 			"sbercloud_evs_volume":                      evs.ResourceEvsVolume(),
