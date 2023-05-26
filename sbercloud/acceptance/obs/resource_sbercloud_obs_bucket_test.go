@@ -1,7 +1,8 @@
-package sbercloud
+package obs
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -15,9 +16,9 @@ func TestAccObsBucket_basic(t *testing.T) {
 	resourceName := "sbercloud_obs_bucket.bucket"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheckOBS(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckObsBucketDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheckOBS(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckObsBucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccObsBucket_basic(rInt),
@@ -32,7 +33,7 @@ func TestAccObsBucket_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(
 						resourceName, "storage_class", "STANDARD"),
 					resource.TestCheckResourceAttr(
-						resourceName, "region", SBC_REGION_NAME),
+						resourceName, "region", acceptance.SBC_REGION_NAME),
 				),
 			},
 			{
@@ -54,9 +55,9 @@ func TestAccObsBucket_withEpsId(t *testing.T) {
 	resourceName := "sbercloud_obs_bucket.bucket"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheckEpsID(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckObsBucketDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheckOBS(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckObsBucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccObsBucket_epsId(rInt),
@@ -65,7 +66,7 @@ func TestAccObsBucket_withEpsId(t *testing.T) {
 					resource.TestCheckResourceAttr(
 						resourceName, "bucket", testAccObsBucketName(rInt)),
 					resource.TestCheckResourceAttr(
-						resourceName, "enterprise_project_id", SBC_ENTERPRISE_PROJECT_ID_TEST),
+						resourceName, "enterprise_project_id", acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST),
 				),
 			},
 		},
@@ -77,9 +78,9 @@ func TestAccObsBucket_tags(t *testing.T) {
 	resourceName := "sbercloud_obs_bucket.bucket"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheckOBS(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckObsBucketDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheckOBS(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckObsBucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccObsBucketConfigWithTags(rInt),
@@ -101,9 +102,9 @@ func TestAccObsBucket_versioning(t *testing.T) {
 	resourceName := "sbercloud_obs_bucket.bucket"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheckOBS(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckObsBucketDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheckOBS(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckObsBucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccObsBucketConfigWithVersioning(rInt),
@@ -131,9 +132,9 @@ func TestAccObsBucket_logging(t *testing.T) {
 	resourceName := "sbercloud_obs_bucket.bucket"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheckOBS(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckObsBucketDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheckOBS(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckObsBucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccObsBucketConfigWithLogging(rInt),
@@ -151,9 +152,9 @@ func TestAccObsBucket_quota(t *testing.T) {
 	resourceName := "sbercloud_obs_bucket.bucket"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheckOBS(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckObsBucketDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheckOBS(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckObsBucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccObsBucketConfigWithQuota(rInt),
@@ -172,9 +173,9 @@ func TestAccObsBucket_lifecycle(t *testing.T) {
 	resourceName := "sbercloud_obs_bucket.bucket"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheckOBS(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckObsBucketDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheckOBS(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckObsBucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccObsBucketConfigWithLifecycle(rInt),
@@ -219,9 +220,9 @@ func TestAccObsBucket_website(t *testing.T) {
 	resourceName := "sbercloud_obs_bucket.bucket"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheckOBS(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckObsBucketDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheckOBS(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckObsBucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccObsBucketWebsiteConfigWithRoutingRules(rInt),
@@ -242,9 +243,9 @@ func TestAccObsBucket_cors(t *testing.T) {
 	resourceName := "sbercloud_obs_bucket.bucket"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheckOBS(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckObsBucketDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheckOBS(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckObsBucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccObsBucketConfigWithCORS(rInt),
@@ -267,8 +268,8 @@ func TestAccObsBucket_cors(t *testing.T) {
 }
 
 func testAccCheckObsBucketDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	obsClient, err := config.ObjectStorageClient(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	obsClient, err := config.ObjectStorageClient(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating SberCloud OBS client: %s", err)
 	}
@@ -297,8 +298,8 @@ func testAccCheckObsBucketExists(n string) resource.TestCheckFunc {
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		obsClient, err := config.ObjectStorageClient(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		obsClient, err := config.ObjectStorageClient(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud OBS client: %s", err)
 		}
@@ -318,8 +319,8 @@ func testAccCheckObsBucketLogging(name, target, prefix string) resource.TestChec
 			return fmt.Errorf("Not found: %s", name)
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		obsClient, err := config.ObjectStorageClient(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		obsClient, err := config.ObjectStorageClient(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud OBS client: %s", err)
 		}
@@ -348,7 +349,7 @@ func testAccObsBucketName(randInt int) string {
 }
 
 func testAccObsBucketDomainName(randInt int) string {
-	return fmt.Sprintf("tf-test-bucket-%d.obs.%s.hc.sbercloud.ru", randInt, SBC_REGION_NAME)
+	return fmt.Sprintf("tf-test-bucket-%d.obs.%s.hc.sbercloud.ru", randInt, acceptance.SBC_REGION_NAME)
 }
 
 func testAccObsBucket_basic(randInt int) string {
@@ -369,7 +370,7 @@ resource "sbercloud_obs_bucket" "bucket" {
   acl = "private"
   enterprise_project_id = "%s"
 }
-`, randInt, SBC_ENTERPRISE_PROJECT_ID_TEST)
+`, randInt, acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST)
 }
 
 func testAccObsBucket_basic_update(randInt int) string {
