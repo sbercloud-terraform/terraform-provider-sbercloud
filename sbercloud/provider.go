@@ -113,6 +113,28 @@ func Provider() *schema.Provider {
 				RequiredWith: []string{"user_name", "account_name"},
 			},
 
+			"assume_role": {
+				Type:     schema.TypeList,
+				Optional: true,
+				MaxItems: 1,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"agency_name": {
+							Type:        schema.TypeString,
+							Required:    true,
+							Description: descriptions["assume_role_agency_name"],
+							DefaultFunc: schema.EnvDefaultFunc("SBC_ASSUME_ROLE_AGENCY_NAME", nil),
+						},
+						"domain_name": {
+							Type:        schema.TypeString,
+							Required:    true,
+							Description: descriptions["assume_role_domain_name"],
+							DefaultFunc: schema.EnvDefaultFunc("SBC_ASSUME_ROLE_DOMAIN_NAME", nil),
+						},
+					},
+				},
+			},
+
 			"account_name": {
 				Type:     schema.TypeString,
 				Optional: true,
