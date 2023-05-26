@@ -1,4 +1,4 @@
-package sbercloud
+package obs
 
 import (
 	"fmt"
@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 )
 
 func TestAccObsBucketObject_source(t *testing.T) {
@@ -28,9 +29,9 @@ func TestAccObsBucketObject_source(t *testing.T) {
 	}
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheckOBS(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckObsBucketObjectDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheckOBS(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckObsBucketObjectDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccObsBucketObjectConfigSource(rInt, tmpFile.Name()),
@@ -60,9 +61,9 @@ func TestAccObsBucketObject_content(t *testing.T) {
 	rInt := acctest.RandInt()
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheckOBS(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckObsBucketObjectDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheckOBS(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckObsBucketObjectDestroy,
 		Steps: []resource.TestStep{
 			{
 				PreConfig: func() {},
@@ -80,8 +81,8 @@ func TestAccObsBucketObject_content(t *testing.T) {
 }
 
 func testAccCheckObsBucketObjectDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	obsClient, err := config.ObjectStorageClient(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	obsClient, err := config.ObjectStorageClient(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating SberCloud OBS client: %s", err)
 	}
@@ -131,8 +132,8 @@ func testAccCheckObsBucketObjectExists(n string) resource.TestCheckFunc {
 			return fmt.Errorf("No OBS Bucket Object ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		obsClient, err := config.ObjectStorageClient(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		obsClient, err := config.ObjectStorageClient(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud OBS client: %s", err)
 		}

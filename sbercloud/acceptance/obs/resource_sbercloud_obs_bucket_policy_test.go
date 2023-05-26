@@ -1,7 +1,8 @@
-package sbercloud
+package obs
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/chnsz/golangsdk/openstack/obs"
@@ -21,9 +22,9 @@ func TestAccObsBucketPolicy_basic(t *testing.T) {
 		name)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheckOBS(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckObsBucketDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheckOBS(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckObsBucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccObsBucketPolicyConfig(name),
@@ -56,9 +57,9 @@ func TestAccObsBucketPolicy_update(t *testing.T) {
 		name)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheckOBS(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckObsBucketDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheckOBS(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckObsBucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccObsBucketPolicyConfig(name),
@@ -90,9 +91,9 @@ func TestAccObsBucketPolicy_s3(t *testing.T) {
 		name, name)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheckOBS(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckObsBucketDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheckOBS(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckObsBucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccObsBucketPolicyS3Foramt(name),
@@ -120,12 +121,12 @@ func testAccCheckObsBucketHasPolicy(n string, expectedPolicyText string) resourc
 		var err error
 		var obsClient *obs.ObsClient
 
-		config := testAccProvider.Meta().(*config.Config)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
 		format := rs.Primary.Attributes["policy_format"]
 		if format == "obs" {
-			obsClient, err = config.ObjectStorageClientWithSignature(SBC_REGION_NAME)
+			obsClient, err = config.ObjectStorageClientWithSignature(acceptance.SBC_REGION_NAME)
 		} else {
-			obsClient, err = config.ObjectStorageClient(SBC_REGION_NAME)
+			obsClient, err = config.ObjectStorageClient(acceptance.SBC_REGION_NAME)
 		}
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud OBS client: %s", err)
