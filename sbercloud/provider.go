@@ -239,6 +239,7 @@ func Provider() *schema.Provider {
 			"sbercloud_vpcs":                   vpc.DataSourceVpcs(),
 			"sbercloud_vpc_bandwidth":          eip.DataSourceBandWidth(),
 			"sbercloud_vpc_eip":                eip.DataSourceVpcEip(),
+			"sbercloud_vpc_eips":               eip.DataSourceVpcEips(),
 			"sbercloud_vpc_ids":                vpc.DataSourceVpcIdsV1(),
 			"sbercloud_vpc_peering_connection": vpc.DataSourceVpcPeeringConnectionV2(),
 			"sbercloud_vpc_route":              vpc.DataSourceVpcRouteV2(),
