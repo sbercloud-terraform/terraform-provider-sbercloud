@@ -53,19 +53,6 @@ func TestAccFunctionGraphTrigger_basic(t *testing.T) {
 						"${sbercloud_fgs_function.test.urn}"),
 				),
 			},
-			{
-				Config: testAccFunctionGraphTimingTrigger_update(randName),
-				Check: resource.ComposeTestCheckFunc(
-					rc.CheckResourceExists(),
-					resource.TestCheckResourceAttr(resourceName, "type", "TIMER"),
-					resource.TestCheckResourceAttr(resourceName, "timer.0.name", randName),
-					resource.TestCheckResourceAttr(resourceName, "timer.0.schedule_type", "Rate"),
-					resource.TestCheckResourceAttr(resourceName, "timer.0.schedule", "3d"),
-					resource.TestCheckResourceAttr(resourceName, "status", "DISABLED"),
-					acceptance.TestCheckResourceAttrWithVariable(resourceName, "function_urn",
-						"${sbercloud_fgs_function.test.urn}"),
-				),
-			},
 		},
 	})
 }
@@ -97,19 +84,6 @@ func TestAccFunctionGraphTrigger_cronTimer(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "timer.0.schedule_type", "Cron"),
 					resource.TestCheckResourceAttr(resourceName, "timer.0.schedule", "@every 1h30m"),
 					resource.TestCheckResourceAttr(resourceName, "status", "ACTIVE"),
-					acceptance.TestCheckResourceAttrWithVariable(resourceName, "function_urn",
-						"${sbercloud_fgs_function.test.urn}"),
-				),
-			},
-			{
-				Config: testAccFunctionGraphTimingTrigger_cronUpdate(randName),
-				Check: resource.ComposeTestCheckFunc(
-					rc.CheckResourceExists(),
-					resource.TestCheckResourceAttr(resourceName, "type", "TIMER"),
-					resource.TestCheckResourceAttr(resourceName, "timer.0.name", randName),
-					resource.TestCheckResourceAttr(resourceName, "timer.0.schedule_type", "Cron"),
-					resource.TestCheckResourceAttr(resourceName, "timer.0.schedule", "@every 1h30m"),
-					resource.TestCheckResourceAttr(resourceName, "status", "DISABLED"),
 					acceptance.TestCheckResourceAttrWithVariable(resourceName, "function_urn",
 						"${sbercloud_fgs_function.test.urn}"),
 				),

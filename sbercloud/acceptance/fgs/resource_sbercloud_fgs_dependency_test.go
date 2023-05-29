@@ -25,7 +25,7 @@ func TestAccFunctionGraphResourceDependency_basic(t *testing.T) {
 	var f dependencies.Dependency
 	rName := acceptance.RandomAccResourceName()
 	resourceName := "sbercloud_fgs_dependency.test"
-	pkgLocation := fmt.Sprintf("https://%s.obs.cn-north-4.myhuaweicloud.com/FunctionGraph/dependencies/huaweicloudsdkcore.zip",
+	pkgLocation := fmt.Sprintf("https://%s.obs..ru-moscow-1.hc.sbercloud.ru/FunctionGraph/dependencies/huaweicloudsdkcore.zip",
 		acceptance.SBC_OBS_BUCKET_NAME)
 
 	rc := acceptance.InitResourceCheck(
