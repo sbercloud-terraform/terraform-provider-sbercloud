@@ -1,6 +1,7 @@
 package sbercloud
 
 import (
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cts"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dew"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dns"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/nat"
@@ -274,6 +275,9 @@ func Provider() *schema.Provider {
 			"sbercloud_compute_eip_associate":           ecs.ResourceComputeEIPAssociate(),
 			"sbercloud_compute_volume_attach":           ecs.ResourceComputeVolumeAttach(),
 			"sbercloud_ces_alarmrule":                   ces.ResourceAlarmRule(),
+			"sbercloud_cts_tracker":                     cts.ResourceCTSTracker(),
+			"sbercloud_cts_data_tracker":                cts.ResourceCTSDataTracker(),
+			"sbercloud_cts_notification":                cts.ResourceCTSNotification(),
 			"sbercloud_dcs_instance":                    dcs.ResourceDcsInstance(),
 			"sbercloud_dds_instance":                    dds.ResourceDdsInstanceV3(),
 			"sbercloud_dis_stream":                      dis.ResourceDisStream(),
