@@ -283,6 +283,8 @@ func Provider() *schema.Provider {
 			"sbercloud_evs_snapshot":                    huaweicloud.ResourceEvsSnapshotV2(),
 			"sbercloud_evs_volume":                      evs.ResourceEvsVolume(),
 			"sbercloud_fgs_function":                    fgs.ResourceFgsFunctionV2(),
+			"sbercloud_fgs_trigger":                     fgs.ResourceFunctionGraphTrigger(),
+			"sbercloud_fgs_dependency":                  fgs.ResourceFgsDependency(),
 			"sbercloud_ges_graph":                       huaweicloud.ResourceGesGraphV1(),
 			"sbercloud_identity_access_key":             iam.ResourceIdentityKey(),
 			"sbercloud_identity_acl":                    iam.ResourceIdentityACL(),
