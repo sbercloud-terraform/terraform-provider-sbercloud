@@ -2,6 +2,7 @@ package sbercloud
 
 import (
 	"fmt"
+	obs2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance/obs"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -25,7 +26,7 @@ func TestAccSberCloudObsBucketObjectDataSource_content(t *testing.T) {
 			{
 				Config: resourceConf,
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckObsBucketObjectExists("sbercloud_obs_bucket_object.object"),
+					obs2.testAccCheckObsBucketObjectExists("sbercloud_obs_bucket_object.object"),
 				),
 			},
 			{
@@ -68,7 +69,7 @@ func TestAccSberCloudObsBucketObjectDataSource_source(t *testing.T) {
 			{
 				Config: resourceConf,
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckObsBucketObjectExists("sbercloud_obs_bucket_object.object"),
+					obs2.testAccCheckObsBucketObjectExists("sbercloud_obs_bucket_object.object"),
 				),
 			},
 			{
@@ -95,7 +96,7 @@ func TestAccSberCloudObsBucketObjectDataSource_allParams(t *testing.T) {
 			{
 				Config: resourceConf,
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckObsBucketObjectExists("sbercloud_obs_bucket_object.object"),
+					obs2.testAccCheckObsBucketObjectExists("sbercloud_obs_bucket_object.object"),
 				),
 			},
 			{
@@ -137,7 +138,7 @@ func testAccCheckAwsObsObjectDataSourceExists(n string) resource.TestCheckFunc {
 			},
 		})
 		if err != nil {
-			return getObsError("Error listing objects of OBS bucket", bucket, err)
+			return obs2.getObsError("Error listing objects of OBS bucket", bucket, err)
 		}
 
 		var exist bool

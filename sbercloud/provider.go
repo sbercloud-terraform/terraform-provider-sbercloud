@@ -115,6 +115,28 @@ func Provider() *schema.Provider {
 				RequiredWith: []string{"user_name", "account_name"},
 			},
 
+			"assume_role": {
+				Type:     schema.TypeList,
+				Optional: true,
+				MaxItems: 1,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"agency_name": {
+							Type:        schema.TypeString,
+							Required:    true,
+							Description: descriptions["assume_role_agency_name"],
+							DefaultFunc: schema.EnvDefaultFunc("SBC_ASSUME_ROLE_AGENCY_NAME", nil),
+						},
+						"domain_name": {
+							Type:        schema.TypeString,
+							Required:    true,
+							Description: descriptions["assume_role_domain_name"],
+							DefaultFunc: schema.EnvDefaultFunc("SBC_ASSUME_ROLE_DOMAIN_NAME", nil),
+						},
+					},
+				},
+			},
+
 			"account_name": {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -209,6 +231,7 @@ func Provider() *schema.Provider {
 			"sbercloud_nat_gateway":            nat.DataSourcePublicGateway(),
 			"sbercloud_networking_port":        vpc.DataSourceNetworkingPortV2(),
 			"sbercloud_networking_secgroup":    huaweicloud.DataSourceNetworkingSecGroup(),
+			"sbercloud_obs_buckets":            obs.DataSourceObsBuckets(),
 			"sbercloud_obs_bucket_object":      obs.DataSourceObsBucketObject(),
 			"sbercloud_rds_flavors":            rds.DataSourceRdsFlavor(),
 			"sbercloud_sfs_file_system":        huaweicloud.DataSourceSFSFileSystemV2(),
@@ -323,6 +346,7 @@ func Provider() *schema.Provider {
 			"sbercloud_obs_bucket":                      obs.ResourceObsBucket(),
 			"sbercloud_obs_bucket_object":               obs.ResourceObsBucketObject(),
 			"sbercloud_obs_bucket_policy":               obs.ResourceObsBucketPolicy(),
+			"sbercloud_obs_bucket_acl":                  obs.ResourceOBSBucketAcl(),
 			"sbercloud_rds_instance":                    rds.ResourceRdsInstance(),
 			"sbercloud_rds_parametergroup":              rds.ResourceRdsConfiguration(),
 			"sbercloud_rds_read_replica_instance":       rds.ResourceRdsReadReplicaInstance(),
