@@ -2,6 +2,7 @@ package sbercloud
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -19,9 +20,9 @@ func TestAccNetworkingV2SecGroupRule_basic(t *testing.T) {
 	var secgroup_rule_2 rules.SecGroupRule
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckNetworkingV2SecGroupRuleDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckNetworkingV2SecGroupRuleDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccNetworkingV2SecGroupRule_basic,
@@ -50,9 +51,9 @@ func TestAccNetworkingV2SecGroupRule_lowerCaseCIDR(t *testing.T) {
 	var secgroup_rule_1 rules.SecGroupRule
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckNetworkingV2SecGroupRuleDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckNetworkingV2SecGroupRuleDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccNetworkingV2SecGroupRule_lowerCaseCIDR,
@@ -74,9 +75,9 @@ func TestAccNetworkingV2SecGroupRule_timeout(t *testing.T) {
 	var secgroup_2 groups.SecGroup
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckNetworkingV2SecGroupRuleDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckNetworkingV2SecGroupRuleDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccNetworkingV2SecGroupRule_timeout,
@@ -96,9 +97,9 @@ func TestAccNetworkingV2SecGroupRule_numericProtocol(t *testing.T) {
 	var secgroup_rule_1 rules.SecGroupRule
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckNetworkingV2SecGroupRuleDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckNetworkingV2SecGroupRuleDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccNetworkingV2SecGroupRule_numericProtocol,
@@ -116,8 +117,8 @@ func TestAccNetworkingV2SecGroupRule_numericProtocol(t *testing.T) {
 }
 
 func testAccCheckNetworkingV2SecGroupRuleDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	networkingClient, err := config.NetworkingV2Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	networkingClient, err := config.NetworkingV2Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating HuaweiCloud networking client: %s", err)
 	}
@@ -147,8 +148,8 @@ func testAccCheckNetworkingV2SecGroupRuleExists(n string, security_group_rule *r
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		networkingClient, err := config.NetworkingV2Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		networkingClient, err := config.NetworkingV2Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating HuaweiCloud networking client: %s", err)
 		}
