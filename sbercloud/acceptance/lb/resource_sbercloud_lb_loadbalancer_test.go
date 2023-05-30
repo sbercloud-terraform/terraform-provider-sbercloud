@@ -32,7 +32,7 @@ func TestAccLBV2LoadBalancer_basic(t *testing.T) {
 	var lb loadbalancers.LoadBalancer
 	rName := acceptance.RandomAccResourceNameWithDash()
 	rNameUpdate := rName + "-update"
-	resourceName := "huaweicloud_lb_loadbalancer.loadbalancer_1"
+	resourceName := "sbercloud_lb_loadbalancer.loadbalancer_1"
 
 	rc := acceptance.InitResourceCheck(
 		resourceName,
@@ -81,7 +81,7 @@ func TestAccLBV2LoadBalancer_secGroup(t *testing.T) {
 	rName := acceptance.RandomAccResourceNameWithDash()
 	rNameSg1 := acceptance.RandomAccResourceNameWithDash()
 	rNameSg2 := acceptance.RandomAccResourceNameWithDash()
-	resourceName := "huaweicloud_lb_loadbalancer.loadbalancer_1"
+	resourceName := "sbercloud_lb_loadbalancer.loadbalancer_1"
 
 	rc := acceptance.InitResourceCheck(
 		resourceName,
@@ -100,9 +100,9 @@ func TestAccLBV2LoadBalancer_secGroup(t *testing.T) {
 					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "security_group_ids.#", "1"),
 					testAccCheckNetworkingV3SecGroupExists(
-						"huaweicloud_networking_secgroup.secgroup_1", &sg1),
+						"sbercloud_networking_secgroup.secgroup_1", &sg1),
 					testAccCheckNetworkingV3SecGroupExists(
-						"huaweicloud_networking_secgroup.secgroup_1", &sg2),
+						"sbercloud_networking_secgroup.secgroup_1", &sg2),
 					testAccCheckLBV2LoadBalancerHasSecGroup(&lb, &sg1),
 				),
 			},
@@ -112,9 +112,9 @@ func TestAccLBV2LoadBalancer_secGroup(t *testing.T) {
 					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "security_group_ids.#", "2"),
 					testAccCheckNetworkingV3SecGroupExists(
-						"huaweicloud_networking_secgroup.secgroup_2", &sg1),
+						"sbercloud_networking_secgroup.secgroup_2", &sg1),
 					testAccCheckNetworkingV3SecGroupExists(
-						"huaweicloud_networking_secgroup.secgroup_2", &sg2),
+						"sbercloud_networking_secgroup.secgroup_2", &sg2),
 					testAccCheckLBV2LoadBalancerHasSecGroup(&lb, &sg1),
 					testAccCheckLBV2LoadBalancerHasSecGroup(&lb, &sg2),
 				),
@@ -125,9 +125,9 @@ func TestAccLBV2LoadBalancer_secGroup(t *testing.T) {
 					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "security_group_ids.#", "1"),
 					testAccCheckNetworkingV3SecGroupExists(
-						"huaweicloud_networking_secgroup.secgroup_2", &sg1),
+						"sbercloud_networking_secgroup.secgroup_2", &sg1),
 					testAccCheckNetworkingV3SecGroupExists(
-						"huaweicloud_networking_secgroup.secgroup_2", &sg2),
+						"sbercloud_networking_secgroup.secgroup_2", &sg2),
 					testAccCheckLBV2LoadBalancerHasSecGroup(&lb, &sg2),
 				),
 			},
@@ -143,7 +143,7 @@ func TestAccLBV2LoadBalancer_secGroup(t *testing.T) {
 func TestAccLBV2LoadBalancer_withEpsId(t *testing.T) {
 	var lb loadbalancers.LoadBalancer
 	rName := acceptance.RandomAccResourceNameWithDash()
-	resourceName := "huaweicloud_lb_loadbalancer.loadbalancer_1"
+	resourceName := "sbercloud_lb_loadbalancer.loadbalancer_1"
 
 	rc := acceptance.InitResourceCheck(
 		resourceName,
@@ -234,10 +234,10 @@ func testAccLBV2LoadBalancerConfig_basic(rName string) string {
 	return fmt.Sprintf(`
 %s
 
-resource "huaweicloud_lb_loadbalancer" "loadbalancer_1" {
+resource "sbercloud_lb_loadbalancer" "loadbalancer_1" {
   name          = "%s"
   description   = "created by acceptance test"
-  vip_subnet_id = huaweicloud_vpc_subnet.test.ipv4_subnet_id
+  vip_subnet_id = sbercloud_vpc_subnet.test.ipv4_subnet_id
 
   tags = {
     key   = "value"
@@ -251,10 +251,10 @@ func testAccLBV2LoadBalancerConfig_update(rName, rNameUpdate string) string {
 	return fmt.Sprintf(`
 %s
 
-resource "huaweicloud_lb_loadbalancer" "loadbalancer_1" {
+resource "sbercloud_lb_loadbalancer" "loadbalancer_1" {
   name           = "%s"
   admin_state_up = "true"
-  vip_subnet_id  = huaweicloud_vpc_subnet.test.ipv4_subnet_id
+  vip_subnet_id  = sbercloud_vpc_subnet.test.ipv4_subnet_id
 
   tags = {
     key1  = "value1"
@@ -268,22 +268,22 @@ func testAccLBV2LoadBalancer_secGroup(rName, rNameSg1, rNameSg2 string) string {
 	return fmt.Sprintf(`
 %s
 
-resource "huaweicloud_networking_secgroup" "secgroup_1" {
+resource "sbercloud_networking_secgroup" "secgroup_1" {
   name        = "%s"
   description = "secgroup_1"
 }
 
-resource "huaweicloud_networking_secgroup" "secgroup_2" {
+resource "sbercloud_networking_secgroup" "secgroup_2" {
   name        = "%s"
   description = "secgroup_2"
 }
 
-resource "huaweicloud_lb_loadbalancer" "loadbalancer_1" {
+resource "sbercloud_lb_loadbalancer" "loadbalancer_1" {
   name          = "%s"
-  vip_subnet_id = huaweicloud_vpc_subnet.test.ipv4_subnet_id
+  vip_subnet_id = sbercloud_vpc_subnet.test.ipv4_subnet_id
 
   security_group_ids = [
-    huaweicloud_networking_secgroup.secgroup_1.id
+    sbercloud_networking_secgroup.secgroup_1.id
   ]
 }
 `, acceptance.TestVpc(rName), rNameSg1, rNameSg2, rName)
@@ -293,23 +293,23 @@ func testAccLBV2LoadBalancer_secGroup_update1(rName, rNameSg1, rNameSg2 string) 
 	return fmt.Sprintf(`
 %s
 
-resource "huaweicloud_networking_secgroup" "secgroup_1" {
+resource "sbercloud_networking_secgroup" "secgroup_1" {
   name        = "%s"
   description = "secgroup_1"
 }
 
-resource "huaweicloud_networking_secgroup" "secgroup_2" {
+resource "sbercloud_networking_secgroup" "secgroup_2" {
   name        = "%s"
   description = "secgroup_2"
 }
 
-resource "huaweicloud_lb_loadbalancer" "loadbalancer_1" {
+resource "sbercloud_lb_loadbalancer" "loadbalancer_1" {
   name          = "%s"
-  vip_subnet_id = huaweicloud_vpc_subnet.test.ipv4_subnet_id
+  vip_subnet_id = sbercloud_vpc_subnet.test.ipv4_subnet_id
 
   security_group_ids = [
-    huaweicloud_networking_secgroup.secgroup_1.id,
-    huaweicloud_networking_secgroup.secgroup_2.id
+    sbercloud_networking_secgroup.secgroup_1.id,
+    sbercloud_networking_secgroup.secgroup_2.id
   ]
 }
 `, acceptance.TestVpc(rName), rNameSg1, rNameSg2, rName)
@@ -319,22 +319,22 @@ func testAccLBV2LoadBalancer_secGroup_update2(rName, rNameSg1, rNameSg2 string) 
 	return fmt.Sprintf(`
 %s
 
-resource "huaweicloud_networking_secgroup" "secgroup_1" {
+resource "sbercloud_networking_secgroup" "secgroup_1" {
   name        = "%s"
   description = "secgroup_1"
 }
 
-resource "huaweicloud_networking_secgroup" "secgroup_2" {
+resource "sbercloud_networking_secgroup" "secgroup_2" {
   name        = "%s"
   description = "secgroup_2"
 }
 
-resource "huaweicloud_lb_loadbalancer" "loadbalancer_1" {
+resource "sbercloud_lb_loadbalancer" "loadbalancer_1" {
   name          = "%s"
-  vip_subnet_id = huaweicloud_vpc_subnet.test.ipv4_subnet_id
+  vip_subnet_id = sbercloud_vpc_subnet.test.ipv4_subnet_id
 
   security_group_ids = [
-    huaweicloud_networking_secgroup.secgroup_2.id
+    sbercloud_networking_secgroup.secgroup_2.id
   ]
 }
 `, acceptance.TestVpc(rName), rNameSg1, rNameSg2, rName)
@@ -344,9 +344,9 @@ func testAccLBV2LoadBalancerConfig_withEpsId(rName string) string {
 	return fmt.Sprintf(`
 %s
 
-resource "huaweicloud_lb_loadbalancer" "loadbalancer_1" {
+resource "sbercloud_lb_loadbalancer" "loadbalancer_1" {
   name                  = "%s"
-  vip_subnet_id         = huaweicloud_vpc_subnet.test.ipv4_subnet_id
+  vip_subnet_id         = sbercloud_vpc_subnet.test.ipv4_subnet_id
   enterprise_project_id = "%s"
 
   tags = {
