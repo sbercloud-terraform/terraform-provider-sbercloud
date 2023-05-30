@@ -1,8 +1,8 @@
-package sbercloud
+package obs
 
 import (
 	"fmt"
-	obs2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance/obs"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -19,14 +19,14 @@ func TestAccSberCloudObsBucketObjectDataSource_content(t *testing.T) {
 	resourceConf, dataSourceConf := testAccSberCloudObsBucketObjectDataSource_content(rInt)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:                  func() { testAccPreCheck(t) },
-		Providers:                 testAccProviders,
+		PreCheck:                  func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories:         acceptance.TestAccProviderFactories,
 		PreventPostDestroyRefresh: true,
 		Steps: []resource.TestStep{
 			{
 				Config: resourceConf,
 				Check: resource.ComposeTestCheckFunc(
-					obs2.testAccCheckObsBucketObjectExists("sbercloud_obs_bucket_object.object"),
+					testAccCheckObsBucketObjectExists("sbercloud_obs_bucket_object.object"),
 				),
 			},
 			{
@@ -62,14 +62,14 @@ func TestAccSberCloudObsBucketObjectDataSource_source(t *testing.T) {
 	resourceConf, dataSourceConf := testAccSberCloudObsBucketObjectDataSource_source(rInt, tmpFile.Name())
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:                  func() { testAccPreCheck(t) },
-		Providers:                 testAccProviders,
+		PreCheck:                  func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories:         acceptance.TestAccProviderFactories,
 		PreventPostDestroyRefresh: true,
 		Steps: []resource.TestStep{
 			{
 				Config: resourceConf,
 				Check: resource.ComposeTestCheckFunc(
-					obs2.testAccCheckObsBucketObjectExists("sbercloud_obs_bucket_object.object"),
+					testAccCheckObsBucketObjectExists("sbercloud_obs_bucket_object.object"),
 				),
 			},
 			{
@@ -89,14 +89,14 @@ func TestAccSberCloudObsBucketObjectDataSource_allParams(t *testing.T) {
 	resourceConf, dataSourceConf := testAccSberCloudObsBucketObjectDataSource_allParams(rInt)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:                  func() { testAccPreCheck(t) },
-		Providers:                 testAccProviders,
+		PreCheck:                  func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories:         acceptance.TestAccProviderFactories,
 		PreventPostDestroyRefresh: true,
 		Steps: []resource.TestStep{
 			{
 				Config: resourceConf,
 				Check: resource.ComposeTestCheckFunc(
-					obs2.testAccCheckObsBucketObjectExists("sbercloud_obs_bucket_object.object"),
+					testAccCheckObsBucketObjectExists("sbercloud_obs_bucket_object.object"),
 				),
 			},
 			{
@@ -125,8 +125,8 @@ func testAccCheckAwsObsObjectDataSourceExists(n string) resource.TestCheckFunc {
 		bucket := rs.Primary.Attributes["bucket"]
 		key := rs.Primary.Attributes["key"]
 
-		config := testAccProvider.Meta().(*config.Config)
-		obsClient, err := config.ObjectStorageClient(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		obsClient, err := config.ObjectStorageClient(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud OBS client: %s", err)
 		}
@@ -138,7 +138,7 @@ func testAccCheckAwsObsObjectDataSourceExists(n string) resource.TestCheckFunc {
 			},
 		})
 		if err != nil {
-			return obs2.getObsError("Error listing objects of OBS bucket", bucket, err)
+			return getObsError("Error listing objects of OBS bucket", bucket, err)
 		}
 
 		var exist bool

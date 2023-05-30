@@ -57,3 +57,40 @@ func CheckDeleted(d *schema.ResourceData, err error, msg string) error {
 
 	return fmt.Errorf("%s: %s", msg, err)
 }
+
+func TestBaseNetwork(name string) string {
+	return fmt.Sprintf(`
+# base security group without default rules
+%s
+
+# base vpc and subnet
+%s
+`, TestSecGroup(name), TestVpc(name))
+}
+
+// TestSecGroup can be referred as `sbercloud_networking_secgroup.test`
+func TestSecGroup(name string) string {
+	return fmt.Sprintf(`
+resource "sbercloud_networking_secgroup" "test" {
+  name                 = "%s"
+  delete_default_rules = true
+}
+`, name)
+}
+
+// TestVpc can be referred as `sbercloud_vpc.test` and `sbercloud_vpc_subnet.test`
+func TestVpc(name string) string {
+	return fmt.Sprintf(`
+resource "sbercloud_vpc" "test" {
+  name = "%[1]s"
+  cidr = "192.168.0.0/16"
+}
+
+resource "sbercloud_vpc_subnet" "test" {
+  name       = "%[1]s"
+  vpc_id     = sbercloud_vpc.test.id
+  cidr       = "192.168.0.0/24"
+  gateway_ip = "192.168.0.1"
+}
+`, name)
+}
