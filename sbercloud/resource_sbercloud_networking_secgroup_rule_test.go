@@ -15,7 +15,7 @@ import (
 
 func TestAccNetworkingSecGroupRule_basic(t *testing.T) {
 	var secgroupRule rules.SecurityGroupRule
-	var resourceRuleName string = "huaweicloud_networking_secgroup_rule.secgroup_rule_test"
+	var resourceRuleName string = "sbercloud_networking_secgroup_rule.secgroup_rule_test"
 	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
 
 	resource.ParallelTest(t, resource.TestCase{
@@ -47,7 +47,7 @@ func TestAccNetworkingSecGroupRule_basic(t *testing.T) {
 
 func TestAccNetworkingSecGroupRule_oldPorts(t *testing.T) {
 	var secgroupRule rules.SecurityGroupRule
-	var resourceRuleName string = "huaweicloud_networking_secgroup_rule.secgroup_rule_test"
+	var resourceRuleName string = "sbercloud_networking_secgroup_rule.secgroup_rule_test"
 	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
 
 	resource.ParallelTest(t, resource.TestCase{
@@ -78,7 +78,7 @@ func TestAccNetworkingSecGroupRule_oldPorts(t *testing.T) {
 
 func TestAccNetworkingSecGroupRule_remoteGroup(t *testing.T) {
 	var secgroupRule rules.SecurityGroupRule
-	var resourceRuleName string = "huaweicloud_networking_secgroup_rule.secgroup_rule_test"
+	var resourceRuleName string = "sbercloud_networking_secgroup_rule.secgroup_rule_test"
 	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
 
 	resource.ParallelTest(t, resource.TestCase{
@@ -107,7 +107,7 @@ func TestAccNetworkingSecGroupRule_remoteGroup(t *testing.T) {
 
 func TestAccNetworkingSecGroupRule_lowerCaseCIDR(t *testing.T) {
 	var secgroupRule rules.SecurityGroupRule
-	var resourceRuleName string = "huaweicloud_networking_secgroup_rule.secgroup_rule_test"
+	var resourceRuleName string = "sbercloud_networking_secgroup_rule.secgroup_rule_test"
 	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
 
 	resource.ParallelTest(t, resource.TestCase{
@@ -133,7 +133,7 @@ func TestAccNetworkingSecGroupRule_lowerCaseCIDR(t *testing.T) {
 
 func TestAccNetworkingSecGroupRule_noPorts(t *testing.T) {
 	var secgroupRule rules.SecurityGroupRule
-	var resourceRuleName string = "huaweicloud_networking_secgroup_rule.test"
+	var resourceRuleName string = "sbercloud_networking_secgroup_rule.test"
 	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
 
 	resource.ParallelTest(t, resource.TestCase{
@@ -162,7 +162,7 @@ func TestAccNetworkingSecGroupRule_noPorts(t *testing.T) {
 
 func TestAccNetworkingSecGroupRule_remoteAddressGroup(t *testing.T) {
 	var secgroupRule rules.SecurityGroupRule
-	var resourceRuleName string = "huaweicloud_networking_secgroup_rule.test"
+	var resourceRuleName string = "sbercloud_networking_secgroup_rule.test"
 	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
 
 	resource.ParallelTest(t, resource.TestCase{
@@ -175,7 +175,7 @@ func TestAccNetworkingSecGroupRule_remoteAddressGroup(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckNetworkingSecGroupRuleExists(resourceRuleName, &secgroupRule),
 					resource.TestCheckResourceAttrPair(resourceRuleName, "remote_address_group_id",
-						"huaweicloud_vpc_address_group.test", "id"),
+						"sbercloud_vpc_address_group.test", "id"),
 				),
 			},
 			{
@@ -190,8 +190,8 @@ func TestAccNetworkingSecGroupRule_remoteAddressGroup(t *testing.T) {
 func TestAccNetworkingSecGroupRule_action(t *testing.T) {
 	var (
 		secgroupRule rules.SecurityGroupRule
-		allowResName string = "huaweicloud_networking_secgroup_rule.allow"
-		denyResName  string = "huaweicloud_networking_secgroup_rule.deny"
+		allowResName string = "sbercloud_networking_secgroup_rule.allow"
+		denyResName  string = "sbercloud_networking_secgroup_rule.deny"
 	)
 
 	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
@@ -226,7 +226,7 @@ func TestAccNetworkingSecGroupRule_action(t *testing.T) {
 
 func TestAccNetworkingSecGroupRule_priority(t *testing.T) {
 	var secgroupRule rules.SecurityGroupRule
-	var resourceRuleName string = "huaweicloud_networking_secgroup_rule.test"
+	var resourceRuleName string = "sbercloud_networking_secgroup_rule.test"
 	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
 
 	resource.ParallelTest(t, resource.TestCase{
@@ -254,11 +254,11 @@ func testAccCheckNetworkingSecGroupRuleDestroy(s *terraform.State) error {
 	config := testAccProvider.Meta().(*config.Config)
 	networkingClient, err := config.NetworkingV1Client(SBC_REGION_NAME)
 	if err != nil {
-		return fmtp.Errorf("Error creating HuaweiCloud networking client: %s", err)
+		return fmtp.Errorf("Error creating SberCloud networking client: %s", err)
 	}
 
 	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "huaweicloud_networking_secgroup_rule" {
+		if rs.Type != "sbercloud_networking_secgroup_rule" {
 			continue
 		}
 
@@ -285,7 +285,7 @@ func testAccCheckNetworkingSecGroupRuleExists(n string, secGroupRule *rules.Secu
 		config := testAccProvider.Meta().(*config.Config)
 		networkingClient, err := config.NetworkingV1Client(SBC_REGION_NAME)
 		if err != nil {
-			return fmtp.Errorf("Error creating HuaweiCloud networking client: %s", err)
+			return fmtp.Errorf("Error creating SberCloud networking client: %s", err)
 		}
 
 		found, err := rules.Get(networkingClient, rs.Primary.ID)
@@ -305,7 +305,7 @@ func testAccCheckNetworkingSecGroupRuleExists(n string, secGroupRule *rules.Secu
 
 func testAccNetworkingSecGroupRule_base(rName string) string {
 	return fmt.Sprintf(`
-resource "huaweicloud_networking_secgroup" "secgroup_test" {
+resource "sbercloud_networking_secgroup" "secgroup_test" {
   name        = "%s-secgroup"
   description = "terraform security group rule acceptance test"
 }
@@ -316,14 +316,14 @@ func testAccNetworkingSecGroupRule_basic(rName string) string {
 	return fmt.Sprintf(`
 %s
 
-resource "huaweicloud_networking_secgroup_rule" "secgroup_rule_test" {
+resource "sbercloud_networking_secgroup_rule" "secgroup_rule_test" {
   direction         = "ingress"
   description       = "This is a basic acc test"
   ethertype         = "IPv4"
   ports             = 80
   protocol          = "tcp"
   remote_ip_prefix  = "0.0.0.0/0"
-  security_group_id = huaweicloud_networking_secgroup.secgroup_test.id
+  security_group_id = sbercloud_networking_secgroup.secgroup_test.id
 }
 `, testAccNetworkingSecGroupRule_base(rName))
 }
@@ -332,14 +332,14 @@ func testAccNetworkingSecGroupRule_oldPorts(rName string) string {
 	return fmt.Sprintf(`
 %s
 
-resource "huaweicloud_networking_secgroup_rule" "secgroup_rule_test" {
+resource "sbercloud_networking_secgroup_rule" "secgroup_rule_test" {
   direction         = "ingress"
   ethertype         = "IPv4"
   port_range_min    = 80
   port_range_max    = 80
   protocol          = "tcp"
   remote_ip_prefix  = "0.0.0.0/0"
-  security_group_id = huaweicloud_networking_secgroup.secgroup_test.id
+  security_group_id = sbercloud_networking_secgroup.secgroup_test.id
 }
 `, testAccNetworkingSecGroupRule_base(rName))
 }
@@ -348,13 +348,13 @@ func testAccNetworkingSecGroupRule_remoteGroup(rName string) string {
 	return fmt.Sprintf(`
 %s
 
-resource "huaweicloud_networking_secgroup_rule" "secgroup_rule_test" {
+resource "sbercloud_networking_secgroup_rule" "secgroup_rule_test" {
   direction         = "ingress"
   ethertype         = "IPv4"
   ports             = 80
   protocol          = "tcp"
-  remote_group_id   = huaweicloud_networking_secgroup.secgroup_test.id
-  security_group_id = huaweicloud_networking_secgroup.secgroup_test.id
+  remote_group_id   = sbercloud_networking_secgroup.secgroup_test.id
+  security_group_id = sbercloud_networking_secgroup.secgroup_test.id
 }
 `, testAccNetworkingSecGroupRule_base(rName))
 }
@@ -363,13 +363,13 @@ func testAccNetworkingSecGroupRule_lowerCaseCIDR(rName string) string {
 	return fmt.Sprintf(`
 %s
 
-resource "huaweicloud_networking_secgroup_rule" "secgroup_rule_test" {
+resource "sbercloud_networking_secgroup_rule" "secgroup_rule_test" {
   direction         = "ingress"
   ethertype         = "IPv6"
   ports             = 80
   protocol          = "tcp"
   remote_ip_prefix  = "2001:558:FC00::/39"
-  security_group_id = huaweicloud_networking_secgroup.secgroup_test.id
+  security_group_id = sbercloud_networking_secgroup.secgroup_test.id
 }
 `, testAccNetworkingSecGroupRule_base(rName))
 }
@@ -378,8 +378,8 @@ func testAccNetworkingSecGroupRule_noPorts(rName string) string {
 	return fmt.Sprintf(`
 %s
 
-resource "huaweicloud_networking_secgroup_rule" "test" {
-  security_group_id = huaweicloud_networking_secgroup.secgroup_test.id
+resource "sbercloud_networking_secgroup_rule" "test" {
+  security_group_id = sbercloud_networking_secgroup.secgroup_test.id
   direction         = "ingress"
   ethertype         = "IPv4"
   protocol          = "icmp"
@@ -392,7 +392,7 @@ func testAccNetworkingSecGroupRule_remoteAddressGroup(rName string) string {
 	return fmt.Sprintf(`
 %[1]s
 
-resource "huaweicloud_vpc_address_group" "test" {
+resource "sbercloud_vpc_address_group" "test" {
   name = "%[2]s"
 
   addresses = [
@@ -401,13 +401,13 @@ resource "huaweicloud_vpc_address_group" "test" {
   ]
 }
 
-resource "huaweicloud_networking_secgroup_rule" "test" {
-  security_group_id       = huaweicloud_networking_secgroup.secgroup_test.id
+resource "sbercloud_networking_secgroup_rule" "test" {
+  security_group_id       = sbercloud_networking_secgroup.secgroup_test.id
   direction               = "ingress"
   ethertype               = "IPv4"
   ports                   = 80
   protocol                = "tcp"
-  remote_address_group_id = huaweicloud_vpc_address_group.test.id
+  remote_address_group_id = sbercloud_vpc_address_group.test.id
 }
 `, testAccNetworkingSecGroupRule_base(rName), rName)
 }
@@ -416,8 +416,8 @@ func testAccNetworkingSecGroupRule_action(rName string) string {
 	return fmt.Sprintf(`
 %s
 
-resource "huaweicloud_networking_secgroup_rule" "allow" {
-  security_group_id = huaweicloud_networking_secgroup.secgroup_test.id
+resource "sbercloud_networking_secgroup_rule" "allow" {
+  security_group_id = sbercloud_networking_secgroup.secgroup_test.id
   direction         = "ingress"
   ethertype         = "IPv4"
   ports             = 80
@@ -426,8 +426,8 @@ resource "huaweicloud_networking_secgroup_rule" "allow" {
   remote_ip_prefix  = "0.0.0.0/0"
 }
 
-resource "huaweicloud_networking_secgroup_rule" "deny" {
-  security_group_id = huaweicloud_networking_secgroup.secgroup_test.id
+resource "sbercloud_networking_secgroup_rule" "deny" {
+  security_group_id = sbercloud_networking_secgroup.secgroup_test.id
   direction         = "ingress"
   ethertype         = "IPv4"
   ports             = 8080
@@ -442,8 +442,8 @@ func testAccNetworkingSecGroupRule_priority(rName string) string {
 	return fmt.Sprintf(`
 %s
 
-resource "huaweicloud_networking_secgroup_rule" "test" {
-  security_group_id = huaweicloud_networking_secgroup.secgroup_test.id
+resource "sbercloud_networking_secgroup_rule" "test" {
+  security_group_id = sbercloud_networking_secgroup.secgroup_test.id
   direction         = "ingress"
   ethertype         = "IPv4"
   ports             = 80

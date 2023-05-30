@@ -2,7 +2,6 @@ package sbercloud
 
 import (
 	"fmt"
-	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -18,12 +17,12 @@ func TestAccNetworkingV3SecGroup_basic(t *testing.T) {
 	var secGroup securitygroups.SecurityGroup
 	name := fmt.Sprintf("seg-acc-test-%s", acctest.RandString(5))
 	updatedName := fmt.Sprintf("%s-updated", name)
-	resourceName := "huaweicloud_networking_secgroup.secgroup_1"
+	resourceName := "sbercloud_networking_secgroup.secgroup_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
-		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy:      testAccCheckNetworkingV3SecGroupDestroy,
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckNetworkingV3SecGroupDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccSecGroup_basic(name),
@@ -52,19 +51,19 @@ func TestAccNetworkingV3SecGroup_basic(t *testing.T) {
 func TestAccNetworkingV3SecGroup_withEpsId(t *testing.T) {
 	var secGroup securitygroups.SecurityGroup
 	name := fmt.Sprintf("seg-acc-test-%s", acctest.RandString(5))
-	resourceName := "huaweicloud_networking_secgroup.secgroup_1"
+	resourceName := "sbercloud_networking_secgroup.secgroup_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
-		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy:      testAccCheckNetworkingV3SecGroupDestroy,
+		PreCheck:     func() { testAccPreCheckEpsID(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckNetworkingV3SecGroupDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccSecGroup_epsId(name),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckNetworkingV3SecGroupExists(resourceName, &secGroup),
 					resource.TestCheckResourceAttr(resourceName, "name", name),
-					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST),
+					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", SBC_ENTERPRISE_PROJECT_ID_TEST),
 				),
 			},
 		},
@@ -74,12 +73,12 @@ func TestAccNetworkingV3SecGroup_withEpsId(t *testing.T) {
 func TestAccNetworkingV3SecGroup_noDefaultRules(t *testing.T) {
 	var secGroup securitygroups.SecurityGroup
 	name := fmt.Sprintf("seg-acc-test-%s", acctest.RandString(5))
-	resourceName := "huaweicloud_networking_secgroup.secgroup_1"
+	resourceName := "sbercloud_networking_secgroup.secgroup_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
-		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy:      testAccCheckNetworkingV3SecGroupDestroy,
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckNetworkingV3SecGroupDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccSecGroup_noDefaultRules(name),
@@ -94,14 +93,14 @@ func TestAccNetworkingV3SecGroup_noDefaultRules(t *testing.T) {
 }
 
 func testAccCheckNetworkingV3SecGroupDestroy(s *terraform.State) error {
-	config := acceptance.TestAccProvider.Meta().(*config.Config)
-	networkingClient, err := config.NetworkingV1Client(acceptance.SBC_REGION_NAME)
+	config := testAccProvider.Meta().(*config.Config)
+	networkingClient, err := config.NetworkingV1Client(SBC_REGION_NAME)
 	if err != nil {
-		return fmtp.Errorf("Error creating HuaweiCloud networking v3 client: %s", err)
+		return fmtp.Errorf("Error creating SberCloud networking v3 client: %s", err)
 	}
 
 	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "huaweicloud_networking_secgroup" {
+		if rs.Type != "sbercloud_networking_secgroup" {
 			continue
 		}
 
@@ -125,10 +124,10 @@ func testAccCheckNetworkingV3SecGroupExists(n string, secGroup *securitygroups.S
 			return fmtp.Errorf("No ID is set")
 		}
 
-		config := acceptance.TestAccProvider.Meta().(*config.Config)
-		networkingClient, err := config.NetworkingV1Client(acceptance.SBC_REGION_NAME)
+		config := testAccProvider.Meta().(*config.Config)
+		networkingClient, err := config.NetworkingV1Client(SBC_REGION_NAME)
 		if err != nil {
-			return fmtp.Errorf("Error creating HuaweiCloud networking client: %s", err)
+			return fmtp.Errorf("Error creating SberCloud networking client: %s", err)
 		}
 
 		found, err := securitygroups.Get(networkingClient, rs.Primary.ID).Extract()
@@ -148,7 +147,7 @@ func testAccCheckNetworkingV3SecGroupExists(n string, secGroup *securitygroups.S
 
 func testAccSecGroup_basic(name string) string {
 	return fmt.Sprintf(`
-resource "huaweicloud_networking_secgroup" "secgroup_1" {
+resource "sbercloud_networking_secgroup" "secgroup_1" {
   name        = "%s"
   description = "security group acceptance test"
 }
@@ -157,7 +156,7 @@ resource "huaweicloud_networking_secgroup" "secgroup_1" {
 
 func testAccSecGroup_update(name string) string {
 	return fmt.Sprintf(`
-resource "huaweicloud_networking_secgroup" "secgroup_1" {
+resource "sbercloud_networking_secgroup" "secgroup_1" {
   name        = "%s"
   description = "security group acceptance test updated"
 }
@@ -166,17 +165,17 @@ resource "huaweicloud_networking_secgroup" "secgroup_1" {
 
 func testAccSecGroup_epsId(name string) string {
 	return fmt.Sprintf(`
-resource "huaweicloud_networking_secgroup" "secgroup_1" {
+resource "sbercloud_networking_secgroup" "secgroup_1" {
   name                  = "%s"
   description           = "ecurity group acceptance test with eps ID"
   enterprise_project_id = "%s"
 }
-`, name, acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST)
+`, name, SBC_ENTERPRISE_PROJECT_ID_TEST)
 }
 
 func testAccSecGroup_noDefaultRules(name string) string {
 	return fmt.Sprintf(`
-resource "huaweicloud_networking_secgroup" "secgroup_1" {
+resource "sbercloud_networking_secgroup" "secgroup_1" {
   name                 = "%s"
   description          = "security group acceptance test without default rules"
   delete_default_rules = true
