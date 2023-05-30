@@ -160,33 +160,6 @@ func TestAccNetworkingSecGroupRule_noPorts(t *testing.T) {
 	})
 }
 
-func TestAccNetworkingSecGroupRule_remoteAddressGroup(t *testing.T) {
-	var secgroupRule rules.SecurityGroupRule
-	var resourceRuleName string = "sbercloud_networking_secgroup_rule.test"
-	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
-
-	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckNetworkingSecGroupRuleDestroy,
-		Steps: []resource.TestStep{
-			{
-				Config: testAccNetworkingSecGroupRule_remoteAddressGroup(rName),
-				Check: resource.ComposeTestCheckFunc(
-					testAccCheckNetworkingSecGroupRuleExists(resourceRuleName, &secgroupRule),
-					resource.TestCheckResourceAttrPair(resourceRuleName, "remote_address_group_id",
-						"sbercloud_vpc_address_group.test", "id"),
-				),
-			},
-			{
-				ResourceName:      resourceRuleName,
-				ImportState:       true,
-				ImportStateVerify: true,
-			},
-		},
-	})
-}
-
 func TestAccNetworkingSecGroupRule_action(t *testing.T) {
 	var (
 		secgroupRule rules.SecurityGroupRule

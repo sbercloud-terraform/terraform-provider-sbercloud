@@ -2,6 +2,7 @@ package sbercloud
 
 import (
 	"fmt"
+	"github.com/chnsz/golangsdk/openstack/networking/v1/security/securitygroups"
 	"regexp"
 	"testing"
 
@@ -48,6 +49,7 @@ func TestAccLBV2LoadBalancer_basic(t *testing.T) {
 func TestAccLBV2LoadBalancer_secGroup(t *testing.T) {
 	var lb loadbalancers.LoadBalancer
 	var sg_1, sg_2 groups.SecGroup
+	var sg_3, sg_4 securitygroups.SecurityGroup
 	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
 	rNameSecg1 := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
 	rNameSecg2 := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
@@ -63,10 +65,10 @@ func TestAccLBV2LoadBalancer_secGroup(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckLBV2LoadBalancerExists(resourceName, &lb),
 					resource.TestCheckResourceAttr(resourceName, "security_group_ids.#", "1"),
-					testAccCheckNetworkingV2SecGroupExists(
-						"sbercloud_networking_secgroup.secgroup_1", &sg_1),
-					testAccCheckNetworkingV2SecGroupExists(
-						"sbercloud_networking_secgroup.secgroup_1", &sg_2),
+					testAccCheckNetworkingV3SecGroupExists(
+						"sbercloud_networking_secgroup.secgroup_1", &sg_3),
+					testAccCheckNetworkingV3SecGroupExists(
+						"sbercloud_networking_secgroup.secgroup_1", &sg_4),
 					testAccCheckLBV2LoadBalancerHasSecGroup(&lb, &sg_1),
 				),
 			},
@@ -75,10 +77,10 @@ func TestAccLBV2LoadBalancer_secGroup(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckLBV2LoadBalancerExists(resourceName, &lb),
 					resource.TestCheckResourceAttr(resourceName, "security_group_ids.#", "2"),
-					testAccCheckNetworkingV2SecGroupExists(
-						"sbercloud_networking_secgroup.secgroup_2", &sg_1),
-					testAccCheckNetworkingV2SecGroupExists(
-						"sbercloud_networking_secgroup.secgroup_2", &sg_2),
+					testAccCheckNetworkingV3SecGroupExists(
+						"sbercloud_networking_secgroup.secgroup_2", &sg_3),
+					testAccCheckNetworkingV3SecGroupExists(
+						"sbercloud_networking_secgroup.secgroup_2", &sg_4),
 					testAccCheckLBV2LoadBalancerHasSecGroup(&lb, &sg_1),
 					testAccCheckLBV2LoadBalancerHasSecGroup(&lb, &sg_2),
 				),
@@ -88,10 +90,10 @@ func TestAccLBV2LoadBalancer_secGroup(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckLBV2LoadBalancerExists(resourceName, &lb),
 					resource.TestCheckResourceAttr(resourceName, "security_group_ids.#", "1"),
-					testAccCheckNetworkingV2SecGroupExists(
-						"sbercloud_networking_secgroup.secgroup_2", &sg_1),
-					testAccCheckNetworkingV2SecGroupExists(
-						"sbercloud_networking_secgroup.secgroup_2", &sg_2),
+					testAccCheckNetworkingV3SecGroupExists(
+						"sbercloud_networking_secgroup.secgroup_2", &sg_3),
+					testAccCheckNetworkingV3SecGroupExists(
+						"sbercloud_networking_secgroup.secgroup_2", &sg_4),
 					testAccCheckLBV2LoadBalancerHasSecGroup(&lb, &sg_2),
 				),
 			},
