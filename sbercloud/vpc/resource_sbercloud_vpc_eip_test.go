@@ -153,6 +153,7 @@ resource "sbercloud_vpc_eip" "test" {
 func testAccVpcEip_tags(rName string) string {
 	return fmt.Sprintf(`
 resource "sbercloud_vpc_eip" "test" {
+	name        = "%s"
   publicip {
     type = "5_bgp"
   }
@@ -167,7 +168,7 @@ resource "sbercloud_vpc_eip" "test" {
     key = "value"
   }
 }
-`, rName)
+`, rName, rName)
 }
 
 func testAccVpcEip_epsId(rName string) string {

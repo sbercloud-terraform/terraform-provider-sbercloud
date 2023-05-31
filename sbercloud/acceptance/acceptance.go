@@ -3,6 +3,7 @@ package acceptance
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud"
 	"os"
 	"regexp"
 	"strings"
@@ -15,7 +16,6 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
-	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud"
 )
 
 var (
@@ -35,6 +35,11 @@ var (
 	SBC_SECRET_KEY = os.Getenv("SBC_SECRET_KEY")
 
 	SBC_DLI_FLINK_JAR_OBS_PATH = os.Getenv("SBC_DLI_FLINK_JAR_OBS_PATH")
+
+	SBC_SWR_SHARING_ACCOUNT = os.Getenv("SBC_SWR_SHARING_ACCOUNT")
+
+	SBC_FGS_TRIGGER_LTS_AGENCY = os.Getenv("SBC_FGS_TRIGGER_LTS_AGENCY")
+	SBC_OBS_BUCKET_NAME        = os.Getenv("SBC_OBS_BUCKET_NAME")
 )
 
 // TestAccProviderFactories is a static map containing only the main provider instance
@@ -284,6 +289,27 @@ func TestAccPreCheckAdminOnly(t *testing.T) {
 func TestAccPreCheckOBS(t *testing.T) {
 	if SBC_ACCESS_KEY == "" || SBC_SECRET_KEY == "" {
 		t.Skip("SBC_ACCESS_KEY and SBC_SECRET_KEY must be set for OBS acceptance tests")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckSWRDomian(t *testing.T) {
+	if SBC_SWR_SHARING_ACCOUNT == "" {
+		t.Skip("SBC_SWR_SHARING_ACCOUNT must be set for swr domian tests, " +
+			"the value of SBC_SWR_SHARING_ACCOUNT should be another IAM user name")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckFgsTrigger(t *testing.T) {
+	if SBC_FGS_TRIGGER_LTS_AGENCY == "" {
+		t.Skip("SBC_FGS_TRIGGER_LTS_AGENCY must be set for FGS trigger acceptance tests")
+	}
+}
+
+func TestAccPreCheckOBSBucket(t *testing.T) {
+	if SBC_OBS_BUCKET_NAME == "" {
+		t.Skip("SBC_OBS_BUCKET_NAME must be set for OBS object acceptance tests")
 	}
 }
 
