@@ -11,7 +11,7 @@ Manages a Snat rule resource within SberCloud Nat
 ```hcl
 resource "sbercloud_nat_snat_rule" "snat_1" {
   nat_gateway_id = "3c0dffda-7c76-452b-9dcc-5bce7ae56b17"
-  network_id     = "dc8632e2-d9ff-41b1-aa0c-d455557314a0"
+  subnet_id      = "dc8632e2-d9ff-41b1-aa0c-d455557314a0"
   floating_ip_id = "0a166fc5-a904-42fb-b1ef-cf18afeeddca"
 }
 ```
@@ -28,7 +28,7 @@ The following arguments are supported:
 * `floating_ip_id` - (Required, String, ForceNew) ID of the floating ip this snat rule connets to.
     Changing this creates a new snat rule.
 
-* `network_id` - (Optional, String, ForceNew) ID of the network this snat rule connects to.
+* `subnet_id` (previously `network_id`) - (Optional, String, ForceNew) ID of the network this snat rule connects to.
     This parameter and `cidr` are alternative. Changing this creates a new snat rule.
 
 * `cidr` - (Optional, String, ForceNew) Specifies CIDR, which can be in the format of a network segment or a host IP address.
