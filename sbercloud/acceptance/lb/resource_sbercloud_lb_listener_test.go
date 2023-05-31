@@ -20,6 +20,7 @@ func TestAccLBV2Listener_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
 		CheckDestroy: testAccCheckLBV2ListenerDestroy,
 		Steps: []resource.TestStep{
 			{
