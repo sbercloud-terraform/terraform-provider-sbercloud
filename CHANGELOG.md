@@ -1,3 +1,46 @@
+## 1.11.0 (May 31, 2023)
+
+FEATURES:
+
+* **New Resource:** `sbercloud_elb_certificate` ([#181](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/181))
+* **New Resource:** `sbercloud_elb_l7policy` ([#181](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/181))
+* **New Resource:** `sbercloud_elb_l7rule` ([#181](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/181))
+* **New Resource:** `sbercloud_elb_listener` ([#181](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/181))
+* **New Resource:** `sbercloud_elb_loadbalancer` ([#181](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/181))
+* **New Resource:** `sbercloud_elb_monitor` ([#181](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/181))
+* **New Resource:** `sbercloud_elb_pool` ([#181](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/181))
+* **New Resource:** `sbercloud_elb_member` ([#181](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/181))
+* **New Resource:** `sbercloud_elb_security_policy` ([#181](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/181))
+* **New Resource:** `sbercloud_elb_ipgroup` ([#181](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/181))
+* **New Resource:** `ssbercloud_networking_vip` ([#176](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/176))
+* **New Resource:** `sbercloud_networking_vip_associate` ([#176](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/176))
+* **New Resource:** `sbercloud_swr_organization` ([#179](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/179))
+* **New Resource:** `sbercloud_swr_organization_permissions` ([#179](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/179))
+* **New Resource:** `sbercloud_swr_repository` ([#179](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/179))
+* **New Resource:** `sbercloud_obs_bucket_acl` ([#182](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/182))
+* **New Resource:** `sbercloud_cts_tracker` ([#183](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/183))
+* **New Resource:** `sbercloud_cts_data_tracker` ([#183](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/183))
+* **New Resource:** `sbercloud_cts_notification` ([#183](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/183))
+* **New Resource:** `sbercloud_identity_provider` ([#186](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/186))
+* **New Resource:** `sbercloud_identity_provider_conversion` ([#186](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/186))
+* **New Data Source:** `sbercloud_elb_certificate` ([#181](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/181))
+* **New Data Source:** `sbercloud_elb_flavors` ([#181](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/181))
+* **New Data Source:** `sbercloud_elb_pools` ([#181](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/181))
+* **New Data Source:** `sbercloud_dms_kafka_instances` ([#175](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/175))
+* **New Data Source:** `sbercloud_dcs_flavors` ([#178](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/178))
+* **New Data Source:** `sbercloud_lb_listeners` ([#180](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/180))
+* **New Data Source:** `sbercloud_lb_loadbalancer` ([#180](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/180))
+* **New Data Source:** `sbercloud_lb_pools` ([#180](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/180))
+* **New Data Source:** `sbercloud_lb_certificate` ([#180](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/180))
+* **New Data Source:** `sbercloud_obs_buckets` ([#182](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/182))
+* **New Data Source:** `sbercloud_vpc_eips` ([#185](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/185))
+* **New Data Source:** `sbercloud_identity_projects` ([#186](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/186))
+
+ENHANCEMENTS:
+
+* Update VPC resources  ([#184](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/184))
+* Update tests for LB resources ([#187](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/187))
+
 ## 1.10.0 (October 28, 2022)
 
 FEATURES:

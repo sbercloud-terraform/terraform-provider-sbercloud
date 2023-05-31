@@ -21,7 +21,7 @@ func TestAccDcsMaintainWindowV1DataSource_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(
 						"data.sbercloud_dcs_maintainwindow.maintainwindow1", "seq", "1"),
 					resource.TestCheckResourceAttr(
-						"data.sbercloud_dcs_maintainwindow.maintainwindow1", "begin", "22"),
+						"data.sbercloud_dcs_maintainwindow.maintainwindow1", "begin", "00"),
 				),
 			},
 		},
