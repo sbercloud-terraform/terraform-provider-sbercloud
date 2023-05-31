@@ -188,7 +188,6 @@ resource "sbercloud_dms_instance" "instance_1" {
   engine            = "kafka"
   vpc_id            = sbercloud_vpc.test.id
   subnet_id         = sbercloud_vpc_subnet.test.id
-  subnet_id         = sbercloud_vpc_subnet.test.id
   security_group_id = sbercloud_networking_secgroup.test.id
   available_zones   = [data.sbercloud_availability_zones.test.names[1]]
   product_id        = data.sbercloud_dms_product.product_1.id
