@@ -20,6 +20,7 @@ func TestAccLBV2Pool_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
 		CheckDestroy: testAccCheckLBV2PoolDestroy,
 		Steps: []resource.TestStep{
 			{

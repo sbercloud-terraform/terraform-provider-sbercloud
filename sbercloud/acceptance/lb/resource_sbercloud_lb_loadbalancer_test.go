@@ -2,18 +2,18 @@ package lb
 
 import (
 	"fmt"
-	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"regexp"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 
-	"github.com/chnsz/golangsdk/openstack/networking/v2/extensions/lbaas_v2/loadbalancers"
-	"github.com/chnsz/golangsdk/openstack/networking/v2/extensions/security/groups"
+	"github.com/chnsz/golangsdk/openstack/elb/v2/loadbalancers"
 	"github.com/chnsz/golangsdk/openstack/networking/v2/ports"
+	"github.com/chnsz/golangsdk/openstack/networking/v3/security/groups"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 )
 
 func getLoadBalancerResourceFunc(conf *config.Config, state *terraform.ResourceState) (interface{}, error) {
@@ -30,28 +30,46 @@ func getLoadBalancerResourceFunc(conf *config.Config, state *terraform.ResourceS
 
 func TestAccLBV2LoadBalancer_basic(t *testing.T) {
 	var lb loadbalancers.LoadBalancer
-	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
-	rNameUpdate := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
+	rName := acceptance.RandomAccResourceNameWithDash()
+	rNameUpdate := rName + "-update"
 	resourceName := "sbercloud_lb_loadbalancer.loadbalancer_1"
 
+	rc := acceptance.InitResourceCheck(
+		resourceName,
+		&lb,
+		getLoadBalancerResourceFunc,
+	)
+
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { acceptance.TestAccPreCheck(t) },
-		CheckDestroy: testAccCheckLBV2LoadBalancerDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      rc.CheckResourceDestroy(),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccLBV2LoadBalancerConfig_basic(rName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckLBV2LoadBalancerExists(resourceName, &lb),
+					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttr(resourceName, "description", "created by acceptance test"),
+					resource.TestCheckResourceAttr(resourceName, "tags.key", "value"),
+					resource.TestCheckResourceAttr(resourceName, "tags.owner", "terraform"),
 					resource.TestMatchResourceAttr(resourceName, "vip_port_id",
 						regexp.MustCompile("^[a-f0-9-]+")),
 				),
 			},
 			{
-				Config: testAccLBV2LoadBalancerConfig_update(rNameUpdate),
+				Config: testAccLBV2LoadBalancerConfig_update(rName, rNameUpdate),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "name", rNameUpdate),
+					resource.TestCheckResourceAttr(resourceName, "description", ""),
+					resource.TestCheckResourceAttr(resourceName, "tags.key1", "value1"),
+					resource.TestCheckResourceAttr(resourceName, "tags.owner", "terraform_update"),
 				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 		},
 	})
@@ -59,118 +77,110 @@ func TestAccLBV2LoadBalancer_basic(t *testing.T) {
 
 func TestAccLBV2LoadBalancer_secGroup(t *testing.T) {
 	var lb loadbalancers.LoadBalancer
-	var sg_1, sg_2 groups.SecGroup
-	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
-	rNameSecg1 := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
-	rNameSecg2 := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
+	var sg1, sg2 groups.SecurityGroup
+	rName := acceptance.RandomAccResourceNameWithDash()
+	rNameSg1 := acceptance.RandomAccResourceNameWithDash()
+	rNameSg2 := acceptance.RandomAccResourceNameWithDash()
 	resourceName := "sbercloud_lb_loadbalancer.loadbalancer_1"
 
+	rc := acceptance.InitResourceCheck(
+		resourceName,
+		&lb,
+		getLoadBalancerResourceFunc,
+	)
+
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { acceptance.TestAccPreCheck(t) },
-		CheckDestroy: testAccCheckLBV2LoadBalancerDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      rc.CheckResourceDestroy(),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccLBV2LoadBalancer_secGroup(rName, rNameSecg1, rNameSecg2),
+				Config: testAccLBV2LoadBalancer_secGroup(rName, rNameSg1, rNameSg2),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckLBV2LoadBalancerExists(resourceName, &lb),
+					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "security_group_ids.#", "1"),
-					testAccCheckNetworkingV2SecGroupExists(
-						"sbercloud_networking_secgroup.secgroup_1", &sg_1),
-					testAccCheckNetworkingV2SecGroupExists(
-						"sbercloud_networking_secgroup.secgroup_1", &sg_2),
-					testAccCheckLBV2LoadBalancerHasSecGroup(&lb, &sg_1),
+					testAccCheckNetworkingV3SecGroupExists(
+						"sbercloud_networking_secgroup.secgroup_1", &sg1),
+					testAccCheckNetworkingV3SecGroupExists(
+						"sbercloud_networking_secgroup.secgroup_1", &sg2),
+					testAccCheckLBV2LoadBalancerHasSecGroup(&lb, &sg1),
 				),
 			},
 			{
-				Config: testAccLBV2LoadBalancer_secGroup_update1(rName, rNameSecg1, rNameSecg2),
+				Config: testAccLBV2LoadBalancer_secGroup_update1(rName, rNameSg1, rNameSg2),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckLBV2LoadBalancerExists(resourceName, &lb),
+					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "security_group_ids.#", "2"),
-					testAccCheckNetworkingV2SecGroupExists(
-						"sbercloud_networking_secgroup.secgroup_2", &sg_1),
-					testAccCheckNetworkingV2SecGroupExists(
-						"sbercloud_networking_secgroup.secgroup_2", &sg_2),
-					testAccCheckLBV2LoadBalancerHasSecGroup(&lb, &sg_1),
-					testAccCheckLBV2LoadBalancerHasSecGroup(&lb, &sg_2),
+					testAccCheckNetworkingV3SecGroupExists(
+						"sbercloud_networking_secgroup.secgroup_2", &sg1),
+					testAccCheckNetworkingV3SecGroupExists(
+						"sbercloud_networking_secgroup.secgroup_2", &sg2),
+					testAccCheckLBV2LoadBalancerHasSecGroup(&lb, &sg1),
+					testAccCheckLBV2LoadBalancerHasSecGroup(&lb, &sg2),
 				),
 			},
 			{
-				Config: testAccLBV2LoadBalancer_secGroup_update2(rName, rNameSecg1, rNameSecg2),
+				Config: testAccLBV2LoadBalancer_secGroup_update2(rName, rNameSg1, rNameSg2),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckLBV2LoadBalancerExists(resourceName, &lb),
+					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "security_group_ids.#", "1"),
-					testAccCheckNetworkingV2SecGroupExists(
-						"sbercloud_networking_secgroup.secgroup_2", &sg_1),
-					testAccCheckNetworkingV2SecGroupExists(
-						"sbercloud_networking_secgroup.secgroup_2", &sg_2),
-					testAccCheckLBV2LoadBalancerHasSecGroup(&lb, &sg_2),
+					testAccCheckNetworkingV3SecGroupExists(
+						"sbercloud_networking_secgroup.secgroup_2", &sg1),
+					testAccCheckNetworkingV3SecGroupExists(
+						"sbercloud_networking_secgroup.secgroup_2", &sg2),
+					testAccCheckLBV2LoadBalancerHasSecGroup(&lb, &sg2),
 				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 		},
 	})
 }
 
-func testAccCheckLBV2LoadBalancerDestroy(s *terraform.State) error {
-	config := acceptance.TestAccProvider.Meta().(*config.Config)
-	elbClient, err := config.ElbV2Client(acceptance.SBC_REGION_NAME)
-	if err != nil {
-		return fmt.Errorf("Error creating SberCloud elb client: %s", err)
-	}
+func TestAccLBV2LoadBalancer_withEpsId(t *testing.T) {
+	var lb loadbalancers.LoadBalancer
+	rName := acceptance.RandomAccResourceNameWithDash()
+	resourceName := "sbercloud_lb_loadbalancer.loadbalancer_1"
 
-	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "sbercloud_lb_loadbalancer" {
-			continue
-		}
+	rc := acceptance.InitResourceCheck(
+		resourceName,
+		&lb,
+		getLoadBalancerResourceFunc,
+	)
 
-		_, err := loadbalancers.Get(elbClient, rs.Primary.ID).Extract()
-		if err == nil {
-			return fmt.Errorf("LoadBalancer still exists: %s", rs.Primary.ID)
-		}
-	}
-
-	return nil
-}
-
-func testAccCheckLBV2LoadBalancerExists(
-	n string, lb *loadbalancers.LoadBalancer) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		rs, ok := s.RootModule().Resources[n]
-		if !ok {
-			return fmt.Errorf("Not found: %s", n)
-		}
-
-		if rs.Primary.ID == "" {
-			return fmt.Errorf("No ID is set")
-		}
-
-		config := acceptance.TestAccProvider.Meta().(*config.Config)
-		elbClient, err := config.ElbV2Client(acceptance.SBC_REGION_NAME)
-		if err != nil {
-			return fmt.Errorf("Error creating SberCloud networking client: %s", err)
-		}
-
-		found, err := loadbalancers.Get(elbClient, rs.Primary.ID).Extract()
-		if err != nil {
-			return err
-		}
-
-		if found.ID != rs.Primary.ID {
-			return fmt.Errorf("Member not found")
-		}
-
-		*lb = *found
-
-		return nil
-	}
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { acceptance.TestAccPreCheckEpsID(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      rc.CheckResourceDestroy(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccLBV2LoadBalancerConfig_withEpsId(rName),
+				Check: resource.ComposeTestCheckFunc(
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id",
+						acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+		},
+	})
 }
 
 func testAccCheckLBV2LoadBalancerHasSecGroup(
-	lb *loadbalancers.LoadBalancer, sg *groups.SecGroup) resource.TestCheckFunc {
+	lb *loadbalancers.LoadBalancer, sg *groups.SecurityGroup) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		config := acceptance.TestAccProvider.Meta().(*config.Config)
-		networkingClient, err := config.NetworkingV2Client(acceptance.SBC_REGION_NAME)
+		cfg := acceptance.TestAccProvider.Meta().(*config.Config)
+		networkingClient, err := cfg.NetworkingV2Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
-			return fmt.Errorf("Error creating SberCloud networking client: %s", err)
+			return fmt.Errorf("error creating VPC v2.0 Client: %s", err)
 		}
 
 		port, err := ports.Get(networkingClient, lb.VipPortID).Extract()
@@ -188,33 +198,33 @@ func testAccCheckLBV2LoadBalancerHasSecGroup(
 	}
 }
 
-func testAccCheckNetworkingV2SecGroupExists(n string, security_group *groups.SecGroup) resource.TestCheckFunc {
+func testAccCheckNetworkingV3SecGroupExists(n string, secGroup *groups.SecurityGroup) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
-			return fmt.Errorf("Not found: %s", n)
+			return fmt.Errorf("not found: %s", n)
 		}
 
 		if rs.Primary.ID == "" {
-			return fmt.Errorf("No ID is set")
+			return fmt.Errorf("no ID is set")
 		}
 
-		config := acceptance.TestAccProvider.Meta().(*config.Config)
-		networkingClient, err := config.NetworkingV2Client(acceptance.SBC_REGION_NAME)
+		cfg := acceptance.TestAccProvider.Meta().(*config.Config)
+		networkingClient, err := cfg.NetworkingV3Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
-			return fmt.Errorf("Error creating HuaweiCloud networking client: %s", err)
+			return fmt.Errorf("error creating VPC Client: %s", err)
 		}
 
-		found, err := groups.Get(networkingClient, rs.Primary.ID).Extract()
+		found, err := groups.Get(networkingClient, rs.Primary.ID)
 		if err != nil {
 			return err
 		}
 
 		if found.ID != rs.Primary.ID {
-			return fmt.Errorf("Security group not found")
+			return fmt.Errorf("security group not found")
 		}
 
-		*security_group = *found
+		*secGroup = *found
 
 		return nil
 	}
@@ -222,48 +232,41 @@ func testAccCheckNetworkingV2SecGroupExists(n string, security_group *groups.Sec
 
 func testAccLBV2LoadBalancerConfig_basic(rName string) string {
 	return fmt.Sprintf(`
-data "sbercloud_vpc_subnet" "test" {
-  name = "subnet-default"
-}
+%s
 
 resource "sbercloud_lb_loadbalancer" "loadbalancer_1" {
   name          = "%s"
-  vip_subnet_id = data.sbercloud_vpc_subnet.test.subnet_id
+  description   = "created by acceptance test"
+  vip_subnet_id = sbercloud_vpc_subnet.test.ipv4_subnet_id
 
-  timeouts {
-    create = "5m"
-    update = "5m"
-    delete = "5m"
+  tags = {
+    key   = "value"
+    owner = "terraform"
   }
 }
-`, rName)
+`, acceptance.TestVpc(rName), rName)
 }
 
-func testAccLBV2LoadBalancerConfig_update(rNameUpdate string) string {
+func testAccLBV2LoadBalancerConfig_update(rName, rNameUpdate string) string {
 	return fmt.Sprintf(`
-data "sbercloud_vpc_subnet" "test" {
-  name = "subnet-default"
-}
+%s
 
 resource "sbercloud_lb_loadbalancer" "loadbalancer_1" {
   name           = "%s"
   admin_state_up = "true"
-  vip_subnet_id  = data.sbercloud_vpc_subnet.test.subnet_id
+  vip_subnet_id  = sbercloud_vpc_subnet.test.ipv4_subnet_id
 
-  timeouts {
-    create = "5m"
-    update = "5m"
-    delete = "5m"
+  tags = {
+    key1  = "value1"
+    owner = "terraform_update"
   }
 }
-`, rNameUpdate)
+`, acceptance.TestVpc(rName), rNameUpdate)
 }
 
-func testAccLBV2LoadBalancer_secGroup(rName, rNameSecg1, rNameSecg2 string) string {
+func testAccLBV2LoadBalancer_secGroup(rName, rNameSg1, rNameSg2 string) string {
 	return fmt.Sprintf(`
-data "sbercloud_vpc_subnet" "test" {
-  name = "subnet-default"
-}
+%s
 
 resource "sbercloud_networking_secgroup" "secgroup_1" {
   name        = "%s"
@@ -276,20 +279,19 @@ resource "sbercloud_networking_secgroup" "secgroup_2" {
 }
 
 resource "sbercloud_lb_loadbalancer" "loadbalancer_1" {
-  name               = "%s"
-  vip_subnet_id      = data.sbercloud_vpc_subnet.test.subnet_id
+  name          = "%s"
+  vip_subnet_id = sbercloud_vpc_subnet.test.ipv4_subnet_id
+
   security_group_ids = [
     sbercloud_networking_secgroup.secgroup_1.id
   ]
 }
-`, rNameSecg1, rNameSecg2, rName)
+`, acceptance.TestVpc(rName), rNameSg1, rNameSg2, rName)
 }
 
-func testAccLBV2LoadBalancer_secGroup_update1(rName, rNameSecg1, rNameSecg2 string) string {
+func testAccLBV2LoadBalancer_secGroup_update1(rName, rNameSg1, rNameSg2 string) string {
 	return fmt.Sprintf(`
-data "sbercloud_vpc_subnet" "test" {
-  name = "subnet-default"
-}
+%s
 
 resource "sbercloud_networking_secgroup" "secgroup_1" {
   name        = "%s"
@@ -302,21 +304,20 @@ resource "sbercloud_networking_secgroup" "secgroup_2" {
 }
 
 resource "sbercloud_lb_loadbalancer" "loadbalancer_1" {
-  name               = "%s"
-  vip_subnet_id      = data.sbercloud_vpc_subnet.test.subnet_id
+  name          = "%s"
+  vip_subnet_id = sbercloud_vpc_subnet.test.ipv4_subnet_id
+
   security_group_ids = [
     sbercloud_networking_secgroup.secgroup_1.id,
     sbercloud_networking_secgroup.secgroup_2.id
   ]
 }
-`, rNameSecg1, rNameSecg2, rName)
+`, acceptance.TestVpc(rName), rNameSg1, rNameSg2, rName)
 }
 
-func testAccLBV2LoadBalancer_secGroup_update2(rName, rNameSecg1, rNameSecg2 string) string {
+func testAccLBV2LoadBalancer_secGroup_update2(rName, rNameSg1, rNameSg2 string) string {
 	return fmt.Sprintf(`
-data "sbercloud_vpc_subnet" "test" {
-  name = "subnet-default"
-}
+%s
 
 resource "sbercloud_networking_secgroup" "secgroup_1" {
   name        = "%s"
@@ -329,11 +330,29 @@ resource "sbercloud_networking_secgroup" "secgroup_2" {
 }
 
 resource "sbercloud_lb_loadbalancer" "loadbalancer_1" {
-  name               = "%s"
-  vip_subnet_id      = data.sbercloud_vpc_subnet.test.subnet_id
+  name          = "%s"
+  vip_subnet_id = sbercloud_vpc_subnet.test.ipv4_subnet_id
+
   security_group_ids = [
     sbercloud_networking_secgroup.secgroup_2.id
   ]
 }
-`, rNameSecg1, rNameSecg2, rName)
+`, acceptance.TestVpc(rName), rNameSg1, rNameSg2, rName)
+}
+
+func testAccLBV2LoadBalancerConfig_withEpsId(rName string) string {
+	return fmt.Sprintf(`
+%s
+
+resource "sbercloud_lb_loadbalancer" "loadbalancer_1" {
+  name                  = "%s"
+  vip_subnet_id         = sbercloud_vpc_subnet.test.ipv4_subnet_id
+  enterprise_project_id = "%s"
+
+  tags = {
+    key   = "value"
+    owner = "terraform"
+  }
+}
+`, acceptance.TestVpc(rName), rName, acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST)
 }

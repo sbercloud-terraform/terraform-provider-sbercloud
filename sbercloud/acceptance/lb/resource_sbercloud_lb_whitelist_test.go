@@ -19,6 +19,7 @@ func TestAccLBV2Whitelist_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
 		CheckDestroy: testAccCheckLBV2WhitelistDestroy,
 		Steps: []resource.TestStep{
 			{

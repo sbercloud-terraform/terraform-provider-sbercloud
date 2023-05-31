@@ -20,6 +20,7 @@ func TestAccLBV2Certificate_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
 		CheckDestroy: testAccCheckLBV2CertificateDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -47,6 +48,7 @@ func TestAccLBV2Certificate_client(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
 		CheckDestroy: testAccCheckLBV2CertificateDestroy,
 		Steps: []resource.TestStep{
 			{

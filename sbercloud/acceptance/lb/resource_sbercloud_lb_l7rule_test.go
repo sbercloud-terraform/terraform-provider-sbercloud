@@ -21,6 +21,7 @@ func TestAccLBV2L7Rule_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
 		CheckDestroy: testAccCheckLBV2L7RuleDestroy,
 		Steps: []resource.TestStep{
 			{

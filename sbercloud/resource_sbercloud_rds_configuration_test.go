@@ -102,10 +102,6 @@ resource "sbercloud_rds_parametergroup" "pg_1" {
   name        = "%s"
   description = "description_1"
 
-  values = {
-    max_connections = "10"
-    autocommit      = "OFF"
-  }
   datastore {
     type    = "mysql"
     version = "5.6"
@@ -119,11 +115,7 @@ func testAccRdsConfigV3_update(updateName string) string {
 resource "sbercloud_rds_parametergroup" "pg_1" {
   name        = "%s"
   description = "description_update"
-
-  values = {
-    max_connections = "10"
-    autocommit      = "OFF"
-  }
+ 
   datastore {
     type    = "mysql"
     version = "5.6"
