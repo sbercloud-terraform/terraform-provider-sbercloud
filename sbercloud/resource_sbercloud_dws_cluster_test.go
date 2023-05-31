@@ -52,7 +52,7 @@ resource "sbercloud_networking_secgroup" "secgroup" {
 }
 
 resource "sbercloud_dws_cluster" "cluster" {
-  node_type = "dws2.m6.4xlarge.8"
+  node_type = "dwsx2.xlarge.m7n"
   number_of_node = 3
   network_id = sbercloud_vpc_subnet.test.id
   vpc_id = sbercloud_vpc.test.id
