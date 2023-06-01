@@ -3,10 +3,10 @@ module github.com/sbercloud-terraform/terraform-provider-sbercloud
 go 1.18
 
 require (
-	github.com/chnsz/golangsdk v0.0.0-20230428074508-e0b58e41be86
+	github.com/chnsz/golangsdk v0.0.0-20230531061124-d429dbae2745
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.24.0
 	github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.20
-	github.com/huaweicloud/terraform-provider-huaweicloud v1.48.0
+	github.com/huaweicloud/terraform-provider-huaweicloud v1.49.0
 )
 
 require (
