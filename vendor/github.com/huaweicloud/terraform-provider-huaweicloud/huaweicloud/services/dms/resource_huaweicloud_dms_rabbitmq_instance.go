@@ -4,24 +4,24 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"regexp"
 	"strconv"
 	"time"
 
-	"github.com/chnsz/golangsdk"
-	"github.com/chnsz/golangsdk/openstack/common/tags"
-	"github.com/chnsz/golangsdk/openstack/dms/v2/products"
-	"github.com/chnsz/golangsdk/openstack/dms/v2/rabbitmq/instances"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
+	"github.com/chnsz/golangsdk"
+	"github.com/chnsz/golangsdk/openstack/common/tags"
+	"github.com/chnsz/golangsdk/openstack/dms/v2/products"
+	"github.com/chnsz/golangsdk/openstack/dms/v2/rabbitmq/instances"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
-
-const lockKey = "DMS"
 
 func ResourceDmsRabbitmqInstance() *schema.Resource {
 	return &schema.Resource{
@@ -106,9 +106,17 @@ func ResourceDmsRabbitmqInstance() *schema.Resource {
 				Set:           schema.HashString,
 				Description:   "schema: Required",
 			},
-			"product_id": {
-				Type:     schema.TypeString,
-				Required: true,
+			"flavor_id": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				ExactlyOneOf: []string{"product_id"},
+				RequiredWith: []string{"storage_space"},
+			},
+			"broker_num": {
+				Type:     schema.TypeInt,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
 			},
 			"maintain_begin": {
 				Type:     schema.TypeString,
@@ -134,6 +142,11 @@ func ResourceDmsRabbitmqInstance() *schema.Resource {
 				Optional: true,
 				Computed: true,
 			},
+			"charging_mode": common.SchemaChargingMode(nil),
+			"period_unit":   common.SchemaPeriodUnit(nil),
+			"period":        common.SchemaPeriod(nil),
+			"auto_renew":    common.SchemaAutoRenewUpdatable(nil),
+
 			"tags": common.TagsSchema(),
 			"engine": {
 				Type:     schema.TypeString,
@@ -192,6 +205,11 @@ func ResourceDmsRabbitmqInstance() *schema.Resource {
 				AtLeastOneOf: []string{"available_zones", "availability_zones"},
 				Deprecated:   "available_zones has deprecated, please use \"availability_zones\" instead.",
 			},
+			"product_id": {
+				Type:       schema.TypeString,
+				Optional:   true,
+				Deprecated: "product_id has deprecated, please use \"flavor_id\" instead.",
+			},
 			// Typo, it is only kept in the code, will not be shown in the docs.
 			"manegement_connect_address": {
 				Type:       schema.TypeString,
@@ -244,9 +262,20 @@ func getRabbitMQProductDetail(cfg *config.Config, d *schema.ResourceData) (*prod
 }
 
 func resourceDmsRabbitmqInstanceCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config.MutexKV.Lock(lockKey)
-	defer config.MutexKV.Unlock(lockKey)
+	var dErr diag.Diagnostics
+	if _, ok := d.GetOk("flavor_id"); ok {
+		dErr = createRabbitMQInstanceWithFlavor(ctx, d, meta)
+	} else {
+		dErr = createRabbitMQInstanceWithProductID(ctx, d, meta)
+	}
+	if dErr != nil {
+		return dErr
+	}
 
+	return resourceDmsRabbitmqInstanceRead(ctx, d, meta)
+}
+
+func createRabbitMQInstanceWithFlavor(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	region := cfg.GetRegion(d)
 	client, err := cfg.DmsV2Client(region)
@@ -255,16 +284,177 @@ func resourceDmsRabbitmqInstanceCreate(ctx context.Context, d *schema.ResourceDa
 	}
 
 	var availableZones []string // Available zones IDs
-	azIDs, ok := d.GetOk("available_zones")
+	azIDs, ok := d.GetOk("availability_zones")
 	if ok {
-		availableZones = utils.ExpandToStringList(azIDs.([]interface{}))
-	} else {
 		// convert the codes of the availability zone into ids
-		azCodes := d.Get("availability_zones").(*schema.Set)
+		azCodes := azIDs.(*schema.Set)
 		availableZones, err = getAvailableZoneIDByCode(cfg, region, azCodes.List())
 		if err != nil {
 			return diag.FromErr(err)
 		}
+	} else {
+		availableZones = utils.ExpandToStringList(d.Get("available_zones").([]interface{}))
+	}
+
+	createOpts := &instances.CreateOps{
+		Name:                d.Get("name").(string),
+		Description:         d.Get("description").(string),
+		Engine:              engineRabbitMQ,
+		EngineVersion:       d.Get("engine_version").(string),
+		StorageSpace:        d.Get("storage_space").(int),
+		AccessUser:          d.Get("access_user").(string),
+		VPCID:               d.Get("vpc_id").(string),
+		SecurityGroupID:     d.Get("security_group_id").(string),
+		SubnetID:            d.Get("network_id").(string),
+		AvailableZones:      availableZones,
+		ProductID:           d.Get("flavor_id").(string),
+		BrokerNum:           d.Get("broker_num").(int),
+		MaintainBegin:       d.Get("maintain_begin").(string),
+		MaintainEnd:         d.Get("maintain_end").(string),
+		SslEnable:           d.Get("ssl_enable").(bool),
+		StorageSpecCode:     d.Get("storage_spec_code").(string),
+		EnterpriseProjectID: common.GetEnterpriseProjectID(d, cfg),
+	}
+
+	if chargingMode, ok := d.GetOk("charging_mode"); ok && chargingMode == "prePaid" {
+		var autoRenew bool
+		if d.Get("auto_renew").(string) == "true" {
+			autoRenew = true
+		}
+		isAutoPay := true
+		createOpts.BssParam = &instances.BssParam{
+			ChargingMode: d.Get("charging_mode").(string),
+			PeriodType:   d.Get("period_unit").(string),
+			PeriodNum:    d.Get("period").(int),
+			IsAutoRenew:  &autoRenew,
+			IsAutoPay:    &isAutoPay,
+		}
+	}
+
+	if pubIpID, ok := d.GetOk("public_ip_id"); ok {
+		createOpts.EnablePublicIP = true
+		createOpts.PublicIpID = pubIpID.(string)
+	}
+
+	// set tags
+	if tagRaw := d.Get("tags").(map[string]interface{}); len(tagRaw) > 0 {
+		createOpts.Tags = utils.ExpandResourceTags(tagRaw)
+	}
+
+	log.Printf("[DEBUG] Create DMS RabbitMQ instance Options: %#v", createOpts)
+	// Add password here so it wouldn't go in the above log entry
+	createOpts.Password = d.Get("password").(string)
+
+	v, err := instances.CreateWithEngine(client, createOpts).Extract()
+	if err != nil {
+		return diag.Errorf("error creating DMS RabbitMQ instance: %s", err)
+	}
+	instanceID := v.InstanceID
+	// Store the instance ID now
+	d.SetId(instanceID)
+	log.Printf("[INFO] Creating RabbitMQ instance, ID: %s", instanceID)
+
+	var delayTime time.Duration = 300
+	if chargingMode, ok := d.GetOk("charging_mode"); ok && chargingMode == "prePaid" {
+		err = waitForRabbitMQOrderComplete(ctx, d, cfg, client, instanceID)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		delayTime = 5
+	}
+
+	stateConf := &resource.StateChangeConf{
+		Pending:      []string{"CREATING"},
+		Target:       []string{"RUNNING"},
+		Refresh:      rabbitmqInstanceStateRefreshFunc(client, instanceID),
+		Timeout:      d.Timeout(schema.TimeoutCreate),
+		Delay:        delayTime * time.Second,
+		PollInterval: 15 * time.Second,
+	}
+
+	if _, err = stateConf.WaitForStateContext(ctx); err != nil {
+		return diag.Errorf("error waiting for RabbitMQ instance (%s) to be ready: %s", instanceID, err)
+	}
+
+	return nil
+}
+
+func waitForRabbitMQOrderComplete(ctx context.Context, d *schema.ResourceData, conf *config.Config,
+	client *golangsdk.ServiceClient, instanceID string) error {
+	region := conf.GetRegion(d)
+	orderId, err := getRabbitMQInstanceOrderId(ctx, d, client, instanceID)
+	if err != nil {
+		return err
+	}
+	if orderId == "" {
+		log.Printf("[WARN] error get order id by instance ID: %s", instanceID)
+		return nil
+	}
+
+	bssClient, err := conf.BssV2Client(region)
+	if err != nil {
+		return fmt.Errorf("error creating BSS v2 client: %s", err)
+	}
+	// wait for order success
+	err = common.WaitOrderComplete(ctx, bssClient, orderId, d.Timeout(schema.TimeoutCreate))
+	if err != nil {
+		return err
+	}
+	_, err = common.WaitOrderResourceComplete(ctx, bssClient, orderId, d.Timeout(schema.TimeoutCreate))
+	if err != nil {
+		return fmt.Errorf("error waiting for RabbitMQ order resource %s complete: %s", orderId, err)
+	}
+	return nil
+}
+
+func getRabbitMQInstanceOrderId(ctx context.Context, d *schema.ResourceData, client *golangsdk.ServiceClient,
+	instanceID string) (string, error) {
+	stateConf := &resource.StateChangeConf{
+		Pending:      []string{"EMPTY"},
+		Target:       []string{"CREATING"},
+		Refresh:      rabbitMQInstanceCreatingFunc(client, instanceID),
+		Timeout:      d.Timeout(schema.TimeoutCreate),
+		Delay:        500 * time.Millisecond,
+		PollInterval: 500 * time.Millisecond,
+	}
+	orderId, err := stateConf.WaitForStateContext(ctx)
+	if err != nil {
+		return "", fmt.Errorf("error waiting for RabbitMQ instance (%s) to creating: %s", instanceID, err)
+	}
+	return orderId.(string), nil
+}
+
+func rabbitMQInstanceCreatingFunc(client *golangsdk.ServiceClient, instanceID string) resource.StateRefreshFunc {
+	return func() (interface{}, string, error) {
+		instance, err := instances.Get(client, instanceID).Extract()
+		if err != nil {
+			if _, ok := err.(golangsdk.ErrDefault404); ok {
+				return instance, "EMPTY", nil
+			}
+			return nil, "", err
+		}
+		return instance.OrderID, "CREATING", nil
+	}
+}
+
+func createRabbitMQInstanceWithProductID(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+	client, err := cfg.DmsV2Client(region)
+	if err != nil {
+		return diag.Errorf("error initializing DMS RabbitMQ(v2) client: %s", err)
+	}
+	var availableZones []string // Available zones IDs
+	azIDs, ok := d.GetOk("availability_zones")
+	if ok {
+		// convert the codes of the availability zone into ids
+		azCodes := azIDs.(*schema.Set)
+		availableZones, err = getAvailableZoneIDByCode(cfg, region, azCodes.List())
+		if err != nil {
+			return diag.FromErr(err)
+		}
+	} else {
+		availableZones = utils.ExpandToStringList(d.Get("available_zones").([]interface{}))
 	}
 
 	storageSpace := d.Get("storage_space").(int)
@@ -273,7 +463,6 @@ func resourceDmsRabbitmqInstanceCreate(ctx context.Context, d *schema.ResourceDa
 		if err != nil || product == nil {
 			return diag.Errorf("failed to query DMS RabbitMQ product details: %s", err)
 		}
-
 		defaultStorageSpace, err := strconv.ParseInt(product.Storage, 10, 32)
 		if err != nil {
 			return diag.Errorf("failed to create RabbitMQ instance, error parsing storage_space to int %v: %s",
@@ -319,15 +508,16 @@ func resourceDmsRabbitmqInstanceCreate(ctx context.Context, d *schema.ResourceDa
 	if err != nil {
 		return diag.Errorf("error creating DMS RabbitMQ instance: %s", err)
 	}
-	log.Printf("[INFO] Creating RabbitMQ instance, ID: %s", v.InstanceID)
+	// Store the instance ID now
+	d.SetId(v.InstanceID)
 
+	log.Printf("[INFO] Creating RabbitMQ instance, ID: %s", v.InstanceID)
 	stateConf := &resource.StateChangeConf{
 		Pending:      []string{"CREATING"},
 		Target:       []string{"RUNNING"},
 		Refresh:      rabbitmqInstanceStateRefreshFunc(client, v.InstanceID),
 		Timeout:      d.Timeout(schema.TimeoutCreate),
 		Delay:        300 * time.Second,
-		MinTimeout:   10 * time.Second,
 		PollInterval: 15 * time.Second,
 	}
 
@@ -335,10 +525,7 @@ func resourceDmsRabbitmqInstanceCreate(ctx context.Context, d *schema.ResourceDa
 		return diag.Errorf("error waiting for RabbitMQ instance (%s) to be ready: %s", v.InstanceID, err)
 	}
 
-	// Store the instance ID now
-	d.SetId(v.InstanceID)
-
-	return resourceDmsRabbitmqInstanceRead(ctx, d, meta)
+	return nil
 }
 
 func resourceDmsRabbitmqInstanceRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -361,6 +548,11 @@ func resourceDmsRabbitmqInstanceRead(_ context.Context, d *schema.ResourceData, 
 	asCodes, err := getAvailableZoneCodeByID(cfg, region, azIDs)
 	mErr := multierror.Append(nil, err)
 
+	var chargingMode = "postPaid"
+	if v.ChargingMode == 0 {
+		chargingMode = "prePaid"
+	}
+
 	d.SetId(v.InstanceID)
 	mErr = multierror.Append(mErr,
 		d.Set("region", region),
@@ -378,13 +570,14 @@ func resourceDmsRabbitmqInstanceRead(_ context.Context, d *schema.ResourceData, 
 		d.Set("network_id", v.SubnetID),
 		d.Set("available_zones", v.AvailableZones),
 		d.Set("availability_zones", asCodes),
-		d.Set("product_id", v.ProductID),
+		setRabbitMQFlavorId(d, v.ProductID),
 		d.Set("maintain_begin", v.MaintainBegin),
 		d.Set("maintain_end", v.MaintainEnd),
 		d.Set("enable_public_ip", v.EnablePublicIP),
 		d.Set("public_ip_id", v.PublicIPID),
 		d.Set("ssl_enable", v.SslEnable),
 		d.Set("storage_spec_code", v.StorageSpecCode),
+		d.Set("broker_num", v.BrokerNum),
 		d.Set("enterprise_project_id", v.EnterpriseProjectID),
 		d.Set("used_storage_space", v.UsedStorageSpace),
 		d.Set("connect_address", v.ConnectAddress),
@@ -397,6 +590,7 @@ func resourceDmsRabbitmqInstanceRead(_ context.Context, d *schema.ResourceData, 
 		d.Set("user_name", v.UserName),
 		d.Set("type", v.Type),
 		d.Set("access_user", v.AccessUser),
+		d.Set("charging_mode", chargingMode),
 	)
 
 	// set tags
@@ -420,10 +614,15 @@ func resourceDmsRabbitmqInstanceRead(_ context.Context, d *schema.ResourceData, 
 	return nil
 }
 
-func resourceDmsRabbitmqInstanceUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config.MutexKV.Lock(lockKey)
-	defer config.MutexKV.Unlock(lockKey)
+func setRabbitMQFlavorId(d *schema.ResourceData, flavorId string) error {
+	re := regexp.MustCompile(`^[a-z0-9]+\.\d+u\d+g\.cluster|single$`)
+	if re.MatchString(flavorId) {
+		return d.Set("flavor_id", flavorId)
+	}
+	return d.Set("product_id", flavorId)
+}
 
+func resourceDmsRabbitmqInstanceUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	client, err := cfg.DmsV2Client(cfg.GetRegion(d))
 	if err != nil {
@@ -473,7 +672,7 @@ func resourceDmsRabbitmqInstanceUpdate(ctx context.Context, d *schema.ResourceDa
 		}
 	}
 
-	if d.HasChange("product_id") {
+	if d.HasChanges("product_id", "flavor_id") {
 		err = resizeRabbitMQInstance(ctx, d, meta, engineRabbitMQ)
 		if err != nil {
 			mErr = multierror.Append(mErr, err)
@@ -493,56 +692,80 @@ func resizeRabbitMQInstance(ctx context.Context, d *schema.ResourceData, meta in
 		return fmt.Errorf("error initializing DMS(v2) client: %s", err)
 	}
 
-	product, err := getRabbitMQProductDetail(cfg, d)
-	if err != nil {
-		return fmt.Errorf("failed to resize RabbitMQ instance, query product details error: %s", err)
+	if d.HasChanges("product_id") {
+		product, err := getRabbitMQProductDetail(cfg, d)
+		if err != nil {
+			return fmt.Errorf("failed to resize RabbitMQ instance, query product details error: %s", err)
+		}
+		storage, err := strconv.Atoi(product.Storage)
+		if err != nil {
+			return fmt.Errorf("failed to resize RabbitMQ instance, error parsing storage_space to int %v: %s",
+				product.Storage, err)
+		}
+
+		resizeOpts := instances.ResizeInstanceOpts{
+			NewSpecCode:     &product.SpecCode,
+			NewStorageSpace: &storage,
+		}
+		log.Printf("[DEBUG] Resize DMS RabbitMQ instance option : %#v", resizeOpts)
+
+		if err = doRabbitMQInstanceResize(ctx, d, client, resizeOpts); err != nil {
+			return err
+		}
 	}
 
-	storage, err := strconv.Atoi(product.Storage)
-	if err != nil {
-		return fmt.Errorf("failed to resize RabbitMQ instance, error parsing storage_space to int %v: %s",
-			product.Storage, err)
-	}
+	if d.HasChanges("flavor_id") {
+		flavorID := d.Get("flavor_id").(string)
+		operType := "vertical"
+		resizeOpts := instances.ResizeInstanceOpts{
+			OperType:     &operType,
+			NewProductID: &flavorID,
+		}
+		log.Printf("[DEBUG] Resize RabbitMQ instance flavor ID options: %s", utils.MarshalValue(resizeOpts))
 
-	resizeOpts := instances.ResizeInstanceOpts{
-		NewSpecCode:     product.SpecCode,
-		NewStorageSpace: storage,
-	}
-	log.Printf("[DEBUG] Resize DMS %s instance option : %#v", engineType, resizeOpts)
-
-	_, err = instances.Resize(client, d.Id(), resizeOpts)
-	if err != nil {
-		return fmt.Errorf("resize RabbitMQ instance failed: %s", err)
-	}
-
-	stateConf := &resource.StateChangeConf{
-		Pending:      []string{"EXTENDING", "PENDING"},
-		Target:       []string{"RUNNING"},
-		Refresh:      rabbitMQResizeStateRefresh(client, d.Id(), product.ProductID),
-		Timeout:      d.Timeout(schema.TimeoutUpdate),
-		Delay:        180 * time.Second,
-		PollInterval: 15 * time.Second,
-	}
-	if _, err = stateConf.WaitForStateContext(ctx); err != nil {
-		return fmt.Errorf("error waiting for RabbitMQ instance (%s) to resize: %v", d.Id(), err)
+		if err = doRabbitMQInstanceResize(ctx, d, client, resizeOpts); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func rabbitMQResizeStateRefresh(client *golangsdk.ServiceClient, instanceID, productID string) resource.StateRefreshFunc {
+func doRabbitMQInstanceResize(ctx context.Context, d *schema.ResourceData, client *golangsdk.ServiceClient, opts instances.ResizeInstanceOpts) error {
+	if _, err := instances.Resize(client, d.Id(), opts); err != nil {
+		return fmt.Errorf("resize RabbitMQ instance failed: %s", err)
+	}
+
+	stateConf := &resource.StateChangeConf{
+		Pending:      []string{"PENDING"},
+		Target:       []string{"RUNNING"},
+		Refresh:      rabbitMQResizeStateRefresh(client, d, opts.OperType),
+		Timeout:      d.Timeout(schema.TimeoutUpdate),
+		Delay:        10 * time.Second,
+		PollInterval: 10 * time.Second,
+	}
+	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
+		return fmt.Errorf("error waiting for instance (%s) to resize: %v", d.Id(), err)
+	}
+	return nil
+}
+
+func rabbitMQResizeStateRefresh(client *golangsdk.ServiceClient, d *schema.ResourceData, operType *string) resource.StateRefreshFunc {
+	productID := d.Get("flavor_id").(string)
+	if productID == "" {
+		productID = d.Get("product_id").(string)
+	}
+
 	return func() (interface{}, string, error) {
-		v, err := instances.Get(client, instanceID).Extract()
+		v, err := instances.Get(client, d.Id()).Extract()
 		if err != nil {
-			if _, ok := err.(golangsdk.ErrDefault404); ok {
-				return v, "failed", fmt.Errorf("unable to resize RabbitMQ instance which has been deleted: %s",
-					instanceID)
-			}
 			return nil, "failed", err
 		}
-		if v.Status == "RUNNING" && v.ProductID != productID {
+
+		if (operType == nil || *operType == "vertical") && v.ProductID != productID {
 			return v, "PENDING", nil
 		}
+
 		return v, v.Status, nil
 	}
 }
@@ -554,9 +777,15 @@ func resourceDmsRabbitmqInstanceDelete(ctx context.Context, d *schema.ResourceDa
 		return diag.Errorf("error initializing DMS RabbitMQ(v2) client: %s", err)
 	}
 
-	err = instances.Delete(client, d.Id()).ExtractErr()
-	if err != nil {
-		return common.CheckDeletedDiag(d, err, "failed to delete DMS RabbitMQ instance")
+	if d.Get("charging_mode") == "prePaid" {
+		if err = common.UnsubscribePrePaidResource(d, cfg, []string{d.Id()}); err != nil {
+			return diag.Errorf("error unsubscribe RabbitMQ instance: %s", err)
+		}
+	} else {
+		err = instances.Delete(client, d.Id()).ExtractErr()
+		if err != nil {
+			return common.CheckDeletedDiag(d, err, "failed to delete RabbitMQ instance")
+		}
 	}
 
 	// Wait for the instance to delete before moving on.
@@ -568,7 +797,6 @@ func resourceDmsRabbitmqInstanceDelete(ctx context.Context, d *schema.ResourceDa
 		Refresh:      rabbitmqInstanceStateRefreshFunc(client, d.Id()),
 		Timeout:      d.Timeout(schema.TimeoutDelete),
 		Delay:        90 * time.Second,
-		MinTimeout:   5 * time.Second,
 		PollInterval: 15 * time.Second,
 	}
 

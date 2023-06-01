@@ -43,7 +43,7 @@ resource "sbercloud_vpc_subnet" "test" {
   gateway_ip    = "192.168.0.1"
   primary_dns   = "100.125.1.250"
   secondary_dns = "100.125.21.250"
-  vpc_id        = sbercloud_vpc.test.id
+  vpc_id        = sbercloud_vpc.test.idmake 
 }
 
 resource "sbercloud_networking_secgroup" "secgroup" {

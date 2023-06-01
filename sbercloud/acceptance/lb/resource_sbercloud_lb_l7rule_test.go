@@ -20,9 +20,9 @@ func TestAccLBV2L7Rule_basic(t *testing.T) {
 	resourceName := "sbercloud_lb_l7rule.l7rule_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { acceptance.TestAccPreCheck(t) },
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
 		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy: testAccCheckLBV2L7RuleDestroy,
+		CheckDestroy:      testAccCheckLBV2L7RuleDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccCheckLBV2L7RuleConfig_basic(rName),
