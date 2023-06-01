@@ -41,6 +41,13 @@ ENHANCEMENTS:
 * Update VPC resources  ([#184](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/184))
 * Update tests for LB resources ([#187](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/187))
 
+## 1.10.1 (May 17, 2023)
+
+ENHANCEMENTS:
+
+* Upgrade to terraform-provider-huaweicloud `v1.48.0` ([#171](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/171))
+* Upgrade to new golangsdk ([#172](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/172))
+
 ## 1.10.0 (October 28, 2022)
 
 FEATURES:
