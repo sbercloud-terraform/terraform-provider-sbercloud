@@ -1,7 +1,8 @@
-package sbercloud
+package ecs
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -19,9 +20,9 @@ func TestAccComputeInstanceDataSource_basic(t *testing.T) {
 	var instance cloudservers.CloudServer
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckComputeInstanceDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckComputeInstanceDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccComputeInstanceDataSource_basic(rName),
@@ -92,8 +93,8 @@ func testAccCheckComputeInstanceExists(n string, instance *cloudservers.CloudSer
 			return fmtp.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		computeClient, err := config.ComputeV1Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		computeClient, err := config.ComputeV1Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmtp.Errorf("Error creating SberCloud compute client: %s", err)
 		}
@@ -114,8 +115,8 @@ func testAccCheckComputeInstanceExists(n string, instance *cloudservers.CloudSer
 }
 
 func testAccCheckComputeInstanceDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	computeClient, err := config.ComputeV1Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	computeClient, err := config.ComputeV1Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmtp.Errorf("Error creating SberCloud compute client: %s", err)
 	}
