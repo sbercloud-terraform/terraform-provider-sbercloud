@@ -19,9 +19,9 @@ func TestAccLBV2Listener_basic(t *testing.T) {
 	resourceName := "sbercloud_lb_listener.listener_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { acceptance.TestAccPreCheck(t) },
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
 		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy: testAccCheckLBV2ListenerDestroy,
+		CheckDestroy:      testAccCheckLBV2ListenerDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccLBV2ListenerConfig_basic(rName),

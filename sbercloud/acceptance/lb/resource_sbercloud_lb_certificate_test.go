@@ -19,9 +19,9 @@ func TestAccLBV2Certificate_basic(t *testing.T) {
 	resourceName := "sbercloud_lb_certificate.certificate_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { acceptance.TestAccPreCheck(t) },
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
 		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy: testAccCheckLBV2CertificateDestroy,
+		CheckDestroy:      testAccCheckLBV2CertificateDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccLBV2CertificateConfig_basic(name),
@@ -47,9 +47,9 @@ func TestAccLBV2Certificate_client(t *testing.T) {
 	resourceName := "sbercloud_lb_certificate.certificate_client"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { acceptance.TestAccPreCheck(t) },
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
 		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy: testAccCheckLBV2CertificateDestroy,
+		CheckDestroy:      testAccCheckLBV2CertificateDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccLBV2CertificateConfig_client(name),

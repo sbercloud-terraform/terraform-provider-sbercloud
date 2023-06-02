@@ -19,9 +19,9 @@ func TestAccLBV2Pool_basic(t *testing.T) {
 	resourceName := "sbercloud_lb_pool.pool_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { acceptance.TestAccPreCheck(t) },
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
 		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy: testAccCheckLBV2PoolDestroy,
+		CheckDestroy:      testAccCheckLBV2PoolDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccLBV2PoolConfig_basic(rName),

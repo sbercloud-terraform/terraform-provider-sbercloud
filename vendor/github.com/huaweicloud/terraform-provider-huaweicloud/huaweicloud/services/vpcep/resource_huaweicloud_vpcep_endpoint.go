@@ -5,11 +5,14 @@ import (
 	"log"
 	"time"
 
-	"github.com/chnsz/golangsdk"
-	"github.com/chnsz/golangsdk/openstack/vpcep/v1/endpoints"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+
+	"github.com/chnsz/golangsdk"
+	"github.com/chnsz/golangsdk/openstack/vpcep/v1/endpoints"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
@@ -52,30 +55,35 @@ func ResourceVPCEndpoint() *schema.Resource {
 				Required: true,
 				ForceNew: true,
 			},
-			"ip_address": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
-				Computed: true,
-			},
 			"enable_dns": {
 				Type:     schema.TypeBool,
 				Optional: true,
 				ForceNew: true,
 				Default:  true,
 			},
+			"ip_address": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
+			},
+			"description": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
+			},
 			"enable_whitelist": {
 				Type:     schema.TypeBool,
 				Optional: true,
-				ForceNew: true,
 			},
 			"whitelist": {
 				Type:     schema.TypeSet,
 				Optional: true,
-				ForceNew: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 				Set:      schema.HashString,
 			},
+			"tags": common.TagsSchema(),
 			"status": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -96,44 +104,33 @@ func ResourceVPCEndpoint() *schema.Resource {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
-			"tags": common.TagsSchema(),
 		},
 	}
 }
 
 func resourceVPCEndpointCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	region := config.GetRegion(d)
-	vpcepClient, err := config.VPCEPClient(region)
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+	vpcepClient, err := cfg.VPCEPClient(region)
 	if err != nil {
 		return diag.Errorf("error creating VPC endpoint client: %s", err)
 	}
 
-	enableDNS := d.Get("enable_dns").(bool)
 	enableACL := d.Get("enable_whitelist").(bool)
 	createOpts := endpoints.CreateOpts{
 		ServiceID:       d.Get("service_id").(string),
 		VpcID:           d.Get("vpc_id").(string),
 		SubnetID:        d.Get("network_id").(string),
 		PortIP:          d.Get("ip_address").(string),
-		EnableDNS:       &enableDNS,
-		EnableWhitelist: &enableACL,
+		Description:     d.Get("description").(string),
+		EnableDNS:       utils.Bool(d.Get("enable_dns").(bool)),
+		EnableWhitelist: utils.Bool(enableACL),
+		Tags:            utils.ExpandResourceTags(d.Get("tags").(map[string]interface{})),
 	}
 
 	raw := d.Get("whitelist").(*schema.Set).List()
 	if enableACL && len(raw) > 0 {
-		whitelists := make([]string, len(raw))
-		for i, v := range raw {
-			whitelists[i] = v.(string)
-		}
-		createOpts.Whitelist = whitelists
-	}
-
-	//set tags
-	tagRaw := d.Get("tags").(map[string]interface{})
-	if len(tagRaw) > 0 {
-		taglist := utils.ExpandResourceTags(tagRaw)
-		createOpts.Tags = taglist
+		createOpts.Whitelist = utils.ExpandToStringList(raw)
 	}
 
 	log.Printf("[DEBUG] Create Options: %#v", createOpts)
@@ -162,9 +159,9 @@ func resourceVPCEndpointCreate(ctx context.Context, d *schema.ResourceData, meta
 }
 
 func resourceVPCEndpointRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	region := config.GetRegion(d)
-	vpcepClient, err := config.VPCEPClient(region)
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+	vpcepClient, err := cfg.VPCEPClient(region)
 	if err != nil {
 		return diag.Errorf("error creating VPC endpoint client: %s", err)
 	}
@@ -175,57 +172,67 @@ func resourceVPCEndpointRead(_ context.Context, d *schema.ResourceData, meta int
 	}
 
 	log.Printf("[DEBUG] retrieving VPC endpoint: %#v", ep)
-	d.Set("region", region)
-	d.Set("status", ep.Status)
-	d.Set("service_id", ep.ServiceID)
-	d.Set("service_name", ep.ServiceName)
-	d.Set("service_type", ep.ServiceType)
-	d.Set("vpc_id", ep.VpcID)
-	d.Set("network_id", ep.SubnetID)
-	d.Set("ip_address", ep.IPAddr)
-	d.Set("enable_dns", ep.EnableDNS)
-	d.Set("enable_whitelist", ep.EnableWhitelist)
-	d.Set("whitelist", ep.Whitelist)
-	d.Set("packet_id", ep.MarkerID)
+	mErr := multierror.Append(nil,
+		d.Set("region", region),
+		d.Set("status", ep.Status),
+		d.Set("service_id", ep.ServiceID),
+		d.Set("service_name", ep.ServiceName),
+		d.Set("service_type", ep.ServiceType),
+		d.Set("vpc_id", ep.VpcID),
+		d.Set("network_id", ep.SubnetID),
+		d.Set("ip_address", ep.IPAddr),
+		d.Set("description", ep.Description),
+		d.Set("enable_dns", ep.EnableDNS),
+		d.Set("enable_whitelist", ep.EnableWhitelist),
+		d.Set("packet_id", ep.MarkerID),
+		d.Set("tags", utils.TagsToMap(ep.Tags)),
+	)
+
+	if len(ep.Whitelist) == 0 {
+		// if the "whitelist" is not specified, the api will return an empty array
+		mErr = multierror.Append(mErr, d.Set("whitelist", nil))
+	} else {
+		mErr = multierror.Append(mErr, d.Set("whitelist", ep.Whitelist))
+	}
 
 	if len(ep.DNSNames) > 0 {
-		d.Set("private_domain_name", ep.DNSNames[0])
+		mErr = multierror.Append(mErr, d.Set("private_domain_name", ep.DNSNames[0]))
 	} else {
-		d.Set("private_domain_name", nil)
+		mErr = multierror.Append(mErr, d.Set("private_domain_name", nil))
 	}
-
-	// fetch tags from endpoints.Endpoint
-	tagmap := make(map[string]string)
-	for _, val := range ep.Tags {
-		tagmap[val.Key] = val.Value
-	}
-	d.Set("tags", tagmap)
-
-	return nil
+	return diag.FromErr(mErr.ErrorOrNil())
 }
 
 func resourceVPCEndpointUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	region := config.GetRegion(d)
-	vpcepClient, err := config.VPCEPClient(region)
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+	vpcepClient, err := cfg.VPCEPClient(region)
 	if err != nil {
 		return diag.Errorf("error creating VPC endpoint client: %s", err)
 	}
-
-	//update tags
+	if d.HasChanges("enable_whitelist", "whitelist") {
+		updateOpts := endpoints.UpdateOpts{
+			EnableWhitelist: utils.Bool(d.Get("enable_whitelist").(bool)),
+			Whitelist:       utils.ExpandToStringList(d.Get("whitelist").(*schema.Set).List()),
+		}
+		_, err := endpoints.Update(vpcepClient, updateOpts, d.Id()).Extract()
+		if err != nil {
+			return diag.Errorf("error updating VPC endpoint whitelist: %s", err)
+		}
+	}
 	if d.HasChange("tags") {
 		tagErr := utils.UpdateResourceTags(vpcepClient, d, tagVPCEP, d.Id())
 		if tagErr != nil {
-			return diag.Errorf("error updating tags of VPC endpoint service %s: %s", d.Id(), tagErr)
+			return diag.Errorf("error updating tags of VPC endpoint %s: %s", d.Id(), tagErr)
 		}
 	}
 	return resourceVPCEndpointRead(ctx, d, meta)
 }
 
 func resourceVPCEndpointDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	region := config.GetRegion(d)
-	vpcepClient, err := config.VPCEPClient(region)
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+	vpcepClient, err := cfg.VPCEPClient(region)
 	if err != nil {
 		return diag.Errorf("error creating VPC endpoint client: %s", err)
 	}

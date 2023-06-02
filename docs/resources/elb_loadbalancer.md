@@ -23,8 +23,8 @@ resource "sbercloud_elb_loadbalancer" "basic" {
   l7_flavor_id = "{{ l7_flavor_id }}"
 
   availability_zone = [
-    "cn-north-4a",
-    "cn-north-4b",
+    "ru-moscow-1a",
+    "ru-moscow-1b",
   ]
 
   enterprise_project_id = "{{ eps_id }}"

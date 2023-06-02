@@ -126,6 +126,16 @@ func ResourceRdsInstance() *schema.Resource {
 							Computed: true,
 							ForceNew: true,
 						},
+						"limit_size": {
+							Type:         schema.TypeInt,
+							Optional:     true,
+							RequiredWith: []string{"volume.0.trigger_threshold"},
+						},
+						"trigger_threshold": {
+							Type:         schema.TypeInt,
+							Optional:     true,
+							RequiredWith: []string{"volume.0.limit_size"},
+						},
 					},
 				},
 			},
@@ -287,6 +297,12 @@ func ResourceRdsInstance() *schema.Resource {
 				Computed: true,
 			},
 
+			"lower_case_table_names": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+			},
+
 			// charge info: charging_mode, period_unit, period, auto_renew, auto_pay
 			"charging_mode": common.SchemaChargingMode(nil),
 			"period_unit":   common.SchemaPeriodUnit(nil),
@@ -337,6 +353,7 @@ func resourceRdsInstanceCreate(ctx context.Context, d *schema.ResourceData, meta
 		Volume:              buildRdsInstanceVolume(d),
 		BackupStrategy:      buildRdsInstanceBackupStrategy(d),
 		Ha:                  buildRdsInstanceHaReplicationMode(d),
+		UnchangeableParam:   buildRdsInstanceUnchangeableParam(d),
 	}
 
 	// PrePaid
@@ -385,21 +402,20 @@ func resourceRdsInstanceCreate(ctx context.Context, d *schema.ResourceData, meta
 		if err := checkRDSInstanceJobFinish(client, res.JobId, d.Timeout(schema.TimeoutCreate)); err != nil {
 			return diag.Errorf("error creating instance (%s): %s", instanceID, err)
 		}
-	} else {
-		// for prePaid charge mode
-		stateConf := &resource.StateChangeConf{
-			Pending:      []string{"BUILD"},
-			Target:       []string{"ACTIVE", "BACKING UP"},
-			Refresh:      rdsInstanceStateRefreshFunc(client, instanceID),
-			Timeout:      d.Timeout(schema.TimeoutCreate),
-			Delay:        20 * time.Second,
-			PollInterval: 10 * time.Second,
-			// Ensure that the instance is 'ACTIVE', not going to enter 'BACKING UP'.
-			ContinuousTargetOccurence: 2,
-		}
-		if _, err = stateConf.WaitForState(); err != nil {
-			return diag.Errorf("error waiting for RDS instance (%s) creation completed: %s", instanceID, err)
-		}
+	}
+	// for prePaid charge mode
+	stateConf := &resource.StateChangeConf{
+		Pending:      []string{"BUILD"},
+		Target:       []string{"ACTIVE", "BACKING UP"},
+		Refresh:      rdsInstanceStateRefreshFunc(client, instanceID),
+		Timeout:      d.Timeout(schema.TimeoutCreate),
+		Delay:        20 * time.Second,
+		PollInterval: 10 * time.Second,
+		// Ensure that the instance is 'ACTIVE', not going to enter 'BACKING UP'.
+		ContinuousTargetOccurence: 2,
+	}
+	if _, err = stateConf.WaitForStateContext(ctx); err != nil {
+		return diag.Errorf("error waiting for RDS instance (%s) creation completed: %s", instanceID, err)
 	}
 
 	if d.Get("ssl_enable").(bool) {
@@ -493,6 +509,19 @@ func resourceRdsInstanceCreate(ctx context.Context, d *schema.ResourceData, meta
 		}
 	}
 
+	if size := d.Get("volume.0.limit_size").(int); size > 0 {
+		opts := instances.EnableAutoExpandOpts{
+			InstanceId:       instanceID,
+			LimitSize:        size,
+			TriggerThreshold: d.Get("volume.0.trigger_threshold").(int),
+		}
+
+		err = instances.EnableAutoExpand(client, opts)
+		if err != nil {
+			return diag.Errorf("error configuring auto-expansion: %v", err)
+		}
+	}
+
 	return resourceRdsInstanceRead(ctx, d, meta)
 }
 
@@ -544,13 +573,21 @@ func resourceRdsInstanceRead(ctx context.Context, d *schema.ResourceData, meta i
 		d.Set("fixed_ip", privateIps[0])
 	}
 
-	volume := make([]map[string]interface{}, 1)
-	volume[0] = map[string]interface{}{
+	volume := map[string]interface{}{
 		"type":               instance.Volume.Type,
 		"size":               instance.Volume.Size,
 		"disk_encryption_id": instance.DiskEncryptionId,
 	}
-	if err := d.Set("volume", volume); err != nil {
+	// Only MySQL engines are supported.
+	resp, err := instances.GetAutoExpand(client, instanceID)
+	if err != nil {
+		log.Printf("[ERROR] error query automatic expansion configuration of the instance storage: %s", err)
+	}
+	if resp.SwitchOption {
+		volume["limit_size"] = resp.LimitSize
+		volume["trigger_threshold"] = resp.TriggerThreshold
+	}
+	if err := d.Set("volume", []map[string]interface{}{volume}); err != nil {
 		return diag.Errorf("error saving volume to RDS instance (%s): %s", instanceID, err)
 	}
 
@@ -590,22 +627,6 @@ func resourceRdsInstanceRead(ctx context.Context, d *schema.ResourceData, meta i
 	}
 	if err := d.Set("nodes", nodes); err != nil {
 		return diag.Errorf("error saving nodes to RDS instance (%s): %s", instanceID, err)
-	}
-
-	az1 := instance.Nodes[0].AvailabilityZone
-	if strings.HasSuffix(d.Get("flavor").(string), ".ha") {
-		if len(instance.Nodes) < 2 {
-			return diag.Errorf("error saving availability zone to RDS instance (%s): "+
-				"HA mode must have two availability zone", instanceID)
-		}
-		az2 := instance.Nodes[1].AvailabilityZone
-		if instance.Nodes[1].Role == "master" {
-			d.Set("availability_zone", []string{az2, az1})
-		} else {
-			d.Set("availability_zone", []string{az1, az2})
-		}
-	} else {
-		d.Set("availability_zone", []string{az1})
 	}
 
 	// Set Parameters
@@ -743,6 +764,26 @@ func resourceRdsInstanceUpdate(ctx context.Context, d *schema.ResourceData, meta
 		ctx = context.WithValue(ctx, ctxType("parametersChanged"), "true")
 	}
 
+	if d.HasChanges("volume.0.limit_size", "volume.0.trigger_threshold") {
+		limitSize := d.Get("volume.0.limit_size").(int)
+		if limitSize > 0 {
+			opts := instances.EnableAutoExpandOpts{
+				InstanceId:       instanceID,
+				LimitSize:        limitSize,
+				TriggerThreshold: d.Get("volume.0.trigger_threshold").(int),
+			}
+			err = instances.EnableAutoExpand(client, opts)
+			if err != nil {
+				return diag.Errorf("an error occurred while enable automatic expansion of instance storage: %v", err)
+			}
+		} else {
+			err = instances.DisableAutoExpand(client, instanceID)
+			if err != nil {
+				return diag.Errorf("an error occurred while disable automatic expansion of instance storage: %v", err)
+			}
+		}
+	}
+
 	return resourceRdsInstanceRead(ctx, d, meta)
 }
 
@@ -861,6 +902,15 @@ func buildRdsInstanceBackupStrategy(d *schema.ResourceData) *instances.BackupStr
 		backupStrategy.KeepDays = backupRaw[0].(map[string]interface{})["keep_days"].(int)
 	}
 	return backupStrategy
+}
+
+func buildRdsInstanceUnchangeableParam(d *schema.ResourceData) *instances.UnchangeableParam {
+	var unchangeableParam *instances.UnchangeableParam
+	if v, ok := d.GetOk("lower_case_table_names"); ok {
+		unchangeableParam = new(instances.UnchangeableParam)
+		unchangeableParam.LowerCaseTableNames = v.(string)
+	}
+	return unchangeableParam
 }
 
 func buildRdsInstanceHaReplicationMode(d *schema.ResourceData) *instances.Ha {
