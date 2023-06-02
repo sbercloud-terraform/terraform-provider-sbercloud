@@ -27,7 +27,7 @@ func TestAccComputeV2InterfaceAttach_Basic(t *testing.T) {
 				Config: testAccComputeV2InterfaceAttach_basic(rName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckComputeV2InterfaceAttachExists("sbercloud_compute_interface_attach.ai_1", &ai),
-					testAccCheckComputeV2InterfaceAttachIP(&ai, "192.168.0.199"),
+					testAccCheckComputeV2InterfaceAttachIP(&ai, "192.168.10.199"),
 				),
 			},
 		},
@@ -142,7 +142,8 @@ resource "sbercloud_compute_instance" "instance_1" {
 resource "sbercloud_compute_interface_attach" "ai_1" {
   instance_id = sbercloud_compute_instance.instance_1.id
   network_id =  data.sbercloud_vpc_subnet.test.id
-  fixed_ip = "192.168.0.199"
+  fixed_ip = "192.168.10.199"
+  security_group_ids = [data.sbercloud_networking_secgroup.test.id] 
 }
 `, testAccCompute_data, rName)
 }
