@@ -1,7 +1,8 @@
-package sbercloud
+package ecs
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -20,9 +21,9 @@ func TestAccComputeV2Instance_basic(t *testing.T) {
 	resourceName := "sbercloud_compute_instance.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckComputeV2InstanceDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckComputeV2InstanceDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccComputeV2Instance_basic(rName),
@@ -51,9 +52,9 @@ func TestAccComputeV2Instance_disks(t *testing.T) {
 	resourceName := "sbercloud_compute_instance.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckComputeV2InstanceDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckComputeV2InstanceDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccComputeV2Instance_disks(rName),
@@ -73,9 +74,9 @@ func TestAccComputeV2Instance_tags(t *testing.T) {
 	resourceName := "sbercloud_compute_instance.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckComputeV2InstanceDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckComputeV2InstanceDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccComputeV2Instance_tags(rName),
@@ -113,8 +114,8 @@ func TestAccComputeV2Instance_tags(t *testing.T) {
 }
 
 func testAccCheckComputeV2InstanceDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	computeClient, err := config.ComputeV2Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	computeClient, err := config.ComputeV2Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating Sbercloud compute client: %s", err)
 	}
@@ -146,8 +147,8 @@ func testAccCheckComputeV2InstanceExists(n string, instance *servers.Server) res
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		computeClient, err := config.ComputeV2Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		computeClient, err := config.ComputeV2Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating Sbercloud compute client: %s", err)
 		}
@@ -170,8 +171,8 @@ func testAccCheckComputeV2InstanceExists(n string, instance *servers.Server) res
 func testAccCheckComputeV2InstanceTags(
 	instance *servers.Server, k, v string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		config := testAccProvider.Meta().(*config.Config)
-		client, err := config.ComputeV1Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		client, err := config.ComputeV1Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating Sbercloud compute v1 client: %s", err)
 		}
@@ -196,8 +197,8 @@ func testAccCheckComputeV2InstanceTags(
 func testAccCheckComputeV2InstanceNoTags(
 	instance *servers.Server) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		config := testAccProvider.Meta().(*config.Config)
-		client, err := config.ComputeV1Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		client, err := config.ComputeV1Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating Sbercloud compute v1 client: %s", err)
 		}

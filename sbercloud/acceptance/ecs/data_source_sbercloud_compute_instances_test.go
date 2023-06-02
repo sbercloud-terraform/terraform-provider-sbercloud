@@ -1,7 +1,8 @@
-package sbercloud
+package ecs
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
@@ -18,9 +19,9 @@ func TestAccComputeInstancesDataSource_basic(t *testing.T) {
 	var instance cloudservers.CloudServer
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckComputeInstanceDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckComputeInstanceDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccComputeInstancesDataSource_basic(rName),

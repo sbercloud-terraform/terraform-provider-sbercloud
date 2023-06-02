@@ -1,7 +1,8 @@
-package sbercloud
+package ecs
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"strings"
 	"testing"
 
@@ -23,9 +24,9 @@ func TestAccComputeV2EIPAssociate_basic(t *testing.T) {
 	resourceName := "sbercloud_compute_eip_associate.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckComputeV2EIPAssociateDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckComputeV2EIPAssociateDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccComputeV2EIPAssociate_basic(rName),
@@ -52,9 +53,9 @@ func TestAccComputeV2EIPAssociate_fixedIP(t *testing.T) {
 	resourceName := "sbercloud_compute_eip_associate.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckComputeV2EIPAssociateDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckComputeV2EIPAssociateDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccComputeV2EIPAssociate_fixedIP(rName),
@@ -74,8 +75,8 @@ func TestAccComputeV2EIPAssociate_fixedIP(t *testing.T) {
 }
 
 func testAccCheckComputeV2EIPAssociateDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	computeClient, err := config.ComputeV2Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	computeClient, err := config.ComputeV2Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating Sbercloud compute client: %s", err)
 	}
@@ -131,8 +132,8 @@ func parseComputeFloatingIPAssociateId(id string) (string, string, string, error
 func testAccCheckComputeV2EIPAssociateAssociated(
 	eip *eips.PublicIp, instance *servers.Server, n int) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		config := testAccProvider.Meta().(*config.Config)
-		computeClient, err := config.ComputeV2Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		computeClient, err := config.ComputeV2Client(acceptance.SBC_REGION_NAME)
 
 		newInstance, err := servers.Get(computeClient, instance.ID).Extract()
 		if err != nil {
@@ -168,8 +169,8 @@ func testAccCheckVpcV1EIPExists(n string, eip *eips.PublicIp) resource.TestCheck
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		networkingClient, err := config.NetworkingV1Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		networkingClient, err := config.NetworkingV1Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating networking client: %s", err)
 		}

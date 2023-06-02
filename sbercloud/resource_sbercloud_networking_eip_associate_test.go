@@ -2,6 +2,7 @@ package sbercloud
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance/ecs"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -26,7 +27,7 @@ func TestAccNetworkingV2EIPAssociate_basic(t *testing.T) {
 			{
 				Config: testAccNetworkingV2EIPAssociate_basic(rName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckVpcV1EIPExists("sbercloud_vpc_eip.test", &eip),
+					ecs.testAccCheckVpcV1EIPExists("sbercloud_vpc_eip.test", &eip),
 					resource.TestCheckResourceAttrPtr(
 						resourceName, "public_ip", &eip.PublicAddress),
 				),
@@ -76,5 +77,5 @@ resource "sbercloud_networking_eip_associate" "test" {
   public_ip   = sbercloud_vpc_eip.test.address
   port_id     = sbercloud_compute_instance.test.network[0].port
 }
-`, testAccComputeV2Instance_basic(rName), rName)
+`, ecs.testAccComputeV2Instance_basic(rName), rName)
 }

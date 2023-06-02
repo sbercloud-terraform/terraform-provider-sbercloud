@@ -1,7 +1,8 @@
-package sbercloud
+package ecs
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"strings"
 	"testing"
 
@@ -18,9 +19,9 @@ func TestAccComputeV2InterfaceAttach_Basic(t *testing.T) {
 	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckComputeV2InterfaceAttachDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckComputeV2InterfaceAttachDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccComputeV2InterfaceAttach_basic(rName),
@@ -34,8 +35,8 @@ func TestAccComputeV2InterfaceAttach_Basic(t *testing.T) {
 }
 
 func testAccCheckComputeV2InterfaceAttachDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	computeClient, err := config.ComputeV2Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	computeClient, err := config.ComputeV2Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating Sbercloud compute client: %s", err)
 	}
@@ -70,8 +71,8 @@ func testAccCheckComputeV2InterfaceAttachExists(n string, ai *attachinterfaces.I
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		computeClient, err := config.ComputeV2Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		computeClient, err := config.ComputeV2Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating Sbercloud compute client: %s", err)
 		}

@@ -1,7 +1,8 @@
-package sbercloud
+package ecs
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -18,9 +19,9 @@ func TestAccComputeV2ServerGroup_basic(t *testing.T) {
 	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckComputeV2ServerGroupDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckComputeV2ServerGroupDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccComputeV2ServerGroup_basic(rName),
@@ -43,9 +44,9 @@ func TestAccComputeV2ServerGroup_affinity(t *testing.T) {
 	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckComputeV2ServerGroupDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckComputeV2ServerGroupDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccComputeV2ServerGroup_affinity(rName),
@@ -60,8 +61,8 @@ func TestAccComputeV2ServerGroup_affinity(t *testing.T) {
 }
 
 func testAccCheckComputeV2ServerGroupDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	computeClient, err := config.ComputeV2Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	computeClient, err := config.ComputeV2Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating Sbercloud compute client: %s", err)
 	}
@@ -91,8 +92,8 @@ func testAccCheckComputeV2ServerGroupExists(n string, kp *servergroups.ServerGro
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		computeClient, err := config.ComputeV2Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		computeClient, err := config.ComputeV2Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating Sbercloud compute client: %s", err)
 		}

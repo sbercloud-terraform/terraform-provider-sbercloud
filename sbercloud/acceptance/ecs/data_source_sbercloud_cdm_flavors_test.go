@@ -1,7 +1,8 @@
-package sbercloud
+package ecs
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -10,8 +11,8 @@ import (
 
 func TestAccCdmFlavorV1DataSource_basic(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:  func() { testAccPreCheck(t) },
-		Providers: testAccProviders,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccCdmFlavorV1DataSource_basic(),
@@ -43,5 +44,5 @@ func testAccCdmFlavorV1DataSource_basic() string {
 data "sbercloud_cdm_flavors" "flavor" {
   region = "%s"
 }
-`, SBC_REGION_NAME)
+`, acceptance.SBC_REGION_NAME)
 }
