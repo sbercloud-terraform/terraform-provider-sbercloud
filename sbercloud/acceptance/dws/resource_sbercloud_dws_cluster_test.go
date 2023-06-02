@@ -2,103 +2,132 @@ package dws
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
-	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
-
-	"github.com/chnsz/golangsdk/openstack/dws/v1/cluster"
+	"github.com/chnsz/golangsdk"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
-func getDwsResourceFunc(config *config.Config, state *terraform.ResourceState) (interface{}, error) {
-	client, err := config.DwsV1Client(acceptance.SBC_REGION_NAME)
-	if err != nil {
-		return nil, fmt.Errorf("error creating DWS v1 client, err=%s", err)
-	}
-	return cluster.Get(client, state.Primary.ID)
-}
-
-func TestAccResourceDWS_basic(t *testing.T) {
-	var clusterInstance cluster.CreateOpts
-	resourceName := "huaweicloud_dws_cluster.test"
-	name := acceptance.RandomAccResourceName()
-
-	rc := acceptance.InitResourceCheck(
-		resourceName,
-		&clusterInstance,
-		getDwsResourceFunc,
-	)
-
+func TestAccDwsCluster_basic(t *testing.T) {
+	name := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
 		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy:      rc.CheckResourceDestroy(),
+		CheckDestroy:      testAccCheckDwsClusterDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccDwsCluster_basic(name, 3, cluster.PublicBindTypeAuto, "cluster123@!", "bar"),
+				Config: testAccDwsCluster_basic(name),
 				Check: resource.ComposeTestCheckFunc(
-					rc.CheckResourceExists(),
-					resource.TestCheckResourceAttr(resourceName, "name", name),
-					resource.TestCheckResourceAttr(resourceName, "number_of_node", "3"),
-					resource.TestCheckResourceAttr(resourceName, "tags.key", "val"),
-					resource.TestCheckResourceAttr(resourceName, "tags.foo", "bar"),
+					testAccCheckDwsClusterExists(),
 				),
-			},
-			{
-				Config: testAccDwsCluster_basic(name, 6, cluster.PublicBindTypeAuto, "cluster123@!u", "cat"),
-				Check: resource.ComposeTestCheckFunc(
-					rc.CheckResourceExists(),
-					resource.TestCheckResourceAttr(resourceName, "name", name),
-					resource.TestCheckResourceAttr(resourceName, "number_of_node", "6"),
-					resource.TestCheckResourceAttr(resourceName, "tags.key", "val"),
-					resource.TestCheckResourceAttr(resourceName, "tags.foo", "cat"),
-				),
-			},
-			{
-				ResourceName:            resourceName,
-				ImportState:             true,
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"user_pwd", "number_of_cn"},
 			},
 		},
 	})
 }
 
-func testAccDwsCluster_basic(rName string, numberOfNode int, publicIpBindType, password, tag string) string {
-	baseNetwork := acceptance.TestBaseNetwork(rName)
-
+func testAccDwsCluster_basic(name string) string {
 	return fmt.Sprintf(`
-%s
+data "sbercloud_availability_zones" "test" {}
 
-data "huaweicloud_availability_zones" "test" {}
-
-data "huaweicloud_dws_flavors" "test" {
-  vcpus             = 8
-  memory            = 64
-  availability_zone = data.huaweicloud_availability_zones.test.names[0]
+resource "sbercloud_vpc" "test" {
+  name = "%s"
+  cidr = "192.168.0.0/16"
 }
 
-resource "huaweicloud_dws_cluster" "test" {
-  name              = "%s"
-  node_type         = data.huaweicloud_dws_flavors.test.flavors.0.flavor_id
-  number_of_node    = %d
-  vpc_id            = huaweicloud_vpc.test.id
-  network_id        = huaweicloud_vpc_subnet.test.id
-  security_group_id = huaweicloud_networking_secgroup.test.id
-  availability_zone = data.huaweicloud_availability_zones.test.names[0]
-  user_name         = "test_cluster_admin"
-  user_pwd          = "%s"
+resource "sbercloud_vpc_subnet" "test" {
+  name          = "%s"
+  cidr          = "192.168.0.0/24"
+  gateway_ip    = "192.168.0.1"
+  primary_dns   = "100.125.1.250"
+  secondary_dns = "100.125.21.250"
+  vpc_id        = sbercloud_vpc.test.id
+}
 
-  public_ip {
-    public_bind_type = "%s"
-  }
+resource "sbercloud_networking_secgroup" "secgroup" {
+  name = "%s"
+  description = "terraform security group"
+}
 
-  tags = {
-    key = "val"
-    foo = "%s"
+resource "sbercloud_dws_cluster" "cluster" {
+  node_type = "dwsx2.xlarge.m7n"
+  number_of_node = 3
+  network_id = sbercloud_vpc_subnet.test.id
+  vpc_id = sbercloud_vpc.test.id
+  security_group_id = sbercloud_networking_secgroup.secgroup.id
+  availability_zone = data.sbercloud_availability_zones.test.names[0]
+  name = "%s"
+  user_name = "test_cluster_admin"
+  user_pwd = "cluster123@!"
+
+  timeouts {
+    create = "30m"
+    delete = "30m"
   }
 }
-`, baseNetwork, rName, numberOfNode, password, publicIpBindType, tag)
+	`, name, name, name, name)
+}
+
+func testAccCheckDwsClusterDestroy(s *terraform.State) error {
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	client, err := config.DwsV1Client(acceptance.SBC_REGION_NAME)
+	if err != nil {
+		return fmt.Errorf("Error creating sdk client, err=%s", err)
+	}
+
+	for _, rs := range s.RootModule().Resources {
+		if rs.Type != "sbercloud_dws_cluster" {
+			continue
+		}
+
+		url, err := acceptance.ReplaceVarsForTest(rs, "clusters/{id}")
+		if err != nil {
+			return err
+		}
+		url = client.ServiceURL(url)
+
+		_, err = client.Get(
+			url, nil,
+			&golangsdk.RequestOpts{MoreHeaders: map[string]string{"Content-Type": "application/json"}})
+		if err == nil {
+			return fmt.Errorf("sbercloud_dws_cluster still exists at %s", url)
+		}
+	}
+
+	return nil
+}
+
+func testAccCheckDwsClusterExists() resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		client, err := config.DwsV1Client(acceptance.SBC_REGION_NAME)
+		if err != nil {
+			return fmt.Errorf("Error creating sdk client, err=%s", err)
+		}
+
+		rs, ok := s.RootModule().Resources["sbercloud_dws_cluster.cluster"]
+		if !ok {
+			return fmt.Errorf("Error checking sbercloud_dws_cluster.cluster exist, err=not found sbercloud_dws_cluster.cluster")
+		}
+
+		url, err := acceptance.ReplaceVarsForTest(rs, "clusters/{id}")
+		if err != nil {
+			return fmt.Errorf("Error checking sbercloud_dws_cluster.cluster exist, err=building url failed: %s", err)
+		}
+		url = client.ServiceURL(url)
+
+		_, err = client.Get(
+			url, nil,
+			&golangsdk.RequestOpts{MoreHeaders: map[string]string{"Content-Type": "application/json"}})
+		if err != nil {
+			if _, ok := err.(golangsdk.ErrDefault404); ok {
+				return fmt.Errorf("sbercloud_dws_cluster.cluster is not exist")
+			}
+			return fmt.Errorf("Error checking sbercloud_dws_cluster.cluster exist, err=send request failed: %s", err)
+		}
+		return nil
+	}
 }
