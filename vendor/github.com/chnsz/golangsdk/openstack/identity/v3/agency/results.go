@@ -12,9 +12,12 @@ type Agency struct {
 	DelegatedDomainID   string `json:"trust_domain_id"`
 	DelegatedDomainName string `json:"trust_domain_name"`
 	Description         string `json:"description"`
-	Duration            string `json:"duration"`
 	ExpireTime          string `json:"expire_time"`
 	CreateTime          string `json:"create_time"`
+	// validity period of the agency
+	// In create and update response, it can be "FOREVER" or validity hours in int, for example, 480
+	// In get response, it can be "FOREVER" or validity hours in string, for example, "480"
+	Duration interface{} `json:"duration"`
 }
 
 type commonResult struct {
@@ -52,6 +55,26 @@ type ListRolesResult struct {
 func (r ListRolesResult) ExtractRoles() ([]roles.Role, error) {
 	var s struct {
 		Roles []roles.Role `json:"roles"`
+	}
+	err := r.ExtractInto(&s)
+	return s.Roles, err
+}
+
+type InheritedRole struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+
+	// Links contains referencing links to the role.
+	Links map[string]interface{} `json:"links"`
+}
+
+type ListInheritedRolesResult struct {
+	golangsdk.Result
+}
+
+func (r ListInheritedRolesResult) ExtractRoles() ([]InheritedRole, error) {
+	var s struct {
+		Roles []InheritedRole `json:"roles"`
 	}
 	err := r.ExtractInto(&s)
 	return s.Roles, err

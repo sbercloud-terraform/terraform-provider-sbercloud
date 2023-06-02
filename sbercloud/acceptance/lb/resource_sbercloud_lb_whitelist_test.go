@@ -18,9 +18,9 @@ func TestAccLBV2Whitelist_basic(t *testing.T) {
 	resourceName := "sbercloud_lb_whitelist.whitelist_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { acceptance.TestAccPreCheck(t) },
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
 		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy: testAccCheckLBV2WhitelistDestroy,
+		CheckDestroy:      testAccCheckLBV2WhitelistDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccLBV2WhitelistConfig_basic(rName),
