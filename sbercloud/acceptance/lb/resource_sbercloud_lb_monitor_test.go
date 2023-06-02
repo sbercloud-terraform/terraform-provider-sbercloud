@@ -19,9 +19,9 @@ func TestAccLBV2Monitor_basic(t *testing.T) {
 	resourceName := "sbercloud_lb_monitor.monitor_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { acceptance.TestAccPreCheck(t) },
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
 		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy: testAccCheckLBV2MonitorDestroy,
+		CheckDestroy:      testAccCheckLBV2MonitorDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccLBV2MonitorConfig_basic(rName),

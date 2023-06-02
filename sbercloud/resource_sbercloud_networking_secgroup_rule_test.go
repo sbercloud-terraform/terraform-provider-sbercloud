@@ -2,427 +2,297 @@ package sbercloud
 
 import (
 	"fmt"
+	"github.com/chnsz/golangsdk/openstack/networking/v1/security/securitygroups"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 
-	"github.com/chnsz/golangsdk/openstack/networking/v1/security/rules"
+	"github.com/chnsz/golangsdk/openstack/networking/v2/extensions/lbaas_v2/loadbalancers"
+	"github.com/chnsz/golangsdk/openstack/networking/v2/extensions/security/groups"
+	"github.com/chnsz/golangsdk/openstack/networking/v2/ports"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
 )
 
-func TestAccNetworkingSecGroupRule_basic(t *testing.T) {
-	var secgroupRule rules.SecurityGroupRule
-	var resourceRuleName string = "sbercloud_networking_secgroup_rule.secgroup_rule_test"
+func TestAccLBV2LoadBalancer_basic(t *testing.T) {
+	var lb loadbalancers.LoadBalancer
 	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
+	rNameUpdate := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
+	resourceName := "sbercloud_lb_loadbalancer.loadbalancer_1"
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckNetworkingSecGroupRuleDestroy,
+		CheckDestroy: testAccCheckLBV2LoadBalancerDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccNetworkingSecGroupRule_basic(rName),
+				Config: testAccLBV2LoadBalancerConfig_basic(rName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckNetworkingSecGroupRuleExists(resourceRuleName, &secgroupRule),
-					resource.TestCheckResourceAttr(resourceRuleName, "direction", "ingress"),
-					resource.TestCheckResourceAttr(resourceRuleName, "description", "This is a basic acc test"),
-					resource.TestCheckResourceAttr(resourceRuleName, "ports", "80"),
-					resource.TestCheckResourceAttr(resourceRuleName, "ethertype", "IPv4"),
-					resource.TestCheckResourceAttr(resourceRuleName, "protocol", "tcp"),
-					resource.TestCheckResourceAttr(resourceRuleName, "remote_ip_prefix", "0.0.0.0/0"),
-					resource.TestCheckResourceAttr(resourceRuleName, "priority", "1"),
+					testAccCheckLBV2LoadBalancerExists(resourceName, &lb),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestMatchResourceAttr(resourceName, "vip_port_id",
+						regexp.MustCompile("^[a-f0-9-]+")),
 				),
 			},
 			{
-				ResourceName:      resourceRuleName,
-				ImportState:       true,
-				ImportStateVerify: true,
+				Config: testAccLBV2LoadBalancerConfig_update(rNameUpdate),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "name", rNameUpdate),
+				),
 			},
 		},
 	})
 }
 
-func TestAccNetworkingSecGroupRule_oldPorts(t *testing.T) {
-	var secgroupRule rules.SecurityGroupRule
-	var resourceRuleName string = "sbercloud_networking_secgroup_rule.secgroup_rule_test"
+func TestAccLBV2LoadBalancer_secGroup(t *testing.T) {
+	var lb loadbalancers.LoadBalancer
+	var sg_1, sg_2 groups.SecGroup
+	var sg_3, sg_4 securitygroups.SecurityGroup
 	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
+	rNameSecg1 := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
+	rNameSecg2 := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
+	resourceName := "sbercloud_lb_loadbalancer.loadbalancer_1"
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckNetworkingSecGroupRuleDestroy,
+		CheckDestroy: testAccCheckLBV2LoadBalancerDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccNetworkingSecGroupRule_oldPorts(rName),
+				Config: testAccLBV2LoadBalancer_secGroup(rName, rNameSecg1, rNameSecg2),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckNetworkingSecGroupRuleExists(resourceRuleName, &secgroupRule),
-					resource.TestCheckResourceAttr(resourceRuleName, "direction", "ingress"),
-					resource.TestCheckResourceAttr(resourceRuleName, "port_range_min", "80"),
-					resource.TestCheckResourceAttr(resourceRuleName, "port_range_max", "80"),
-					resource.TestCheckResourceAttr(resourceRuleName, "ethertype", "IPv4"),
-					resource.TestCheckResourceAttr(resourceRuleName, "protocol", "tcp"),
-					resource.TestCheckResourceAttr(resourceRuleName, "remote_ip_prefix", "0.0.0.0/0"),
+					testAccCheckLBV2LoadBalancerExists(resourceName, &lb),
+					resource.TestCheckResourceAttr(resourceName, "security_group_ids.#", "1"),
+					testAccCheckNetworkingV3SecGroupExists(
+						"sbercloud_networking_secgroup.secgroup_1", &sg_3),
+					testAccCheckNetworkingV3SecGroupExists(
+						"sbercloud_networking_secgroup.secgroup_1", &sg_4),
+					testAccCheckLBV2LoadBalancerHasSecGroup(&lb, &sg_1),
 				),
 			},
 			{
-				ResourceName:      resourceRuleName,
-				ImportState:       true,
-				ImportStateVerify: true,
+				Config: testAccLBV2LoadBalancer_secGroup_update1(rName, rNameSecg1, rNameSecg2),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckLBV2LoadBalancerExists(resourceName, &lb),
+					resource.TestCheckResourceAttr(resourceName, "security_group_ids.#", "2"),
+					testAccCheckNetworkingV3SecGroupExists(
+						"sbercloud_networking_secgroup.secgroup_2", &sg_3),
+					testAccCheckNetworkingV3SecGroupExists(
+						"sbercloud_networking_secgroup.secgroup_2", &sg_4),
+					testAccCheckLBV2LoadBalancerHasSecGroup(&lb, &sg_1),
+					testAccCheckLBV2LoadBalancerHasSecGroup(&lb, &sg_2),
+				),
+			},
+			{
+				Config: testAccLBV2LoadBalancer_secGroup_update2(rName, rNameSecg1, rNameSecg2),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckLBV2LoadBalancerExists(resourceName, &lb),
+					resource.TestCheckResourceAttr(resourceName, "security_group_ids.#", "1"),
+					testAccCheckNetworkingV3SecGroupExists(
+						"sbercloud_networking_secgroup.secgroup_2", &sg_3),
+					testAccCheckNetworkingV3SecGroupExists(
+						"sbercloud_networking_secgroup.secgroup_2", &sg_4),
+					testAccCheckLBV2LoadBalancerHasSecGroup(&lb, &sg_2),
+				),
 			},
 		},
 	})
 }
 
-func TestAccNetworkingSecGroupRule_remoteGroup(t *testing.T) {
-	var secgroupRule rules.SecurityGroupRule
-	var resourceRuleName string = "sbercloud_networking_secgroup_rule.secgroup_rule_test"
-	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
-
-	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckNetworkingSecGroupRuleDestroy,
-		Steps: []resource.TestStep{
-			{
-				Config: testAccNetworkingSecGroupRule_remoteGroup(rName),
-				Check: resource.ComposeTestCheckFunc(
-					testAccCheckNetworkingSecGroupRuleExists(resourceRuleName, &secgroupRule),
-					resource.TestCheckResourceAttr(resourceRuleName, "direction", "ingress"),
-					resource.TestCheckResourceAttr(resourceRuleName, "ports", "80"),
-					resource.TestCheckResourceAttr(resourceRuleName, "protocol", "tcp"),
-					resource.TestCheckResourceAttrSet(resourceRuleName, "remote_group_id"),
-				),
-			},
-			{
-				ResourceName:      resourceRuleName,
-				ImportState:       true,
-				ImportStateVerify: true,
-			},
-		},
-	})
-}
-
-func TestAccNetworkingSecGroupRule_lowerCaseCIDR(t *testing.T) {
-	var secgroupRule rules.SecurityGroupRule
-	var resourceRuleName string = "sbercloud_networking_secgroup_rule.secgroup_rule_test"
-	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
-
-	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckNetworkingSecGroupRuleDestroy,
-		Steps: []resource.TestStep{
-			{
-				Config: testAccNetworkingSecGroupRule_lowerCaseCIDR(rName),
-				Check: resource.ComposeTestCheckFunc(
-					testAccCheckNetworkingSecGroupRuleExists(resourceRuleName, &secgroupRule),
-					resource.TestCheckResourceAttr(resourceRuleName, "remote_ip_prefix", "2001:558:fc00::/39"),
-				),
-			},
-			{
-				ResourceName:      resourceRuleName,
-				ImportState:       true,
-				ImportStateVerify: true,
-			},
-		},
-	})
-}
-
-func TestAccNetworkingSecGroupRule_noPorts(t *testing.T) {
-	var secgroupRule rules.SecurityGroupRule
-	var resourceRuleName string = "sbercloud_networking_secgroup_rule.test"
-	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
-
-	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckNetworkingSecGroupRuleDestroy,
-		Steps: []resource.TestStep{
-			{
-				Config: testAccNetworkingSecGroupRule_noPorts(rName),
-				Check: resource.ComposeTestCheckFunc(
-					testAccCheckNetworkingSecGroupRuleExists(resourceRuleName, &secgroupRule),
-					resource.TestCheckResourceAttr(resourceRuleName, "direction", "ingress"),
-					resource.TestCheckResourceAttr(resourceRuleName, "ethertype", "IPv4"),
-					resource.TestCheckResourceAttr(resourceRuleName, "protocol", "icmp"),
-					resource.TestCheckResourceAttr(resourceRuleName, "remote_ip_prefix", "0.0.0.0/0"),
-				),
-			},
-			{
-				ResourceName:      resourceRuleName,
-				ImportState:       true,
-				ImportStateVerify: true,
-			},
-		},
-	})
-}
-
-func TestAccNetworkingSecGroupRule_action(t *testing.T) {
-	var (
-		secgroupRule rules.SecurityGroupRule
-		allowResName string = "sbercloud_networking_secgroup_rule.allow"
-		denyResName  string = "sbercloud_networking_secgroup_rule.deny"
-	)
-
-	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
-
-	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckNetworkingSecGroupRuleDestroy,
-		Steps: []resource.TestStep{
-			{
-				Config: testAccNetworkingSecGroupRule_action(rName),
-				Check: resource.ComposeTestCheckFunc(
-					testAccCheckNetworkingSecGroupRuleExists(allowResName, &secgroupRule),
-					resource.TestCheckResourceAttr(allowResName, "action", "allow"),
-					testAccCheckNetworkingSecGroupRuleExists(denyResName, &secgroupRule),
-					resource.TestCheckResourceAttr(denyResName, "action", "deny"),
-				),
-			},
-			{
-				ResourceName:      allowResName,
-				ImportState:       true,
-				ImportStateVerify: true,
-			},
-			{
-				ResourceName:      denyResName,
-				ImportState:       true,
-				ImportStateVerify: true,
-			},
-		},
-	})
-}
-
-func TestAccNetworkingSecGroupRule_priority(t *testing.T) {
-	var secgroupRule rules.SecurityGroupRule
-	var resourceRuleName string = "sbercloud_networking_secgroup_rule.test"
-	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
-
-	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckNetworkingSecGroupRuleDestroy,
-		Steps: []resource.TestStep{
-			{
-				Config: testAccNetworkingSecGroupRule_priority(rName),
-				Check: resource.ComposeTestCheckFunc(
-					testAccCheckNetworkingSecGroupRuleExists(resourceRuleName, &secgroupRule),
-					resource.TestCheckResourceAttr(resourceRuleName, "priority", "50"),
-				),
-			},
-			{
-				ResourceName:      resourceRuleName,
-				ImportState:       true,
-				ImportStateVerify: true,
-			},
-		},
-	})
-}
-
-func testAccCheckNetworkingSecGroupRuleDestroy(s *terraform.State) error {
+func testAccCheckLBV2LoadBalancerDestroy(s *terraform.State) error {
 	config := testAccProvider.Meta().(*config.Config)
-	networkingClient, err := config.NetworkingV1Client(SBC_REGION_NAME)
+	elbClient, err := config.ElbV2Client(SBC_REGION_NAME)
 	if err != nil {
-		return fmtp.Errorf("Error creating SberCloud networking client: %s", err)
+		return fmt.Errorf("Error creating SberCloud elb client: %s", err)
 	}
 
 	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "sbercloud_networking_secgroup_rule" {
+		if rs.Type != "sbercloud_lb_loadbalancer" {
 			continue
 		}
 
-		_, err := rules.Get(networkingClient, rs.Primary.ID)
+		_, err := loadbalancers.Get(elbClient, rs.Primary.ID).Extract()
 		if err == nil {
-			return fmtp.Errorf("Security group rule still exists")
+			return fmt.Errorf("LoadBalancer still exists: %s", rs.Primary.ID)
 		}
 	}
 
 	return nil
 }
 
-func testAccCheckNetworkingSecGroupRuleExists(n string, secGroupRule *rules.SecurityGroupRule) resource.TestCheckFunc {
+func testAccCheckLBV2LoadBalancerExists(
+	n string, lb *loadbalancers.LoadBalancer) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
-			return fmtp.Errorf("Not found: %s", n)
+			return fmt.Errorf("Not found: %s", n)
 		}
 
 		if rs.Primary.ID == "" {
-			return fmtp.Errorf("No ID is set")
+			return fmt.Errorf("No ID is set")
 		}
 
 		config := testAccProvider.Meta().(*config.Config)
-		networkingClient, err := config.NetworkingV1Client(SBC_REGION_NAME)
+		elbClient, err := config.ElbV2Client(SBC_REGION_NAME)
 		if err != nil {
-			return fmtp.Errorf("Error creating SberCloud networking client: %s", err)
+			return fmt.Errorf("Error creating SberCloud networking client: %s", err)
 		}
 
-		found, err := rules.Get(networkingClient, rs.Primary.ID)
+		found, err := loadbalancers.Get(elbClient, rs.Primary.ID).Extract()
 		if err != nil {
 			return err
 		}
 
 		if found.ID != rs.Primary.ID {
-			return fmtp.Errorf("Security group rule not found")
+			return fmt.Errorf("Member not found")
 		}
 
-		*secGroupRule = *found
+		*lb = *found
 
 		return nil
 	}
 }
 
-func testAccNetworkingSecGroupRule_base(rName string) string {
+func testAccCheckLBV2LoadBalancerHasSecGroup(
+	lb *loadbalancers.LoadBalancer, sg *groups.SecGroup) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		config := testAccProvider.Meta().(*config.Config)
+		networkingClient, err := config.NetworkingV2Client(SBC_REGION_NAME)
+		if err != nil {
+			return fmt.Errorf("Error creating SberCloud networking client: %s", err)
+		}
+
+		port, err := ports.Get(networkingClient, lb.VipPortID).Extract()
+		if err != nil {
+			return err
+		}
+
+		for _, p := range port.SecurityGroups {
+			if p == sg.ID {
+				return nil
+			}
+		}
+
+		return fmt.Errorf("LoadBalancer does not have the security group")
+	}
+}
+
+func testAccLBV2LoadBalancerConfig_basic(rName string) string {
 	return fmt.Sprintf(`
-resource "sbercloud_networking_secgroup" "secgroup_test" {
-  name        = "%s-secgroup"
-  description = "terraform security group rule acceptance test"
+data "sbercloud_vpc_subnet" "test" {
+  name = "subnet-default"
+}
+
+resource "sbercloud_lb_loadbalancer" "loadbalancer_1" {
+  name          = "%s"
+  vip_subnet_id = data.sbercloud_vpc_subnet.test.subnet_id
+
+  timeouts {
+    create = "5m"
+    update = "5m"
+    delete = "5m"
+  }
 }
 `, rName)
 }
 
-func testAccNetworkingSecGroupRule_basic(rName string) string {
+func testAccLBV2LoadBalancerConfig_update(rNameUpdate string) string {
 	return fmt.Sprintf(`
-%s
-
-resource "sbercloud_networking_secgroup_rule" "secgroup_rule_test" {
-  direction         = "ingress"
-  description       = "This is a basic acc test"
-  ethertype         = "IPv4"
-  ports             = 80
-  protocol          = "tcp"
-  remote_ip_prefix  = "0.0.0.0/0"
-  security_group_id = sbercloud_networking_secgroup.secgroup_test.id
-}
-`, testAccNetworkingSecGroupRule_base(rName))
+data "sbercloud_vpc_subnet" "test" {
+  name = "subnet-default"
 }
 
-func testAccNetworkingSecGroupRule_oldPorts(rName string) string {
+resource "sbercloud_lb_loadbalancer" "loadbalancer_1" {
+  name           = "%s"
+  admin_state_up = "true"
+  vip_subnet_id  = data.sbercloud_vpc_subnet.test.subnet_id
+
+  timeouts {
+    create = "5m"
+    update = "5m"
+    delete = "5m"
+  }
+}
+`, rNameUpdate)
+}
+
+func testAccLBV2LoadBalancer_secGroup(rName, rNameSecg1, rNameSecg2 string) string {
 	return fmt.Sprintf(`
-%s
-
-resource "sbercloud_networking_secgroup_rule" "secgroup_rule_test" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  port_range_min    = 80
-  port_range_max    = 80
-  protocol          = "tcp"
-  remote_ip_prefix  = "0.0.0.0/0"
-  security_group_id = sbercloud_networking_secgroup.secgroup_test.id
-}
-`, testAccNetworkingSecGroupRule_base(rName))
+data "sbercloud_vpc_subnet" "test" {
+  name = "subnet-default"
 }
 
-func testAccNetworkingSecGroupRule_remoteGroup(rName string) string {
-	return fmt.Sprintf(`
-%s
-
-resource "sbercloud_networking_secgroup_rule" "secgroup_rule_test" {
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  ports             = 80
-  protocol          = "tcp"
-  remote_group_id   = sbercloud_networking_secgroup.secgroup_test.id
-  security_group_id = sbercloud_networking_secgroup.secgroup_test.id
-}
-`, testAccNetworkingSecGroupRule_base(rName))
+resource "sbercloud_networking_secgroup" "secgroup_1" {
+  name        = "%s"
+  description = "secgroup_1"
 }
 
-func testAccNetworkingSecGroupRule_lowerCaseCIDR(rName string) string {
-	return fmt.Sprintf(`
-%s
-
-resource "sbercloud_networking_secgroup_rule" "secgroup_rule_test" {
-  direction         = "ingress"
-  ethertype         = "IPv6"
-  ports             = 80
-  protocol          = "tcp"
-  remote_ip_prefix  = "2001:558:FC00::/39"
-  security_group_id = sbercloud_networking_secgroup.secgroup_test.id
-}
-`, testAccNetworkingSecGroupRule_base(rName))
+resource "sbercloud_networking_secgroup" "secgroup_2" {
+  name        = "%s"
+  description = "secgroup_2"
 }
 
-func testAccNetworkingSecGroupRule_noPorts(rName string) string {
-	return fmt.Sprintf(`
-%s
-
-resource "sbercloud_networking_secgroup_rule" "test" {
-  security_group_id = sbercloud_networking_secgroup.secgroup_test.id
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  protocol          = "icmp"
-  remote_ip_prefix  = "0.0.0.0/0"
-}
-`, testAccNetworkingSecGroupRule_base(rName))
-}
-
-func testAccNetworkingSecGroupRule_remoteAddressGroup(rName string) string {
-	return fmt.Sprintf(`
-%[1]s
-
-resource "sbercloud_vpc_address_group" "test" {
-  name = "%[2]s"
-
-  addresses = [
-    "192.168.10.12",
-    "192.168.11.0-192.168.11.240",
+resource "sbercloud_lb_loadbalancer" "loadbalancer_1" {
+  name               = "%s"
+  vip_subnet_id      = data.sbercloud_vpc_subnet.test.subnet_id
+  security_group_ids = [
+    sbercloud_networking_secgroup.secgroup_1.id
   ]
 }
-
-resource "sbercloud_networking_secgroup_rule" "test" {
-  security_group_id       = sbercloud_networking_secgroup.secgroup_test.id
-  direction               = "ingress"
-  ethertype               = "IPv4"
-  ports                   = 80
-  protocol                = "tcp"
-  remote_address_group_id = sbercloud_vpc_address_group.test.id
-}
-`, testAccNetworkingSecGroupRule_base(rName), rName)
+`, rNameSecg1, rNameSecg2, rName)
 }
 
-func testAccNetworkingSecGroupRule_action(rName string) string {
+func testAccLBV2LoadBalancer_secGroup_update1(rName, rNameSecg1, rNameSecg2 string) string {
 	return fmt.Sprintf(`
-%s
-
-resource "sbercloud_networking_secgroup_rule" "allow" {
-  security_group_id = sbercloud_networking_secgroup.secgroup_test.id
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  ports             = 80
-  protocol          = "tcp"
-  action            = "allow"
-  remote_ip_prefix  = "0.0.0.0/0"
+data "sbercloud_vpc_subnet" "test" {
+  name = "subnet-default"
 }
 
-resource "sbercloud_networking_secgroup_rule" "deny" {
-  security_group_id = sbercloud_networking_secgroup.secgroup_test.id
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  ports             = 8080
-  protocol          = "tcp"
-  action            = "deny"
-  remote_ip_prefix  = "0.0.0.0/0"
-}
-`, testAccNetworkingSecGroupRule_base(rName))
+resource "sbercloud_networking_secgroup" "secgroup_1" {
+  name        = "%s"
+  description = "secgroup_1"
 }
 
-func testAccNetworkingSecGroupRule_priority(rName string) string {
+resource "sbercloud_networking_secgroup" "secgroup_2" {
+  name        = "%s"
+  description = "secgroup_2"
+}
+
+resource "sbercloud_lb_loadbalancer" "loadbalancer_1" {
+  name               = "%s"
+  vip_subnet_id      = data.sbercloud_vpc_subnet.test.subnet_id
+  security_group_ids = [
+    sbercloud_networking_secgroup.secgroup_1.id,
+    sbercloud_networking_secgroup.secgroup_2.id
+  ]
+}
+`, rNameSecg1, rNameSecg2, rName)
+}
+
+func testAccLBV2LoadBalancer_secGroup_update2(rName, rNameSecg1, rNameSecg2 string) string {
 	return fmt.Sprintf(`
-%s
-
-resource "sbercloud_networking_secgroup_rule" "test" {
-  security_group_id = sbercloud_networking_secgroup.secgroup_test.id
-  direction         = "ingress"
-  ethertype         = "IPv4"
-  ports             = 80
-  protocol          = "tcp"
-  remote_ip_prefix  = "0.0.0.0/0"
-  priority          = 50
+data "sbercloud_vpc_subnet" "test" {
+  name = "subnet-default"
 }
-`, testAccNetworkingSecGroupRule_base(rName))
+
+resource "sbercloud_networking_secgroup" "secgroup_1" {
+  name        = "%s"
+  description = "secgroup_1"
+}
+
+resource "sbercloud_networking_secgroup" "secgroup_2" {
+  name        = "%s"
+  description = "secgroup_2"
+}
+
+resource "sbercloud_lb_loadbalancer" "loadbalancer_1" {
+  name               = "%s"
+  vip_subnet_id      = data.sbercloud_vpc_subnet.test.subnet_id
+  security_group_ids = [
+    sbercloud_networking_secgroup.secgroup_2.id
+  ]
+}
+`, rNameSecg1, rNameSecg2, rName)
 }
