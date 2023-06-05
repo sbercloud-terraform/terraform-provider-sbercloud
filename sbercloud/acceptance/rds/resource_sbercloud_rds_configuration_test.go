@@ -1,7 +1,8 @@
-package sbercloud
+package rds
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -19,9 +20,9 @@ func TestAccRdsConfigurationV3_basic(t *testing.T) {
 	resourceName := "sbercloud_rds_parametergroup.pg_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRdsConfigV3Destroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckRdsConfigV3Destroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRdsConfigV3_basic(rName),
@@ -44,8 +45,8 @@ func TestAccRdsConfigurationV3_basic(t *testing.T) {
 }
 
 func testAccCheckRdsConfigV3Destroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	rdsClient, err := config.RdsV3Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	rdsClient, err := config.RdsV3Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating SberCloud RDS client: %s", err)
 	}
@@ -75,8 +76,8 @@ func testAccCheckRdsConfigV3Exists(n string, configuration *configurations.Confi
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		rdsClient, err := config.RdsV3Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		rdsClient, err := config.RdsV3Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud RDS client: %s", err)
 		}
