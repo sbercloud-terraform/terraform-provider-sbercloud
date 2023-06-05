@@ -1,7 +1,8 @@
-package sbercloud
+package ecs
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"strings"
 	"testing"
 
@@ -18,15 +19,15 @@ func TestAccComputeV2InterfaceAttach_Basic(t *testing.T) {
 	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckComputeV2InterfaceAttachDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckComputeV2InterfaceAttachDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccComputeV2InterfaceAttach_basic(rName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckComputeV2InterfaceAttachExists("sbercloud_compute_interface_attach.ai_1", &ai),
-					testAccCheckComputeV2InterfaceAttachIP(&ai, "192.168.0.199"),
+					testAccCheckComputeV2InterfaceAttachIP(&ai, "192.168.10.199"),
 				),
 			},
 		},
@@ -34,8 +35,8 @@ func TestAccComputeV2InterfaceAttach_Basic(t *testing.T) {
 }
 
 func testAccCheckComputeV2InterfaceAttachDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	computeClient, err := config.ComputeV2Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	computeClient, err := config.ComputeV2Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating Sbercloud compute client: %s", err)
 	}
@@ -70,8 +71,8 @@ func testAccCheckComputeV2InterfaceAttachExists(n string, ai *attachinterfaces.I
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		computeClient, err := config.ComputeV2Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		computeClient, err := config.ComputeV2Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating Sbercloud compute client: %s", err)
 		}
@@ -141,7 +142,8 @@ resource "sbercloud_compute_instance" "instance_1" {
 resource "sbercloud_compute_interface_attach" "ai_1" {
   instance_id = sbercloud_compute_instance.instance_1.id
   network_id =  data.sbercloud_vpc_subnet.test.id
-  fixed_ip = "192.168.0.199"
+  fixed_ip = "192.168.10.199"
+  security_group_ids = [data.sbercloud_networking_secgroup.test.id] 
 }
 `, testAccCompute_data, rName)
 }
