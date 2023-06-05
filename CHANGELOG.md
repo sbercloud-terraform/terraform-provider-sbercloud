@@ -1,3 +1,10 @@
+## 1.11.1 (June 05, 2023)
+
+ENHANCEMENTS:
+
+* Upgrade to terraform-provider-huaweicloud `v1.49.0` ([#191](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/191))
+* Updated `acceptance` directory structure ([#191](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/191))
+
 ## 1.11.0 (May 31, 2023)
 
 FEATURES:
