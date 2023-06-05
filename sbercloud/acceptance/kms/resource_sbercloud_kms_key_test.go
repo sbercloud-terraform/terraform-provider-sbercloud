@@ -1,8 +1,9 @@
-package sbercloud
+package kms
 
 import (
 	"fmt"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dew"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/chnsz/golangsdk/openstack/kms/v1/keys"
@@ -20,16 +21,16 @@ func TestAccKmsKey_Basic(t *testing.T) {
 	var resourceName = "sbercloud_kms_key.key_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckKmsKeyDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckKmsKeyDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccKmsKey_Basic(keyAlias),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckKmsKeyExists(resourceName, &key),
 					resource.TestCheckResourceAttr(resourceName, "key_alias", keyAlias),
-					resource.TestCheckResourceAttr(resourceName, "region", SBC_REGION_NAME),
+					resource.TestCheckResourceAttr(resourceName, "region", acceptance.SBC_REGION_NAME),
 				),
 			},
 			{
@@ -47,7 +48,7 @@ func TestAccKmsKey_Basic(t *testing.T) {
 					testAccCheckKmsKeyExists(resourceName, &key),
 					resource.TestCheckResourceAttr(resourceName, "key_alias", keyAliasUpdate),
 					resource.TestCheckResourceAttr(resourceName, "key_description", "key update description"),
-					resource.TestCheckResourceAttr(resourceName, "region", SBC_REGION_NAME),
+					resource.TestCheckResourceAttr(resourceName, "region", acceptance.SBC_REGION_NAME),
 				),
 			},
 		},
@@ -60,9 +61,9 @@ func TestAccKmsKey_Enable(t *testing.T) {
 	var resourceName = "sbercloud_kms_key.key_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckKmsKeyDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckKmsKeyDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccKmsKey_enabled(rName),
@@ -98,9 +99,9 @@ func TestAccKmsKey_WithTags(t *testing.T) {
 	var resourceName = "sbercloud_kms_key.key_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckKmsKeyDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckKmsKeyDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccKmsKey_WithTags(keyAlias),
@@ -121,19 +122,16 @@ func TestAccKmsKey_WithEpsId(t *testing.T) {
 	var resourceName = "sbercloud_kms_key.key_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck: func() {
-			testAccPreCheck(t)
-			testAccPreCheckEpsID(t)
-		},
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckKmsKeyDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t); acceptance.TestAccPreCheckEpsID(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckKmsKeyDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccKmsKey_epsId(keyAlias),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckKmsKeyExists(resourceName, &key),
 					resource.TestCheckResourceAttr(resourceName, "key_alias", keyAlias),
-					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", SBC_ENTERPRISE_PROJECT_ID_TEST),
+					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST),
 				),
 			},
 		},
@@ -141,8 +139,8 @@ func TestAccKmsKey_WithEpsId(t *testing.T) {
 }
 
 func testAccCheckKmsKeyDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	kmsClient, err := config.KmsKeyV1Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	kmsClient, err := config.KmsKeyV1Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating SberCloud kms client: %s", err)
 	}
@@ -173,8 +171,8 @@ func testAccCheckKmsKeyExists(n string, key *keys.Key) resource.TestCheckFunc {
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		kmsClient, err := config.KmsKeyV1Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		kmsClient, err := config.KmsKeyV1Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud kms client: %s", err)
 		}
@@ -209,7 +207,7 @@ resource "sbercloud_kms_key" "key_1" {
   pending_days = "7"
   region       = "%s"
 }
-`, keyAlias, SBC_REGION_NAME)
+`, keyAlias, acceptance.SBC_REGION_NAME)
 }
 
 func testAccKmsKey_WithTags(keyAlias string) string {
@@ -232,7 +230,7 @@ resource "sbercloud_kms_key" "key_1" {
   pending_days = "7"
   enterprise_project_id = "%s"
 }
-`, keyAlias, SBC_ENTERPRISE_PROJECT_ID_TEST)
+`, keyAlias, acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST)
 }
 
 func testAccKmsKeyUpdate(keyAliasUpdate string) string {
