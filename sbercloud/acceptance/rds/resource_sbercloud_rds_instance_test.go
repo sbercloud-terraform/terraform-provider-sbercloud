@@ -1,7 +1,8 @@
-package sbercloud
+package rds
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"log"
 	"testing"
 
@@ -21,9 +22,9 @@ func TestAccRdsInstanceV3_basic(t *testing.T) {
 	resourceName := "sbercloud_rds_instance.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRdsInstanceV3Destroy(resourceType),
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckRdsInstanceV3Destroy(resourceType),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRdsInstanceV3_basic(name),
@@ -73,15 +74,15 @@ func TestAccRdsInstanceV3_withEpsId(t *testing.T) {
 	resourceName := "sbercloud_rds_instance.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheckEpsID(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRdsInstanceV3Destroy(resourceType),
+		PreCheck:          func() { acceptance.TestAccPreCheckEpsID(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckRdsInstanceV3Destroy(resourceType),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRdsInstanceV3_epsId(name),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckRdsInstanceV3Exists(resourceName, &instance),
-					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", SBC_ENTERPRISE_PROJECT_ID_TEST),
+					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST),
 				),
 			},
 		},
@@ -95,9 +96,9 @@ func TestAccRdsInstanceV3_ha(t *testing.T) {
 	resourceName := "sbercloud_rds_instance.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRdsInstanceV3Destroy(resourceType),
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckRdsInstanceV3Destroy(resourceType),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRdsInstanceV3_ha(name),
@@ -120,8 +121,8 @@ func TestAccRdsInstanceV3_ha(t *testing.T) {
 
 func testAccCheckRdsInstanceV3Destroy(rsType string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		config := testAccProvider.Meta().(*config.Config)
-		client, err := config.RdsV3Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		client, err := config.RdsV3Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud rds client: %s", err)
 		}
@@ -156,8 +157,8 @@ func testAccCheckRdsInstanceV3Exists(name string, instance *instances.RdsInstanc
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		client, err := config.RdsV3Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		client, err := config.RdsV3Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud rds client: %s", err)
 		}
@@ -334,7 +335,7 @@ resource "sbercloud_rds_instance" "test" {
     keep_days  = 1
   }
 }
-`, testAccRdsInstanceV3_base(name), name, SBC_ENTERPRISE_PROJECT_ID_TEST)
+`, testAccRdsInstanceV3_base(name), name, acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST)
 }
 
 func testAccRdsInstanceV3_ha(name string) string {

@@ -1,7 +1,8 @@
-package sbercloud
+package rds
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -17,9 +18,9 @@ func TestAccRdsReadReplicaInstance_basic(t *testing.T) {
 	resourceName := "sbercloud_rds_read_replica_instance.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRdsInstanceV3Destroy(resourceType),
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckRdsInstanceV3Destroy(resourceType),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccReadRdsReplicaInstance_basic(name),
@@ -64,15 +65,15 @@ func TestAccRdsReadReplicaInstance_withEpsId(t *testing.T) {
 	resourceName := "sbercloud_rds_read_replica_instance.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheckEpsID(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckRdsInstanceV3Destroy(resourceType),
+		PreCheck:          func() { acceptance.TestAccPreCheckEpsID(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckRdsInstanceV3Destroy(resourceType),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccReadRdsReplicaInstance_withEpsId(name),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckRdsInstanceV3Exists(resourceName, &replica),
-					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", SBC_ENTERPRISE_PROJECT_ID_TEST),
+					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST),
 				),
 			},
 		},
@@ -164,5 +165,5 @@ resource "sbercloud_rds_read_replica_instance" "test" {
     type = "HIGH"
   }
 }
-`, testAccReadRdsReplicaInstanceV3_base(name), name, SBC_ENTERPRISE_PROJECT_ID_TEST)
+`, testAccReadRdsReplicaInstanceV3_base(name), name, acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST)
 }

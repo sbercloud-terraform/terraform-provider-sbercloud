@@ -1,7 +1,8 @@
-package sbercloud
+package dws
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/chnsz/golangsdk"
@@ -14,9 +15,9 @@ import (
 func TestAccDwsCluster_basic(t *testing.T) {
 	name := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckDwsClusterDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckDwsClusterDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccDwsCluster_basic(name),
@@ -43,7 +44,7 @@ resource "sbercloud_vpc_subnet" "test" {
   gateway_ip    = "192.168.0.1"
   primary_dns   = "100.125.1.250"
   secondary_dns = "100.125.21.250"
-  vpc_id        = sbercloud_vpc.test.idmake 
+  vpc_id        = sbercloud_vpc.test.id
 }
 
 resource "sbercloud_networking_secgroup" "secgroup" {
@@ -71,8 +72,8 @@ resource "sbercloud_dws_cluster" "cluster" {
 }
 
 func testAccCheckDwsClusterDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	client, err := config.DwsV1Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	client, err := config.DwsV1Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}
@@ -82,7 +83,7 @@ func testAccCheckDwsClusterDestroy(s *terraform.State) error {
 			continue
 		}
 
-		url, err := replaceVarsForTest(rs, "clusters/{id}")
+		url, err := acceptance.ReplaceVarsForTest(rs, "clusters/{id}")
 		if err != nil {
 			return err
 		}
@@ -101,8 +102,8 @@ func testAccCheckDwsClusterDestroy(s *terraform.State) error {
 
 func testAccCheckDwsClusterExists() resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		config := testAccProvider.Meta().(*config.Config)
-		client, err := config.DwsV1Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		client, err := config.DwsV1Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating sdk client, err=%s", err)
 		}
@@ -112,7 +113,7 @@ func testAccCheckDwsClusterExists() resource.TestCheckFunc {
 			return fmt.Errorf("Error checking sbercloud_dws_cluster.cluster exist, err=not found sbercloud_dws_cluster.cluster")
 		}
 
-		url, err := replaceVarsForTest(rs, "clusters/{id}")
+		url, err := acceptance.ReplaceVarsForTest(rs, "clusters/{id}")
 		if err != nil {
 			return fmt.Errorf("Error checking sbercloud_dws_cluster.cluster exist, err=building url failed: %s", err)
 		}
