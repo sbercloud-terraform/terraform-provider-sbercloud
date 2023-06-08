@@ -2,13 +2,12 @@ package sbercloud
 
 import (
 	"fmt"
-	"github.com/chnsz/golangsdk/openstack/cloudeyeservice/v2/alarmrule"
-	"testing"
-
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/ces/alarmrule"
+	"testing"
 )
 
 func TestAccCESAlarmRule_basic(t *testing.T) {
