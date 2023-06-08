@@ -193,14 +193,14 @@ resource "sbercloud_elb_pool" "test" {
 }
 
 resource "sbercloud_elb_member" "member_1" {
-  address       = "192.168.19.10"
+  address       = "192.168.10.10"
   protocol_port = 8080
   pool_id       = sbercloud_elb_pool.test.id
   subnet_id     = data.sbercloud_vpc_subnet.test.ipv4_subnet_id
 }
 
 resource "sbercloud_elb_member" "member_2" {
-  address       = "192.168.19.11"
+  address       = "192.168.10.11"
   protocol_port = 8080
   pool_id       = sbercloud_elb_pool.test.id
   subnet_id     = data.sbercloud_vpc_subnet.test.ipv4_subnet_id
@@ -247,7 +247,7 @@ resource "sbercloud_elb_pool" "test" {
 }
 
 resource "sbercloud_elb_member" "member_1" {
-  address        = "192.168.19.10"
+  address        = "192.168.10.10"
   protocol_port  = 8080
   weight         = 10
   pool_id        = sbercloud_elb_pool.test.id
@@ -255,7 +255,7 @@ resource "sbercloud_elb_member" "member_1" {
 }
 
 resource "sbercloud_elb_member" "member_2" {
-  address        = "192.168.19.11"
+  address        = "192.168.10.11"
   protocol_port  = 8080
   weight         = 15
   pool_id        = sbercloud_elb_pool.test.id
