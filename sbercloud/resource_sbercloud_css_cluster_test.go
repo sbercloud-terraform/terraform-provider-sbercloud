@@ -154,7 +154,7 @@ func testAccCssClusterV1_basic(name string) string {
 
 resource "sbercloud_css_cluster" "cluster" {
   name = "%s"
-  engine_version  = "7.1.1"
+  engine_version  = "7.10.2"
   expect_node_num = 1
 
   node_config {
@@ -184,7 +184,7 @@ func testAccCssClusterV1_update(name string) string {
 
 resource "sbercloud_css_cluster" "cluster" {
   name = "%s"
-  engine_version  = "7.1.1"
+  engine_version  = "7.10.2"
   expect_node_num = 1
 
   node_config {
