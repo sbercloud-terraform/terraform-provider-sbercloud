@@ -1,7 +1,8 @@
-package sbercloud
+package kms
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -13,15 +14,15 @@ func TestAccKmsKeyDataSource_Basic(t *testing.T) {
 	var keyAlias = fmt.Sprintf("key_alias_%s", acctest.RandString(5))
 	var datasourceName = "data.sbercloud_kms_key.key_1"
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:  func() { testAccPreCheck(t) },
-		Providers: testAccProviders,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccKmsKeyDataSource_Basic(keyAlias),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckKmsKeyDataSourceID(datasourceName),
 					resource.TestCheckResourceAttr(datasourceName, "key_alias", keyAlias),
-					resource.TestCheckResourceAttr(datasourceName, "region", SBC_REGION_NAME),
+					resource.TestCheckResourceAttr(datasourceName, "region", acceptance.SBC_REGION_NAME),
 				),
 			},
 		},
@@ -32,8 +33,8 @@ func TestAccKmsKeyDataSource_WithTags(t *testing.T) {
 	var keyAlias = fmt.Sprintf("key_alias_%s", acctest.RandString(5))
 	var datasourceName = "data.sbercloud_kms_key.key_1"
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:  func() { testAccPreCheck(t) },
-		Providers: testAccProviders,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccKmsKeyDataSource_WithTags(keyAlias),
@@ -52,15 +53,15 @@ func TestAccKmsKeyDataSource_WithEpsId(t *testing.T) {
 	var keyAlias = fmt.Sprintf("key_alias_%s", acctest.RandString(5))
 	var datasourceName = "data.sbercloud_kms_key.key_1"
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:  func() { testAccPreCheck(t); testAccPreCheckEpsID(t) },
-		Providers: testAccProviders,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t); acceptance.TestAccPreCheckEpsID(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccKmsKeyDataSource_epsId(keyAlias),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckKmsKeyDataSourceID(datasourceName),
 					resource.TestCheckResourceAttr(datasourceName, "key_alias", keyAlias),
-					resource.TestCheckResourceAttr(datasourceName, "enterprise_project_id", SBC_ENTERPRISE_PROJECT_ID_TEST),
+					resource.TestCheckResourceAttr(datasourceName, "enterprise_project_id", acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST),
 				),
 			},
 		},
@@ -123,5 +124,5 @@ data "sbercloud_kms_key" "key_1" {
   key_state       = "2"
   enterprise_project_id = sbercloud_kms_key.key_1.enterprise_project_id
 }
-`, keyAlias, SBC_ENTERPRISE_PROJECT_ID_TEST)
+`, keyAlias, acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST)
 }
