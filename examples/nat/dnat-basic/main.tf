@@ -70,13 +70,13 @@ resource "sbercloud_nat_gateway" "newNet_gateway_Example" {
   name                = var.net_gateway_name
   description         = "example for net test"
   spec                = "1"
-  router_id           = sbercloud_vpc.newVPC_Example.id
-  internal_network_id = sbercloud_vpc_subnet.newSubnet_Example.id
+  vpc_id           = sbercloud_vpc.newVPC_Example.id
+  subnet_id = sbercloud_vpc_subnet.newSubnet_Example.id
 }
 
 resource "sbercloud_nat_snat_rule" "newSNATRule_Example" {
   nat_gateway_id = sbercloud_nat_gateway.newNet_gateway_Example.id
-  network_id     = sbercloud_vpc_subnet.newSubnet_Example.id
+  subnet_id     = sbercloud_vpc_subnet.newSubnet_Example.id
   floating_ip_id = sbercloud_vpc_eip.newEIP_Example.id
 }
 
@@ -90,23 +90,4 @@ resource "sbercloud_nat_dnat_rule" "newDNATRule_Example" {
   internal_service_port = lookup(var.example_dnat_rule[count.index], "internal_service_port", null)
   protocol              = lookup(var.example_dnat_rule[count.index], "protocol", null)
   external_service_port = lookup(var.example_dnat_rule[count.index], "external_service_port", null)
-}
-
-resource "null_resource" "provision" {
-  depends_on = [sbercloud_nat_snat_rule.newSNATRule_Example, sbercloud_nat_dnat_rule.newDNATRule_Example]
-
-  provisioner "remote-exec" {
-    connection {
-      user     = "root"
-      password = var.password
-      host     = sbercloud_vpc_eip.newEIP_Example.address
-      port     = var.ecs_ssh_port
-    }
-    inline = [
-      "yum -y install nginx",
-      "systemctl enable nginx",
-      "systemctl start nginx",
-      "systemctl status nginx",
-    ]
-  }
 }

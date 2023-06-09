@@ -17,5 +17,3 @@ This example provisions:
   > DNAT function is bound with EIP, and EIP is shared across VPC by binding IP mapping,
   which provides services for the Internet.
   > After building completed, the nginx service can be accessed through the open port 8080 of DNAT.
-* a remote-exec provisioner:
-  > Automatic sequential execution of multiple terminal commands.
