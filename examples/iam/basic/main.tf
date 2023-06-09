@@ -3,15 +3,9 @@ data "sbercloud_identity_role" "auth_admin" {
   name = "system_all_0"
 }
 
-resource "random_password" "password" {
-  length           = 16
-  special          = true
-  override_special = "_%@"
-}
-
 resource "sbercloud_identity_user" "user_A" {
   name     = var.iden_user_name
-  password = random_password.password.result
+  password = var.password
 }
 
 resource "sbercloud_identity_group" "group" {

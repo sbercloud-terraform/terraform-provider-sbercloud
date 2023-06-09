@@ -20,3 +20,7 @@ variable "domain_id" {
   default     = "your_domain_id"
   description = "This is the domain id."
 }
+
+variable "password" {
+  default     = "your_password"
+}
