@@ -1,3 +1,10 @@
+## 1.11.2 (June 13, 2023)
+
+ENHANCEMENTS:
+
+* Fix problems working CSS_cluster & CES_alarmrule with API V2
+
+
 ## 1.11.1 (June 05, 2023)
 
 ENHANCEMENTS:
