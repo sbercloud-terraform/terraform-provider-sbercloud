@@ -26,4 +26,4 @@ terraform-provider-sbercloud
 
 .idea/
 
-examples/csvdecode-with-for_each
+
