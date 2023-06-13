@@ -81,5 +81,5 @@ variable "ecs_ssh_port" {
 }
 
 variable "password" {
-  default     = "your_password"
+  default     = "your@Password"
 }
