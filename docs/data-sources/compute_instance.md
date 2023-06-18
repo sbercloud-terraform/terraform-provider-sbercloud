@@ -25,6 +25,8 @@ The following arguments are supported:
 
 * `name` - (Optional, String) Specifies the ECS name, which can be queried with a regular expression.
 
+* `instance_id` - (Optional, String) Specifies the ECS ID.
+* 
 * `fixed_ip_v4` - (Optional, String)  Specifies the IPv4 addresses of the ECS.
 
 * `flavor_id` - (Optional, String) Specifies the flavor ID.
@@ -44,6 +46,7 @@ In addition to all arguments above, the following attributes are exported:
 * `public_ip` - The EIP address that is associted to the instance.
 * `system_disk_id` - The system disk voume ID.
 * `user_data` - The user data (information after encoding) configured during instance creation.
+* `security_groups` - An array of one or more security groups to associate with the instance.¶
 * `security_group_ids` - An array of one or more security group IDs to associate with the instance.
 * `network` - An array of one or more networks to attach to the instance. The network object structure is documented
   below.
@@ -66,6 +69,7 @@ The `volume_attached` block supports:
 
 * `volume_id` - The volume id on that attachment.
 * `boot_index` - The volume boot index on that attachment.
+* `is_sys_volume` - Whether the volume is the system disk.
 * `size` - The volume size on that attachment.
 * `type` - The volume type on that attachment.
 * `pci_address` - The volume pci address on that attachment.
