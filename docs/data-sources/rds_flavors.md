@@ -27,11 +27,22 @@ data "sbercloud_rds_flavors" "flavor" {
 type | version
 ---- | ---
 MySQL| 5.6 <br>5.7 <br>8.0
-PostgreSQL | 9.5 <br> 9.6 <br>10 <br>11 <br>12
-SQLServer| 2012_SE <br>2014_SE <br>2016_SE <br>2012_EE <br>2014_EE <br>2016_EE <br>2017_EE
+PostgreSQL | 9.5 <br> 9.6 <br>10 <br>11 <br>12 <br>13 <br>14
+SQLServer| 2012_SE <br>2014_SE <br>2016_SE <br>2017_SE <br>2012_EE <br>2014_EE <br>2016_EE <br>2017_EE <br>2017_WEB
 
 * `instance_mode` - (Required, String) The mode of instance. Value: *ha*(indicates primary/standby instance),
   *single*(indicates single instance) and *replica*(indicates read replicas).
+
+* `vcpus` - (Optional, Int) Specifies the number of vCPUs in the RDS flavor.
+
+* `memory` - (Optional, Int) Specifies the memory size(GB) in the RDS flavor.
+
+* `group_type` - (Optional, String) Specifies the performance specification, the valid values are as follows:
+  + **normal**: General enhanced.
+  + **normal2**: General enhanced type II.
+
+* `availability_zone` - (Optional, String) Specifies the availability zone which the RDS flavor belongs to.
+
 
 ## Attributes Reference
 
@@ -45,6 +56,11 @@ In addition to all arguments above, the following attributes are exported:
 The `flavors` block contains:
 
 * `name` - The name of the rds flavor.
+* `id` - The ID of the rds flavor.
 * `vcpus` - Indicates the CPU size.
 * `memory` - Indicates the memory size in GB.
 * `mode` - See 'instance_mode' above.
+* `group_type` - The performance specification.
+* `instance_mode` - The mode of instance.
+* `availability_zones` - The availability zones which the RDS flavor belongs to.
+* `db_versions` - The Available versions of the database.

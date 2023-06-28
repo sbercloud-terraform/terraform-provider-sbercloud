@@ -38,3 +38,6 @@ In addition to all arguments above, the following attributes are exported:
 * `storage_class` - specifies the storage class of the object.
 * `content_type` - a standard MIME type describing the format of the object data, e.g. application/octet-stream.
   All Valid MIME Types are valid for this input.
+* `body` - The content of an object which is available only for objects which have a human-readable Content-Type
+    (text/* and application/json) and smaller than **64KB**. This is to prevent printing unsafe characters and
+    potentially downloading large amount of data.
