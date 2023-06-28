@@ -108,6 +108,9 @@ In addition to all arguments above, the following attributes are exported:
 
 * `id` - The resource ID in UUID format.
 * `address` - The IP address of the eip.
+* `ipv6_address` - The IPv6 address of the EIP.
+* `private_ip` - The private IP address bound to the EIP.
+* `port_id` - The port ID which the EIP associated with.
 * `status` - The status of eip.
 
 ## Timeouts
@@ -115,6 +118,7 @@ In addition to all arguments above, the following attributes are exported:
 This resource provides the following timeouts configuration options:
 
 * `create` - Default is 10 minute.
+* `update` - Default is 10 minutes.
 * `delete` - Default is 10 minute.
 
 ## Import
