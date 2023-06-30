@@ -177,6 +177,23 @@ The following arguments are supported:
 
 * `region` - (Optional, String, ForceNew) Specified the region where this bucket will be created. If not specified, used the region by the provider.
 
+* `parallel_fs` - (Optional, Bool, ForceNew) Whether enable a bucket as a parallel file system. Changing this will
+  create a new bucket.
+
+* `multi_az` - (Optional, Bool, ForceNew) Whether enable the multi-AZ mode for the bucket. When the multi-AZ mode is
+  enabled, data in the bucket is duplicated and stored in multiple AZs.
+
+  -> **NOTE:** Once a bucket is created, you cannot enable or disable the multi-AZ mode. Changing this will create a new
+  bucket, but the name of a deleted bucket can be reused for another bucket at least 30 minutes after the deletion.
+  Exercise caution when changing this field.
+
+* `encryption` - (Optional, Bool) Whether enable default server-side encryption of the bucket in SSE-KMS mode.
+
+* `kms_key_id` - (Optional, String) Specifies the ID of a KMS key. If omitted, the default master key will be used.
+
+* `kms_key_project_id` - (Optional, String) Specifies the project ID to which the KMS key belongs. If omitted, the ID
+  of the provider-level project will be used.
+
 * `enterprise_project_id` - (Optional, String, ForceNew) The enterprise project id of the OBS bucket. Changing this creates a OBS bucket.
 
 The `logging` object supports the following:
@@ -199,10 +216,10 @@ The `website` object supports the following:
 * `routing_rules` - (Optional, String) A JSON or XML format containing routing rules describing redirect behavior and when redirects are applied.
   Each rule contains a `Condition` and a `Redirect` as shown in the following table:
 
-Parameter | Key
--|-
-Condition | KeyPrefixEquals, HttpErrorCodeReturnedEquals
-Redirect | Protocol, HostName, ReplaceKeyPrefixWith, ReplaceKeyWith, HttpRedirectCode
+  Parameter | Key
+      --- | ---
+  Condition | KeyPrefixEquals, HttpErrorCodeReturnedEquals
+  Redirect | Protocol, HostName, ReplaceKeyPrefixWith, ReplaceKeyWith, HttpRedirectCode
 
 The `cors_rule` object supports the following:
 
@@ -264,6 +281,15 @@ In addition to all arguments above, the following attributes are exported:
 * `id` - The name of the bucket.
 * `bucket_domain_name` - The bucket domain name. Will be of format `bucketname.obs.region.mysbercloud.com`.
 * `region` - The region where this bucket resides in.
+* `bucket_version` - The OBS version of the bucket.
+* `storage_info` - The OBS storage info of the bucket.
+  The [object](#bucket_storage_info_attr) structure is documented below.
+
+<a name="bucket_storage_info_attr"></a>
+The `storage_info` block supports:
+
+* `size` - The stored size of the bucket.
+* `object_number` - The number of objects stored in the bucket.
 
 ## Import
 
