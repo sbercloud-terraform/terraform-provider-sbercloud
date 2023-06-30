@@ -28,6 +28,14 @@ resource "sbercloud_cbr_vault" "test" {
 
   resources {
     server_id = var.ecs_instance_id
+  
+    excludes = [
+      var.evs_volume_id
+    ]
+  }
+
+  tags = {
+    foo = "bar"
   }
 }
 ```
@@ -42,7 +50,6 @@ resource "sbercloud_cbr_vault" "test" {
   name             = var.vault_name
   type             = "disk"
   protection_type  = "backup"
-  consistent_level = "crash_consistent"
   size             = 50
   auto_expand      = true
 
@@ -50,6 +57,10 @@ resource "sbercloud_cbr_vault" "test" {
     includes = [
       var.evs_volume_id
     ]
+  }
+
+  tags = {
+    foo = "bar"
   }
 }
 ```
@@ -62,7 +73,6 @@ variable "sfs_turbo_id" {}
 
 resource "sbercloud_cbr_vault" "test" {
   name             = var.vault_name
-  consistent_level = "crash_consistent"
   type             = "turbo"
   protection_type  = "backup"
   size             = 1000
@@ -72,6 +82,23 @@ resource "sbercloud_cbr_vault" "test" {
       var.sfs_turbo_id
     ]
   }
+
+  tags = {
+    foo = "bar"
+  }
+}
+```
+
+### Create an SFS turbo type vault with replicate protection type
+
+```hcl
+variable "vault_name" {}
+
+resource "sbercloud_cbr_vault" "test" {
+  name             = var.vault_name
+  type             = "turbo"
+  protection_type  = "replication"
+  size             = 1000
 }
 ```
 
@@ -91,32 +118,66 @@ The following arguments are supported:
   + **disk** (EVS Disks)
   + **turbo** (SFS Turbo file systems)
 
-* `consistent_level` - (Required, String, ForceNew) Specifies the backup specifications.
-  The value is crash_consistent by default (crash consistent backup).
-
 * `protection_type` - (Required, String, ForceNew) Specifies the protection type of the CBR vault.
-  The valid value is **backup**.
+  The valid values are **backup** and **replication**. Vaults of type **disk** don't support **replication**.
   Changing this will create a new vault.
 
-* `size` - (Required, Int) Specifies the vault sapacity, in GB. The valid value range is `1` to `10,485,760`.
+* `size` - (Required, Int) Specifies the vault capacity, in GB. The valid value range is `1` to `10,485,760`.
+
+  -> You cannot update `size` if the vault is **prePaid** mode.
+
+* `consistent_level` - (Optional, String, ForceNew) Specifies the backup specifications.
+
+  Only **server** type vaults support application consistent and defaults to **crash_consistent**.
+  Changing this will create a new vault.
 
 * `auto_expand` - (Optional, Bool) Specifies to enable auto capacity expansion for the backup protection type vault.
-  Default to **false**.
+  Defaults to **false**.
+
+  -> You cannot configure `auto_expand` if the vault is **prePaid** mode.
+
+* `auto_bind` - (Optional, Bool) Specifies whether automatic association is enabled. Defaults to **false**.
+
+* `bind_rules` - (Optional, Map) Specifies the tags to filter resources for automatic association with **auto_bind**.
 
 * `enterprise_project_id` - (Optional, String, ForceNew) Specifies a unique ID in UUID format of enterprise project.
   Changing this will create a new vault.
 
 * `policy_id` - (Optional, String) Specifies a policy to associate with the CBR vault.
+  `policy_id` cannot be used with the vault of replicate protection type.
 
 * `resources` - (Optional, List) Specifies an array of one or more resources to attach to the CBR vault.
   The [object](#cbr_vault_resources) structure is documented below.
 
 * `tags` - (Optional, Map) Specifies the key/value pairs to associate with the CBR vault.
 
+* `charging_mode` - (Optional, String, ForceNew) Specifies the charging mode of the vault.
+  The valid values are as follows:
+  + **prePaid**: the yearly/monthly billing mode.
+  + **postPaid**: the pay-per-use billing mode.
+
+  Changing this will create a new vault.
+
+* `period_unit` - (Optional, String, ForceNew) Specifies the charging period unit of the vault.
+  Valid values are **month** and **year**. This parameter is mandatory if `charging_mode` is set to **prePaid**.
+  Changing this will create a new vault.
+
+* `period` - (Optional, Int, ForceNew) Specifies the charging period of the vault.
+  If `period_unit` is set to **month**, the value ranges from 1 to 9.
+  If `period_unit` is set to **year**, the value ranges from 1 to 5.
+  This parameter is mandatory if `charging_mode` is set to **prePaid**.
+  Changing this will create a new vault.
+
+* `auto_renew` - (Optional, String) Specifies whether auto renew is enabled.
+  Valid values are **true** and **false**. Defaults to **false**.
+
 <a name="cbr_vault_resources"></a>
 The `resources` block supports:
 
 * `server_id` - (Optional, String) Specifies the ID of the ECS instance to be backed up.
+
+* `excludes` - (Optional, List) Specifies the array of disk IDs which will be excluded in the backup.
+  Only **server** vault support this parameter.
 
 * `includes` - (Optional, List) Specifies the array of disk or SFS file system IDs which will be included in the backup.
   Only **disk** and **turbo** vault support this parameter.
@@ -137,10 +198,35 @@ In addition to all arguments above, the following attributes are exported:
 
 * `storage` - The name of the bucket for the vault.
 
+## Timeouts
+
+This resource provides the following timeouts configuration options:
+
+* `create` - Default is 10 minute.
+* `delete` - Default is 5 minute.
+
 ## Import
 
 Vaults can be imported by their `id`. For example,
 
 ```
 $ terraform import sbercloud_cbr_vault.test 01c33779-7c83-4182-8b6b-24a671fcedf8
+```
+
+Note that the imported state may not be identical to your resource definition, due to some attributes missing from the
+API response, security or some other reason. The missing attributes include: `period_unit`, `period`, `auto_renew`.
+It is generally recommended running `terraform plan` after importing a vault.
+You can then decide if changes should be applied to the vault, or the resource definition should be updated to align
+with the vault. Also you can ignore changes as below.
+
+```
+resource "sbercloud_cbr_vault" "test" {
+    ...
+
+  lifecycle {
+    ignore_changes = [
+      period_unit, period, auto_renew,
+    ]
+  }
+}
 ```
