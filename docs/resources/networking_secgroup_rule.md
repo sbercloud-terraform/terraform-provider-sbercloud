@@ -42,6 +42,10 @@ The following arguments are supported:
 * `ethertype` - (Required, String, ForceNew) The layer 3 protocol type, valid values are __IPv4__
     or __IPv6__. Changing this creates a new security group rule.
 
+* `description` - (Optional, String, ForceNew) Specifies the supplementary information about the networking security
+  group rule. This parameter can contain a maximum of 255 characters and cannot contain angle brackets (< or >).
+  Changing this creates a new security group rule.
+
 * `protocol` - (Optional, String, ForceNew) The layer 4 protocol type, valid values are following. Changing this creates a new security group rule. This is required if you want to specify a port range.
   * __tcp__
   * __udp__
@@ -66,12 +70,16 @@ The following arguments are supported:
   * __vrrp__
 
 * `port_range_min` - (Optional, String, ForceNew) The lower part of the allowed port range, valid
-    integer value needs to be between 1 and 65535. Changing this creates a new
+    integer value needs to be between 1 and 65535. This parameter and `ports` are alternative. Changing this creates a new
     security group rule.
 
 * `port_range_max` - (Optional, Int, ForceNew) The higher part of the allowed port range, valid
-    integer value needs to be between 1 and 65535. Changing this creates a new
+    integer value needs to be between 1 and 65535. This parameter and `ports` are alternative. Changing this creates a new
     security group rule.
+
+* `ports` - (Optional, String, ForceNew) Specifies the allowed port value range, which supports single port (80),
+  continuous port (1-30) and discontinous port (22, 3389, 80) The valid port values is range form `1` to `65,535`.
+  Changing this creates a new security group rule.
 
 * `remote_ip_prefix` - (Optional, String, ForceNew) The remote CIDR, the value needs to be a valid
     CIDR (i.e. 192.168.0.0/16). Changing this creates a new security group rule.
@@ -80,13 +88,23 @@ The following arguments are supported:
     Openstack ID of a security group in the same tenant. Changing this creates
     a new security group rule.
 
+* `remote_address_group_id` - (Optional, String, ForceNew) Specifies the remote address group ID.
+  This parameter is not used with `port_range_min` and `port_range_max`.
+  Changing this creates a new security group rule.
+
 * `security_group_id` - (Required, String, ForceNew) The security group id the rule should belong
     to, the value needs to be an Openstack ID of a security group in the same
     tenant. Changing this creates a new security group rule.
 
-* `tenant_id` - (Optional, String, ForceNew) The owner of the security group. Required if admin
-    wants to create a port for another tenant. Changing this creates a new
-    security group rule.
+* `action` - (Optional, String, ForceNew) Specifies the effective policy. The valid values are **allow** and **deny**.
+  This parameter is not used with `port_range_min` and `port_range_max`.
+  Changing this creates a new security group rule.
+
+* `priority` - (Optional, Int, ForceNew) Specifies the priority number.
+  The valid value is range from **1** to **100**. The default value is **1**.
+  This parameter is not used with `port_range_min` and `port_range_max`.
+  Changing this creates a new security group rule.
+
 
 ## Attributes Reference
 

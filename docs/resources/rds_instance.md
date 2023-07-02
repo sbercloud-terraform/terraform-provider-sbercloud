@@ -166,19 +166,6 @@ The following arguments are supported:
 * `time_zone` - (Optional, String, ForceNew) Specifies the UTC time zone.
   The value ranges from UTC-12:00 to UTC+12:00 at the full hour.
 
-* `charging_mode` - (Optional, String, ForceNew) Specifies the charging mode of the RDS DB instance.
-  Valid values are *prePaid* and *postPaid*, defaults to *postPaid*.
-  Changing this creates a new resource.
-
-* `period_unit` - (Optional, String, ForceNew) Specifies the charging period unit of the RDS DB instance.
-  Valid values are *month* and *year*. This parameter is mandatory if `charging_mode` is set to *prePaid*.
-  Changing this creates a new resource.
-
-* `period` - (Optional, Int, ForceNew) Specifies the charging period of the RDS DB instance.
-  If `period_unit` is set to *month*, the value ranges from 1 to 9.
-  If `period_unit` is set to *year*, the value ranges from 1 to 3.
-  This parameter is mandatory if `charging_mode` is set to *prePaid*. Changing this creates a new resource.
-
 * `auto_renew` - (Optional, String, ForceNew) Specifies whether auto renew is enabled.
   Valid values are "true" and "false". Changing this creates a new resource.
 
@@ -187,6 +174,9 @@ The following arguments are supported:
 
 * `tags` - (Optional, Map) A mapping of tags to assign to the RDS instance.
   Each tag is represented by one key-value pair.
+
+* `parameters` - (Optional, List) Specify an array of one or more parameters to be set to the RDS instance after
+  launched. You can check on console to see which parameters supported. Structure is documented below.
 
 The `db` block supports:
 
@@ -240,6 +230,13 @@ The `backup_strategy` block supports:
   the same and must be set to any of the following: 00, 15, 30, or 45.
   Example value: 08:15-09:15 23:00-00:00.
 
+The `parameters` block supports:
+
+* `name` - (Required, String) Specifies the parameter name. Some of them needs the instance to be restarted
+  to take effect.
+
+* `value` - (Required, String) Specifies the parameter value.
+
 ## Attributes Reference
 
 In addition to all arguments above, the following attributes are exported:
@@ -247,6 +244,8 @@ In addition to all arguments above, the following attributes are exported:
 * `id` - Specifies a resource ID in UUID format.
 
 * `status` - Indicates the DB instance status.
+
+* `db/user_name` - Indicates the default user name of database.
 
 * `created` - Indicates the creation time.
 
@@ -274,6 +273,7 @@ The `nodes` block contains:
 This resource provides the following timeouts configuration options:
 - `create` - Default is 30 minute.
 - `update` - Default is 30 minute.
+- `delete` - Default is 30 minutes.
 
 ## Import
 
