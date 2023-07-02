@@ -29,12 +29,12 @@ The following arguments are supported:
 * `name` - (Required, String) Specifies the nat gateway name. The name can
     contain only digits, letters, underscores (_), and hyphens(-).
 
-* `internal_network_id` - (Required, String, ForceNew) Specifies the network ID
-    of the downstream interface (the next hop of the DVR) of the NAT gateway.
-    Changing this creates a new nat gateway.
+* `vpc_id` - (Required, String, ForceNew) Specifies the ID of the VPC to which the NAT gateway belongs.  
+  Changing this will create a new resource.
 
-* `router_id` - (Required, String, ForceNew) Specifies the ID of the router
-    this nat gateway belongs to. Changing this creates a new nat gateway.
+* `subnet_id` - (Required, String, ForceNew) Specifies the subnet ID of the downstream interface (the next hop of the
+  DVR) of the NAT gateway.  
+  Changing this will create a new resource.
 
 * `spec` - (Required, String) Specifies the nat gateway type.
     The value can be:
@@ -52,6 +52,8 @@ The following arguments are supported:
     36 characters which it is string "0" or in UUID format with hyphens (-).
     Changing this creates a new nat gateway.
 
+* `tags` - (Optional, Map) Specifies the key/value pairs to associate with the NAT geteway.
+
 ## Attributes Reference
 
 In addition to all arguments above, the following attributes are exported:
@@ -63,6 +65,7 @@ In addition to all arguments above, the following attributes are exported:
 ## Timeouts
 This resource provides the following timeouts configuration options:
 - `create` - Default is 10 minute.
+- `update` - Default is 10 minute.
 - `delete` - Default is 10 minute.
 
 ## Import
