@@ -31,9 +31,14 @@ resource "sbercloud_enterprise_project" "test" {
 
 * `enable` - (Optional, Bool) Specifies whether to enable the enterprise project. Default to *true*.
 
+* `skip_disable_on_destroy` - (Optional, Bool) Specifies whether to skip disable the enterprise project on destroy.
+  Defaults to **false**.
+
 ## Attributes Reference
 
 In addition to all arguments above, the following attributes are exported:
+
+* `id` - Indicates the ID of the enterprise project.
 
 * `status` - Indicates the status of an enterprise project.
   + 1 indicates Enabled.

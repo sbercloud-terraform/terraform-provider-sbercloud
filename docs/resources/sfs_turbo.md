@@ -67,8 +67,6 @@ The following arguments are supported:
   To ensure normal use, SFS Turbo will enable the inbound rules for ports *111*, *445*, *2049*, *2051*, *2052*,
   and *20048* in the security group you specified.
 
-* `auto_renew` - (Optional, String) Specifies whether auto renew is enabled.  
-  The valid values are **true** and **false**.
 
 ## Attributes Reference
 In addition to all arguments above, the following attributes are exported:

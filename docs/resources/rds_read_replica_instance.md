@@ -80,8 +80,6 @@ The following arguments are supported:
 * `enterprise_project_id` - (Optional, String, ForceNew) The enterprise project id of the read replica instance.
   Changing this parameter will create a new resource.
 
-* `auto_renew` - (Optional, String) Specifies whether auto renew is enabled. Valid values are "true" and "false".
-
 * `tags` - (Optional, Map) A mapping of tags to assign to the RDS read replica instance. Each tag is represented by one key-value pair.
 
 The `volume` block supports:

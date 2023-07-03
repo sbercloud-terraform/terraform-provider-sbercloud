@@ -166,9 +166,6 @@ The following arguments are supported:
 * `time_zone` - (Optional, String, ForceNew) Specifies the UTC time zone.
   The value ranges from UTC-12:00 to UTC+12:00 at the full hour.
 
-* `auto_renew` - (Optional, String, ForceNew) Specifies whether auto renew is enabled.
-  Valid values are "true" and "false". Changing this creates a new resource.
-
 * `enterprise_project_id` - (Optional, String, ForceNew) The enterprise project id of the RDS instance.
   Changing this parameter creates a new RDS instance.
 
