@@ -6,6 +6,10 @@ subcategory: "Distributed Cache Service (DCS)"
 
 Manages a DCS instance within SberCloud.
 
+!> **WARNING:** DCS for Memcached is about to become unavailable and is no longer sold in some regions.
+You can use DCS for Redis 4.0, 5.0 or 6.0 instead. It is not possible to create Memcached instances through this resource.
+You can use this resource to manage Memcached instances that exist in SberCloud.
+
 ## Example Usage
 
 ### Create a single mode Redis instance
@@ -44,8 +48,8 @@ resource "sbercloud_dcs_instance" "instance_2" {
   engine_version     = "5.0"
   capacity           = 4
   flavor             = "redis.ha.xu1.large.r2.4"
-  # The first is the primary availability zone (ru-moscow-1a),
-  # and the second is the standby availability zone (ru-moscow-1a).
+  # The first is the primary availability zone (cn-north-1a),
+  # and the second is the standby availability zone (cn-north-1b).
   availability_zones = ["ru-moscow-1a", "ru-moscow-1b"]
   password           = "YourPassword@123"
   vpc_id             = var.vpc_id
@@ -89,14 +93,14 @@ The following arguments are supported:
   Changing this creates a new instance.
 
 * `engine_version` - (Optional, String, ForceNew) Specifies the version of a cache engine.
-  It is mandatory when the engine is *Redis*, the value can be 3.0, 4.0, or 5.0.
+  It is mandatory when the engine is *Redis*, the value can be 3.0, 4.0, 5.0 or 6.0.
   Changing this creates a new instance.
 
 * `capacity` - (Required, Float) Specifies the cache capacity. Unit: GB.
-  + **Redis4.0 and Redis5.0**: Stand-alone and active/standby type instance values: `0.125`, `0.25`, `0.5`, `1`, `2`,
-    `4`, `8`, `16`, `32` and `64`.
-    Cluster instance specifications support `24`, `32`, `48`, `64`, `96`, `128`, `192`, `256`, `384`, `512`, `768` and
-    `1024`.
+  + **Redis4.0, Redis5.0 and Redis6.0**: Stand-alone and active/standby type instance values: `0.125`, `0.25`,
+    `0.5`, `1`, `2`, `4`, `8`, `16`, `32` and `64`.
+    Cluster instance specifications support `4`,`8`,`16`, `24`, `32`, `48`, `64`, `96`, `128`, `192`, `256`,
+    `384`, `512`, `768` and `1024`.
   + **Redis3.0**: Stand-alone and active/standby type instance values: `2`, `4`, `8`, `16`, `32` and `64`.
     Proxy cluster instance specifications support `64`, `128`, `256`, `512`, and `1024`.
   + **Memcached**: Stand-alone and active/standby type instance values: `2`, `4`, `8`, `16`, `32` and `64`.
@@ -130,6 +134,7 @@ The following arguments are supported:
   Changing this creates a new instance resource.
 
 * `port` - (Optional, Int) Port customization, which is supported only by Redis 4.0 and Redis 5.0 instances.
+  Redis instance defaults to 6379. Memcached instance does not use this argument.
 
 * `password` - (Optional, String, ForceNew) Specifies the password of a DCS instance.
   Changing this creates a new instance.
@@ -138,7 +143,6 @@ The following arguments are supported:
   + Must contain three combinations of the following four characters: Lower case letters, uppercase letter, digital,
     Special characters include (`~!@#$^&*()-_=+\\|{}:,<.>/?).
   + The new password cannot be the same as the old password.
-    Redis instance defaults to 6379. Memcached instance does not use this argument.
 
 * `whitelists` - (Optional, List) Specifies the IP addresses which can access the instance.
   This parameter is valid for Redis 4.0 and 5.0 versions. The structure is described below.
@@ -193,9 +197,8 @@ The following arguments are supported:
   This parameter is mandatory if `charging_mode` is set to *prePaid*.
   Changing this creates a new instance.
 
-* `auto_renew` - (Optional, String, ForceNew) Specifies whether auto renew is enabled.
+* `auto_renew` - (Optional, String) Specifies whether auto renew is enabled.
   Valid values are `true` and `false`, defaults to `false`.
-  Changing this creates a new instance.
 
 * `tags` - (Optional, Map) The key/value pairs to associate with the dcs instance.
 
@@ -220,7 +223,8 @@ The `backup_policy` block supports:
   + `auto`: automatic backup.
   + `manual`: manual backup.
 
-* `save_days` - (Required, Int) Retention time. Unit: day, the value ranges from 1 to 7.
+* `save_days` - (Optional, Int) Retention time. Unit: day, the value ranges from 1 to 7.
+  This parameter is required if the backup_type is **auto**.
 
 * `period_type` - (Optional, String) Interval at which backup is performed. Default value is `weekly`.
   Currently, only weekly backup is supported.
@@ -266,15 +270,15 @@ In addition to all arguments above, the following attributes are exported:
 
 This resource provides the following timeouts configuration options:
 
-* `create` - Default is 20 minute.
-* `update` - Default is 20 minute.
-* `delete` - Default is 15 minute.
+* `create` - Default is 120 minutes.
+* `update` - Default is 120 minutes.
+* `delete` - Default is 15 minutes.
 
 ## Import
 
 DCS instance can be imported using the `id`, e.g.
 
-```sh
+```bash
 terraform import sbercloud_dcs_instance.instance_1 80e373f9-872e-4046-aae9-ccd9ddc55511
 ```
 

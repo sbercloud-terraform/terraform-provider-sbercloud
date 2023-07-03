@@ -158,7 +158,6 @@ The `metric` block supports:
 * `namespace` - (Required, String, ForceNew) Specifies the namespace in **service.item** format. **service** and **item**
   each must be a string that starts with a letter and contains only letters, digits, and underscores (_).
   Changing this creates a new resource.
-  For details, see [Services Interconnected with Cloud Eye](https://support.sbercloud.com/intl/en-us/api-ces/ces_03_0059.html).
 
 The `resources` block supports:
 
@@ -191,20 +190,19 @@ The `condition` block supports:
 * `count` - (Required, Int) Specifies the number of consecutive occurrence times. The value ranges from 1 to 5.
 
 * `unit` - (Optional, String) Specifies the data unit.
-  For details, see [Services Interconnected with Cloud Eye](https://support.sbercloud.com/intl/en-us/api-ces/ces_03_0059.html).
 
 * `suppress_duration` - (Optional, Int) Specifies the interval for triggering an alarm if the alarm persists.
   Possible values are as follows:
-    + **0**: Cloud Eye triggers the alarm only once;
-    + **300**: Cloud Eye triggers the alarm every 5 minutes;
-    + **600**: Cloud Eye triggers the alarm every 10 minutes;
-    + **900**: Cloud Eye triggers the alarm every 15 minutes;
-    + **1800**: Cloud Eye triggers the alarm every 30 minutes;
-    + **3600**: Cloud Eye triggers the alarm every hour;
-    + **10800**: Cloud Eye triggers the alarm every 3 hours;
-    + **21600**: Cloud Eye triggers the alarm every 6 hours;
-    + **43200**: Cloud Eye triggers the alarm every 12 hour;
-    + **86400**: Cloud Eye triggers the alarm every day.
+  + **0**: Cloud Eye triggers the alarm only once;
+  + **300**: Cloud Eye triggers the alarm every 5 minutes;
+  + **600**: Cloud Eye triggers the alarm every 10 minutes;
+  + **900**: Cloud Eye triggers the alarm every 15 minutes;
+  + **1800**: Cloud Eye triggers the alarm every 30 minutes;
+  + **3600**: Cloud Eye triggers the alarm every hour;
+  + **10800**: Cloud Eye triggers the alarm every 3 hours;
+  + **21600**: Cloud Eye triggers the alarm every 6 hours;
+  + **43200**: Cloud Eye triggers the alarm every 12 hour;
+  + **86400**: Cloud Eye triggers the alarm every day.
 
   The default value is **0**.
 
@@ -219,8 +217,8 @@ the `alarm_actions` block supports:
 
 * `type` - (Required, String) Specifies the type of action triggered by an alarm. the
   value can be *notification* or *autoscaling*.
-    + notification: indicates that a notification will be sent to the user.
-    + autoscaling: indicates that a scaling action will be triggered.
+  + notification: indicates that a notification will be sent to the user.
+  + autoscaling: indicates that a scaling action will be triggered.
 
 * `notification_list` - (Required, List) specifies the list of objects to be notified if the alarm status changes, the
   maximum length is 5. If `type` is set to *notification*, the value of notification_list cannot be empty. If `type` is
@@ -244,9 +242,9 @@ In addition to all arguments above, the following attributes are exported:
 * `id` - Indicates the alarm rule ID.
 
 * `alarm_state` - Indicates the alarm status. The value can be:
-    + ok: The alarm status is normal;
-    + alarm: An alarm is generated;
-    + insufficient_data: The required data is insufficient.
+  + ok: The alarm status is normal;
+  + alarm: An alarm is generated;
+  + insufficient_data: The required data is insufficient.
 
 * `update_time` - Indicates the time when the alarm status changed. The value is a UNIX timestamp and the unit is ms.
 
