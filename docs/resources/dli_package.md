@@ -40,7 +40,6 @@ The following arguments are supported:
   Changing this parameter will delete the current package and upload a new package.
 
 * `object_path` - (Required, String, ForceNew) Specifies the OBS storage path where the package is located.
-  For example, `https://{bucket_name}.obs.{region}.hc.sbercloud.ru/dli/packages/object_file.py`.
   Changing this parameter will delete the current package and upload a new package.
 
 * `is_async` - (Optional, Bool, ForceNew) Specifies whether to upload resource packages in asynchronous mode.
@@ -60,4 +59,4 @@ In addition to all arguments above, the following attributes are exported:
 
 * `created_at` - Time when a queue is created.
 
-* `updated_at` - The last time when the package configuration update has completed.
+* `updated_at` - The last time when the package configuration update has complated.
