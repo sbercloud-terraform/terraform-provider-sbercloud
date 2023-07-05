@@ -84,6 +84,12 @@ The following arguments are supported:
 * `device_type` - (Optional, String, ForceNew) The device type of volume to create. Valid options are VBD and SCSI.
 	Defaults to VBD. Changing this creates a new volume.
 
+* `enterprise_project_id` - (Optional, String, ForceNew) Specifies the enterprise project id of the disk. Changing this
+  creates a new disk.
+
+* `cascade` - (Optional, Bool) Specifies the delete mode of snapshot. The default value is false. All snapshot
+  associated with the disk will also be deleted when the parameter is set to true.
+
 ## Attributes Reference
 
 In addition to all arguments above, the following attributes are exported:

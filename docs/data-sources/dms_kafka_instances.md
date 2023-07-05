@@ -131,6 +131,10 @@ The `instances` block supports:
 
 The `cross_vpc_accesses` block supports:
 
+* `listener_ip` - The listener IP address.
+
+* `advertised_ip` - The advertised IP Address.
+
 * `port` - The port number.
-
-
+  
+* `port_id` - The port ID associated with the address

@@ -68,7 +68,7 @@ The `clusters` block supports:
 
 * `container_network_type` - The container network type: **overlay_l2** , **underlay_ipvlan**, **vpc-router** or **eni**.
 
-* `eni_subnet_id` - The ENI subnet ID.
+* `eni_subnet_id` - The ENI**IPv4 subnet ID** of the subnet where the ENI resides.
 
 * `eni_subnet_cidr` - The ENI network segment.
 
@@ -95,6 +95,10 @@ The `clusters` block supports:
 * `certificate_users` - The certificate users. Structure is documented below.
 
 * `kube_config_raw` - The raw Kubernetes config to be used by kubectl and other compatible tools.
+
+The `masters` block supports:
+
+* `availability_zone` - The availability zone (AZ) of the master node.
 
 The `endpoints` block supports:
 

@@ -55,6 +55,8 @@ The following arguments are supported:
 * `admin_state_up` - (Optional, Bool) The administrative state of the listener. A valid value is true (UP) or false (
   DOWN).
 
+* `tags` - (Optional, Map) The key/value pairs to associate with the listener.
+
 ## Attributes Reference
 
 In addition to all arguments above, the following attributes are exported:

@@ -35,6 +35,8 @@ In addition to all arguments above, the following attributes are exported:
 
 * `private_ip` - The private ip of the EIP.
 
+* `ip_version` - The IP version, either 4 or 6.
+
 * `bandwidth_id` - The bandwidth id of the EIP.
 
 * `bandwidth_size` - The bandwidth size of the EIP.

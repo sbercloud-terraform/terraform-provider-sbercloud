@@ -43,6 +43,12 @@ In addition to all arguments above, the following attributes are exported:
 
 * `status` - Indicates the bandwidth status.
 
+* `publicips` - An array of EIPs that use the bandwidth. The object includes the following:
+  + `id` - The ID of the EIP or IPv6 port that uses the bandwidth.
+  + `type` - The EIP type.
+  + `ip_version` - The IP version, either 4 or 6.
+  + `ip_address` - The IPv4 or IPv6 address.
+
 ## Timeouts
 
 This resource provides the following timeouts configuration options:

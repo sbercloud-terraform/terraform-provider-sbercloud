@@ -53,6 +53,20 @@ The following arguments are supported:
   BMSs to provide services for external systems.
   Changing this creates a new dnat rule.
 
+* `internal_service_port_range` - (Optional, String) Specifies port range used by Floating IP provide services
+  for external systems.  
+  This parameter and `external_service_port_range` are mapped **1:1** in sequence(, ranges must have the same length).
+  The valid value for range is **1~65535** and the port ranges can only be concatenated with the `-` character.
+
+* `external_service_port_range` - (Optional, String) Specifies port range used by ECSs or BMSs to provide
+  services for external systems.  
+  This parameter and `internal_service_port_range` are mapped **1:1** in sequence(, ranges must have the same length).
+  The valid value for range is **1~65535** and the port ranges can only be concatenated with the `-` character.  
+  Required if `internal_service_port_range` is set.
+
+* `description` - (Optional, String) Specifies the description of the DNAT rule.  
+  The value is a string of no more than `255` characters, and angle brackets (<>) are not allowed.
+
 ## Attributes Reference
 
 In addition to all arguments above, the following attributes are exported:
@@ -64,6 +78,14 @@ In addition to all arguments above, the following attributes are exported:
 * `status` - Dnat rule status.
 
 * `floating_ip_address` - The actual floating IP address.
+
+## Timeouts
+
+This resource provides the following timeouts configuration options:
+
+* `create` - Default is 5 minutes.
+* `update` - Default is 5 minutes.
+* `delete` - Default is 5 minutes.
 
 ## Import
 

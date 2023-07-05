@@ -14,7 +14,7 @@ An example filter by name and tag
 data "sbercloud_vpc_subnets" "subnet" {
   name = var.subnet_name
 
-  tags {
+  tags = {
     foo = "bar,value"
   }
 }
@@ -53,10 +53,10 @@ All subnets that meet the filter criteria will be exported as attributes.
 
 * `tags` - (Optional, Map) Specifies the included key/value pairs which associated with the desired subnet.
 
- -> A maximum of 10 tag keys are allowed for each query operation. Each tag key can have up to 10 tag values.
-  The tag key cannot be left blank or set to an empty string. Each tag key must be unique, and each tag value in a
-  tag must be unique, use commas(,) to separate the multiple values. An empty for values indicates any value.
-  The values are in the OR relationship.
+-> A maximum of 10 tag keys are allowed for each query operation. Each tag key can have up to 10 tag values.
+The tag key cannot be left blank or set to an empty string. Each tag key must be unique, and each tag value in a
+tag must be unique, use commas(,) to separate the multiple values. An empty for values indicates any value.
+The values are in the OR relationship.
 
 ## **Attributes Reference**
 
@@ -79,4 +79,9 @@ The `subnets` block supports:
 * `subnet_id` - Indicates the subnet (Native OpenStack API) ID.
 * `dhcp_enable` - Indicates whether the DHCP is enabled.
 * `dns_list` - Indicates The IP address list of DNS servers on the subnet.
+* `ipv4_subnet_id` - Indicates the ID of the IPv4 subnet (Native OpenStack API).
+* `ipv6_enable` - Indicates whether the IPv6 is enabled.
+* `ipv6_subnet_id` - Indicates the ID of the IPv6 subnet (Native OpenStack API).
+* `ipv6_cidr` - Indicates the IPv6 subnet CIDR block.
+* `ipv6_gateway` - Indicates the IPv6 subnet gateway.
 * `tags` - Indicates the key/value pairs which associated with the subnet.
