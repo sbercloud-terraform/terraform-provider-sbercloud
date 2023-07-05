@@ -59,17 +59,6 @@ The following arguments are supported:
 * `enterprise_project_id` - (Optional, String, ForceNew) The enterprise project id of the elastic IP. Changing this
   creates a new eip.
 
-* `charging_mode` - (Optional, String, ForceNew) Specifies the charging mode of the elastic IP. Valid values are
-  *prePaid* and *postPaid*, defaults to *postPaid*. Changing this creates a new eip.
-
-* `period_unit` - (Optional, String, ForceNew) Specifies the charging period unit of the elastic IP. Valid values are
-  *month* and *year*. This parameter is mandatory if `charging_mode` is set to *prePaid*. Changing this creates a new
-  eip.
-
-* `period` - (Optional, Int, ForceNew) Specifies the charging period of the elastic IP. If `period_unit` is set to
-  *month*, the value ranges from 1 to 9. If `period_unit` is set to *year*, the value ranges from 1 to 3. This parameter
-  is mandatory if `charging_mode` is set to *prePaid*. Changing this creates a new resource.
-
 * `auto_renew` - (Optional, String, ForceNew) Specifies whether auto renew is enabled. Valid values are "true" and "
   false". Changing this creates a new resource.
 
@@ -108,6 +97,9 @@ In addition to all arguments above, the following attributes are exported:
 
 * `id` - The resource ID in UUID format.
 * `address` - The IP address of the eip.
+* `ipv6_address` - The IPv6 address of the EIP.
+* `private_ip` - The private IP address bound to the EIP.
+* `port_id` - The port ID which the EIP associated with.
 * `status` - The status of eip.
 
 ## Timeouts
@@ -115,6 +107,7 @@ In addition to all arguments above, the following attributes are exported:
 This resource provides the following timeouts configuration options:
 
 * `create` - Default is 10 minute.
+* `update` - Default is 10 minutes.
 * `delete` - Default is 10 minute.
 
 ## Import

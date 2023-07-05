@@ -52,7 +52,7 @@ variable "availability_zone" {}
 resource "sbercloud_cce_node_pool" "test" {
   cluster_id               = var.cluster_id
   name                     = "testpool"
-  os                       = "EulerOS 2.5"
+  os                       = "CentOS 7.6"
   flavor_id                = "s6.large.2"
   initial_node_count       = 1
   availability_zone        = var.availability_zone
@@ -130,6 +130,8 @@ resource "sbercloud_cce_node_pool" "test" {
 }
 ```
 
+
+
 ### PrePaid node pool
 
 ```hcl
@@ -167,6 +169,7 @@ resource "sbercloud_cce_node_pool" "node_pool" {
 ```
 
 ~> You need to remove all nodes in the node pool on the console, before deleting a prepaid node pool.
+
 
 ## Argument Reference
 
@@ -246,7 +249,9 @@ extend_param = {
 
 * `security_groups` - (Optional, List, ForceNew) Specifies the list of custom security group IDs for the node pool.
   If specified, the nodes will be put in these security groups. When specifying a security group, do not modify
-  the rules of the port on which CCE running depends. 
+
+  the rules of the port on which CCE running depends.
+
 
 * `pod_security_groups` - (Optional, List, ForceNew) Specifies the list of security group IDs for the pod.
   Only supported in CCE Turbo clusters of v1.19 and above. Changing this parameter will create a new resource.
@@ -261,6 +266,7 @@ extend_param = {
 * `data_volumes` - (Required, List, ForceNew) Specifies the configuration of the data disks.
   The structure is described below. Changing this parameter will create a new resource.
 
+
 * `charging_mode` - (Optional, String, ForceNew) Specifies the charging mode of the CCE node pool. Valid values are
   *prePaid* and *postPaid*, defaults to *postPaid*. Changing this parameter will create a new resource.
 
@@ -271,6 +277,7 @@ extend_param = {
 * `period` - (Optional, Int, ForceNew) Specifies the charging period of the CCE node pool. If `period_unit` is set to
   *month*, the value ranges from 1 to 9. If `period_unit` is set to *year*, the value ranges from 1 to 3. This parameter
   is mandatory if `charging_mode` is set to *prePaid*. Changing this parameter will create a new resource.
+
 
 * `auto_renew` - (Optional, String, ForceNew) Specifies whether auto renew is enabled. Valid values are "true" and "false".
   Changing this parameter will create a new resource.
@@ -305,7 +312,9 @@ The `data_volumes` block supports:
 * `kms_key_id` - (Optional, String, ForceNew) Specifies the KMS key ID. This is used to encrypt the volume.
   Changing this parameter will create a new resource.
 
+
   -> You need to create an agency (EVSAccessKMS) when disk encryption is used in the current project for the first time ever.
+
 
 * `storage` - (Optional, List, ForceNew) Specifies the disk initialization management parameter.
   If omitted, disks are managed based on the DockerLVMConfigOverride parameter in extendParam.

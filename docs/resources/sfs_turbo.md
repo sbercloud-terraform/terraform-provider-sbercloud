@@ -54,10 +54,19 @@ The following arguments are supported:
 * `enhanced` - (Optional, Bool, ForceNew) Specifies whether the file system is enhanced or not.
   Changing this will create a new resource.
 
+* `crypt_key_id` - (Optional, String, ForceNew) Specifies the ID of a KMS key to encrypt the file system. Changing this
+  will create a new resource.
+
+* `enterprise_project_id` - (Optional, String, ForceNew) The enterprise project id of the file system. Changing this
+  will create a new resource.
+
+* `tags` - (Optional, Map) Specifies the key/value pairs to associate with the SFS Turbo.
+
 -> **NOTE:**
   SFS Turbo will create two private IP addresses and one virtual IP address under the subnet you specified.
   To ensure normal use, SFS Turbo will enable the inbound rules for ports *111*, *445*, *2049*, *2051*, *2052*,
   and *20048* in the security group you specified.
+
 
 ## Attributes Reference
 In addition to all arguments above, the following attributes are exported:
@@ -78,6 +87,7 @@ In addition to all arguments above, the following attributes are exported:
 ## Timeouts
 This resource provides the following timeouts configuration options:
 - `create` - Default is 10 minute.
+- `update` - Default is 10 minute.
 - `delete` - Default is 10 minute.
 
 ## Import

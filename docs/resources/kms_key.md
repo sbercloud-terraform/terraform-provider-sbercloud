@@ -29,12 +29,20 @@ The following arguments are supported:
 * `key_description` - (Optional, String) The description of the key as viewed in Sber console.
     Changing this updates the description of key.
 
+* `key_algorithm` - (Optional, String, ForceNew) The algorithm of the key. Valid values are AES_256, SM4, RSA_2048, RSA_3072,
+  RSA_4096, EC_P256, EC_P384, SM2. Changing this creates a new key.
+
 * `pending_days` - (Optional, String) Duration in days after which the key is deleted
     after destruction of the resource, must be between 7 and 1096 days. It doesn't
     have default value. It only be used when delete a key.
 
 * `is_enabled` - (Optional, Bool) Specifies whether the key is enabled. Defaults to true.
     Changing this updates the state of existing key.
+
+* `rotation_enabled` - (Optional, Bool) Specifies whether the key rotation is enabled. Defaults to false.
+
+* `rotation_interval` - (Optional, Int) Specifies the key rotation interval. The valid value is range from 30 to 365,
+  defaults to 365.
 
 * `enterprise_project_id` - (Optional, String, ForceNew) The enterprise project id of the kms key. Changing this creates a new key.
 
@@ -52,6 +60,7 @@ In addition to all arguments above, the following attributes are exported:
 * `domain_id` - ID of a user domain for the key.
 * `expiration_time` - Expiration time.
 * `creation_date` - Creation time (time stamp) of a key.
+* `rotation_number` - The total number of key rotations.
 
 
 ## Import

@@ -73,6 +73,10 @@ The following arguments are supported:
 * `domain_roles` - (optional, List) Specifies an array of one or more role names which stand for the permissionis to be
   granted to agency on domain.
 
+* `all_resources_roles` - (Optional, List) Specifies an array of one or more role names which stand for the permissions
+  to be granted to agency on all resources, including those in enterprise projects, region-specific projects,
+  and global services under your account.
+
 The `project_role` block supports:
 
 * `project` - (Required, String) Specifies the name of project.

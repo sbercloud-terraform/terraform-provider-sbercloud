@@ -27,25 +27,26 @@ The following arguments are supported:
 
 * `status` - (Optional, String) The status of the shared file system.
 
+* `region` - (Optional, String) Specifies the region in which to obtain the shared file system.
+  If omitted, the provider-level region will be used.
+
 ## Attributes Reference
 
 In addition to all arguments above, the following attributes are exported:
 
 * `availability_zone` - The availability zone name.
+* 
+* `description` - The description of the shared file system.
+
+* `state` - The state of the shared file system.
 
 * `size` - The size (GB) of the shared file system.
 
-* `share_type` - The storage service type for the shared file system, such as high-performance storage (composed of SSDs) or large-capacity storage (composed of SATA disks).
-
 * `status` - The status of the shared file system.
-
-* `host` - The host name of the shared file system.
 
 * `is_public` - The level of visibility for the shared file system.
 
 * `share_proto` - The protocol for sharing file systems.
-
-* `volume_type` - The volume type.
 
 * `metadata` - Metadata key and value pairs as a dictionary of strings.
 

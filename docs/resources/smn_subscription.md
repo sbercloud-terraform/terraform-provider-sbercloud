@@ -38,10 +38,12 @@ The following arguments are supported:
 * `topic_urn` - (Required, String, ForceNew) Resource identifier of a topic, which is unique.
 
 * `endpoint` - (Required, String, ForceNew) Message endpoint.
-     For an HTTP subscription, the endpoint starts with http\://.
-     For an HTTPS subscription, the endpoint starts with https\://.
-     For an email subscription, the endpoint is a mail address.
-     For an SMS message subscription, the endpoint is a phone number.
+     + **For an HTTP subscription**, the endpoint starts with `http://`.
+     + **For an HTTPS subscription**, the endpoint starts with `https://`.
+     + **For an email subscription**, the endpoint is an mail address.
+     + **For an SMS message subscription**, the endpoint is a phone number,
+       the format is \[+\]\[country code\]\[phone number\], e.g. +7905xxx0000.
+     + **For a functiongraph subscription**, the endpoint is a workflow ID.
 
 * `protocol` - (Required, String, ForceNew) Protocol of the message endpoint. Currently, email,
      sms, http, and https are supported.
@@ -60,6 +62,14 @@ In addition to all arguments above, the following attributes are exported:
 * `owner` - Project ID of the topic creator.
 
 * `status` - Subscription status.
-     0 indicates that the subscription is not confirmed.
-     1 indicates that the subscription is confirmed.
-     3 indicates that the subscription is canceled.
+     + **0**: indicates that the subscription is not confirmed.
+     + **1**: indicates that the subscription is confirmed.
+     + **3**: indicates that the subscription is canceled.
+
+## Import
+
+SMN subscription can be imported using the `id` (subscription urn), e.g.
+
+```
+$ terraform import sbercloud_smn_subscription.subscription_1 urn:smn:ru-moscow-1:0f5181caba0024e72f89c0045e707b91:topic_1:9c06f9d90cc549359e3bf67860a0736a
+```

@@ -55,4 +55,15 @@ In addition to all arguments above, the following attributes are exported:
 * `dhcp_enable` - Whether the DHCP is enabled.
 
 * `subnet_id` - The subnet (Native OpenStack API) ID.
-* 
+
+* `description` - The description of the subnet.
+
+* `ipv4_subnet_id` - The ID of the IPv4 subnet (Native OpenStack API).
+
+* `ipv6_enable` - Whether the IPv6 is enabled.
+
+* `ipv6_subnet_id` - The ID of the IPv6 subnet (Native OpenStack API).
+
+* `ipv6_cidr` - The IPv6 subnet CIDR block.
+
+* `ipv6_gateway` - The IPv6 subnet gateway.
