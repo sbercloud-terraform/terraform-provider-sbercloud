@@ -2,9 +2,10 @@
 subcategory: "Elastic Cloud Server (ECS)"
 ---
 
-# sbercloud\_compute\_eip\_associate
+# sbercloud_compute_eip_associate
 
-Associate an EIP to an instance.
+* Associates the **IPv4** address of an ECS instance to a specified EIP.
+* Associates the **IPv6** address of an ECS instance to a specified **Shared** Bandwidth.
 
 ## Example Usage
 
@@ -12,12 +13,8 @@ Associate an EIP to an instance.
 
 ```hcl
 resource "sbercloud_compute_instance" "myinstance" {
-  name              = "instance"
-  image_id          = "ad091b52-742f-469e-8f3c-fd81cadf0743"
-  flavor_id         = "s6.small.1"
-  key_pair          = "my_key_pair_name"
-  security_groups   = ["default"]
-  availability_zone = "ru-moscow-1a"
+  name = "instance"
+  ...
 
   network {
     uuid = "55534eaa-533a-419d-9b40-ec427ea7195a"
@@ -30,7 +27,7 @@ resource "sbercloud_vpc_eip" "myeip" {
   }
   bandwidth {
     name        = "test"
-    size        = 8
+    size        = 5
     share_type  = "PER"
     charge_mode = "traffic"
   }
@@ -46,12 +43,8 @@ resource "sbercloud_compute_eip_associate" "associated" {
 
 ```hcl
 resource "sbercloud_compute_instance" "myinstance" {
-  name              = "instance"
-  image_id          = "ad091b52-742f-469e-8f3c-fd81cadf0743"
-  flavor_id         = "s6.small.1"
-  key_pair          = "my_key_pair_name"
-  security_groups   = ["default"]
-  availability_zone = "ru-moscow-1a"
+  name = "instance"
+  ...
 
   network {
     uuid = "55534eaa-533a-419d-9b40-ec427ea7195a"
@@ -68,7 +61,7 @@ resource "sbercloud_vpc_eip" "myeip" {
   }
   bandwidth {
     name        = "test"
-    size        = 8
+    size        = 5
     share_type  = "PER"
     charge_mode = "traffic"
   }
@@ -81,28 +74,62 @@ resource "sbercloud_compute_eip_associate" "associated" {
 }
 ```
 
+### Associate the IPv6 address to a specified Shared Bandwidth
+
+```hcl
+variable "subnet_id" {}
+variable "bandwidth_id" {}
+
+resource "sbercloud_compute_instance" "myinstance" {
+  name      = "instance"
+  flavor_id = "c6.large.2"
+  ...
+
+  network {
+    uuid        = var.subnet_id
+    ipv6_enable = true
+  }
+}
+
+resource "sbercloud_compute_eip_associate" "associated" {
+  bandwidth_id = var.bandwidth_id
+  instance_id  = sbercloud_compute_instance.myinstance.id
+  fixed_ip     = sbercloud_compute_instance.myinstance.network.0.fixed_ip_v6
+}
+```
+
 ## Argument Reference
 
 The following arguments are supported:
 
-* `public_ip` - (Required, String, ForceNew) The EIP to associate.
+* `region` - (Optional, String, ForceNew) Specifies the region in which to create the associated resource.
+  If omitted, the provider-level region will be used. Changing this creates a new resource.
 
-* `instance_id` - (Required, String, ForceNew) The instance to associte the EIP with.
+* `instance_id` - (Required, String, ForceNew) Specifies the ID of ECS instance to associated with.
+  Changing this creates a new resource.
 
-* `fixed_ip` - (Optional, String, ForceNew) The specific IP address to direct traffic to.
+* `public_ip` - (Optional, String, ForceNew) Specifies the EIP address to associate. It's **mandatory**
+  when you want to associate the ECS instance with an EIP. Changing this creates a new resource.
+
+* `bandwidth_id` - (Optional, String, ForceNew) Specifies the **shared** bandwidth ID to associate.
+  It's **mandatory** when you want to associate the ECS instance with a specified shared bandwidth.
+  Changing this creates a new resource.
+
+* `fixed_ip` - (Optional, String, ForceNew) Specifies the private IP address to direct traffic to. It's **mandatory**
+  and must be a valid IPv6 address when you want to associate the ECS instance with a specified shared bandwidth.
+  Changing this creates a new resource.
 
 ## Attributes Reference
 
 In addition to all arguments above, the following attributes are exported:
 
-* `id` - Specifies a resource ID in UUID format.
-
+* `id` - The resource ID in format of `<eip address or bandwidth_id>/<instance_id>/<fixed_ip>`.
+* `port_id` - The port ID of the ECS instance that associated with.
 
 ## Import
 
-This resource can be imported by specifying all three arguments, separated
-by a forward slash:
+This resource can be imported by specifying all three arguments, separated by a forward slash:
 
-```
-$ terraform import sbercloud_compute_eip_associate.eip_1 <eip>/<instance_id>/<fixed_ip>
+```shell
+$ terraform import sbercloud_compute_eip_associate.bind <eip address or bandwidth_id>/<instance_id>/<fixed_ip>
 ```

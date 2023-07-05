@@ -25,3 +25,5 @@ terraform-provider-sbercloud
 *.out
 
 .idea/
+
+

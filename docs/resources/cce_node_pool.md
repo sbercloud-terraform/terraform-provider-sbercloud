@@ -8,6 +8,8 @@ Add a node pool to a container cluster.
 
 ## Example Usage
 
+### Basic Usage
+
 ```hcl
 variable "cluster_id" {}
 variable "key_pair" {}
@@ -16,7 +18,7 @@ variable "availability_zone" {}
 resource "sbercloud_cce_node_pool" "node_pool" {
   cluster_id               = var.cluster_id
   name                     = "testpool"
-  os                       = "CentOS 7.6"
+  os                       = "EulerOS 2.5"
   initial_node_count       = 2
   flavor_id                = "s3.large.4"
   availability_zone        = var.availability_zone
@@ -29,7 +31,7 @@ resource "sbercloud_cce_node_pool" "node_pool" {
   type                     = "vm"
 
   root_volume {
-    size       = 50
+    size       = 40
     volumetype = "SAS"
   }
   data_volumes {
@@ -128,6 +130,47 @@ resource "sbercloud_cce_node_pool" "test" {
 }
 ```
 
+
+
+### PrePaid node pool
+
+```hcl
+variable "cluster_id" {}
+variable "key_pair" {}
+variable "availability_zone" {}
+
+resource "sbercloud_cce_node_pool" "node_pool" {
+  cluster_id               = var.cluster_id
+  name                     = "testpool"
+  os                       = "EulerOS 2.5"
+  initial_node_count       = 2
+  flavor_id                = "s3.large.4"
+  availability_zone        = var.availability_zone
+  key_pair                 = var.keypair
+  scall_enable             = true
+  min_node_count           = 1
+  max_node_count           = 10
+  scale_down_cooldown_time = 100
+  priority                 = 1
+  type                     = "vm"
+  charging_mode            = "prePaid"
+  period_unit              = "month"
+  period                   = 1
+
+  root_volume {
+    size       = 40
+    volumetype = "SAS"
+  }
+  data_volumes {
+    size       = 100
+    volumetype = "SAS"
+  }
+}
+```
+
+~> You need to remove all nodes in the node pool on the console, before deleting a prepaid node pool.
+
+
 ## Argument Reference
 
 The following arguments are supported:
@@ -151,9 +194,8 @@ The following arguments are supported:
 * `availability_zone` - (Optional, String, ForceNew) Specifies the name of the available partition (AZ). Default value
   is random to create nodes in a random AZ in the node pool. Changing this parameter will create a new resource.
 
-* `os` - (Required, String, ForceNew) Specifies the operating system of the node.
+* `os` - (Optional, String, ForceNew) Specifies the operating system of the node.
   Changing this parameter will create a new resource.
-  For VM nodes, clusters of v1.13 and later support *CentOS 7.6* and *Ubuntu 18.04*.
 
 * `key_pair` - (Optional, String, ForceNew) Specifies the key pair name when logging in to select the key pair mode.
   This parameter and `password` are alternative. Changing this parameter will create a new resource.
@@ -207,7 +249,9 @@ extend_param = {
 
 * `security_groups` - (Optional, List, ForceNew) Specifies the list of custom security group IDs for the node pool.
   If specified, the nodes will be put in these security groups. When specifying a security group, do not modify
+
   the rules of the port on which CCE running depends.
+
 
 * `pod_security_groups` - (Optional, List, ForceNew) Specifies the list of security group IDs for the pod.
   Only supported in CCE Turbo clusters of v1.19 and above. Changing this parameter will create a new resource.
@@ -221,6 +265,19 @@ extend_param = {
 
 * `data_volumes` - (Required, List, ForceNew) Specifies the configuration of the data disks.
   The structure is described below. Changing this parameter will create a new resource.
+
+
+* `charging_mode` - (Optional, String, ForceNew) Specifies the charging mode of the CCE node pool. Valid values are
+  *prePaid* and *postPaid*, defaults to *postPaid*. Changing this parameter will create a new resource.
+
+* `period_unit` - (Optional, String, ForceNew) Specifies the charging period unit of the CCE node pool.
+  Valid values are *month* and *year*. This parameter is mandatory if `charging_mode` is set to *prePaid*.
+  Changing this parameter will create a new resource.
+
+* `period` - (Optional, Int, ForceNew) Specifies the charging period of the CCE node pool. If `period_unit` is set to
+  *month*, the value ranges from 1 to 9. If `period_unit` is set to *year*, the value ranges from 1 to 3. This parameter
+  is mandatory if `charging_mode` is set to *prePaid*. Changing this parameter will create a new resource.
+
 
 * `auto_renew` - (Optional, String, ForceNew) Specifies whether auto renew is enabled. Valid values are "true" and "false".
   Changing this parameter will create a new resource.
@@ -254,6 +311,10 @@ The `data_volumes` block supports:
 
 * `kms_key_id` - (Optional, String, ForceNew) Specifies the KMS key ID. This is used to encrypt the volume.
   Changing this parameter will create a new resource.
+
+
+  -> You need to create an agency (EVSAccessKMS) when disk encryption is used in the current project for the first time ever.
+
 
 * `storage` - (Optional, List, ForceNew) Specifies the disk initialization management parameter.
   If omitted, disks are managed based on the DockerLVMConfigOverride parameter in extendParam.
@@ -349,9 +410,9 @@ CCE node pool can be imported using the cluster ID and node pool ID separated by
 $ terraform import sbercloud_cce_node_pool.my_node_pool 5c20fdad-7288-11eb-b817-0255ac10158b/e9287dff-7288-11eb-b817-0255ac10158b
 ```
 
-Note that the imported state may not be identical to your resource definition, due to some attrubutes missing from the
+Note that the imported state may not be identical to your resource definition, due to some attributes missing from the
 API response, security or some other reason. The missing attributes include:
-`password`, `subnet_id`, `preinstall`, `posteinstall`, `taints` and `initial_node_count`.
+`password`, `subnet_id`, `preinstall`, `posteinstall`, `taints`, `initial_node_count` and `pod_security_groups`.
 It is generally recommended running `terraform plan` after importing a node pool.
 You can then decide if changes should be applied to the node pool, or the resource
 definition should be updated to align with the node pool. Also you can ignore changes as below.

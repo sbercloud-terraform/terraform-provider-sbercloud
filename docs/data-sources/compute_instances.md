@@ -26,6 +26,8 @@ The following arguments are supported:
 * `name` - (Optional, String) Specifies the instance name, which can be queried with a regular expression.
   The instance name supports fuzzy matching query too.
 
+* `instance_id` - (Optional, String) Specifies the ECS ID.
+
 * `flavor_name` - (Optional, String) Specifies the flavor name of the instance.
 
 * `enterprise_project_id` - (Optional, String) Specifies the enterprise project ID.
@@ -37,10 +39,16 @@ The following arguments are supported:
 
 * `image_id` - (Optional, String) Specifies the image ID of the instance.
 
+* `image_name` - The image name of the instance.
+
 * `flavor_id` - (Optional, String) Specifies the flavor ID.
 
 * `availability_zone` - (Optional, String) Specifies the availability zone where the instance is located.
   Please following [reference](https://support.hc.sbercloud.ru/endpoint/index.html) for this argument.
+
+* `public_ip` - The EIP address that is associted to the instance.
+
+* `system_disk_id` - The system disk voume ID.
 
 * `key_pair` - (Optional, String) Specifies the key pair that is used to authenticate the instance.
 
@@ -83,11 +91,22 @@ The `instances` block supports:
 
 * `tags` - The key/value pairs to associate with the instance.
 
+The `network` block supports:
+
+* `uuid` - The network ID to attach to the server.
+* `port` - The port ID corresponding to the IP address on that network.
+* `mac` - The MAC address of the NIC on that network.
+* `fixed_ip_v4` - The fixed IPv4 address of the instance on this network.
+* `fixed_ip_v6` - The Fixed IPv6 address of the instance on that network.
+
 The `volume_attached` block supports:
 
 * `volume_id` - The volume id on that attachment.
 
 * `is_sys_volume` - Whether the volume is the system disk.
+* `size` - The volume size on that attachment.
+* `type` - The volume type on that attachment.
+* `pci_address` - The volume pci address on that attachment.
 
 The `scheduler_hints` block supports:
 

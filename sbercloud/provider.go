@@ -40,6 +40,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/vpc"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/ces"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/css"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/drs"
 )
 
 // This is a global MutexKV for use within this plugin.
@@ -292,6 +293,7 @@ func Provider() *schema.Provider {
 			"sbercloud_dms_rabbitmq_instance":           dms.ResourceDmsRabbitmqInstance(),
 			"sbercloud_dns_recordset":                   dns.ResourceDNSRecordSetV2(),
 			"sbercloud_dns_zone":                        dns.ResourceDNSZone(),
+			"sbercloud_drs_job":                         drs.ResourceDrsJob(),
 			"sbercloud_dws_cluster":                     dws.ResourceDwsCluster(),
 			"sbercloud_elb_certificate":                 elb.ResourceCertificateV3(),
 			"sbercloud_elb_l7policy":                    elb.ResourceL7PolicyV3(),

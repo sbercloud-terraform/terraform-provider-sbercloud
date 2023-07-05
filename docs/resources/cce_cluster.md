@@ -76,6 +76,42 @@ resource "sbercloud_cce_cluster" "cluster" {
   eip                    = sbercloud_vpc_eip.myeip.address
 }
 ```
+## CCE Turbo Cluster
+
+```hcl
+resource "sbercloud_vpc" "myvpc" {
+  name = "vpc"
+  cidr = "192.168.0.0/16"
+}
+
+resource "sbercloud_vpc_subnet" "mysubnet" {
+  name       = "subnet"
+  cidr       = "192.168.0.0/24"
+  gateway_ip = "192.168.0.1"
+
+  //dns is required for cce node installing
+  primary_dns   = "100.125.1.250"
+  secondary_dns = "100.125.21.250"
+  vpc_id        = sbercloud_vpc.myvpc.id
+}
+
+resource "sbercloud_vpc_subnet" "eni_test" {
+  name          = "subnet-eni"
+  cidr          = "192.168.2.0/24"
+  gateway_ip    = "192.168.2.1"
+  vpc_id        = sbercloud_vpc.test.id
+}
+
+resource "sbercloud_cce_cluster" "test" {
+  name                   = cluster"
+  flavor_id              = "cce.s1.small"
+  vpc_id                 = sbercloud_vpc.myvpc.id
+  subnet_id              = sbercloud_vpc_subnet.mysubnet.id
+  container_network_type = "eni"
+  eni_subnet_id          = sbercloud_vpc_subnet.eni_test.ipv4_subnet_id
+  eni_subnet_cidr        = sbercloud_vpc_subnet.eni_test.cidr
+}
+```
 
 ## Argument Reference
 

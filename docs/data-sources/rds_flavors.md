@@ -41,6 +41,7 @@ SQLServer| 2012_SE <br>2014_SE <br>2016_SE <br>2017_SE <br>2012_EE <br>2014_EE <
   + **normal**: General enhanced.
   + **normal2**: General enhanced type II.
 
+
 * `availability_zone` - (Optional, String) Specifies the availability zone which the RDS flavor belongs to.
 
 
@@ -48,18 +49,20 @@ SQLServer| 2012_SE <br>2014_SE <br>2016_SE <br>2017_SE <br>2012_EE <br>2014_EE <
 
 In addition to all arguments above, the following attributes are exported:
 
-* `id` - Specifies a data source ID in UUID format.
+* `id` - The data source ID.
 
-* `flavors` -
-  Indicates the flavors information. Structure is documented below.
+* `flavors` - Indicates the flavors information. Structure is documented below.
 
 The `flavors` block contains:
 
+* `id` - The ID of the rds flavor.
 * `name` - The name of the rds flavor.
+
 * `id` - The ID of the rds flavor.
 * `vcpus` - Indicates the CPU size.
 * `memory` - Indicates the memory size in GB.
 * `mode` - See 'instance_mode' above.
+
 * `group_type` - The performance specification.
 * `instance_mode` - The mode of instance.
 * `availability_zones` - The availability zones which the RDS flavor belongs to.
