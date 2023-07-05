@@ -1,3 +1,9 @@
+## 1.11.2 (July 05, 2023)
+ENHANCEMENTS:
+
+* Update documentation for all data source and resource objects ([#211](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/211))
+* Update existing and add more useful examples ([#205](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/205))
+
 ## 1.11.1 (June 05, 2023)
 
 ENHANCEMENTS:
