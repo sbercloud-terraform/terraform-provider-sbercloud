@@ -7,6 +7,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/nat"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/obs"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/swr"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dcs2"
 	"sync"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -253,6 +254,7 @@ func Provider() *schema.Provider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
+			"sbercloud_dcs_conf_params":                 dcs2.ResourceDcsConfigParams(), //////////////////
 			"sbercloud_aom_service_discovery_rule":      aom.ResourceServiceDiscoveryRule(),
 			"sbercloud_api_gateway_api":                 huaweicloud.ResourceAPIGatewayAPI(),
 			"sbercloud_api_gateway_group":               huaweicloud.ResourceAPIGatewayGroup(),
