@@ -85,7 +85,7 @@ The following arguments are supported:
   Changing this parameter will submit a new spark job.
 
   | type | resource | driver cores | excutor cores | driver memory | executor memory | num executor |
-  | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
+    | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
   | A | 8 vCPUs, 32-GB memory | 2 | 1 | 7G | 4G | 6 |
   | B | 16 vCPUs, 64-GB memory | 2 | 2 | 7G | 8G | 7 |
   | C | 32 vCPUs, 128-GB memory | 4 | 2 | 12G | 8G | 14 |
@@ -123,6 +123,16 @@ The following arguments are supported:
   Changing this parameter will submit a new spark job.
 
 The `dependent_packages` block supports:
+
+* `group_name` - (Required, String, ForceNew) Specifies the user group name.
+  Changing this parameter will submit a new spark job.
+
+* `packages` - (Required, List, ForceNew) Specifies the user group resource for details.
+  Changing this parameter will submit a new spark job.
+  The [object](#dependent_packages_packages) structure is documented below.
+
+<a name="dependent_packages_packages"></a>
+The `packages` block supports:
 
 * `type` - (Required, String, ForceNew) Specifies the resource type of the package.
   Changing this parameter will submit a new spark job.

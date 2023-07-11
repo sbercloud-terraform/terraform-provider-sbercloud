@@ -28,8 +28,8 @@ The following arguments are supported:
 * `floating_ip_id` - (Required, String, ForceNew) ID of the floating ip this snat rule connets to.
     Changing this creates a new snat rule.
 
-* `network_id` - (Optional, String, ForceNew) ID of the network this snat rule connects to.
-    This parameter and `cidr` are alternative. Changing this creates a new snat rule.
+* `subnet_id` - (Optional, String, ForceNew) Specifies the network IDs of subnet connected by SNAT rule (VPC side).  
+  This parameter and `cidr` are alternative. Changing this will create a new resource.
 
 * `cidr` - (Optional, String, ForceNew) Specifies CIDR, which can be in the format of a network segment or a host IP address.
     This parameter and `network_id` are alternative. Changing this creates a new snat rule.
@@ -37,6 +37,9 @@ The following arguments are supported:
 * `source_type` - (Optional, Int, ForceNew) Specifies the scenario. The valid value is 0 (VPC scenario) and 1 (Direct Connect scenario).
     Defaults to 0, only `cidr` can be specified over a Direct Connect connection.
     Changing this creates a new snat rule.
+
+* `description` - (Optional, String) Specifies the description of the SNAT rule.
+  The value is a string of no more than `255` characters, and angle brackets (<>) are not allowed.
 
 ## Attributes Reference
 
@@ -49,6 +52,7 @@ In addition to all arguments above, the following attributes are exported:
 ## Timeouts
 This resource provides the following timeouts configuration options:
 - `create` - Default is 10 minute.
+- `update` - Default is 10 minute.
 - `delete` - Default is 10 minute.
 
 ## Import

@@ -55,7 +55,7 @@ The following arguments are supported:
 * `content_type` - (Optional, String) A standard MIME type describing the format of the object data, e.g. application/octet-stream.
   All Valid MIME Types are valid for this input.
 
-* `sse_kms_key_id` - (Optional, String) The ID of the kms key. If omitted, the default master key will be used.
+* `kms_key_id` - (Optional, String) The ID of the kms key. If omitted, the default master key will be used.
 
 * `etag` - (Optional, String) Specifies the unique identifier of the object content. It can be used to trigger updates.
   The only meaningful value is `md5(file("path_to_file"))`.
@@ -74,3 +74,28 @@ In addition to all arguments above, the following attributes are exported:
 * `size` - the size of the object in bytes.
 * `version_id` - A unique version ID value for the object, if bucket versioning is enabled.
 
+## Import
+
+OBS bucket object can be imported using the bucket and key separated by a slash, e.g.
+
+```
+$ terraform import sbercloud_obs_bucket_object.object bucket/key
+```
+
+Note that the imported state may not be identical to your resource definition, due to some attributes missing from the
+API response, security or some other reason. The missing attributes include: `encryption`, `source`, `acl` and
+`kms_key_id`. It is generally recommended running `terraform plan` after importing an object.
+You can then decide if changes should be applied to the object, or the resource
+definition should be updated to align with the object. Also you can ignore changes as below.
+
+```
+resource "sbercloud_obs_bucket_object" "object" {
+    ...
+
+  lifecycle {
+    ignore_changes = [
+      encryption, source, acl, kms_key_id,
+    ]
+  }
+}
+```

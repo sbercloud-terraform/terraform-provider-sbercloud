@@ -30,7 +30,7 @@ resource "sbercloud_identity_role" "role1" {
       "Condition": {
         "StringStartWith": {
           "g:ProjectName": [
-            "cn-north-4"
+            "ru-moscow-1"
           ]
         }
       }

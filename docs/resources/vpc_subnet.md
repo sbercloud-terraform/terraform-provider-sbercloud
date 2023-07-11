@@ -55,6 +55,11 @@ The following arguments are supported:
 * `vpc_id` (Required, String, ForceNew) - Specifies the ID of the VPC to which the subnet belongs. Changing this creates
   a new Subnet.
 
+* `description` - (Optional, String) Specifies supplementary information about the subnet. The value is a string of
+  no more than 255 characters and cannot contain angle brackets (< or >).
+
+* `ipv6_enable` - (Optional, Bool) Specifies whether the IPv6 function is enabled for the subnet. Defaults to false.
+
 * `dhcp_enable` (Optional, Bool) - Specifies whether the DHCP function is enabled for the subnet. Defaults to true.
 
 * `primary_dns` (Optional, String) - Specifies the IP address of DNS server 1 on the subnet. The value must be a valid
@@ -81,6 +86,14 @@ In addition to all arguments above, the following attributes are exported:
 * `status` - The status of the subnet. The value can be ACTIVE, DOWN, UNKNOWN, or ERROR.
 
 * `subnet_id` - The subnet (Native OpenStack API) ID.
+
+* `ipv4_subnet_id` - The ID of the IPv4 subnet (Native OpenStack API).
+
+* `ipv6_subnet_id` - The ID of the IPv6 subnet (Native OpenStack API).
+
+* `ipv6_cidr` - The IPv6 subnet CIDR block.
+
+* `ipv6_gateway` - The IPv6 subnet gateway.
 
 ## Import
 

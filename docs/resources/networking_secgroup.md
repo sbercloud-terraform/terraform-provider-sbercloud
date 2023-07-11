@@ -30,9 +30,8 @@ The following arguments are supported:
 
 * `description` - (Optional, String) Description of the security group.
 
-* `tenant_id` - (Optional, String, ForceNew) The owner of the security group. Required if admin
-    wants to create a port for another tenant. Changing this creates a new
-    security group.
+* `enterprise_project_id` - (Optional, String, ForceNew) Specifies the enterprise project id of the security group.
+  Changing this creates a new security group.
 
 * `delete_default_rules` - (Optional, Bool, ForceNew) Whether or not to delete the default
     egress security rules. This is `false` by default. See the below note
@@ -43,6 +42,28 @@ The following arguments are supported:
 In addition to all arguments above, the following attributes are exported:
 
 * `id` - Specifies a resource ID in UUID format.
+
+* `rules` - The array of security group rules associating with the security group.
+  The [rule object](#security_group_rule) is documented below.
+
+* `created_at` - The creation time, in UTC format.
+
+* `updated_at` - The last update time, in UTC format.
+
+<a name="security_group_rule"></a>
+The `rules` block supports:
+
+* `id` - The security group rule ID.
+* `description` - The supplementary information about the security group rule.
+* `direction` - The direction of the rule. The value can be *egress* or *ingress*.
+* `ethertype` - The IP protocol version. The value can be *IPv4* or *IPv6*.
+* `protocol` - The protocol type.
+* `ports` - The port value range.
+* `remote_ip_prefix` - The remote IP address. The value can be in the CIDR format or IP addresses.
+* `remote_group_id` - The ID of the peer security group.
+* `remote_address_group_id` - The ID of the remote address group.
+* `action` - The effective policy.
+* `priority` - The priority number.
 
 ## Default Security Group Rules
 
