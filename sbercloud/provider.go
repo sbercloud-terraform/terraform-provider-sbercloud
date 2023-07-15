@@ -254,7 +254,7 @@ func Provider() *schema.Provider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
-			"sbercloud_dcs_conf_params":                 dcs2.ResourceDcsConfigParams(), //////////////////
+			"sbercloud_dcs_parameters":                  dcs2.ResourceDcsConfigParams(), //////////////////
 			"sbercloud_aom_service_discovery_rule":      aom.ResourceServiceDiscoveryRule(),
 			"sbercloud_api_gateway_api":                 huaweicloud.ResourceAPIGatewayAPI(),
 			"sbercloud_api_gateway_group":               huaweicloud.ResourceAPIGatewayGroup(),
