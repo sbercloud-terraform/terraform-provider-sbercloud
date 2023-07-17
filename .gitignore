@@ -26,4 +26,4 @@ terraform-provider-sbercloud
 
 .idea/
 
-
+sbercloud/services/rds_new
