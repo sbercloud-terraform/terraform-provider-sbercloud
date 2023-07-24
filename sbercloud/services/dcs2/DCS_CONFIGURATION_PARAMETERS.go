@@ -27,7 +27,6 @@ func ResourceDcsConfigParams() *schema.Resource {
 		ReadContext:   resourceDcsConfigParamsRead,
 		DeleteContext: resourceDcsConfigParamsDelete,
 		Schema: map[string]*schema.Schema{
-
 			"project_id": {
 				Type:     schema.TypeString,
 				Required: true,
@@ -168,21 +167,19 @@ func resourceDcsConfigParamsRead(ctx context.Context, d *schema.ResourceData, me
 
 func resourceDcsConfigParamsDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	d.SetId("")
-
 	return diag.Diagnostics{}
 }
 
 func findParams(reqParams, respParams ParamsConfig) map[string]interface{} {
-	reqParamNames := make([]string, len(respParams.Config))
-	for i := 0; i < len(reqParams.Config); i++ {
-		reqParamNames[i] = reqParams.Config[i].ParamName
+	res := make(map[string]interface{}, len(respParams.Config))
+
+	for _, val := range reqParams.Config {
+		res[val.ParamName] = ""
 	}
-	res := make(map[string]interface{})
+
 	for _, val := range respParams.Config {
-		for _, paramName := range reqParamNames {
-			if paramName == val.ParamName {
-				res[paramName] = val.ParamValue
-			}
+		if _, ok := res[val.ParamName]; ok {
+			res[val.ParamName] = val.ParamValue
 		}
 	}
 	return res
