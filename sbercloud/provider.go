@@ -195,6 +195,7 @@ func Provider() *schema.Provider {
 
 		DataSourcesMap: map[string]*schema.Resource{
 			"sbercloud_availability_zones":     huaweicloud.DataSourceAvailabilityZones(),
+			"sbercloud_cbr_backup":             cbr.DataSourceBackup(),
 			"sbercloud_cbr_vaults":             cbr.DataSourceCbrVaultsV3(),
 			"sbercloud_cce_addon_template":     cce.DataSourceAddonTemplate(),
 			"sbercloud_cce_cluster":            cce.DataSourceCCEClusterV3(),
