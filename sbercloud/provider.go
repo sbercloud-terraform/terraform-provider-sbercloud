@@ -220,6 +220,7 @@ func Provider() *schema.Provider {
 			"sbercloud_elb_flavors":            elb.DataSourceElbFlavorsV3(),
 			"sbercloud_elb_pools":              elb.DataSourcePools(),
 			"sbercloud_enterprise_project":     eps.DataSourceEnterpriseProject(),
+			"sbercloud_evs_volumes":            evs.DataSourceEvsVolumesV2(),
 			"sbercloud_identity_role":          iam.DataSourceIdentityRoleV3(),
 			"sbercloud_identity_custom_role":   iam.DataSourceIdentityCustomRole(),
 			"sbercloud_identity_group":         iam.DataSourceIdentityGroup(),

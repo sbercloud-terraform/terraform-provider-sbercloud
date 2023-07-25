@@ -94,3 +94,25 @@ resource "sbercloud_vpc_subnet" "test" {
 }
 `, name)
 }
+
+// TestBaseComputeResources vpc, subnet, security group, availability zone, keypair, image, flavor
+func TestBaseComputeResources(name string) string {
+	return fmt.Sprintf(`
+# base test resources
+%s
+
+data "sbercloud_availability_zones" "test" {}
+
+data "sbercloud_compute_flavors" "test" {
+  availability_zone = data.sbercloud_availability_zones.test.names[0]
+  performance_type  = "normal"
+  cpu_core_count    = 2
+  memory_size       = 4
+}
+
+data "sbercloud_images_image" "test" {
+  name        = "Ubuntu 18.04 server 64bit"
+  most_recent = true
+}
+`, TestBaseNetwork(name))
+}
