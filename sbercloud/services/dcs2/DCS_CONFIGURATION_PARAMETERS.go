@@ -9,13 +9,14 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
-	"io"
 )
 
 type ParamsAttributes struct {
-	ParamId    string `json:"param_id"`
-	ParamName  string `json:"param_name"`
-	ParamValue string `json:"param_value"`
+	ParamName      string `json:"param_name"`
+	ParamValue     string `json:"param_value"`
+	ValueType      string `json:"value_type"`
+	NeedRestart    bool   `json:"need_restart"`
+	UserPermission string `json:"user_permission"`
 }
 type ParamsConfig struct {
 	Config []ParamsAttributes `json:"redis_config"`
@@ -43,41 +44,37 @@ func ResourceDcsConfigParams() *schema.Resource {
 				ForceNew: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
+			"configuration_parameters": {
+				Type:     schema.TypeList,
+				Computed: true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"name": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"value": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"type": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"need_restart": {
+							Type:     schema.TypeBool,
+							Computed: true,
+						},
+						"user_permission": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+					},
+				},
+			},
 		},
 	}
 }
-
-var (
-	paramsID = map[string]string{
-		"timeout":                                       "1",
-		"maxmemory-policy":                              "2",
-		"hash-max-ziplist-entries":                      "3",
-		"hash-max-ziplist-value":                        "4",
-		"list-max-ziplist-entries":                      "5",
-		"list-max-ziplist-value":                        "6",
-		"set-max-intset-entries":                        "7",
-		"zset-max-ziplist-entries":                      "8",
-		"zset-max-ziplist-value":                        "9",
-		"latency-monitor-threshold":                     "10",
-		"maxclients":                                    "11",
-		"reserved-memory":                               "12",
-		"notify-keyspace-events":                        "13",
-		"repl-backlog-size":                             "14",
-		"repl-backlog-ttl":                              "15",
-		"appendfsync":                                   "16",
-		"appendonly":                                    "17",
-		"slowlog-log-slower-than":                       "18",
-		"slowlog-max-len":                               "19",
-		"lua-time-limit":                                "20",
-		"repl-timeout":                                  "21",
-		"proto-max-bulk-len":                            "22",
-		"master-read-only":                              "23",
-		"client-output-buffer-slave-soft-limit":         "24",
-		"client-output-buffer-slave-hard-limit":         "25",
-		"client-output-buffer-limit-slave-soft-seconds": "26",
-		"active-expire-num":                             "35",
-	}
-)
 
 func resourceDcsConfigParamsCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
@@ -89,21 +86,12 @@ func resourceDcsConfigParamsCreate(ctx context.Context, d *schema.ResourceData, 
 
 	projectId := d.Get("project_id").(string)
 	instanceId := d.Get("instance_id").(string)
-	parameters := d.Get("parameters").(map[string]interface{})
-	paramsConf := ParamsConfig{}
-	for name, value := range parameters {
-		id, ok := paramsID[name]
-		if !ok {
-			return diag.Errorf("No such parameter %s", name)
-		}
-		attributes := ParamsAttributes{ParamId: id, ParamName: name, ParamValue: value.(string)}
-		paramsConf.Config = append(paramsConf.Config, attributes)
-	}
+	parameters := buildParameters(d)
 
 	urlString := fmt.Sprintf("https://dcs.ru-moscow-1.hc.sbercloud.ru/v1.0/%s/instances/%s/configs", projectId, instanceId)
 
 	var rst golangsdk.Result
-	resp, err := client.Put(urlString, paramsConf, &rst, &golangsdk.RequestOpts{
+	resp, err := client.Put(urlString, parameters, &rst, &golangsdk.RequestOpts{
 		OkCodes: []int{204},
 	})
 	if err != nil {
@@ -126,16 +114,7 @@ func resourceDcsConfigParamsRead(ctx context.Context, d *schema.ResourceData, me
 
 	projectId := d.Get("project_id").(string)
 	instanceId := d.Get("instance_id").(string)
-	parameters := d.Get("parameters").(map[string]interface{})
-	paramsConf := ParamsConfig{}
-	for name, value := range parameters {
-		id, ok := paramsID[name]
-		if !ok {
-			return diag.Errorf("No such parameter %s", name)
-		}
-		attributes := ParamsAttributes{ParamId: id, ParamName: name, ParamValue: value.(string)}
-		paramsConf.Config = append(paramsConf.Config, attributes)
-	}
+	parameters := buildParameters(d)
 
 	urlString := fmt.Sprintf("https://dcs.ru-moscow-1.hc.sbercloud.ru/v1.0/%s/instances/%s/configs", projectId, instanceId)
 
@@ -148,17 +127,19 @@ func resourceDcsConfigParamsRead(ctx context.Context, d *schema.ResourceData, me
 		return diag.FromErr(err)
 	}
 	defer resp.Body.Close()
-	respBytes, err := io.ReadAll(resp.Body)
+
+	var respBody ParamsConfig
+	err = json.NewDecoder(resp.Body).Decode(&respBody)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	var respBody ParamsConfig
-	err = json.Unmarshal(respBytes, &respBody)
+	err = d.Set("parameters", findParameters(parameters, respBody))
 	if err != nil {
-		return diag.Errorf("unmarshall problem: %s", err)
+		return diag.Errorf("error setting attributes: %s", err)
 	}
-	err = d.Set("parameters", findParams(paramsConf, respBody))
+	attributes := buildAttributes(respBody)
+	err = d.Set("configuration_parameters", attributes)
 	if err != nil {
 		return diag.Errorf("error setting attributes: %s", err)
 	}
@@ -170,7 +151,17 @@ func resourceDcsConfigParamsDelete(ctx context.Context, d *schema.ResourceData, 
 	return diag.Diagnostics{}
 }
 
-func findParams(reqParams, respParams ParamsConfig) map[string]interface{} {
+func buildParameters(d *schema.ResourceData) ParamsConfig {
+	parameters := d.Get("parameters").(map[string]interface{})
+	paramsConf := ParamsConfig{}
+	for name, value := range parameters {
+		attributes := ParamsAttributes{ParamName: name, ParamValue: value.(string)}
+		paramsConf.Config = append(paramsConf.Config, attributes)
+	}
+	return paramsConf
+}
+
+func findParameters(reqParams, respParams ParamsConfig) map[string]interface{} {
 	res := make(map[string]interface{}, len(respParams.Config))
 
 	for _, val := range reqParams.Config {
@@ -183,4 +174,20 @@ func findParams(reqParams, respParams ParamsConfig) map[string]interface{} {
 		}
 	}
 	return res
+}
+
+func buildAttributes(paramsConf ParamsConfig) []map[string]interface{} {
+
+	parameters := make([]map[string]interface{}, 0)
+
+	for _, val := range paramsConf.Config {
+		attributes := make(map[string]interface{})
+		attributes["name"] = val.ParamName
+		attributes["value"] = val.ParamValue
+		attributes["type"] = val.ValueType
+		attributes["need_restart"] = val.NeedRestart
+		attributes["user_permission"] = val.UserPermission
+		parameters = append(parameters, attributes)
+	}
+	return parameters
 }
