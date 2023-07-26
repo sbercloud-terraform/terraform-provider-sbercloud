@@ -27,4 +27,4 @@ terraform-provider-sbercloud
 .idea/
 
 sbercloud/services/rds_new
-sbercloud/acceptance/dcs/resource_sbercloud_dcs_restore_test.gogit add
+sbercloud/acceptance/dcs/resource_sbercloud_dcs_restore_test.go
