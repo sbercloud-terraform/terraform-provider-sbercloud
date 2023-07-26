@@ -285,7 +285,8 @@ func Provider() *schema.Provider {
 			"sbercloud_cts_data_tracker":                cts.ResourceCTSDataTracker(),
 			"sbercloud_cts_notification":                cts.ResourceCTSNotification(),
 			"sbercloud_dcs_instance":                    dcs.ResourceDcsInstance(),
-			"sbercloud_dcs_restore":                     dcs_new.ResourceDcsRestore(),
+			"sbercloud_dcs_backup":                      dcs.ResourceDcsBackup(),
+			"sbercloud_dcs_restore":                     dcs_new.ResourceDcsRestore(), //
 			"sbercloud_dds_instance":                    dds.ResourceDdsInstanceV3(),
 			"sbercloud_dis_stream":                      dis.ResourceDisStream(),
 			"sbercloud_dli_database":                    dli.ResourceDliSqlDatabaseV1(),
