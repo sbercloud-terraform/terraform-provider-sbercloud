@@ -27,5 +27,5 @@ terraform-provider-sbercloud
 .idea/
 
 sbercloud/services/rds_new
-sbercloud/acceptance/dcs/
-#sbercloud/acceptance/rds
+#sbercloud/acceptance/dcs
+sbercloud/acceptance/rds
