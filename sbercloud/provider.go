@@ -384,6 +384,7 @@ func Provider() *schema.Provider {
 			"sbercloud_vpc_route":                       vpc.ResourceVPCRouteTableRoute(),
 			"sbercloud_vpc_route_table":                 vpc.ResourceVPCRouteTable(),
 			"sbercloud_vpc_subnet":                      vpc.ResourceVpcSubnetV1(),
+			"sbercloud_vpc_address_group":               vpc.ResourceVpcAddressGroup(),
 			// Legacy
 			"sbercloud_identity_role_assignment_v3":  iam.ResourceIdentityGroupRoleAssignment(),
 			"sbercloud_identity_user_v3":             iam.ResourceIdentityUserV3(),
