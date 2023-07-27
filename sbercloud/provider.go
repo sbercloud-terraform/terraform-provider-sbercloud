@@ -7,7 +7,8 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/nat"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/obs"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/swr"
-	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dcs_new"
+
+	dcs2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dcs"
 	"sync"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -294,7 +295,8 @@ func Provider() *schema.Provider {
 			"sbercloud_cts_notification":                cts.ResourceCTSNotification(),
 			"sbercloud_dcs_instance":                    dcs.ResourceDcsInstance(),
 			"sbercloud_dcs_backup":                      dcs.ResourceDcsBackup(),
-			"sbercloud_dcs_restore":                     dcs_new.ResourceDcsRestore(), //
+			"sbercloud_dcs_restore":                     dcs2.ResourceDcsRestore(),
+			"sbercloud_dcs_parameters":                  dcs2.ResourceDcsParameters(),
 			"sbercloud_dds_instance":                    dds.ResourceDdsInstanceV3(),
 			"sbercloud_dis_stream":                      dis.ResourceDisStream(),
 			"sbercloud_dli_database":                    dli.ResourceDliSqlDatabaseV1(),
