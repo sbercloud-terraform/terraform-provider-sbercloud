@@ -19,6 +19,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cbr"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cce"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cdm"
+	css_huawei "github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/css"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dcs"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dds"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/deprecated"
@@ -195,6 +196,7 @@ func Provider() *schema.Provider {
 
 		DataSourcesMap: map[string]*schema.Resource{
 			"sbercloud_availability_zones":     huaweicloud.DataSourceAvailabilityZones(),
+			"sbercloud_css_flavors":            css_huawei.DataSourceCssFlavors(),
 			"sbercloud_cbr_backup":             cbr.DataSourceBackup(),
 			"sbercloud_cbr_vaults":             cbr.DataSourceCbrVaultsV3(),
 			"sbercloud_cce_addon_template":     cce.DataSourceAddonTemplate(),
@@ -225,7 +227,8 @@ func Provider() *schema.Provider {
 			"sbercloud_identity_role":          iam.DataSourceIdentityRoleV3(),
 			"sbercloud_identity_custom_role":   iam.DataSourceIdentityCustomRole(),
 			"sbercloud_identity_group":         iam.DataSourceIdentityGroup(),
-			"sbercloud_identity_projects":      iam.DataSourceIdentityProjects(), //!!!!!
+			"sbercloud_identity_projects":      iam.DataSourceIdentityProjects(),
+			"sbercloud_identity_users":         iam.DataSourceIdentityUsers(),
 			"sbercloud_images_image":           ims.DataSourceImagesImageV2(),
 			"sbercloud_kms_key":                dew.DataSourceKmsKey(),
 			"sbercloud_kms_data_key":           huaweicloud.DataSourceKmsDataKeyV1(),
