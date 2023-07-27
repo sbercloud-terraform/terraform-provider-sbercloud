@@ -14,9 +14,6 @@ func TestAccDcsRestoreV1_basic(t *testing.T) {
 	if err != nil {
 		t.Errorf("instance and backup creating error")
 	}
-	//projectId := "0f5181caba0024e72f89c0045e707b91"
-	//instanceId := "578655e4-5846-4f1b-bfe4-4938ebc7e19e"
-	//backupId := "ed466175-3a5d-42d0-90b0-bb3ec29e1465"
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
