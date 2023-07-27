@@ -7,7 +7,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/nat"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/obs"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/swr"
-	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dcs2"
+	dcs2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dcs"
 	"sync"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -222,7 +222,7 @@ func Provider() *schema.Provider {
 			"sbercloud_identity_role":          iam.DataSourceIdentityRoleV3(),
 			"sbercloud_identity_custom_role":   iam.DataSourceIdentityCustomRole(),
 			"sbercloud_identity_group":         iam.DataSourceIdentityGroup(),
-			"sbercloud_identity_projects":      iam.DataSourceIdentityProjects(), //!!!!!
+			"sbercloud_identity_projects":      iam.DataSourceIdentityProjects(),
 			"sbercloud_images_image":           ims.DataSourceImagesImageV2(),
 			"sbercloud_kms_key":                dew.DataSourceKmsKey(),
 			"sbercloud_kms_data_key":           huaweicloud.DataSourceKmsDataKeyV1(),
@@ -254,7 +254,6 @@ func Provider() *schema.Provider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
-			"sbercloud_dcs_parameters":                  dcs2.ResourceDcsConfigParams(), //////////////////
 			"sbercloud_aom_service_discovery_rule":      aom.ResourceServiceDiscoveryRule(),
 			"sbercloud_api_gateway_api":                 huaweicloud.ResourceAPIGatewayAPI(),
 			"sbercloud_api_gateway_group":               huaweicloud.ResourceAPIGatewayGroup(),
@@ -283,6 +282,7 @@ func Provider() *schema.Provider {
 			"sbercloud_cts_data_tracker":                cts.ResourceCTSDataTracker(),
 			"sbercloud_cts_notification":                cts.ResourceCTSNotification(),
 			"sbercloud_dcs_instance":                    dcs.ResourceDcsInstance(),
+			"sbercloud_dcs_parameters":                  dcs2.ResourceDcsParameters(),
 			"sbercloud_dds_instance":                    dds.ResourceDdsInstanceV3(),
 			"sbercloud_dis_stream":                      dis.ResourceDisStream(),
 			"sbercloud_dli_database":                    dli.ResourceDliSqlDatabaseV1(),

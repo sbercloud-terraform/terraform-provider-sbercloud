@@ -9,7 +9,6 @@ import (
 	"testing"
 )
 
-// make testacc TEST='./sbercloud/acceptance/dcs' TESTARGS='-run TestAccDCSParameters_basic'
 func TestAccDCSParameters_basic(t *testing.T) {
 	var instanceName = fmt.Sprintf("testacc_dcs_instance_%s", acctest.RandString(5))
 	var instance instances.Instance
@@ -63,13 +62,13 @@ data "sbercloud_vpc_subnet" "subnet_1" {
 data "sbercloud_availability_zones" "test" {}
 
 resource "sbercloud_dcs_instance" "instance_1" {
-  name = "%s"
+  name               = "%s"
   engine             = "Redis"
-  engine_version    = "5.0"
+  engine_version     = "5.0"
   flavor             = "redis.ha.xu1.large.r2.4"
-  capacity          = 4
-  vpc_id            = data.sbercloud_vpc.vpc_1.id
-  subnet_id         = data.sbercloud_vpc_subnet.subnet_1.id
+  capacity           = 4
+  vpc_id             = data.sbercloud_vpc.vpc_1.id
+  subnet_id          = data.sbercloud_vpc_subnet.subnet_1.id
   availability_zones = [data.sbercloud_availability_zones.test.names[0]]
 }
 

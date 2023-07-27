@@ -1,4 +1,4 @@
-package dcs2
+package dcs
 
 import (
 	"context"
@@ -22,11 +22,11 @@ type ParamsConfig struct {
 	Config []ParamsAttributes `json:"redis_config"`
 }
 
-func ResourceDcsConfigParams() *schema.Resource {
+func ResourceDcsParameters() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceDcsConfigParamsCreate,
-		ReadContext:   resourceDcsConfigParamsRead,
-		DeleteContext: resourceDcsConfigParamsDelete,
+		CreateContext: resourceDcsParametersCreate,
+		ReadContext:   resourceDcsParametersRead,
+		DeleteContext: resourceDcsParametersDelete,
 		Schema: map[string]*schema.Schema{
 			"project_id": {
 				Type:     schema.TypeString,
@@ -40,7 +40,7 @@ func ResourceDcsConfigParams() *schema.Resource {
 			},
 			"parameters": {
 				Type:     schema.TypeMap,
-				Optional: true,
+				Required: true,
 				ForceNew: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
@@ -76,7 +76,7 @@ func ResourceDcsConfigParams() *schema.Resource {
 	}
 }
 
-func resourceDcsConfigParamsCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceDcsParametersCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	region := cfg.GetRegion(d)
 	client, err := cfg.DcsV2Client(region)
@@ -98,15 +98,14 @@ func resourceDcsConfigParamsCreate(ctx context.Context, d *schema.ResourceData, 
 		return diag.FromErr(err)
 	}
 	d.SetId(resp.Header.Get("X-Request-Id"))
-	return resourceDcsConfigParamsRead(ctx, d, meta)
+	return resourceDcsParametersRead(ctx, d, meta)
 }
 
-func resourceDcsConfigParamsRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceDcsParametersRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	cfg := meta.(*config.Config)
 	region := cfg.GetRegion(d)
-
 	client, err := cfg.DcsV2Client(region)
 	if err != nil {
 		return diag.Errorf("error creating DCS Client(v2): %s", err)
@@ -146,7 +145,7 @@ func resourceDcsConfigParamsRead(ctx context.Context, d *schema.ResourceData, me
 	return diags
 }
 
-func resourceDcsConfigParamsDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceDcsParametersDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	d.SetId("")
 	return diag.Diagnostics{}
 }
@@ -162,7 +161,7 @@ func buildParameters(d *schema.ResourceData) ParamsConfig {
 }
 
 func findParameters(reqParams, respParams ParamsConfig) map[string]interface{} {
-	res := make(map[string]interface{}, len(respParams.Config))
+	res := make(map[string]interface{}, len(reqParams.Config))
 
 	for _, val := range reqParams.Config {
 		res[val.ParamName] = ""
@@ -178,16 +177,16 @@ func findParameters(reqParams, respParams ParamsConfig) map[string]interface{} {
 
 func buildAttributes(paramsConf ParamsConfig) []map[string]interface{} {
 
-	parameters := make([]map[string]interface{}, 0)
+	parameters := make([]map[string]interface{}, len(paramsConf.Config))
 
-	for _, val := range paramsConf.Config {
-		attributes := make(map[string]interface{})
+	for i, val := range paramsConf.Config {
+		attributes := make(map[string]interface{}, 5)
 		attributes["name"] = val.ParamName
 		attributes["value"] = val.ParamValue
 		attributes["type"] = val.ValueType
 		attributes["need_restart"] = val.NeedRestart
 		attributes["user_permission"] = val.UserPermission
-		parameters = append(parameters, attributes)
+		parameters[i] = attributes
 	}
 	return parameters
 }
