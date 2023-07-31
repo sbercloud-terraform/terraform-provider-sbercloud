@@ -10,21 +10,13 @@ import (
 func TestAccDcsRestoreV1_basic(t *testing.T) {
 	resourceName := "sbercloud_dcs_restore.test"
 
-	projectId, instanceId, backupId, err := CreateInstanceAndBackup()
-	if err != nil {
-		t.Errorf("instance and backup creating error")
-	}
-
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
 		ProviderFactories: acceptance.TestAccProviderFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccDcsV1Restore_basic(projectId, instanceId, backupId),
+				Config: testAccDcsV1Restore_basic(),
 				Check: resource.ComposeTestCheckFunc(
-					//resource.TestCheckResourceAttr(resourceName, "project_id", projectId),
-					resource.TestCheckResourceAttr(resourceName, "instance_id", instanceId),
-					resource.TestCheckResourceAttr(resourceName, "backup_id", backupId),
 					resource.TestCheckResourceAttr(resourceName, "remark", "restore instance"),
 				),
 			},
@@ -32,24 +24,19 @@ func TestAccDcsRestoreV1_basic(t *testing.T) {
 	})
 }
 
-func testAccDcsV1Restore_basic(projectId, instanceId, backupId string) string {
+func testAccDcsV1Restore_basic() string {
 	return `
 data "sbercloud_dcs_flavors" "single_flavors" {
   cache_mode = "ha"
   capacity   = 1
 }
 
-
-resource "sbercloud_vpc" "vpc" {
-  name = "vpc_name"
-  cidr = "192.168.0.0/16"
+data "sbercloud_vpc" "vpc" {
+  name = "vpc-default"
 }
 
-resource "sbercloud_vpc_subnet" "subnet" {
-  name       = "subnet_name"
-  cidr       = "192.168.0.0/24"
-  gateway_ip = "192.168.0.1"
-  vpc_id     = sbercloud_vpc.vpc.id
+data "sbercloud_vpc_subnet" "subnet" {
+  id = "c81b93ad-65d7-449c-83ab-600939bfce5a"
 }
 
 data "sbercloud_identity_projects" "test" {
@@ -64,8 +51,8 @@ resource "sbercloud_dcs_instance" "instance_1" {
   flavor             = data.sbercloud_dcs_flavors.single_flavors.flavors[0].name
   availability_zones = ["ru-moscow-1a", "ru-moscow-1b"]
   password           = "YourPassword@123"
-  vpc_id             = sbercloud_vpc.vpc.id
-  subnet_id          = sbercloud_vpc_subnet.subnet.id
+  vpc_id             = data.sbercloud_vpc.vpc.id
+  subnet_id          = data.sbercloud_vpc_subnet.subnet.id
 }
 
 resource "sbercloud_dcs_backup" "test1"{
@@ -88,9 +75,4 @@ resource "sbercloud_dcs_restore" "test" {
   ]
 }
 	`
-}
-
-func CreateInstanceAndBackup() (string, string, string, error) {
-
-	return "", "", "", nil
 }
