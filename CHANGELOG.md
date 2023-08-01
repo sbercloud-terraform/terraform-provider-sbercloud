@@ -1,5 +1,22 @@
+## 1.11.4 (August 1, 2023)
+
+FEATURES:
+
+* **New Data Source:** `sbercloud_evs_volumes` ([#216](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/216))
+* **New Data Source:** `sbercloud_cbr_backup` ([#216](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/216))
+* **New Data Source:** `sbercloud_compute_servergroups` ([#216](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/216))
+* **New Data Source:** `sbercloud_css_flavors` ([#216](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/216))
+* **New Data Source:** `sbercloud_identity_users` ([#216](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/216))
+* **New Data Source:** `sbercloud_networking_secgroups` ([#216](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/216))
+* **New Data Source:** `sbercloud_rds_engine_versions` ([#216](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/216))
+* **New Data Source:** `sbercloud_rds_storage_types` ([#216](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/216))
+* **New Resource:** `sbercloud_vpc_address_group` ([#216](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/216))
+* **New Resource:** `sbercloud_dcs_backup` ([#216](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/216))
+* **New Resource:** `sbercloud_dcs_parameters` ([#195](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/195))
+* **New Resource:** `sbercloud_dcs_restore` ([#196](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/196))
 
 ## 1.11.3 (July 05, 2023)
+
 ENHANCEMENTS:
 
 * Update documentation for all data source and resource objects ([#211](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/211))
