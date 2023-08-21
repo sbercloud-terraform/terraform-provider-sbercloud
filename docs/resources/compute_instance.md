@@ -55,7 +55,7 @@ resource "sbercloud_compute_instance" "myinstance" {
   flavor_id          = "s6.small.1"
   key_pair           = "my_key_pair_name"
   security_group_ids = [var.secgroup_id]
-  availability_zone  = "cn-north-4a"
+  availability_zone  = "ru-moscow-1a"
 
   network {
     uuid = "55534eaa-533a-419d-9b40-ec427ea7195a"
@@ -87,7 +87,7 @@ variable "secgroup_id" {}
 
 resource "sbercloud_evs_volume" "myvolume" {
   name              = "myvolume"
-  availability_zone = "cn-north-4a"
+  availability_zone = "ru-moscow-1a"
   volume_type       = "SAS"
   size              = 10
 }
@@ -98,7 +98,7 @@ resource "sbercloud_compute_instance" "myinstance" {
   flavor_id          = "s6.small.1"
   key_pair           = "my_key_pair_name"
   security_group_ids = [var.secgroup_id]
-  availability_zone  = "cn-north-4a"
+  availability_zone  = "ru-moscow-1a"
 
   network {
     uuid = "55534eaa-533a-419d-9b40-ec427ea7195a"
@@ -125,7 +125,7 @@ resource "sbercloud_compute_instance" "multi-disk" {
   flavor_id          = "s6.small.1"
   key_pair           = "my_key_pair_name"
   security_group_ids = [var.secgroup_id]
-  availability_zone  = "cn-north-4a"
+  availability_zone  = "ru-moscow-1a"
 
   system_disk_type = "SAS"
   system_disk_size = 40
@@ -158,7 +158,7 @@ resource "sbercloud_compute_instance" "multi-net" {
   flavor_id          = "s6.small.1"
   key_pair           = "my_key_pair_name"
   security_group_ids = [var.secgroup_id]
-  availability_zone  = "cn-north-4a"
+  availability_zone  = "ru-moscow-1a"
 
   network {
     uuid = "55534eaa-533a-419d-9b40-ec427ea7195a"
@@ -181,7 +181,7 @@ resource "sbercloud_compute_instance" "myinstance" {
   flavor_id          = "s6.small.1"
   key_pair           = "my_key_pair_name"
   security_group_ids = [var.secgroup_id]
-  availability_zone  = "az"
+  availability_zone  = "ru-moscow-1a"
   user_data          = "#cloud-config\nhostname: instance_1.example.com\nfqdn: instance_1.example.com"
 
   network {

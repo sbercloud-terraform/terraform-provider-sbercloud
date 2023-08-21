@@ -103,7 +103,7 @@ resource "sbercloud_vpc_subnet" "eni_test" {
 }
 
 resource "sbercloud_cce_cluster" "test" {
-  name                   = cluster"
+  name                   = "cluster"
   flavor_id              = "cce.s1.small"
   vpc_id                 = sbercloud_vpc.myvpc.id
   subnet_id              = sbercloud_vpc_subnet.mysubnet.id
