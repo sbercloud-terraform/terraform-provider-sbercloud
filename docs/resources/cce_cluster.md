@@ -99,7 +99,7 @@ resource "sbercloud_vpc_subnet" "eni_test" {
   name          = "subnet-eni"
   cidr          = "192.168.2.0/24"
   gateway_ip    = "192.168.2.1"
-  vpc_id        = sbercloud_vpc.test.id
+  vpc_id        = sbercloud_vpc.myvpc.id
 }
 
 resource "sbercloud_cce_cluster" "test" {
@@ -204,23 +204,6 @@ The following arguments are supported:
 
 * `extend_param` - (Optional, Map, ForceNew) Specifies the extended parameter.
   Changing this parameter will create a new cluster resource.
-
-* `charging_mode` - (Optional, String, ForceNew) Specifies the charging mode of the CCE cluster.
-  Valid values are **prePaid** and **postPaid**, defaults to **postPaid**.
-  Changing this parameter will create a new cluster resource.
-
-* `period_unit` - (Optional, String, ForceNew) Specifies the charging period unit of the CCE cluster.
-  Valid values are **month** and **year**. This parameter is mandatory if `charging_mode` is set to **prePaid**.
-  Changing this parameter will create a new cluster resource.
-
-* `period` - (Optional, Int, ForceNew) Specifies the charging period of the CCE cluster.
-  If `period_unit` is set to **month**, the value ranges from 1 to 9.
-  If `period_unit` is set to **year**, the value ranges from 1 to 3.
-  This parameter is mandatory if `charging_mode` is set to **prePaid**.
-  Changing this parameter will create a new cluster resource.
-
-* `auto_renew` - (Optional, String, ForceNew) Specifies whether auto renew is enabled. Valid values are **true** and
-  **false**. Changing this parameter will create a new cluster resource.
 
 * `enterprise_project_id` - (Optional, String, ForceNew) The enterprise project ID of the CCE cluster.
   Changing this parameter will create a new cluster resource.
