@@ -35,7 +35,7 @@ func TestAccTurbosDataSource_basic(t *testing.T) {
 					dcByShareType.CheckResourceExists(),
 					resource.TestCheckOutput("share_type_query_result_validation", "true"),
 					dcByEpsId.CheckResourceExists(),
-					resource.TestCheckOutput("eps_id_query_result_validation", "false"),
+					resource.TestCheckOutput("eps_id_query_result_validation", "true"),
 				),
 			},
 		},
@@ -98,7 +98,7 @@ data "sbercloud_sfs_turbos" "by_share_type" {
 data "sbercloud_sfs_turbos" "by_eps_id" {
   depends_on = [sbercloud_sfs_turbo.test]
 
-  enterprise_project_id = "%[2]s"
+  enterprise_project_id = "%[3]s"
 }
 
 output "name_query_result_validation" {
@@ -124,8 +124,8 @@ output "share_type_query_result_validation" {
 
 output "eps_id_query_result_validation" {
   value = contains(data.sbercloud_sfs_turbos.by_eps_id.turbos[*].id,
-  sbercloud_sfs_turbo.test[2].id) && !contains(data.sbercloud_sfs_turbos.by_eps_id.turbos[*].id,
-  sbercloud_sfs_turbo.test[0].id) && !contains(data.sbercloud_sfs_turbos.by_eps_id.turbos[*].id,
+  sbercloud_sfs_turbo.test[2].id) && contains(data.sbercloud_sfs_turbos.by_eps_id.turbos[*].id,
+  sbercloud_sfs_turbo.test[0].id) && contains(data.sbercloud_sfs_turbos.by_eps_id.turbos[*].id,
   sbercloud_sfs_turbo.test[1].id)
 }
 `, sbercloud.TestBaseNetwork(rName), rName, acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST)
