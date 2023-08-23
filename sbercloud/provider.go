@@ -6,6 +6,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dns"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/nat"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/obs"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/sfs"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/swr"
 
 	dcs2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dcs"
@@ -249,6 +250,7 @@ func Provider() *schema.Provider {
 			"sbercloud_rds_instances":          rds.DataSourceRdsInstances(),
 			"sbercloud_rds_storage_types":      rds.DataSourceStoragetype(),
 			"sbercloud_sfs_file_system":        huaweicloud.DataSourceSFSFileSystemV2(),
+			"sbercloud_sfs_turbos":             sfs.DataSourceTurbos(),
 			"sbercloud_vpc":                    vpc.DataSourceVpcV1(),
 			"sbercloud_vpcs":                   vpc.DataSourceVpcs(),
 			"sbercloud_vpc_bandwidth":          eip.DataSourceBandWidth(),
