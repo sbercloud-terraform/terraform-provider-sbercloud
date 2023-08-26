@@ -8,8 +8,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/obs"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/swr"
 
-	dcs2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dcs"
 	"sync"
+
+	dcs2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dcs"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
@@ -43,6 +44,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/vpc"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/ces"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/css"
+	dli_sbercloud "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dli"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/drs"
 )
 
@@ -302,7 +304,7 @@ func Provider() *schema.Provider {
 			"sbercloud_dli_database":                    dli.ResourceDliSqlDatabaseV1(),
 			"sbercloud_dli_package":                     dli.ResourceDliPackageV2(),
 			"sbercloud_dli_queue":                       dli.ResourceDliQueue(),
-			"sbercloud_dli_spark_job":                   dli.ResourceDliSparkJobV2(),
+			"sbercloud_dli_spark_job":                   dli_sbercloud.ResourceDliSparkJobV2(),
 			"sbercloud_dms_instance":                    ResourceDmsInstancesV1(),
 			"sbercloud_dms_kafka_instance":              dms.ResourceDmsKafkaInstance(),
 			"sbercloud_dms_kafka_topic":                 dms.ResourceDmsKafkaTopic(),
