@@ -51,9 +51,10 @@ func ResourceDliSparkJobV2() *schema.Resource {
 				ForceNew: true,
 			},
 			"app_parameters": {
-				Type:     schema.TypeString,
+				Type:     schema.TypeList,
 				Optional: true,
 				ForceNew: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
 			"main_class": {
 				Type:     schema.TypeString,

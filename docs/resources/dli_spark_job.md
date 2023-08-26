@@ -44,7 +44,7 @@ The following arguments are supported:
   The OBS paths are allowed, for example, `obs://<bucket name>/<package name>`.
   Changing this parameter will submit a new spark job.
 
-* `app_parameters` - (Optional, String, ForceNew) Specifies the input parameters of the main class.
+* `app_parameters` - (Optional, List, ForceNew) Specifies the input parameters of the main class.
   Changing this parameter will submit a new spark job.
 
 * `main_class` - (Optional, String, ForceNew) Specifies the main class of the spark job.
