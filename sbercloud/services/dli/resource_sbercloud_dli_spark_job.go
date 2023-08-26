@@ -40,6 +40,16 @@ func ResourceDliSparkJobV2() *schema.Resource {
 				Required: true,
 				ForceNew: true,
 			},
+			"feature": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+			},
+			"spark_version": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+			},
 			"name": {
 				Type:     schema.TypeString,
 				Required: true,
@@ -206,9 +216,11 @@ func buildDliSaprkGroups(packages []interface{}) []batches.Group {
 func buildDliSaprkJobCreateOpts(d *schema.ResourceData) batches.CreateOpts {
 	mClass := d.Get("main_class").(string)
 	result := batches.CreateOpts{
-		Queue: d.Get("queue_name").(string),
-		Name:  d.Get("name").(string),
-		File:  d.Get("app_name").(string),
+		Queue:        d.Get("queue_name").(string),
+		Name:         d.Get("name").(string),
+		Feature:      d.Get("feature").(string),
+		SparkVersion: d.Get("spark_version").(string),
+		File:         d.Get("app_name").(string),
 		// This parameter is required according to API ducumentation.
 		ClassName:      &mClass,
 		Groups:         buildDliSaprkGroups(d.Get("dependent_packages").([]interface{})),
