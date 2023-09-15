@@ -9,7 +9,7 @@ FEATURES:
 
 ENHANCEMENTS:
 
-* resource/sbercloud_dli_spark_job: add version, app_parameters, feature params ([#222](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/222))
+* resource/sbercloud_dli_spark_job: add `version`, `app_parameters`, `feature` params ([#222](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/222))
 
 ## 1.11.4 (August 1, 2023)
 
