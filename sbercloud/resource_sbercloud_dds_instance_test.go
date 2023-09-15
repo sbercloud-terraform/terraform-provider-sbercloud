@@ -261,14 +261,14 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.c6.large.2.mongos"
+    spec_code = "dds.mongodb.c6.large.4.mongos"
   }
   flavor {
     type      = "shard"
     num       = 2
     storage   = "ULTRAHIGH"
     size      = 10
-    spec_code = "dds.mongodb.c6.large.2.shard"
+    spec_code = "dds.mongodb.c6.large.4.shard"
   }
   flavor {
     type      = "config"
@@ -324,14 +324,14 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.c6.large.2.mongos"
+    spec_code = "dds.mongodb.c6.large.4.mongos"
   }
   flavor {
     type      = "shard"
     num       = 2
     storage   = "ULTRAHIGH"
     size      = 10
-    spec_code = "dds.mongodb.c6.large.2.shard"
+    spec_code = "dds.mongodb.c6.large.4.shard"
   }
   flavor {
     type      = "config"
@@ -387,14 +387,14 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.c6.large.2.mongos"
+    spec_code = "dds.mongodb.c6.large.4.mongos"
   }
   flavor {
     type      = "shard"
     num       = 3
     storage   = "ULTRAHIGH"
     size      = 10
-    spec_code = "dds.mongodb.c6.large.2.shard"
+    spec_code = "dds.mongodb.c6.large.4.shard"
   }
   flavor {
     type      = "config"
@@ -450,14 +450,14 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.c6.large.2.mongos"
+    spec_code = "dds.mongodb.c6.large.4.mongos"
   }
   flavor {
     type      = "shard"
     num       = 3
     storage   = "ULTRAHIGH"
     size      = 30
-    spec_code = "dds.mongodb.c6.large.2.shard"
+    spec_code = "dds.mongodb.c6.large.4.shard"
   }
   flavor {
     type      = "config"
@@ -520,7 +520,7 @@ resource "sbercloud_dds_instance" "instance" {
     num       = 3
     storage   = "ULTRAHIGH"
     size      = 30
-    spec_code = "dds.mongodb.c6.large.2.shard"
+    spec_code = "dds.mongodb.c6.large.4.shard"
   }
   flavor {
     type      = "config"
@@ -577,14 +577,14 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.c6.large.2.mongos"
+    spec_code = "dds.mongodb.c6.large.4.mongos"
   }
   flavor {
     type      = "shard"
     num       = 2
     storage   = "ULTRAHIGH"
     size      = 10
-    spec_code = "dds.mongodb.c6.large.2.shard"
+    spec_code = "dds.mongodb.c6.large.4.shard"
   }
   flavor {
     type      = "config"

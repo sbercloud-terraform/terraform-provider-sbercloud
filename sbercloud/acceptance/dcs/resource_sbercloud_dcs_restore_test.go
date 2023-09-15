@@ -36,7 +36,7 @@ data "sbercloud_vpc" "vpc" {
 }
 
 data "sbercloud_vpc_subnet" "subnet" {
-  id = "c81b93ad-65d7-449c-83ab-600939bfce5a"
+  name = "subnet-default"
 }
 
 data "sbercloud_identity_projects" "test" {

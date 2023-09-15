@@ -55,7 +55,7 @@ resource "sbercloud_compute_instance" "myinstance" {
   flavor_id          = "s6.small.1"
   key_pair           = "my_key_pair_name"
   security_group_ids = [var.secgroup_id]
-  availability_zone  = "cn-north-4a"
+  availability_zone  = "ru-moscow-1a"
 
   network {
     uuid = "55534eaa-533a-419d-9b40-ec427ea7195a"
@@ -87,7 +87,7 @@ variable "secgroup_id" {}
 
 resource "sbercloud_evs_volume" "myvolume" {
   name              = "myvolume"
-  availability_zone = "cn-north-4a"
+  availability_zone = "ru-moscow-1a"
   volume_type       = "SAS"
   size              = 10
 }
@@ -98,7 +98,7 @@ resource "sbercloud_compute_instance" "myinstance" {
   flavor_id          = "s6.small.1"
   key_pair           = "my_key_pair_name"
   security_group_ids = [var.secgroup_id]
-  availability_zone  = "cn-north-4a"
+  availability_zone  = "ru-moscow-1a"
 
   network {
     uuid = "55534eaa-533a-419d-9b40-ec427ea7195a"
@@ -125,7 +125,7 @@ resource "sbercloud_compute_instance" "multi-disk" {
   flavor_id          = "s6.small.1"
   key_pair           = "my_key_pair_name"
   security_group_ids = [var.secgroup_id]
-  availability_zone  = "cn-north-4a"
+  availability_zone  = "ru-moscow-1a"
 
   system_disk_type = "SAS"
   system_disk_size = 40
@@ -158,7 +158,7 @@ resource "sbercloud_compute_instance" "multi-net" {
   flavor_id          = "s6.small.1"
   key_pair           = "my_key_pair_name"
   security_group_ids = [var.secgroup_id]
-  availability_zone  = "cn-north-4a"
+  availability_zone  = "ru-moscow-1a"
 
   network {
     uuid = "55534eaa-533a-419d-9b40-ec427ea7195a"
@@ -181,7 +181,7 @@ resource "sbercloud_compute_instance" "myinstance" {
   flavor_id          = "s6.small.1"
   key_pair           = "my_key_pair_name"
   security_group_ids = [var.secgroup_id]
-  availability_zone  = "az"
+  availability_zone  = "ru-moscow-1a"
   user_data          = "#cloud-config\nhostname: instance_1.example.com\nfqdn: instance_1.example.com"
 
   network {
@@ -273,39 +273,6 @@ The following arguments are supported:
   Defaults to *true*.
 
 * `enterprise_project_id` - (Optional, String) Specifies a unique id in UUID format of enterprise project.
-
-* `charging_mode` - (Optional, String, ForceNew) Specifies the charging mode of the instance. Valid values are *prePaid*,
-  *postPaid* and *spot*, defaults to *postPaid*. Changing this creates a new instance.
-
-  -> **NOTE:** Spot price ECSs are suitable for stateless, fault-tolerant instances that are not sensitive to
-  interruptions because they can be reclaimed suddenly. When the market price is higher than the maximum price
-  you specified, or the inventory is insufficient, your spot ECS will be terminated.
-  Do not use a spot ECS for inflexible or long-term workloads. For more details, see the differences between
-  the [billing modes](https://support.sbercloud.com/intl/en-us/productdesc-ecs/ecs_01_0065.html).
-
-* `period_unit` - (Optional, String, ForceNew) Specifies the charging period unit of the instance.
-  Valid values are *month* and *year*. This parameter is mandatory if `charging_mode` is set to *prePaid*.
-  Changing this creates a new instance.
-
-* `period` - (Optional, Int, ForceNew) Specifies the charging period of the instance.
-  If `period_unit` is set to *month* , the value ranges from 1 to 9. If `period_unit` is set to *year*, the value
-  ranges from 1 to 3. This parameter is mandatory if `charging_mode` is set to *prePaid*. Changing this creates a
-  new resource.
-
-* `auto_renew` - (Optional, String) Specifies whether auto renew is enabled.
-  Valid values are *true* and *false*. Defaults to *false*.
-
-* `spot_maximum_price` - (Optional, String, ForceNew) Specifies the highest price per hour you accept for a spot ECS.
-  This parameter takes effect only when `charging_mode` is set to *spot*. If the price is not specified,
-  the pay-per-use price is used by default. Changing this creates a new instance.
-
-* `spot_duration` - (Optional, Int, ForceNew) Specifies the service duration of the spot ECS in hours.
-  This parameter takes effect only when `charging_mode` is set to *spot*.
-  Changing this creates a new instance.
-
-* `spot_duration_count` - (Optional, Int, ForceNew) Specifies the number of time periods in the service duration.
-  This parameter takes effect only when `charging_mode` is set to *spot* and the default value is 1.
-  Changing this creates a new instance.
 
 * `user_id` - (Optional, String, ForceNew) Specifies a user ID, required when using key_pair in prePaid charging mode.
   Changing this creates a new instance.

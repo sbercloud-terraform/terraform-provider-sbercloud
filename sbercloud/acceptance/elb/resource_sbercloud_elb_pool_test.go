@@ -105,7 +105,7 @@ func testAccCheckElbV3PoolExists(n string, pool *pools.Pool) resource.TestCheckF
 func testAccElbV3PoolConfig_basic(rName string) string {
 	return fmt.Sprintf(`
 data "sbercloud_vpc_subnet" "test" {
-  name = "subnet_elb_test"
+  name = "subnet-default"
 }
 
 data "sbercloud_availability_zones" "test" {}
@@ -150,7 +150,7 @@ resource "sbercloud_elb_pool" "test" {
 func testAccElbV3PoolConfig_update(rName, rNameUpdate string) string {
 	return fmt.Sprintf(`
 data "sbercloud_vpc_subnet" "test" {
-  name = "subnet_elb_test"
+  name = "subnet-default"
 }
 
 data "sbercloud_availability_zones" "test" {}

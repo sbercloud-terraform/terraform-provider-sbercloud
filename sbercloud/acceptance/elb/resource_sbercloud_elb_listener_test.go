@@ -71,7 +71,7 @@ func TestAccElbV3Listener_basic(t *testing.T) {
 func testAccElbV3ListenerConfig_basic(rName string) string {
 	return fmt.Sprintf(`
 data "sbercloud_vpc_subnet" "test" {
-  name = "subnet_elb_test"
+  name = "subnet-default"
 }
 
 data "sbercloud_availability_zones" "test" {}
@@ -116,7 +116,7 @@ resource "sbercloud_elb_listener" "test" {
 func testAccElbV3ListenerConfig_update(rNameUpdate string) string {
 	return fmt.Sprintf(`
 data "sbercloud_vpc_subnet" "test" {
-  name = "subnet_elb_test"
+  name = "subnet-default"
 }
 
 data "sbercloud_availability_zones" "test" {}

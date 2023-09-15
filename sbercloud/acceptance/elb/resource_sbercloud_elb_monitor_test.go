@@ -111,7 +111,7 @@ func testAccCheckElbV3MonitorExists(n string, monitor *monitors.Monitor) resourc
 func testAccCheckElbV3MonitorConfig(rName string) string {
 	return fmt.Sprintf(`
 data "sbercloud_vpc_subnet" "test" {
-  name = "subnet_elb_test"
+  name = "subnet-default"
 }
 
 data "sbercloud_availability_zones" "test" {}

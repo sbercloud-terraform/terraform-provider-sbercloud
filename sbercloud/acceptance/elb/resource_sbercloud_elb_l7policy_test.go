@@ -100,7 +100,7 @@ func testAccCheckElbV3L7PolicyExists(n string, l7Policy *l7policies.L7Policy) re
 func testAccCheckElbV3L7PolicyConfig_basic(rName string) string {
 	return fmt.Sprintf(`
 data "sbercloud_vpc_subnet" "test" {
-  name = "subnet_elb_test"
+  name = "subnet-default"
 }
 
 data "sbercloud_availability_zones" "test" {}
