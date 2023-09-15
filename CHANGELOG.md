@@ -1,3 +1,16 @@
+## 1.11.5 (September 15, 2023)
+
+FEATURES:
+
+* **New Data Source:** `sbercloud_rds_backups` ([#229](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/229))
+* **New Data Source:** `sbercloud_rds_instances` ([#229](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/229))
+* **New Data Source:** `sbercloud_sfs_turbos` ([#229](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/229))
+* **New Resource:** `sbercloud_rds_backup` ([#229](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/229))
+
+ENHANCEMENTS:
+
+* resource/sbercloud_dli_spark_job: add version, app_parameters, feature params ([#222](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/222))
+
 ## 1.11.4 (August 1, 2023)
 
 FEATURES:
