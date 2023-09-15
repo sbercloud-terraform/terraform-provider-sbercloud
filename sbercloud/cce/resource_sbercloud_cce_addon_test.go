@@ -222,24 +222,25 @@ resource "sbercloud_cce_node_pool" "test" {
 data "sbercloud_cce_addon_template" "test" {
   cluster_id = sbercloud_cce_cluster.test.id
   name       = "autoscaler"
-  version    = "1.23.3"
+  version    = "1.25.21"
 }
 
 resource "sbercloud_cce_addon" "test" {
   cluster_id    = sbercloud_cce_cluster.test.id
   template_name = "autoscaler"
-  version       = "1.23.3"
+  version       = "1.25.21"
 
-  values {
-    basic  = jsondecode(data.sbercloud_cce_addon_template.test.spec).basic
-    custom = merge(
+   values {
+    basic       = jsondecode(data.sbercloud_cce_addon_template.test.spec).basic
+    custom_json = jsonencode(merge(
       jsondecode(data.sbercloud_cce_addon_template.test.spec).parameters.custom,
       {
         cluster_id = sbercloud_cce_cluster.test.id
         tenant_id  = "%s"
+        logLevel   = 3
       }
-    )
-    flavor_json = jsonencode(jsondecode(data.sbercloud_cce_addon_template.test.spec).parameters.flavor2)
+    ))
+    flavor_json = jsonencode(jsondecode(data.sbercloud_cce_addon_template.test.spec).parameters.flavor1)
   }
 
   depends_on = [sbercloud_cce_node_pool.test]

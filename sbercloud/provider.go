@@ -10,6 +10,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/swr"
 
 	dcs2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dcs"
+	dli2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dli"
 	"sync"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -304,7 +305,7 @@ func Provider() *schema.Provider {
 			"sbercloud_dli_database":                    dli.ResourceDliSqlDatabaseV1(),
 			"sbercloud_dli_package":                     dli.ResourceDliPackageV2(),
 			"sbercloud_dli_queue":                       dli.ResourceDliQueue(),
-			"sbercloud_dli_spark_job":                   dli.ResourceDliSparkJobV2(),
+			"sbercloud_dli_spark_job":                   dli2.ResourceDliSparkJob(),
 			"sbercloud_dms_instance":                    ResourceDmsInstancesV1(),
 			"sbercloud_dms_kafka_instance":              dms.ResourceDmsKafkaInstance(),
 			"sbercloud_dms_kafka_topic":                 dms.ResourceDmsKafkaTopic(),
