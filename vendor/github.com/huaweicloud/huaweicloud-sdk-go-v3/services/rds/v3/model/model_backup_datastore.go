@@ -11,7 +11,7 @@ import (
 
 type BackupDatastore struct {
 
-	// 数据库引擎，不区分大小写：  - MySQL - PostgreSQL - SQLServer
+	// 数据库引擎，不区分大小写： - MySQL - PostgreSQL - SQLServer - MariaDB
 	Type BackupDatastoreType `json:"type"`
 
 	// 数据库版本。
@@ -35,6 +35,7 @@ type BackupDatastoreTypeEnum struct {
 	MY_SQL      BackupDatastoreType
 	POSTGRE_SQL BackupDatastoreType
 	SQL_SERVER  BackupDatastoreType
+	MARIA_DB    BackupDatastoreType
 }
 
 func GetBackupDatastoreTypeEnum() BackupDatastoreTypeEnum {
@@ -47,6 +48,9 @@ func GetBackupDatastoreTypeEnum() BackupDatastoreTypeEnum {
 		},
 		SQL_SERVER: BackupDatastoreType{
 			value: "SQLServer",
+		},
+		MARIA_DB: BackupDatastoreType{
+			value: "MariaDB",
 		},
 	}
 }
@@ -61,13 +65,18 @@ func (c BackupDatastoreType) MarshalJSON() ([]byte, error) {
 
 func (c *BackupDatastoreType) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
-	if myConverter != nil {
-		val, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-		if err == nil {
-			c.value = val.(string)
-			return nil
-		}
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
 		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
 	} else {
 		return errors.New("convert enum data to string error")
 	}

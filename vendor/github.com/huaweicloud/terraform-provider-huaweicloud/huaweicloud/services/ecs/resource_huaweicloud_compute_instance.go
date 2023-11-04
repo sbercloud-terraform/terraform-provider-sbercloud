@@ -15,10 +15,10 @@ import (
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/compute/v2/extensions/secgroups"
-	"github.com/chnsz/golangsdk/openstack/compute/v2/servers"
 	"github.com/chnsz/golangsdk/openstack/ecs/v1/block_devices"
 	"github.com/chnsz/golangsdk/openstack/ecs/v1/cloudservers"
 	"github.com/chnsz/golangsdk/openstack/ecs/v1/powers"
+	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 	"github.com/chnsz/golangsdk/openstack/evs/v2/cloudvolumes"
 	"github.com/chnsz/golangsdk/openstack/ims/v2/cloudimages"
 	groups "github.com/chnsz/golangsdk/openstack/networking/v1/security/securitygroups"
@@ -38,6 +38,7 @@ var (
 		"OFF":    "os-stop",
 		"REBOOT": "reboot",
 	}
+	SystemDiskType = "GPSSD"
 )
 
 func ResourceComputeInstance() *schema.Resource {
@@ -75,6 +76,11 @@ func ResourceComputeInstance() *schema.Resource {
 				Required: true,
 			},
 			"description": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+			},
+			"hostname": {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
@@ -204,6 +210,29 @@ func ResourceComputeInstance() *schema.Resource {
 				Optional: true,
 				Computed: true,
 			},
+			"system_disk_kms_key_id": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
+			},
+			"system_disk_iops": {
+				Type:     schema.TypeInt,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
+			},
+			"system_disk_throughput": {
+				Type:     schema.TypeInt,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
+			},
+			"system_disk_dss_pool_id": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+			},
 			"data_disks": {
 				Type:     schema.TypeList,
 				Optional: true,
@@ -227,6 +256,21 @@ func ResourceComputeInstance() *schema.Resource {
 							ForceNew: true,
 						},
 						"kms_key_id": {
+							Type:     schema.TypeString,
+							Optional: true,
+							ForceNew: true,
+						},
+						"iops": {
+							Type:     schema.TypeInt,
+							Optional: true,
+							ForceNew: true,
+						},
+						"throughput": {
+							Type:     schema.TypeInt,
+							Optional: true,
+							ForceNew: true,
+						},
+						"dss_pool_id": {
 							Type:     schema.TypeString,
 							Optional: true,
 							ForceNew: true,
@@ -272,6 +316,11 @@ func ResourceComputeInstance() *schema.Resource {
 				ForceNew: true,
 				// just stash the hash for state & diff comparisons
 				StateFunc: utils.HashAndHexEncode,
+			},
+			"metadata": {
+				Type:     schema.TypeMap,
+				Optional: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
 			"stop_before_destroy": {
 				Type:     schema.TypeBool,
@@ -601,9 +650,12 @@ func resourceComputeInstanceCreate(ctx context.Context, d *schema.ResourceData, 
 
 	schedulerHintsRaw := d.Get("scheduler_hints").(*schema.Set).List()
 	if len(schedulerHintsRaw) > 0 {
-		log.Printf("[DEBUG] schedulerhints: %+v", schedulerHintsRaw)
-		schedulerHints := buildInstanceSchedulerHints(schedulerHintsRaw[0].(map[string]interface{}))
-		createOpts.SchedulerHints = &schedulerHints
+		if m, ok := schedulerHintsRaw[0].(map[string]interface{}); ok {
+			schedulerHints := buildInstanceSchedulerHints(m)
+			createOpts.SchedulerHints = &schedulerHints
+		} else {
+			log.Printf("[WARN] can not build scheduler hints: %+v", schedulerHintsRaw[0])
+		}
 	}
 
 	log.Printf("[DEBUG] ECS create options: %#v", createOpts)
@@ -643,6 +695,29 @@ func resourceComputeInstanceCreate(ctx context.Context, d *schema.ResourceData, 
 			return diag.FromErr(err)
 		}
 		d.SetId(serverId.(string))
+	}
+
+	// update the user-defined metadata if necessary
+	if v, ok := d.GetOk("metadata"); ok {
+		metadataOpts := v.(map[string]interface{})
+		log.Printf("[DEBUG] ECS metadata options: %v", metadataOpts)
+
+		_, err := cloudservers.UpdateMetadata(ecsClient, d.Id(), metadataOpts).Extract()
+		if err != nil {
+			return diag.Errorf("error updating the metadata: %s", err)
+		}
+	}
+
+	// Update the hostname if necessary.
+	if v, ok := d.GetOk("hostname"); ok {
+		hostname := v.(string)
+		if err := updateInstanceHostname(ecsClient, hostname, d.Id()); err != nil {
+			return diag.FromErr(err)
+		}
+
+		if err = doPowerAction(ecsClient, d, "REBOOT"); err != nil {
+			return diag.Errorf("doing power reboot for instance (%s) failed: %s", d.Id(), err)
+		}
 	}
 
 	// Create an instance in the shutdown state.
@@ -729,6 +804,7 @@ func resourceComputeInstanceRead(_ context.Context, d *schema.ResourceData, meta
 	d.Set("availability_zone", server.AvailabilityZone)
 	d.Set("name", server.Name)
 	d.Set("description", server.Description)
+	d.Set("hostname", server.Hostname)
 	d.Set("status", server.Status)
 	d.Set("agency_name", server.Metadata.AgencyName)
 	d.Set("agent_list", server.Metadata.AgentList)
@@ -833,6 +909,9 @@ func resourceComputeInstanceRead(_ context.Context, d *schema.ResourceData, meta
 				d.Set("system_disk_id", b.ID)
 				d.Set("system_disk_size", volumeInfo.Size)
 				d.Set("system_disk_type", volumeInfo.VolumeType)
+				d.Set("system_disk_kms_key_id", volumeInfo.Metadata.SystemCmkID)
+				d.Set("system_disk_iops", volumeInfo.IOPS.TotalVal)
+				d.Set("system_disk_throughput", volumeInfo.Throughput.TotalVal)
 			}
 		}
 		d.Set("volume_attached", bds)
@@ -886,29 +965,36 @@ func resourceComputeInstanceUpdate(ctx context.Context, d *schema.ResourceData, 
 		return diag.Errorf("error creating compute V1.1 client: %s", err)
 	}
 
+	serverID := d.Id()
 	if d.HasChanges("name", "description") {
 		var updateOpts cloudservers.UpdateOpts
 		updateOpts.Name = d.Get("name").(string)
 		description := d.Get("description").(string)
 		updateOpts.Description = &description
 
-		err := cloudservers.Update(ecsClient, d.Id(), updateOpts).ExtractErr()
+		err := cloudservers.Update(ecsClient, serverID, updateOpts).ExtractErr()
 		if err != nil {
 			return diag.Errorf("error updating server: %s", err)
 		}
 	}
 
-	if d.HasChanges("agency_name", "agent_list ") {
-		metadataOpts := make(servers.MetadataOpts)
+	if d.HasChanges("agency_name", "agent_list") {
+		metadataOpts := make(map[string]interface{})
 		if d.HasChange("agency_name") {
 			metadataOpts["agency_name"] = d.Get("agency_name").(string)
 		}
 		if d.HasChange("agent_list") {
 			metadataOpts["__support_agent_list"] = d.Get("agent_list").(string)
 		}
-		_, err = servers.UpdateMetadata(computeClient, d.Id(), metadataOpts).Extract()
+		_, err = cloudservers.UpdateMetadata(ecsClient, serverID, metadataOpts).Extract()
 		if err != nil {
-			return diag.Errorf("error updating server (%s) metadata(agency_name, agent_list) : %s", d.Id(), err)
+			return diag.Errorf("error updating the metadata(agency_name, agent_list): %s", err)
+		}
+	}
+
+	if d.HasChanges("metadata") {
+		if err := updateInstanceMetaData(d, ecsClient, serverID); err != nil {
+			return diag.FromErr(err)
 		}
 	}
 
@@ -928,30 +1014,30 @@ func resourceComputeInstanceUpdate(ctx context.Context, d *schema.ResourceData, 
 		log.Printf("[DEBUG] security groups to remove: %v", secgroupsToRemove)
 
 		for _, g := range secgroupsToRemove.List() {
-			err := secgroups.RemoveServer(computeClient, d.Id(), g.(string)).ExtractErr()
+			err := secgroups.RemoveServer(computeClient, serverID, g.(string)).ExtractErr()
 			if err != nil && err.Error() != "EOF" {
 				if _, ok := err.(golangsdk.ErrDefault404); ok {
 					continue
 				}
-				return diag.Errorf("error removing security group (%s) from server (%s): %s", g, d.Id(), err)
+				return diag.Errorf("error removing security group (%s) from server (%s): %s", g, serverID, err)
 			}
-			log.Printf("[DEBUG] removed security group (%s) from instance (%s)", g, d.Id())
+			log.Printf("[DEBUG] removed security group (%s) from instance (%s)", g, serverID)
 		}
 
 		for _, g := range secgroupsToAdd.List() {
-			err := secgroups.AddServer(computeClient, d.Id(), g.(string)).ExtractErr()
+			err := secgroups.AddServer(computeClient, serverID, g.(string)).ExtractErr()
 			if err != nil && err.Error() != "EOF" {
-				return diag.Errorf("error adding security group (%s) to server (%s): %s", g, d.Id(), err)
+				return diag.Errorf("error adding security group (%s) to server (%s): %s", g, serverID, err)
 			}
-			log.Printf("[DEBUG] added security group (%s) to instance (%s)", g, d.Id())
+			log.Printf("[DEBUG] added security group (%s) to instance (%s)", g, serverID)
 		}
 	}
 
 	if d.HasChange("admin_pass") {
 		if newPwd, ok := d.Get("admin_pass").(string); ok {
-			err := cloudservers.ChangeAdminPassword(ecsClient, d.Id(), newPwd).ExtractErr()
+			err := cloudservers.ChangeAdminPassword(ecsClient, serverID, newPwd).ExtractErr()
 			if err != nil {
-				return diag.Errorf("error changing admin password of server (%s): %s", d.Id(), err)
+				return diag.Errorf("error changing admin password of server (%s): %s", serverID, err)
 			}
 		}
 	}
@@ -971,13 +1057,13 @@ func resourceComputeInstanceUpdate(ctx context.Context, d *schema.ResourceData, 
 			ExtendParam: extendParam,
 		}
 		log.Printf("[DEBUG] resize configuration: %#v", resizeOpts)
-		job, err := cloudservers.Resize(ecsV11Client, resizeOpts, d.Id()).ExtractJobResponse()
+		job, err := cloudservers.Resize(ecsV11Client, resizeOpts, serverID).ExtractJobResponse()
 		if err != nil {
 			return diag.Errorf("error resizing server: %s", err)
 		}
 
 		if err := cloudservers.WaitForJobSuccess(ecsClient, int(d.Timeout(schema.TimeoutUpdate)/time.Second), job.JobID); err != nil {
-			return diag.Errorf("error waiting for instance (%s) to be resized: %s", d.Id(), err)
+			return diag.Errorf("error waiting for instance (%s) to be resized: %s", serverID, err)
 		}
 	}
 
@@ -994,19 +1080,20 @@ func resourceComputeInstanceUpdate(ctx context.Context, d *schema.ResourceData, 
 	}
 
 	if d.HasChange("tags") {
-		tagErr := utils.UpdateResourceTags(ecsClient, d, "cloudservers", d.Id())
+		tagErr := utils.UpdateResourceTags(ecsClient, d, "cloudservers", serverID)
 		if tagErr != nil {
-			return diag.Errorf("error updating tags of instance:%s, err:%s", d.Id(), err)
+			return diag.Errorf("error updating tags of instance:%s, err:%s", serverID, err)
 		}
 	}
 
 	if d.HasChange("enterprise_project_id") {
-		epsClient, err := cfg.EnterpriseProjectClient(region)
-		if err != nil {
-			return diag.Errorf("error creating EPS client: %s", err)
+		migrateOpts := enterpriseprojects.MigrateResourceOpts{
+			ResourceId:   d.Id(),
+			ResourceType: "ecs",
+			RegionId:     region,
+			ProjectId:    ecsClient.ProjectID,
 		}
-
-		if err := migrateEnterpriseProject(ctx, d, ecsClient, epsClient, region); err != nil {
+		if err := common.MigrateEnterpriseProject(ctx, cfg, d, migrateOpts); err != nil {
 			return diag.FromErr(err)
 		}
 	}
@@ -1048,7 +1135,7 @@ func resourceComputeInstanceUpdate(ctx context.Context, d *schema.ResourceData, 
 			err = common.WaitOrderComplete(ctx, bssClient, resp.OrderID, d.Timeout(schema.TimeoutUpdate))
 			if err != nil {
 				return diag.Errorf("The order (%s) is not completed while extending system disk (%s) size: %#v",
-					resp.OrderID, d.Id(), err)
+					resp.OrderID, serverID, err)
 			}
 		}
 
@@ -1077,7 +1164,7 @@ func resourceComputeInstanceUpdate(ctx context.Context, d *schema.ResourceData, 
 
 		o, n := d.GetChange("key_pair")
 		keyPairOpts := &common.KeypairAuthOpts{
-			InstanceID:       d.Id(),
+			InstanceID:       serverID,
 			InUsedKeyPair:    o.(string),
 			NewKeyPair:       n.(string),
 			InUsedPrivateKey: d.Get("private_key").(string),
@@ -1093,7 +1180,7 @@ func resourceComputeInstanceUpdate(ctx context.Context, d *schema.ResourceData, 
 	if d.HasChange("power_action") {
 		action := d.Get("power_action").(string)
 		if err = doPowerAction(ecsClient, d, action); err != nil {
-			return diag.Errorf("Doing power action (%s) for instance (%s) failed: %s", action, d.Id(), err)
+			return diag.Errorf("Doing power action (%s) for instance (%s) failed: %s", action, serverID, err)
 		}
 	}
 
@@ -1102,12 +1189,82 @@ func resourceComputeInstanceUpdate(ctx context.Context, d *schema.ResourceData, 
 		if err != nil {
 			return diag.Errorf("error creating BSS V2 client: %s", err)
 		}
-		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), d.Id()); err != nil {
-			return diag.Errorf("error updating the auto-renew of the instance (%s): %s", d.Id(), err)
+		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), serverID); err != nil {
+			return diag.Errorf("error updating the auto-renew of the instance (%s): %s", serverID, err)
 		}
 	}
 
-	return resourceComputeInstanceRead(ctx, d, meta)
+	var diags diag.Diagnostics
+	if d.HasChanges("hostname") {
+		hostname := d.Get("hostname").(string)
+		if err := updateInstanceHostname(ecsClient, hostname, serverID); err != nil {
+			return diag.FromErr(err)
+		}
+
+		hostnameDiag := diag.Diagnostic{
+			Severity: diag.Warning,
+			Summary:  "Parameters Changed",
+			Detail:   "Parameters hostname changed which needs reboot.",
+		}
+		diags = append(diags, hostnameDiag)
+	}
+
+	readDiags := resourceComputeInstanceRead(ctx, d, meta)
+	diags = append(diags, readDiags...)
+
+	return diags
+}
+
+func updateInstanceHostname(ecsClient *golangsdk.ServiceClient, hostname, serverID string) error {
+	updateOpts := cloudservers.UpdateOpts{
+		Hostname: hostname,
+	}
+	err := cloudservers.Update(ecsClient, serverID, updateOpts).ExtractErr()
+	if err != nil {
+		return fmt.Errorf("error updating service (%s) hostname (%s): %s", serverID, hostname, err)
+	}
+
+	return nil
+}
+
+func updateInstanceMetaData(d *schema.ResourceData, client *golangsdk.ServiceClient, serverID string) error {
+	oldRaw, newRaw := d.GetChange("metadata")
+	oldMetadata := oldRaw.(map[string]interface{})
+	newMetadata := newRaw.(map[string]interface{})
+
+	// Determine if any metadata keys will be removed from the configuration.
+	// Then request those keys to be deleted.
+	var metadataToDelete []string
+	for oldKey := range oldMetadata {
+		var found bool
+		for newKey := range newMetadata {
+			if oldKey == newKey {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			metadataToDelete = append(metadataToDelete, oldKey)
+		}
+	}
+
+	for _, key := range metadataToDelete {
+		err := cloudservers.DeleteMetadatItem(client, serverID, key).ExtractErr()
+		if err != nil {
+			return fmt.Errorf("error deleting metadata (%s) from server: %s", key, err)
+		}
+	}
+
+	// Update existing metadata and add any new metadata.
+	if len(newMetadata) > 0 {
+		_, err := cloudservers.UpdateMetadata(client, serverID, newMetadata).Extract()
+		if err != nil {
+			return fmt.Errorf("error updating the metadata: %s", err)
+		}
+	}
+
+	return nil
 }
 
 func resourceComputeInstanceDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -1473,7 +1630,10 @@ func getVpcID(d *schema.ResourceData, client *golangsdk.ServiceClient) (string, 
 
 func resourceComputeSchedulerHintsHash(v interface{}) int {
 	var buf bytes.Buffer
-	m := v.(map[string]interface{})
+	m, ok := v.(map[string]interface{})
+	if !ok {
+		return 0
+	}
 
 	if m["group"] != nil {
 		buf.WriteString(fmt.Sprintf("%s-", m["group"].(string)))
@@ -1647,12 +1807,28 @@ func flattenTagsToMap(tags []string) map[string]string {
 func buildInstanceRootVolume(d *schema.ResourceData) cloudservers.RootVolume {
 	diskType := d.Get("system_disk_type").(string)
 	if diskType == "" {
-		diskType = "GPSSD"
+		diskType = SystemDiskType
 	}
 	volRequest := cloudservers.RootVolume{
 		VolumeType: diskType,
 		Size:       d.Get("system_disk_size").(int),
+		IOPS:       d.Get("system_disk_iops").(int),
+		Throughput: d.Get("system_disk_throughput").(int),
 	}
+
+	if v, ok := d.GetOk("system_disk_kms_key_id"); ok {
+		matadata := cloudservers.VolumeMetadata{
+			SystemEncrypted: "1",
+			SystemCmkid:     v.(string),
+		}
+		volRequest.Metadata = &matadata
+	}
+
+	if v, ok := d.GetOk("system_disk_dss_pool_id"); ok {
+		volRequest.ClusterType = "DSS"
+		volRequest.ClusterId = v.(string)
+	}
+
 	return volRequest
 }
 
@@ -1665,7 +1841,10 @@ func buildInstanceDataVolumes(d *schema.ResourceData) []cloudservers.DataVolume 
 		volRequest := cloudservers.DataVolume{
 			VolumeType: vol["type"].(string),
 			Size:       vol["size"].(int),
+			IOPS:       vol["iops"].(int),
+			Throughput: vol["throughput"].(int),
 		}
+
 		if vol["snapshot_id"] != "" {
 			extendparam := cloudservers.VolumeExtendParam{
 				SnapshotId: vol["snapshot_id"].(string),
@@ -1681,54 +1860,12 @@ func buildInstanceDataVolumes(d *schema.ResourceData) []cloudservers.DataVolume 
 			volRequest.Metadata = &matadata
 		}
 
+		if vol["dss_pool_id"] != "" {
+			volRequest.ClusterType = "DSS"
+			volRequest.ClusterId = vol["dss_pool_id"].(string)
+		}
+
 		volRequests = append(volRequests, volRequest)
 	}
 	return volRequests
-}
-
-func waitForEnterpriseProjectIdChanged(client *golangsdk.ServiceClient, instanceID, epsID string) resource.StateRefreshFunc {
-	return func() (interface{}, string, error) {
-		s, err := cloudservers.Get(client, instanceID).Extract()
-		if err != nil {
-			return nil, "ERROR", err
-		}
-
-		// get fault message when status is ERROR
-		if s.Status == "ERROR" {
-			fault := fmt.Errorf("error code: %d, message: %s", s.Fault.Code, s.Fault.Message)
-			return s, "ERROR", fault
-		}
-
-		if s.EnterpriseProjectID == epsID {
-			return s, "Success", nil
-		}
-		return s, "Pending", nil
-	}
-}
-
-func migrateEnterpriseProject(ctx context.Context, d *schema.ResourceData,
-	ecsClient, epsClient *golangsdk.ServiceClient, region string) error {
-	resourceID := d.Id()
-	targetEPSId := d.Get("enterprise_project_id").(string)
-
-	if err := common.MigrateEnterpriseProject(epsClient, region, targetEPSId, "ecs", resourceID); err != nil {
-		return err
-	}
-
-	// wait for the Enterprise Project ID changed
-	stateConf := &resource.StateChangeConf{
-		Pending:      []string{"Pending"},
-		Target:       []string{"Success"},
-		Refresh:      waitForEnterpriseProjectIdChanged(ecsClient, resourceID, targetEPSId),
-		Timeout:      d.Timeout(schema.TimeoutUpdate),
-		Delay:        10 * time.Second,
-		PollInterval: 5 * time.Second,
-	}
-
-	_, err := stateConf.WaitForStateContext(ctx)
-	if err != nil {
-		return fmt.Errorf("error waiting for migrating Enterprise Project ID: %s", err)
-	}
-
-	return nil
 }

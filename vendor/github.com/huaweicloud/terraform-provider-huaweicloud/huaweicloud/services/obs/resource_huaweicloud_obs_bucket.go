@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
 	"github.com/chnsz/golangsdk"
+	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 	"github.com/chnsz/golangsdk/openstack/obs"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -307,6 +308,12 @@ func ResourceObsBucket() *schema.Resource {
 				Optional: true,
 				Computed: true,
 			},
+			"user_domain_names": {
+				Type:     schema.TypeSet,
+				Elem:     &schema.Schema{Type: schema.TypeString},
+				Optional: true,
+				Computed: true,
+			},
 
 			"bucket_domain_name": {
 				Type:     schema.TypeString,
@@ -439,12 +446,15 @@ func resourceObsBucketUpdate(ctx context.Context, d *schema.ResourceData, meta i
 	}
 
 	if d.HasChange("enterprise_project_id") && !d.IsNewResource() {
-		epsClient, err := conf.EnterpriseProjectClient(region)
-		if err != nil {
-			return diag.Errorf("error creating EPS client: %s", err)
+		// API Limitations: still requires `project_id` field when migrating the EPS of OBS bucket
+		if err := resourceObsBucketEnterpriseProjectIdUpdate(ctx, d, conf, obsClient, region); err != nil {
+			return diag.FromErr(err)
 		}
 
-		if err := resourceObsBucketEnterpriseProjectIdUpdate(ctx, d, obsClient, epsClient, region); err != nil {
+	}
+
+	if d.HasChange("user_domain_names") {
+		if err := resourceObsBucketUserDomainNamesUpdate(obsClient, d); err != nil {
 			return diag.FromErr(err)
 		}
 	}
@@ -559,6 +569,10 @@ func resourceObsBucketRead(_ context.Context, d *schema.ResourceData, meta inter
 		return diag.FromErr(err)
 	}
 
+	if err := setObsBucketUserDomainNames(obsClient, d); err != nil {
+		return diag.FromErr(err)
+	}
+
 	return nil
 }
 
@@ -574,7 +588,13 @@ func resourceObsBucketDelete(ctx context.Context, d *schema.ResourceData, meta i
 	_, err = obsClient.DeleteBucket(bucket)
 	if err != nil {
 		obsError, ok := err.(obs.ObsError)
-		if ok && obsError.Code == "BucketNotEmpty" {
+		if !ok {
+			return diag.Errorf("Error deleting OBS bucket %s, %s", bucket, err)
+		}
+		if obsError.StatusCode == 404 {
+			return common.CheckDeletedDiag(d, golangsdk.ErrDefault404{}, "OBS bucket")
+		}
+		if obsError.Code == "BucketNotEmpty" {
 			log.Printf("[WARN] OBS bucket: %s is not empty", bucket)
 			if d.Get("force_destroy").(bool) {
 				err = deleteAllBucketObjects(obsClient, bucket)
@@ -585,7 +605,6 @@ func resourceObsBucketDelete(ctx context.Context, d *schema.ResourceData, meta i
 			}
 			return diag.FromErr(err)
 		}
-		return diag.Errorf("Error deleting OBS bucket %s, %s", bucket, err)
 	}
 	return nil
 }
@@ -940,30 +959,77 @@ func resourceObsBucketCorsUpdate(obsClient *obs.ObsClient, d *schema.ResourceDat
 	return nil
 }
 
-func resourceObsBucketEnterpriseProjectIdUpdate(ctx context.Context, d *schema.ResourceData,
-	obsClient *obs.ObsClient, epsClient *golangsdk.ServiceClient, region string) error {
+func resourceObsBucketUserDomainNamesUpdate(obsClient *obs.ObsClient, d *schema.ResourceData) error {
 	bucket := d.Get("bucket").(string)
-	targetEPSId := d.Get("enterprise_project_id").(string)
+	oldRaws, newRaws := d.GetChange("user_domain_names")
+	addRaws := newRaws.(*schema.Set).Difference(oldRaws.(*schema.Set))
+	removeRaws := oldRaws.(*schema.Set).Difference(newRaws.(*schema.Set))
 
-	if err := common.MigrateEnterpriseProject(epsClient, region, targetEPSId, "bucket", bucket); err != nil {
+	if err := deleteObsBucketUserDomainNames(obsClient, bucket, removeRaws); err != nil {
+		return err
+	}
+	return createObsBucketUserDomainNames(obsClient, bucket, addRaws)
+}
+
+func createObsBucketUserDomainNames(obsClient *obs.ObsClient, bucket string, domainNameSet *schema.Set) error {
+	for _, domainName := range domainNameSet.List() {
+		input := &obs.SetBucketCustomDomainInput{
+			Bucket:       bucket,
+			CustomDomain: domainName.(string),
+		}
+		_, err := obsClient.SetBucketCustomDomain(input)
+		if err != nil {
+			return getObsError("error setting user domain name of OBS bucket", bucket, err)
+		}
+	}
+	return nil
+}
+
+func deleteObsBucketUserDomainNames(obsClient *obs.ObsClient, bucket string, domainNameSet *schema.Set) error {
+	for _, domainName := range domainNameSet.List() {
+		input := &obs.DeleteBucketCustomDomainInput{
+			Bucket:       bucket,
+			CustomDomain: domainName.(string),
+		}
+		_, err := obsClient.DeleteBucketCustomDomain(input)
+		if err != nil {
+			return getObsError("error deleting user domain name of OBS bucket", bucket, err)
+		}
+	}
+	return nil
+}
+
+func resourceObsBucketEnterpriseProjectIdUpdate(ctx context.Context, d *schema.ResourceData, conf *config.Config,
+	obsClient *obs.ObsClient, region string) error {
+	var (
+		projectId   = conf.GetProjectID(region)
+		bucket      = d.Get("bucket").(string)
+		migrateOpts = enterpriseprojects.MigrateResourceOpts{
+			ResourceId:   bucket,
+			ResourceType: "bucket",
+			RegionId:     region,
+			ProjectId:    projectId,
+		}
+	)
+	err := common.MigrateEnterpriseProjectWithoutWait(conf, d, migrateOpts)
+	if err != nil {
 		return err
 	}
 
-	// wait for the Enterprise Project ID changed in OBS
+	// After the EPS service side updates enterprise project ID, it will take a few time to wait the OBS service
+	// read the data back into the database.
 	stateConf := &resource.StateChangeConf{
 		Pending:      []string{"Pending"},
 		Target:       []string{"Success"},
-		Refresh:      waitForOBSEnterpriseProjectIdChanged(obsClient, bucket, targetEPSId),
+		Refresh:      waitForOBSEnterpriseProjectIdChanged(obsClient, bucket, d.Get("enterprise_project_id").(string)),
 		Timeout:      d.Timeout(schema.TimeoutUpdate),
 		Delay:        10 * time.Second,
 		PollInterval: 5 * time.Second,
 	}
-
-	_, err := stateConf.WaitForStateContext(ctx)
+	_, err = stateConf.WaitForStateContext(ctx)
 	if err != nil {
-		return getObsError("Error waiting for obs Enterprise Project ID changed", bucket, err)
+		return getObsError("error waiting for obs enterprise project ID changed", bucket, err)
 	}
-
 	return nil
 }
 
@@ -1490,6 +1556,21 @@ func setObsBucketStorageInfo(obsClient *obs.ObsClient, d *schema.ResourceData) e
 		return fmt.Errorf("error saving storage info of OBS bucket %s: %s", bucket, err)
 	}
 	return nil
+}
+
+func setObsBucketUserDomainNames(obsClient *obs.ObsClient, d *schema.ResourceData) error {
+	bucket := d.Id()
+	output, err := obsClient.GetBucketCustomDomain(bucket)
+	if err != nil {
+		return getObsError("Error getting user domain names of OBS bucket", bucket, err)
+	}
+	log.Printf("[DEBUG] getting user domain names of OBS bucket %s: %#v", bucket, output)
+
+	domainNames := make([]string, len(output.Domains))
+	for i, v := range output.Domains {
+		domainNames[i] = v.DomainName
+	}
+	return d.Set("user_domain_names", domainNames)
 }
 
 func deleteAllBucketObjects(obsClient *obs.ObsClient, bucket string) error {

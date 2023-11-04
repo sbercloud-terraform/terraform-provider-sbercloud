@@ -2,6 +2,7 @@ package dcs
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -15,10 +16,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/common/tags"
 	"github.com/chnsz/golangsdk/openstack/dcs/v2/availablezones"
+	"github.com/chnsz/golangsdk/openstack/dcs/v2/flavors"
 	"github.com/chnsz/golangsdk/openstack/dcs/v2/instances"
 	dcsTags "github.com/chnsz/golangsdk/openstack/dcs/v2/tags"
 	"github.com/chnsz/golangsdk/openstack/dcs/v2/whitelists"
@@ -27,6 +30,8 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
+
+type ctxType string
 
 const (
 	chargeModePostPaid = "postPaid"
@@ -43,6 +48,31 @@ var (
 		"4.0": true,
 		"5.0": true,
 		"6.0": true,
+	}
+
+	operateErrorCode = map[string]bool{
+		// current state not support
+		"DCS.4026": true,
+		// backup
+		"DCS.4096": true,
+		// restore
+		"DCS.4097": true,
+		// restart
+		"DCS.4111": true,
+		// resize
+		"DCS.4113": true,
+		// change config
+		"DCS.4114": true,
+		// change password
+		"DCS.4115": true,
+		// upgrade
+		"DCS.4116": true,
+		// rollback
+		"DCS.4117": true,
+		// create
+		"DCS.4118": true,
+		// freeze
+		"DCS.4120": true,
 	}
 )
 
@@ -144,7 +174,6 @@ func ResourceDcsInstance() *schema.Resource {
 				Type:      schema.TypeString,
 				Sensitive: true,
 				Optional:  true,
-				ForceNew:  true,
 			},
 			"whitelist_enable": {
 				Type:     schema.TypeBool,
@@ -231,13 +260,38 @@ func ResourceDcsInstance() *schema.Resource {
 			"rename_commands": {
 				Type:     schema.TypeMap,
 				Optional: true,
-				ForceNew: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
+			},
+			"template_id": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
 			},
 			"enterprise_project_id": {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
+				Computed: true,
+			},
+			"parameters": {
+				Type: schema.TypeSet,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"id": {
+							Type:     schema.TypeString,
+							Required: true,
+						},
+						"name": {
+							Type:     schema.TypeString,
+							Required: true,
+						},
+						"value": {
+							Type:     schema.TypeString,
+							Required: true,
+						},
+					},
+				},
+				Optional: true,
 				Computed: true,
 			},
 			"charging_mode": common.SchemaChargingMode(nil),
@@ -246,6 +300,17 @@ func ResourceDcsInstance() *schema.Resource {
 			"auto_renew":    common.SchemaAutoRenewUpdatable(nil),
 			"auto_pay":      common.SchemaAutoPay(nil),
 			"tags":          common.TagsSchema(),
+			"deleted_nodes": {
+				Type:     schema.TypeList,
+				Optional: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
+				MaxItems: 1,
+			},
+			"reserved_ips": {
+				Type:     schema.TypeList,
+				Optional: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
+			},
 			"order_id": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -413,7 +478,7 @@ func resourceDcsInstancesCheck(d *schema.ResourceData) error {
 			return fmt.Errorf("security_group_id is not supported for Redis 4.0, 5.0 and 6.0. " +
 				"please configure the whitelists alternatively")
 		}
-	} else {
+	} else if engineVersion == "3.0" {
 		// check for Memcached and Redis 3.0
 		if secGroupID == "" {
 			return fmt.Errorf("security_group_id is mandatory for this DCS instance")
@@ -548,6 +613,7 @@ func resourceDcsInstancesCreate(ctx context.Context, d *schema.ResourceData, met
 		MaintainEnd:         d.Get("maintain_end").(string),
 		NoPasswordAccess:    &noPasswordAccess,
 		AccessUser:          d.Get("access_user").(string),
+		TemplateId:          d.Get("template_id").(string),
 		BssParam:            buildBssParamParams(d),
 		Tags:                buildDcsTagsParams(d.Get("tags").(map[string]interface{})),
 	}
@@ -608,7 +674,125 @@ func resourceDcsInstancesCreate(ctx context.Context, d *schema.ResourceData, met
 		}
 	}
 
+	// set parameters
+	if v, ok := d.GetOk("parameters"); ok {
+		parameters := v.(*schema.Set).List()
+		err = updateParameters(ctx, d.Timeout(schema.TimeoutCreate), client, id, parameters)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		restart, err := checkDcsInstanceRestart(client, id, parameters)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		if restart {
+			if err = restartDcsInstance(ctx, d.Timeout(schema.TimeoutCreate), client, id); err != nil {
+				return diag.FromErr(err)
+			}
+		}
+	}
+
 	return resourceDcsInstancesRead(ctx, d, meta)
+}
+
+func updateParameters(ctx context.Context, timeout time.Duration, client *golangsdk.ServiceClient, instanceID string,
+	parameters []interface{}) error {
+	parameterOpts := buildUpdateParametersOpt(parameters)
+	retryFunc := func() (interface{}, bool, error) {
+		log.Printf("[DEBUG] Update DCS instance parameters params: %#v", parameterOpts)
+		_, err := instances.ModifyConfiguration(client, instanceID, parameterOpts)
+		retry, err := handleOperationError(err)
+		return nil, retry, err
+	}
+	_, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     refreshDcsInstanceState(client, instanceID),
+		WaitTarget:   []string{"RUNNING"},
+		Timeout:      timeout,
+		DelayTimeout: 1 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("error modifying parameters for DCS instance (%s): %s", instanceID, err)
+	}
+	return nil
+}
+
+func buildUpdateParametersOpt(parameters []interface{}) instances.ModifyRedisConfigOpts {
+	parameterOpts := make([]instances.RedisConfigOpt, 0, len(parameters))
+	for _, parameter := range parameters {
+		if v, ok := parameter.(map[string]interface{}); ok {
+			parameterOpts = append(parameterOpts, instances.RedisConfigOpt{
+				ParamId:    v["id"].(string),
+				ParamName:  v["name"].(string),
+				ParamValue: v["value"].(string),
+			})
+		}
+	}
+	return instances.ModifyRedisConfigOpts{RedisConfig: parameterOpts}
+}
+
+func checkDcsInstanceRestart(client *golangsdk.ServiceClient, instanceID string, parameters []interface{}) (bool, error) {
+	_, needStartParams, err := getParameters(client, instanceID, parameters)
+	if err != nil {
+		return false, err
+	}
+	if len(needStartParams) > 0 {
+		return true, nil
+	}
+	return false, nil
+}
+
+func getParameters(client *golangsdk.ServiceClient, instanceID string, parameters []interface{}) ([]map[string]interface{},
+	[]string, error) {
+	configParameters, err := instances.GetConfigurations(client, instanceID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error fetching the DCS instance parameters (%s): %s", instanceID, err)
+	}
+	parametersMap := generateParametersMap(configParameters)
+	var params []map[string]interface{}
+	restartParams := make([]string, 0)
+	for _, parameter := range parameters {
+		paramId := parameter.(map[string]interface{})["id"]
+		if v, ok := parametersMap[paramId.(string)]; ok {
+			params = append(params, map[string]interface{}{
+				"id":    v.ParamId,
+				"name":  v.ParamName,
+				"value": v.ParamValue,
+			})
+			if v.NeedRestart {
+				restartParams = append(restartParams, v.ParamName)
+			}
+		}
+	}
+	return params, restartParams, nil
+}
+
+func restartDcsInstance(ctx context.Context, timeout time.Duration, client *golangsdk.ServiceClient, instanceID string) error {
+	restartOpts := instances.RestartOrFlushInstanceOpts{
+		Instances: []string{instanceID},
+		Action:    "restart",
+	}
+	retryFunc := func() (interface{}, bool, error) {
+		log.Printf("[DEBUG] Restart DCS instance params: %#v", restartOpts)
+		_, err := instances.RestartOrFlushInstance(client, restartOpts)
+		retry, err := handleOperationError(err)
+		return nil, retry, err
+	}
+	_, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     refreshDcsInstanceState(client, instanceID),
+		WaitTarget:   []string{"RUNNING"},
+		Timeout:      timeout,
+		DelayTimeout: 1 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("error waiting for DCS instance (%s) become running status: %s", instanceID, err)
+	}
+	return nil
 }
 
 func createRenameCommandsOpt(renameCmds map[string]interface{}) instances.RedisCommand {
@@ -648,12 +832,13 @@ func waitForOrderComplete(ctx context.Context, d *schema.ResourceData, cfg *conf
 func waitForDcsInstanceCompleted(ctx context.Context, c *golangsdk.ServiceClient, id string, timeout time.Duration,
 	padding []string, target []string) error {
 	stateConf := &resource.StateChangeConf{
-		Pending:      padding,
-		Target:       target,
-		Refresh:      refreshDcsInstanceState(c, id),
-		Timeout:      timeout,
-		Delay:        10 * time.Second,
-		PollInterval: 10 * time.Second,
+		Pending:                   padding,
+		Target:                    target,
+		Refresh:                   refreshDcsInstanceState(c, id),
+		Timeout:                   timeout,
+		Delay:                     10 * time.Second,
+		PollInterval:              10 * time.Second,
+		ContinuousTargetOccurence: 2,
 	}
 	_, err := stateConf.WaitForStateContext(ctx)
 	if err != nil {
@@ -677,7 +862,7 @@ func refreshDcsInstanceState(c *golangsdk.ServiceClient, id string) resource.Sta
 	}
 }
 
-func resourceDcsInstancesRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceDcsInstancesRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	regin := cfg.GetRegion(d)
 	client, err := cfg.DcsV2Client(regin)
@@ -792,7 +977,40 @@ func resourceDcsInstancesRead(_ context.Context, d *schema.ResourceData, meta in
 		d.Set("whitelist_enable", wList.Enable),
 	)
 
-	return diag.FromErr(mErr.ErrorOrNil())
+	diagErr := setDcsInstanceParameters(ctx, d, client, d.Id())
+	return append(diagErr, diag.FromErr(mErr.ErrorOrNil())...)
+}
+
+func setDcsInstanceParameters(ctx context.Context, d *schema.ResourceData, client *golangsdk.ServiceClient,
+	instanceID string) diag.Diagnostics {
+	params, needStartParams, err := getParameters(client, instanceID, d.Get("parameters").(*schema.Set).List())
+	if err != nil {
+		return diag.FromErr(err)
+	}
+
+	if len(params) > 0 {
+		if err = d.Set("parameters", params); err != nil {
+			return diag.FromErr(err)
+		}
+		if len(needStartParams) > 0 && ctx.Value(ctxType("parametersChanged")) == "true" {
+			return diag.Diagnostics{
+				diag.Diagnostic{
+					Severity: diag.Warning,
+					Summary:  "Parameters Changed",
+					Detail:   fmt.Sprintf("Parameters %s changed which needs reboot.", needStartParams),
+				},
+			}
+		}
+	}
+	return nil
+}
+
+func generateParametersMap(configurations *instances.Configuration) map[string]instances.RedisConfig {
+	parametersMap := make(map[string]instances.RedisConfig)
+	for _, redisConfig := range configurations.RedisConfig {
+		parametersMap[redisConfig.ParamId] = redisConfig
+	}
+	return parametersMap
 }
 
 func resourceDcsInstancesUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -804,9 +1022,10 @@ func resourceDcsInstancesUpdate(ctx context.Context, d *schema.ResourceData, met
 
 	// update basic params
 	if d.HasChanges("port", "name", "description", "security_group_id", "backup_policy",
-		"maintain_begin", "maintain_end") {
+		"maintain_begin", "maintain_end", "rename_commands") {
 		desc := d.Get("description").(string)
 		securityGroupID := d.Get("security_group_id").(string)
+		renameCommandsOpt := createRenameCommandsOpt(d.Get("rename_commands").(map[string]interface{}))
 		opts := instances.ModifyInstanceOpt{
 			Name:            d.Get("name").(string),
 			Port:            d.Get("port").(int),
@@ -815,6 +1034,7 @@ func resourceDcsInstancesUpdate(ctx context.Context, d *schema.ResourceData, met
 			MaintainEnd:     d.Get("maintain_end").(string),
 			SecurityGroupId: &securityGroupID,
 			BackupPolicy:    buildBackupPolicyParams(d),
+			RenameCommands:  &renameCommandsOpt,
 		}
 		log.Printf("[DEBUG] Update DCS instance options : %#v", opts)
 
@@ -828,6 +1048,28 @@ func resourceDcsInstancesUpdate(ctx context.Context, d *schema.ResourceData, met
 			if err != nil {
 				return diag.FromErr(err)
 			}
+		}
+	}
+
+	if d.HasChange("password") {
+		oldVal, newVal := d.GetChange("password")
+		opts := instances.UpdatePasswordOpts{
+			OldPassword: oldVal.(string),
+			NewPassword: newVal.(string),
+		}
+		err = resource.RetryContext(ctx, d.Timeout(schema.TimeoutUpdate), func() *resource.RetryError {
+			_, err = instances.UpdatePassword(client, d.Id(), opts)
+			isRetry, err := handleOperationError(err)
+			if isRetry {
+				return resource.RetryableError(err)
+			}
+			if err != nil {
+				return resource.NonRetryableError(err)
+			}
+			return nil
+		})
+		if err != nil {
+			return diag.FromErr(err)
 		}
 	}
 
@@ -871,6 +1113,17 @@ func resourceDcsInstancesUpdate(ctx context.Context, d *schema.ResourceData, met
 		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), d.Id()); err != nil {
 			return diag.Errorf("error updating the auto-renew of the instance (%s): %s", d.Id(), err)
 		}
+	}
+
+	if d.HasChange("parameters") {
+		oRaw, nRaw := d.GetChange("parameters")
+		changedParameters := nRaw.(*schema.Set).Difference(oRaw.(*schema.Set)).List()
+		err = updateParameters(ctx, d.Timeout(schema.TimeoutUpdate), client, d.Id(), changedParameters)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		// Sending parametersChanged to Read to warn users the instance needs a reboot.
+		ctx = context.WithValue(ctx, ctxType("parametersChanged"), "true")
 	}
 
 	return resourceDcsInstancesRead(ctx, d, meta)
@@ -934,21 +1187,29 @@ func resizeDcsInstance(ctx context.Context, d *schema.ResourceData, meta interfa
 	}
 
 	if d.HasChanges("flavor", "capacity") {
-		specCode := d.Get("flavor").(string)
-		opts := instances.ResizeInstanceOpts{
-			SpecCode:    specCode,
-			NewCapacity: d.Get("capacity").(float64),
-		}
-		if d.Get("charging_mode").(string) == chargeModePrePaid {
-			opts.BssParam = instances.DcsBssParamOpts{
-				IsAutoPay: "true",
-			}
-		}
-		log.Printf("[DEBUG] Resize DCS instance options : %#v", opts)
-
-		r, err := instances.ResizeInstance(client, d.Id(), opts)
+		oVal, nVal := d.GetChange("flavor")
+		oldSpecCode := oVal.(string)
+		newSpecCode := nVal.(string)
+		opts, err := buildResizeInstanceOpt(client, d, oldSpecCode, newSpecCode)
 		if err != nil {
 			return err
+		}
+		log.Printf("[DEBUG] Resize DCS instance options : %#v", *opts)
+
+		var res *instances.ResizeResponse
+		err = resource.RetryContext(ctx, d.Timeout(schema.TimeoutUpdate), func() *resource.RetryError {
+			res, err = instances.ResizeInstance(client, d.Id(), *opts)
+			isRetry, err := handleOperationError(err)
+			if isRetry {
+				return resource.RetryableError(err)
+			}
+			if err != nil {
+				return resource.NonRetryableError(err)
+			}
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("error resize DCS instance: %s", err)
 		}
 
 		if d.Get("charging_mode").(string) == chargeModePrePaid {
@@ -957,7 +1218,7 @@ func resizeDcsInstance(ctx context.Context, d *schema.ResourceData, meta interfa
 			if err != nil {
 				return fmt.Errorf("error creating BSS v2 client: %s", err)
 			}
-			err = common.WaitOrderComplete(ctx, bssClient, r.OrderId, d.Timeout(schema.TimeoutUpdate))
+			err = common.WaitOrderComplete(ctx, bssClient, res.OrderId, d.Timeout(schema.TimeoutUpdate))
 			if err != nil {
 				return err
 			}
@@ -965,7 +1226,7 @@ func resizeDcsInstance(ctx context.Context, d *schema.ResourceData, meta interfa
 
 		// wait for dcs instance change
 		err = waitForDcsInstanceCompleted(ctx, client, d.Id(), d.Timeout(schema.TimeoutUpdate),
-			[]string{"EXTENDING"}, []string{"RUNNING"})
+			[]string{"EXTENDING", "RESTARTING"}, []string{"RUNNING"})
 		if err != nil {
 			return err
 		}
@@ -977,10 +1238,121 @@ func resizeDcsInstance(ctx context.Context, d *schema.ResourceData, meta interfa
 		}
 		if instance.SpecCode != d.Get("flavor").(string) {
 			return fmt.Errorf("change flavor failed, after changed the DCS flavor still is: %s, expected: %s",
-				instance.SpecCode, specCode)
+				instance.SpecCode, newSpecCode)
 		}
 	}
 	return nil
+}
+
+func buildResizeInstanceOpt(client *golangsdk.ServiceClient, d *schema.ResourceData, oldSpecCode,
+	newSpecCode string) (*instances.ResizeInstanceOpts, error) {
+	opts := instances.ResizeInstanceOpts{
+		SpecCode:    newSpecCode,
+		NewCapacity: d.Get("capacity").(float64),
+	}
+	if d.Get("charging_mode").(string) == chargeModePrePaid {
+		opts.BssParam = instances.DcsBssParamOpts{
+			IsAutoPay: "true",
+		}
+	}
+	if oldSpecCode == newSpecCode {
+		return nil, fmt.Errorf("the param flavor is invalid")
+	}
+	oldFlavor, err := getFlavorBySpecCode(client, oldSpecCode)
+	if err != nil {
+		return nil, err
+	}
+	newFlavor, err := getFlavorBySpecCode(client, newSpecCode)
+	if err != nil {
+		return nil, err
+	}
+	changeType := getFlavorChangeType(oldFlavor, newFlavor)
+	opts.ChangeType = changeType
+	if changeType == "createReplication" {
+		azCodes, err := getAzCode(d, client)
+		if err != nil {
+			return nil, err
+		}
+		opts.AvailableZones = azCodes
+	}
+	if changeType == "deleteReplication" {
+		if newFlavor.CacheMode == "ha" {
+			opts.NodeList = utils.ExpandToStringList(d.Get("deleted_nodes").([]interface{}))
+		} else if newFlavor.CacheMode == "cluster" {
+			azCodes, err := getAzCode(d, client)
+			if err != nil {
+				return nil, err
+			}
+			opts.ReservedIp = utils.ExpandToStringList(d.Get("reserved_ips").([]interface{}))
+			opts.AvailableZones = azCodes
+		}
+	}
+	return &opts, nil
+}
+
+func getFlavorChangeType(oldFlavor, newFlavor *flavors.Flavor) string {
+	// if the cache mode is different, it indicates the type has been changed
+	if oldFlavor.CacheMode != newFlavor.CacheMode {
+		return "instanceType"
+	}
+	// indicates the replica count increase, should add replica
+	if oldFlavor.ReplicaCount < newFlavor.ReplicaCount {
+		return "createReplication"
+	}
+	// indicates the replica count decrease, should delete replica
+	if oldFlavor.ReplicaCount > newFlavor.ReplicaCount {
+		return "deleteReplication"
+	}
+	// indicates only the capacity been changed
+	return ""
+}
+
+func getFlavorBySpecCode(client *golangsdk.ServiceClient, specCode string) (*flavors.Flavor, error) {
+	list, err := flavors.List(client, &flavors.ListOpts{SpecCode: specCode}).Extract()
+	if err != nil {
+		return nil, fmt.Errorf("error getting dcs flavors list by specCode %s: %s", specCode, err)
+	}
+	if len(list) < 1 {
+		return nil, fmt.Errorf("the result queried by specCode(%s) is empty", specCode)
+	}
+	return &list[0], nil
+}
+
+func handleOperationError(err error) (bool, error) {
+	if err == nil {
+		return false, nil
+	}
+	if errCode, ok := err.(golangsdk.ErrDefault400); ok {
+		var apiError interface{}
+		if jsonErr := json.Unmarshal(errCode.Body, &apiError); jsonErr != nil {
+			return false, jsonErr
+		}
+		errorCode, errorCodeErr := jmespath.Search("error_code", apiError)
+		if errorCodeErr != nil {
+			return false, fmt.Errorf("error parse errorCode from response body: %s", errorCodeErr)
+		}
+		if operateErrorCode[errorCode.(string)] {
+			return true, err
+		}
+	}
+	// unsubscribe fail
+	if errCode, ok := err.(golangsdk.ErrDefault400); ok {
+		var apiError interface{}
+		if jsonErr := json.Unmarshal(errCode.Body, &apiError); jsonErr != nil {
+			return false, fmt.Errorf("unmarshal the response body failed: %s", jsonErr)
+		}
+
+		errorCode, errorCodeErr := jmespath.Search("error_code", apiError)
+		if errorCodeErr != nil {
+			return false, fmt.Errorf("error parse errorCode from response body: %s", errorCodeErr)
+		}
+
+		// CBC.99003651: Another operation is being performed.
+		if errorCode == "CBC.99003651" {
+			return true, err
+		}
+	}
+	return false, err
 }
 
 func resourceDcsInstancesDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -990,17 +1362,35 @@ func resourceDcsInstancesDelete(ctx context.Context, d *schema.ResourceData, met
 		return diag.Errorf("error creating DCS Client(v2): %s", err)
 	}
 
+	var retryFunc func() (interface{}, bool, error)
 	// for prePaid mode, we should unsubscribe the resource
 	if d.Get("charging_mode").(string) == chargeModePrePaid {
-		err = common.UnsubscribePrePaidResource(d, cfg, []string{d.Id()})
-		if err != nil {
-			return diag.Errorf("error unsubscribing DCS redis instance : %s", err)
+		retryFunc = func() (interface{}, bool, error) {
+			err = common.UnsubscribePrePaidResource(d, cfg, []string{d.Id()})
+			retry, err := handleOperationError(err)
+			return nil, retry, err
 		}
 	} else {
-		err = instances.Delete(client, d.Id())
-		if err != nil {
-			return diag.FromErr(err)
+		retryFunc = func() (interface{}, bool, error) {
+			err = instances.Delete(client, d.Id())
+			retry, err := handleOperationError(err)
+			return nil, retry, err
 		}
+	}
+	_, err = common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     refreshDcsInstanceState(client, d.Id()),
+		WaitTarget:   []string{"RUNNING"},
+		Timeout:      d.Timeout(schema.TimeoutDelete),
+		DelayTimeout: 1 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
+	if err != nil {
+		if d.Get("charging_mode").(string) == chargeModePrePaid {
+			return diag.Errorf("error unsubscribing DCS redis instance: %s", err)
+		}
+		return diag.FromErr(err)
 	}
 
 	// Waiting to delete success
@@ -1012,6 +1402,21 @@ func resourceDcsInstancesDelete(ctx context.Context, d *schema.ResourceData, met
 
 	d.SetId("")
 	return nil
+}
+
+func getAzCode(d *schema.ResourceData, client *golangsdk.ServiceClient) ([]string, error) {
+	var azCodes []string
+	availabilityZones, ok := d.GetOk("availability_zones")
+	if ok {
+		azCodes = utils.ExpandToStringList(availabilityZones.([]interface{}))
+	} else {
+		availableZonesCodes, err := getAvailableZoneCodeByID(client, d.Get("available_zones").([]interface{}))
+		if err != nil {
+			return nil, err
+		}
+		azCodes = availableZonesCodes
+	}
+	return azCodes, nil
 }
 
 func getAvailableZoneCodeByID(client *golangsdk.ServiceClient, azIds []interface{}) ([]string, error) {

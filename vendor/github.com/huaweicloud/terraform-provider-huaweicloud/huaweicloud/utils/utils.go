@@ -70,6 +70,18 @@ func ExpandToStringList(v []interface{}) []string {
 	return s
 }
 
+// ExpandToStringMap takes the result for a map of string and returns a map[string]string
+func ExpandToStringMap(v map[string]interface{}) map[string]string {
+	s := make(map[string]string)
+	for key, val := range v {
+		if strVal, ok := val.(string); ok && strVal != "" {
+			s[key] = strVal
+		}
+	}
+
+	return s
+}
+
 // ExpandToStringListPointer takes the result for an array of strings and returns a pointer of the array
 func ExpandToStringListPointer(v []interface{}) *[]string {
 	s := ExpandToStringList(v)
@@ -232,7 +244,9 @@ func RemoveNil(data map[string]interface{}) map[string]interface{} {
 
 		switch v := v.(type) {
 		case map[string]interface{}:
-			withoutNil[k] = RemoveNil(v)
+			if len(v) > 0 {
+				withoutNil[k] = RemoveNil(v)
+			}
 		case []map[string]interface{}:
 			rv := make([]map[string]interface{}, 0, len(v))
 			for _, vv := range v {
@@ -503,4 +517,27 @@ func JSONStringsEqual(s1, s2 string) bool {
 	}
 
 	return jsonBytesEqual(b1.Bytes(), b2.Bytes())
+}
+
+type SchemaDescInput struct {
+	Internal   bool     `json:"Internal,omitempty"`
+	Deprecated bool     `json:"Deprecated,omitempty"`
+	Required   bool     `json:"Required,omitempty"`
+	Computed   bool     `json:"Computed,omitempty"`
+	ForceNew   bool     `json:"ForceNew,omitempty"`
+	Unscope    []string `json:"Unscope,omitempty"`
+	UsedBy     []string `json:"UsedBy,omitempty"`
+}
+
+func SchemaDesc(description string, schemaDescInput SchemaDescInput) string {
+	if os.Getenv("HW_SCHEMA") == "" {
+		return description
+	}
+
+	b, err := json.Marshal(schemaDescInput)
+	if err == nil && string(b) != "" {
+		return "schema:" + string(b) + ";" + description
+	}
+
+	return description
 }

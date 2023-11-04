@@ -68,6 +68,7 @@ type Cluster struct {
 	EipId                 string            `json:"eipId"`
 	EipAddress            string            `json:"eipAddress"`
 	Eipv6Address          string            `json:"eipv6Address"`
+	Tags                  string            `json:"tags"`
 }
 
 type Component struct {
@@ -99,13 +100,14 @@ type NodeGroup struct {
 
 type BootStrapScript struct {
 	Name                 string   `json:"name"`
-	Uri                  string   `json:"uri"`
+	URI                  string   `json:"uri"`
 	Parameters           string   `json:"parameters"`
 	Nodes                []string `json:"nodes"`
 	ActiveMaster         bool     `json:"active_master"`
 	BeforeComponentStart bool     `json:"before_component_start"`
+	ExecuteNeedSudoRoot  bool     `json:"execute_need_sudo_root"`
 	FailAction           string   `json:"fail_action"`
-	StartTime            string   `json:"start_time"`
+	StartTime            int      `json:"start_time"`
 	State                string   `json:"state"`
 }
 

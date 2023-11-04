@@ -6,8 +6,11 @@ import (
 	"strings"
 )
 
-// Response Object
+// CreateInstanceTopicResponse Response Object
 type CreateInstanceTopicResponse struct {
+
+	// topic名称。
+	Id *string `json:"id,omitempty"`
 
 	// topic名称。
 	Name           *string `json:"name,omitempty"`

@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
 	"github.com/chnsz/golangsdk"
+	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 	instances "github.com/chnsz/golangsdk/openstack/waf_hw/v1/premium_instances"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
@@ -278,45 +279,37 @@ func updateInstanceName(c *golangsdk.ServiceClient, id, name, epsId string) erro
 
 func resourceDedicatedInstanceUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	conf := meta.(*config.Config)
-	client, err := conf.WafDedicatedV1Client(conf.GetRegion(d))
+	region := conf.GetRegion(d)
+	client, err := conf.WafDedicatedV1Client(region)
 	if err != nil {
 		return diag.Errorf("error creating WAF dedicated client: %s", err)
 	}
 	epsId := common.GetEnterpriseProjectID(d, conf)
+	instanceId := d.Id()
 	if d.HasChanges("name") {
-		err = updateInstanceName(client, d.Id(), d.Get("name").(string), epsId)
+		err = updateInstanceName(client, instanceId, d.Get("name").(string), epsId)
 		if err != nil {
 			return diag.FromErr(err)
 		}
 	}
 	if d.HasChange("enterprise_project_id") {
-		// migrate waf resource
-		region := conf.GetRegion(d)
-		epsClient, err := conf.EnterpriseProjectClient(region)
-		if err != nil {
-			return diag.Errorf("error creating EPS client: %s", err)
+		migrateOpts := enterpriseprojects.MigrateResourceOpts{
+			ResourceId:   instanceId,
+			ResourceType: "waf-instance",
+			RegionId:     region,
+			ProjectId:    client.ProjectID,
 		}
-
-		if err := resourceWafDedicatedEPSIdUpdate(d.Id(), epsId, client, epsClient, region); err != nil {
+		if err := common.MigrateEnterpriseProject(ctx, conf, d, migrateOpts); err != nil {
 			return diag.FromErr(err)
 		}
-	}
-	return resourceDedicatedInstanceRead(ctx, d, meta)
-}
-
-func resourceWafDedicatedEPSIdUpdate(id string, targetEPSId string, c *golangsdk.ServiceClient,
-	epsClient *golangsdk.ServiceClient, region string) error {
-	err := common.MigrateEnterpriseProject(epsClient, region, targetEPSId, "waf-instance", id)
-	if err != nil {
+		// check waf with enterprise_project_id
+		_, err = instances.GetWithEpsId(client, instanceId, d.Get("enterprise_project_id").(string))
+		if err != nil {
+			return diag.FromErr(err)
+		}
 		return nil
 	}
-
-	// check waf with enterprise_project_id
-	_, err = instances.GetWithEpsId(c, id, targetEPSId)
-	if err != nil {
-		return err
-	}
-	return nil
+	return resourceDedicatedInstanceRead(ctx, d, meta)
 }
 
 func waitForInstanceDeleted(c *golangsdk.ServiceClient, id string, epsId string) resource.StateRefreshFunc {

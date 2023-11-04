@@ -98,18 +98,15 @@ func ResourceLoadBalancerV3() *schema.Resource {
 				Computed: true,
 				ForceNew: true,
 				ConflictsWith: []string{
-					"iptype", "bandwidth_charge_mode", "bandwidth_size", "sharetype",
+					"iptype", "bandwidth_charge_mode", "bandwidth_size", "sharetype", "bandwidth_id",
 				},
 			},
 
 			"iptype": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
-				ForceNew: true,
-				RequiredWith: []string{
-					"bandwidth_charge_mode", "bandwidth_size", "sharetype",
-				},
+				Type:          schema.TypeString,
+				Optional:      true,
+				Computed:      true,
+				ForceNew:      true,
 				ConflictsWith: []string{"ipv4_eip_id"},
 			},
 
@@ -121,7 +118,7 @@ func ResourceLoadBalancerV3() *schema.Resource {
 				RequiredWith: []string{
 					"iptype", "bandwidth_size", "sharetype",
 				},
-				ConflictsWith: []string{"ipv4_eip_id"},
+				ConflictsWith: []string{"ipv4_eip_id", "bandwidth_id"},
 			},
 
 			"sharetype": {
@@ -130,7 +127,7 @@ func ResourceLoadBalancerV3() *schema.Resource {
 				Computed: true,
 				ForceNew: true,
 				RequiredWith: []string{
-					"iptype", "bandwidth_charge_mode", "bandwidth_size",
+					"iptype",
 				},
 				ConflictsWith: []string{"ipv4_eip_id"},
 			},
@@ -143,7 +140,18 @@ func ResourceLoadBalancerV3() *schema.Resource {
 				RequiredWith: []string{
 					"iptype", "bandwidth_charge_mode", "sharetype",
 				},
-				ConflictsWith: []string{"ipv4_eip_id"},
+				ConflictsWith: []string{"ipv4_eip_id", "bandwidth_id"},
+			},
+
+			"bandwidth_id": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+				RequiredWith: []string{
+					"iptype",
+				},
+				ConflictsWith: []string{"ipv4_eip_id", "bandwidth_size", "bandwidth_charge_mode"},
 			},
 
 			"l4_flavor_id": {
@@ -168,6 +176,29 @@ func ResourceLoadBalancerV3() *schema.Resource {
 				Optional: true,
 			},
 
+			"backend_subnets": {
+				Type:     schema.TypeSet,
+				Optional: true,
+				Computed: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
+			},
+
+			"protection_status": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+			},
+
+			"protection_reason": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+
+			"force_delete": {
+				Type:     schema.TypeBool,
+				Optional: true,
+			},
+
 			"tags": common.TagsSchema(),
 
 			// charge info: charging_mode, period_unit, period, auto_renew, auto_pay
@@ -181,6 +212,11 @@ func ResourceLoadBalancerV3() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
+				Computed: true,
+			},
+
+			"ipv4_port_id": {
+				Type:     schema.TypeString,
 				Computed: true,
 			},
 
@@ -245,9 +281,15 @@ func resourceLoadBalancerV3Create(ctx context.Context, d *schema.ResourceData, m
 		VipAddress:           d.Get("ipv4_address").(string),
 		L4Flavor:             d.Get("l4_flavor_id").(string),
 		L7Flavor:             d.Get("l7_flavor_id").(string),
+		ProtectionStatus:     d.Get("protection_status").(string),
+		ProtectionReason:     d.Get("protection_reason").(string),
 		Name:                 d.Get("name").(string),
 		Description:          d.Get("description").(string),
 		EnterpriseProjectID:  common.GetEnterpriseProjectID(d, cfg),
+	}
+
+	if v, ok := d.GetOk("backend_subnets"); ok {
+		createOpts.ElbSubnetIds = utils.ExpandToStringList(v.(*schema.Set).List())
 	}
 
 	if v, ok := d.GetOk("ipv6_bandwidth_id"); ok {
@@ -263,6 +305,7 @@ func resourceLoadBalancerV3Create(ctx context.Context, d *schema.ResourceData, m
 			IPVersion:   4,
 			NetworkType: v.(string),
 			Bandwidth: loadbalancers.Bandwidth{
+				Id:         d.Get("bandwidth_id").(string),
 				Name:       d.Get("name").(string),
 				Size:       d.Get("bandwidth_size").(int),
 				ChargeMode: d.Get("bandwidth_charge_mode").(string),
@@ -377,6 +420,7 @@ func resourceLoadBalancerV3Read(_ context.Context, d *schema.ResourceData, meta 
 		d.Set("ipv4_subnet_id", lb.VipSubnetCidrID),
 		d.Set("ipv6_network_id", lb.Ipv6VipVirsubnetID),
 		d.Set("ipv4_address", lb.VipAddress),
+		d.Set("ipv4_port_id", lb.VipPortID),
 		d.Set("ipv6_address", lb.Ipv6VipAddress),
 		d.Set("l4_flavor_id", lb.L4FlavorID),
 		d.Set("l7_flavor_id", lb.L7FlavorID),
@@ -384,6 +428,9 @@ func resourceLoadBalancerV3Read(_ context.Context, d *schema.ResourceData, meta 
 		d.Set("enterprise_project_id", lb.EnterpriseProjectID),
 		d.Set("autoscaling_enabled", lb.AutoScaling.Enable),
 		d.Set("min_l7_flavor_id", lb.AutoScaling.MinL7Flavor),
+		d.Set("backend_subnets", lb.ElbVirsubnetIDs),
+		d.Set("protection_status", lb.ProtectionStatus),
+		d.Set("protection_reason", lb.ProtectionReason),
 	)
 
 	for _, eip := range lb.Eips {
@@ -424,6 +471,7 @@ func resourceLoadBalancerV3Update(ctx context.Context, d *schema.ResourceData, m
 
 	updateLoadBalancerChanges := []string{"name", "description", "cross_vpc_backend", "ipv4_subnet_id", "ipv6_network_id",
 		"ipv6_bandwidth_id", "ipv4_address", "l4_flavor_id", "l7_flavor_id", "autoscaling_enabled", "min_l7_flavor_id",
+		"protection_status", "protection_reason",
 	}
 
 	if d.HasChanges(updateLoadBalancerChanges...) {
@@ -431,6 +479,29 @@ func resourceLoadBalancerV3Update(ctx context.Context, d *schema.ResourceData, m
 		err := updateLoadBalancer(ctx, d, cfg, updateOpts, elbClient)
 		if err != nil {
 			return err
+		}
+	}
+
+	// backend_subnets and cross_vpc_backend can not be updated at the same time, otherwise, an error will occur
+	if d.HasChange("backend_subnets") {
+		updateOpts := loadbalancers.UpdateOpts{
+			ElbSubnetIds: utils.ExpandToStringList(d.Get("backend_subnets").(*schema.Set).List()),
+		}
+		// if the value of vip_subnet_cidr_id and ipv6_vip_virsubnet_id are null, then they will be unbound
+		if v, ok := d.GetOk("ipv4_subnet_id"); ok {
+			updateOpts.VipSubnetID = utils.String(v.(string))
+		}
+		if v, ok := d.GetOk("ipv6_network_id"); ok {
+			updateOpts.IpV6VipSubnetID = utils.String(v.(string))
+		}
+		_, err = loadbalancers.Update(elbClient, d.Id(), updateOpts).Extract()
+		if err != nil {
+			return diag.Errorf("error updating ELB LoadBalancer: %s", err)
+		}
+		// Wait for LoadBalancer to become active before continuing
+		err = waitForElbV3LoadBalancer(ctx, elbClient, d.Id(), "ACTIVE", nil, d.Timeout(schema.TimeoutUpdate))
+		if err != nil {
+			return diag.FromErr(err)
 		}
 	}
 
@@ -489,6 +560,13 @@ func buildUpdateLoadBalancerBodyParams(d *schema.ResourceData) loadbalancers.Upd
 		} else {
 			updateOpts.IPV6Bandwidth = &loadbalancers.UBandwidthRef{}
 		}
+	}
+	if d.HasChange("protection_status") {
+		updateOpts.ProtectionStatus = d.Get("protection_status").(string)
+	}
+	if d.HasChange("protection_reason") {
+		protectionReason := d.Get("protection_reason").(string)
+		updateOpts.ProtectionReason = &protectionReason
 	}
 
 	// always with below values as null is meaningful
@@ -588,8 +666,14 @@ func resourceLoadBalancerV3Delete(ctx context.Context, d *schema.ResourceData, m
 			return diag.Errorf("error unsubscribing ELB LoadBalancer : %s", err)
 		}
 	} else {
-		if err = loadbalancers.Delete(elbClient, d.Id()).ExtractErr(); err != nil {
-			return diag.Errorf("error deleting ELB LoadBalancer: %s", err)
+		if d.Get("force_delete").(bool) {
+			if err = loadbalancers.ForceDelete(elbClient, d.Id()).ExtractErr(); err != nil {
+				return diag.Errorf("error deleting ELB LoadBalancer: %s", err)
+			}
+		} else {
+			if err = loadbalancers.Delete(elbClient, d.Id()).ExtractErr(); err != nil {
+				return diag.Errorf("error deleting ELB LoadBalancer: %s", err)
+			}
 		}
 	}
 

@@ -187,6 +187,14 @@ func GenReqDefForListDomains() *def.HttpRequestDef {
 		WithJsonTag("page_number").
 		WithLocationType(def.Query))
 	reqDefBuilder.WithRequestField(def.NewFieldDef().
+		WithName("ShowTags").
+		WithJsonTag("show_tags").
+		WithLocationType(def.Query))
+	reqDefBuilder.WithRequestField(def.NewFieldDef().
+		WithName("ExactMatch").
+		WithJsonTag("exact_match").
+		WithLocationType(def.Query))
+	reqDefBuilder.WithRequestField(def.NewFieldDef().
 		WithName("EnterpriseProjectId").
 		WithJsonTag("enterprise_project_id").
 		WithLocationType(def.Query))
@@ -575,6 +583,10 @@ func GenReqDefForShowHistoryTasks() *def.HttpRequestDef {
 		WithName("FileType").
 		WithJsonTag("file_type").
 		WithLocationType(def.Query))
+	reqDefBuilder.WithRequestField(def.NewFieldDef().
+		WithName("TaskType").
+		WithJsonTag("task_type").
+		WithLocationType(def.Query))
 
 	requestDef := reqDefBuilder.Build()
 	return requestDef
@@ -633,8 +645,12 @@ func GenReqDefForShowLogs() *def.HttpRequestDef {
 		WithJsonTag("domain_name").
 		WithLocationType(def.Query))
 	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("QueryDate").
-		WithJsonTag("query_date").
+		WithName("StartTime").
+		WithJsonTag("start_time").
+		WithLocationType(def.Query))
+	reqDefBuilder.WithRequestField(def.NewFieldDef().
+		WithName("EndTime").
+		WithJsonTag("end_time").
 		WithLocationType(def.Query))
 	reqDefBuilder.WithRequestField(def.NewFieldDef().
 		WithName("PageSize").

@@ -85,3 +85,11 @@ func listAliasURL(c *golangsdk.ServiceClient, functionUrn string) string {
 func asyncInvokeConfigURL(c *golangsdk.ServiceClient, functionUrn string) string {
 	return c.ServiceURL("fgs/functions", functionUrn, "async-invoke-config")
 }
+
+func maxInstanceNumberURL(c *golangsdk.ServiceClient, functionUrn string) string {
+	return c.ServiceURL("fgs/functions", functionUrn, "config-max-instance")
+}
+
+func tagsActionURL(c *golangsdk.ServiceClient, functionUrn, action string) string {
+	return c.ServiceURL("functions", functionUrn, "tags", action)
+}

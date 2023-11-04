@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// Request Object
+// ListInstancesRequest Request Object
 type ListInstancesRequest struct {
 	ContentType *string `json:"Content-Type,omitempty"`
 
@@ -25,7 +25,7 @@ type ListInstancesRequest struct {
 	// 按照实例类型查询。取值Single、Ha、Replica，分别对应于单实例、主备实例和只读实例。
 	Type *ListInstancesRequestType `json:"type,omitempty"`
 
-	// 数据库类型，区分大小写。  - MySQL - PostgreSQL - SQLServer
+	// 数据库类型，区分大小写。 - MySQL - PostgreSQL - SQLServer - MariaDB
 	DatastoreType *ListInstancesRequestDatastoreType `json:"datastore_type,omitempty"`
 
 	// 虚拟私有云ID。
@@ -83,13 +83,18 @@ func (c ListInstancesRequestXLanguage) MarshalJSON() ([]byte, error) {
 
 func (c *ListInstancesRequestXLanguage) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
-	if myConverter != nil {
-		val, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-		if err == nil {
-			c.value = val.(string)
-			return nil
-		}
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
 		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
 	} else {
 		return errors.New("convert enum data to string error")
 	}
@@ -129,13 +134,18 @@ func (c ListInstancesRequestType) MarshalJSON() ([]byte, error) {
 
 func (c *ListInstancesRequestType) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
-	if myConverter != nil {
-		val, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-		if err == nil {
-			c.value = val.(string)
-			return nil
-		}
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
 		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
 	} else {
 		return errors.New("convert enum data to string error")
 	}
@@ -149,6 +159,7 @@ type ListInstancesRequestDatastoreTypeEnum struct {
 	MY_SQL      ListInstancesRequestDatastoreType
 	POSTGRE_SQL ListInstancesRequestDatastoreType
 	SQL_SERVER  ListInstancesRequestDatastoreType
+	MARIA_DB    ListInstancesRequestDatastoreType
 }
 
 func GetListInstancesRequestDatastoreTypeEnum() ListInstancesRequestDatastoreTypeEnum {
@@ -161,6 +172,9 @@ func GetListInstancesRequestDatastoreTypeEnum() ListInstancesRequestDatastoreTyp
 		},
 		SQL_SERVER: ListInstancesRequestDatastoreType{
 			value: "SQLServer",
+		},
+		MARIA_DB: ListInstancesRequestDatastoreType{
+			value: "MariaDB",
 		},
 	}
 }
@@ -175,13 +189,18 @@ func (c ListInstancesRequestDatastoreType) MarshalJSON() ([]byte, error) {
 
 func (c *ListInstancesRequestDatastoreType) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
-	if myConverter != nil {
-		val, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-		if err == nil {
-			c.value = val.(string)
-			return nil
-		}
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
 		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
 	} else {
 		return errors.New("convert enum data to string error")
 	}

@@ -137,7 +137,7 @@ func QueryPropagationById(client *golangsdk.ServiceClient, instanceId, routeTabl
 	if err != nil {
 		return nil, err
 	}
-	if len(resp) < 1 {
+	if len(result) < 1 {
 		return nil, golangsdk.ErrDefault404{
 			ErrUnexpectedResponseCode: golangsdk.ErrUnexpectedResponseCode{
 				Body: []byte(fmt.Sprintf("the propagation (%s) does not exist", propagationId)),
@@ -145,8 +145,12 @@ func QueryPropagationById(client *golangsdk.ServiceClient, instanceId, routeTabl
 		}
 	}
 
-	association := result[0].(propagations.Propagation)
-	log.Printf("[DEBUG] The details of the propagation (%s) is: %#v", propagationId, association)
+	log.Printf("[DEBUG] The result filtered by resource ID (%s) is: %#v", propagationId, result)
+	association, ok := result[0].(propagations.Propagation)
+	if !ok {
+		return nil, fmt.Errorf("the element type of filter result is incorrect, want 'propagations.Propagation', "+
+			"but got '%T'", result[0])
+	}
 
 	return &association, nil
 }

@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Request Object
+// ShowDomainItemDetailsRequest Request Object
 type ShowDomainItemDetailsRequest struct {
 
 	// 当用户开启企业项目功能时，该参数生效，表示查询资源所属项目，不传表示查询默认项目。注意：当使用子帐号调用接口时，该参数必传。  您可以通过调用企业项目管理服务（EPS）的查询企业项目列表接口（ListEnterpriseProject）查询企业项目id。
@@ -18,7 +18,7 @@ type ShowDomainItemDetailsRequest struct {
 	// 查询结束时间戳，必须设为5分钟整时刻点
 	EndTime int64 `json:"end_time"`
 
-	// 域名列表，多个域名以逗号（半角）分隔，如：www.test1.com,www.test2.com，all表示查询名下全部域名
+	// 域名列表，多个域名以逗号（半角）分隔，如：www.test1.com,www.test2.com，all表示查询名下全部域名。如果域名在查询时间段内无数据，结果将不返回该域名的信息。
 	DomainName string `json:"domain_name"`
 
 	// mainland_china(中国大陆)，outside_mainland_china(中国大陆境外)，默认为mainland_china。

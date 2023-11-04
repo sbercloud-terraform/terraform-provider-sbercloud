@@ -17,23 +17,6 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
-const (
-	ErrorTypeAuthFailure                 = "AUTH_FAILURE"
-	ErrorTypeAuthHeaderMissing           = "AUTH_HEADER_MISSING"
-	ErrorTypeAuthorizerFailure           = "AUTHORIZER_FAILURE"
-	ErrorTypeAuthorizerConfigFailure     = "AUTHORIZER_CONF_FAILURE"
-	ErrorTypeAuthorizerIdentitiesFailure = "AUTHORIZER_IDENTITIES_FAILURE"
-	ErrorTypeBackendUnavailable          = "BACKEND_UNAVAILABLE"
-	ErrorTypeBackendTimeout              = "BACKEND_TIMEOUT"
-	ErrorTypeThrottled                   = "THROTTLED"
-	ErrorTypeUnauthorized                = "UNAUTHORIZED"
-	ErrorTypeAccessDenied                = "ACCESS_DENIED"
-	ErrorTypeNotFound                    = "NOT_FOUND"
-	ErrorTypeRequestParametersFailure    = "REQUEST_PARAMETERS_FAILURE"
-	ErrorTypeDefault4XX                  = "DEFAULT_4XX"
-	ErrorTypeDefault5XX                  = "DEFAULT_5XX"
-)
-
 func ResourceApigResponseV2() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceResponseCreate,
@@ -83,24 +66,8 @@ func ResourceApigResponseV2() *schema.Resource {
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"error_type": {
-							Type:     schema.TypeString,
-							Required: true,
-							ValidateFunc: validation.StringInSlice([]string{
-								ErrorTypeAuthFailure,
-								ErrorTypeAuthHeaderMissing,
-								ErrorTypeAuthorizerFailure,
-								ErrorTypeAuthorizerConfigFailure,
-								ErrorTypeAuthorizerIdentitiesFailure,
-								ErrorTypeBackendUnavailable,
-								ErrorTypeBackendTimeout,
-								ErrorTypeThrottled,
-								ErrorTypeUnauthorized,
-								ErrorTypeAccessDenied,
-								ErrorTypeNotFound,
-								ErrorTypeRequestParametersFailure,
-								ErrorTypeDefault4XX,
-								ErrorTypeDefault5XX,
-							}, false),
+							Type:        schema.TypeString,
+							Required:    true,
 							Description: "The error type of the API custom response rule.",
 						},
 						"body": {
@@ -277,8 +244,8 @@ func resourceCustomResponseImportState(_ context.Context, d *schema.ResourceData
 			"must be <instance_id>/<group_id>/<name>")
 	}
 
-	config := meta.(*config.Config)
-	client, err := config.ApigV2Client(config.GetRegion(d))
+	cfg := meta.(*config.Config)
+	client, err := cfg.ApigV2Client(cfg.GetRegion(d))
 	if err != nil {
 		return []*schema.ResourceData{d}, fmt.Errorf("error creating APIG v2 client: %s", err)
 	}

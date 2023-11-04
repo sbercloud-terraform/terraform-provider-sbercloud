@@ -9,10 +9,10 @@ import (
 	"strings"
 )
 
-// 可选字段，鉴权认证类型。替换时需要该参数，重置时不需要该参数。
+// Auth 可选字段，鉴权认证类型。替换时需要该参数，重置时不需要该参数。
 type Auth struct {
 
-	// 取值为枚举类型。
+	// 取值为枚举类型。password或keypair。
 	Type *AuthType `json:"type,omitempty"`
 
 	// - type为枚举值password时，key表示密码； - type为枚举值keypair时，key表示私钥；
@@ -58,13 +58,18 @@ func (c AuthType) MarshalJSON() ([]byte, error) {
 
 func (c *AuthType) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
-	if myConverter != nil {
-		val, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-		if err == nil {
-			c.value = val.(string)
-			return nil
-		}
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
 		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
 	} else {
 		return errors.New("convert enum data to string error")
 	}

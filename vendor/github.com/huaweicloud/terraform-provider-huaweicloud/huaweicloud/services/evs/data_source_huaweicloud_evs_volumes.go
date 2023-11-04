@@ -2,16 +2,19 @@ package evs
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"strconv"
 
-	"github.com/chnsz/golangsdk/openstack/evs/v2/cloudvolumes"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+
+	"github.com/chnsz/golangsdk/openstack/evs/v2/cloudvolumes"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/hashcode"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
 )
 
 func DataSourceEvsVolumesV2() *schema.Resource {
@@ -97,6 +100,18 @@ func DataSourceEvsVolumesV2() *schema.Resource {
 							Type:     schema.TypeString,
 							Computed: true,
 						},
+						"volume_type": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"iops": {
+							Type:     schema.TypeInt,
+							Computed: true,
+						},
+						"throughput": {
+							Type:     schema.TypeInt,
+							Computed: true,
+						},
 						"enterprise_project_id": {
 							Type:     schema.TypeString,
 							Computed: true,
@@ -145,10 +160,10 @@ func DataSourceEvsVolumesV2() *schema.Resource {
 	}
 }
 
-func buildQueryOpts(d *schema.ResourceData, config *config.Config) cloudvolumes.ListOpts {
+func buildQueryOpts(d *schema.ResourceData, cfg *config.Config) cloudvolumes.ListOpts {
 	result := cloudvolumes.ListOpts{
 		AvailabilityZone:    d.Get("availability_zone").(string),
-		EnterpriseProjectID: config.DataGetEnterpriseProjectID(d),
+		EnterpriseProjectID: cfg.DataGetEnterpriseProjectID(d),
 		ServerID:            d.Get("server_id").(string),
 		Status:              d.Get("status").(string),
 	}
@@ -182,6 +197,9 @@ func sourceEvsVolumes(volumes []cloudvolumes.Volume) ([]map[string]interface{}, 
 			"attachments":           sourceEvsAttachment(volume.Attachments, volume.Metadata.AttachedMode),
 			"availability_zone":     volume.AvailabilityZone,
 			"description":           volume.Description,
+			"volume_type":           volume.VolumeType,
+			"iops":                  volume.IOPS.TotalVal,
+			"throughput":            volume.Throughput.TotalVal,
 			"enterprise_project_id": volume.EnterpriseProjectID,
 			"name":                  volume.Name,
 			"service_type":          volume.ServiceType,
@@ -195,11 +213,11 @@ func sourceEvsVolumes(volumes []cloudvolumes.Volume) ([]map[string]interface{}, 
 		}
 		bootable, err := strconv.ParseBool(volume.Bootable)
 		if err != nil {
-			return nil, nil, fmtp.Errorf("The bootable of volume (%s) connot be converted from boolen to string.",
+			return nil, nil, fmt.Errorf("the bootable of volume (%s) connot be converted from boolen to string",
 				volume.ID)
-		} else {
-			vMap["bootable"] = bootable
 		}
+
+		vMap["bootable"] = bootable
 
 		result[i] = vMap
 		ids[i] = volume.ID
@@ -208,33 +226,34 @@ func sourceEvsVolumes(volumes []cloudvolumes.Volume) ([]map[string]interface{}, 
 }
 
 func dataSourceEvsVolumesV2Read(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	client, err := config.BlockStorageV2Client(config.GetRegion(d))
+	cfg := meta.(*config.Config)
+	client, err := cfg.BlockStorageV2Client(cfg.GetRegion(d))
 	if err != nil {
-		return fmtp.DiagErrorf("Error creating HuaweiCloud EVS v2 client: %s", err)
+		return diag.Errorf("error creating EVS v2 client: %s", err)
 	}
 
-	pages, err := cloudvolumes.List(client, buildQueryOpts(d, config)).AllPages()
+	pages, err := cloudvolumes.List(client, buildQueryOpts(d, cfg)).AllPages()
 	if err != nil {
-		return fmtp.DiagErrorf("An error occurred while fetching the pages of the EVS disks: %s", err)
+		return diag.Errorf("an error occurred while fetching the pages of the EVS disks: %s", err)
 	}
 	volumes, err := cloudvolumes.ExtractVolumes(pages)
 	if err != nil {
-		return fmtp.DiagErrorf("Error getting the EVS volume list form server: %s", err)
+		return diag.Errorf("error getting the EVS volume list form server: %s", err)
 	}
 
 	// Filter the list of volumes based on tags.
 	filter := d.Get("tags").(map[string]interface{})
 	filterVolumes := filterVolumeListByTags(volumes, filter)
-	logp.Printf("filter %d EVS volumes from %d through options %v", len(filterVolumes), len(volumes), filter)
+	log.Printf("filter %d EVS volumes from %d through options %v", len(filterVolumes), len(volumes), filter)
 
 	vMap, ids, err := sourceEvsVolumes(filterVolumes)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 	d.SetId(hashcode.Strings(ids))
-	if err = d.Set("volumes", vMap); err != nil {
-		return fmtp.DiagErrorf("Error saving the detailed information of the EVS disks to state: %s", err)
+	mErr := multierror.Append(nil, d.Set("volumes", vMap))
+	if mErr.ErrorOrNil() != nil {
+		return diag.Errorf("error saving the detailed information of the EVS disks to state: %s", mErr)
 	}
 	return nil
 }
