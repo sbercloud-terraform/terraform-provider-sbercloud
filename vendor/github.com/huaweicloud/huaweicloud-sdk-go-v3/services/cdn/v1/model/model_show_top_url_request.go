@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// Request Object
+// ShowTopUrlRequest Request Object
 type ShowTopUrlRequest struct {
 
 	// 当用户开启企业项目功能时，该参数生效，表示查询资源所属项目，\"all\"表示所有项目。注意：当使用子帐号调用接口时，该参数必传。  您可以通过调用企业项目管理服务（EPS）的查询企业项目列表接口（ListEnterpriseProject）查询企业项目id。
@@ -21,7 +21,7 @@ type ShowTopUrlRequest struct {
 	// 查询结束时间戳（单位：毫秒）。该时间戳的取值在转化为日期格式后须满足以下格式：XXXX-XX-XX 00:00:00
 	EndTime int64 `json:"end_time"`
 
-	// 域名列表，多个域名以逗号（半角）分隔，如：www.test1.com,www.test2.com ，ALL表示查询名下全部域名。
+	// 域名列表，多个域名以逗号（半角）分隔，如：www.test1.com,www.test2.com，all表示查询名下全部域名。如果域名在查询时间段内无数据，结果将不返回该域名的信息。
 	DomainName string `json:"domain_name"`
 
 	// mainland_china(中国大陆)，outside_mainland_china(中国大陆境外)，默认为mainland_china。
@@ -70,13 +70,18 @@ func (c ShowTopUrlRequestServiceArea) MarshalJSON() ([]byte, error) {
 
 func (c *ShowTopUrlRequestServiceArea) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
-	if myConverter != nil {
-		val, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-		if err == nil {
-			c.value = val.(string)
-			return nil
-		}
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
 		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
 	} else {
 		return errors.New("convert enum data to string error")
 	}
@@ -112,13 +117,18 @@ func (c ShowTopUrlRequestStatType) MarshalJSON() ([]byte, error) {
 
 func (c *ShowTopUrlRequestStatType) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
-	if myConverter != nil {
-		val, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-		if err == nil {
-			c.value = val.(string)
-			return nil
-		}
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
 		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
 	} else {
 		return errors.New("convert enum data to string error")
 	}

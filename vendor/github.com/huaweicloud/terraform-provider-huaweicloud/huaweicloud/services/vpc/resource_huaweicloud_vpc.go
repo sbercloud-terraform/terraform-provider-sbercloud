@@ -4,17 +4,16 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"regexp"
 	"time"
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/common/tags"
+	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 	"github.com/chnsz/golangsdk/openstack/networking/v1/vpcs"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	client "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vpc/v3"
 	v3vpc "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vpc/v3/model"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
@@ -47,11 +46,6 @@ func ResourceVirtualPrivateCloudV1() *schema.Resource {
 			"name": {
 				Type:     schema.TypeString,
 				Required: true,
-				ValidateFunc: validation.All(
-					validation.StringLenBetween(0, 64),
-					validation.StringMatch(regexp.MustCompile("^[\u4e00-\u9fa50-9a-zA-Z-_\\.]*$"),
-						"only letters, digits, underscores (_), hyphens (-), and dot (.) are allowed"),
-				),
 			},
 			"cidr": {
 				Type:         schema.TypeString,
@@ -61,11 +55,6 @@ func ResourceVirtualPrivateCloudV1() *schema.Resource {
 			"description": {
 				Type:     schema.TypeString,
 				Optional: true,
-				ValidateFunc: validation.All(
-					validation.StringLenBetween(0, 255),
-					validation.StringMatch(regexp.MustCompile("^[^<>]*$"),
-						"The angle brackets (< and >) are not allowed."),
-				),
 			},
 			"secondary_cidr": {
 				Type:         schema.TypeString,
@@ -75,7 +64,6 @@ func ResourceVirtualPrivateCloudV1() *schema.Resource {
 			"enterprise_project_id": {
 				Type:     schema.TypeString,
 				Optional: true,
-				ForceNew: true,
 				Computed: true,
 			},
 			"status": {
@@ -284,6 +272,18 @@ func resourceVirtualPrivateCloudUpdate(ctx context.Context, d *schema.ResourceDa
 			if err := addSecondaryCIDR(v3Client, vpcID, newExtendCidr); err != nil {
 				return diag.Errorf("error adding VPC secondary CIDR: %s", err)
 			}
+		}
+	}
+
+	if d.HasChange("enterprise_project_id") {
+		migrateOpts := enterpriseprojects.MigrateResourceOpts{
+			ResourceId:   vpcID,
+			ResourceType: "vpcs",
+			RegionId:     region,
+			ProjectId:    vpcClient.ProjectID,
+		}
+		if err := common.MigrateEnterpriseProject(ctx, config, d, migrateOpts); err != nil {
+			return diag.FromErr(err)
 		}
 	}
 

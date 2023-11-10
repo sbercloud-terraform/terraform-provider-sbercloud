@@ -3,6 +3,7 @@ package policies
 import (
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/utils"
+	"github.com/chnsz/golangsdk/pagination"
 )
 
 var RequestOpts golangsdk.RequestOpts = golangsdk.RequestOpts{
@@ -53,11 +54,12 @@ type UpdateOptsBuilder interface {
 
 // UpdateOpts contains all the values needed to update a policy.
 type UpdateOpts struct {
-	Name                string        `json:"name,omitempty"`
+	FullDetection       *bool         `json:"full_detection,omitempty"`
+	RobotAction         *Action       `json:"robot_action,omitempty"`
 	Action              *Action       `json:"action,omitempty"`
 	Options             *PolicyOption `json:"options,omitempty"`
+	Name                string        `json:"name,omitempty"`
 	Level               int           `json:"level,omitempty"`
-	FullDetection       *bool         `json:"full_detection,omitempty"`
 	EnterpriseProjectId string        `q:"enterprise_project_id" json:"-"`
 }
 
@@ -177,4 +179,24 @@ func ListPolicy(c *golangsdk.ServiceClient, opts ListPolicyOpts) (*ListPolicyRst
 		return &r, nil
 	}
 	return nil, err
+}
+
+// List using to query all pages WAF policies
+func List(c *golangsdk.ServiceClient, opts ListPolicyOpts) ([]Policy, error) {
+	url := rootURL(c)
+	query, err := golangsdk.BuildQueryString(opts)
+	if err != nil {
+		return nil, err
+	}
+	url += query.String()
+
+	pager := pagination.NewPager(c, url, func(r pagination.PageResult) pagination.Page {
+		return PolicyPage{pagination.PageSizeBase{PageResult: r}}
+	})
+	pager.Headers = RequestOpts.MoreHeaders
+	pages, err := pager.AllPages()
+	if err != nil {
+		return nil, err
+	}
+	return ExtractPolicies(pages)
 }

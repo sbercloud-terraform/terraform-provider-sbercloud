@@ -12,11 +12,15 @@ type CreateOpts struct {
 	Resources           []ResourceCreate   `json:"resources" required:"true"`
 	AutoBind            bool               `json:"auto_bind,omitempty"`
 	AutoExpand          bool               `json:"auto_expand,omitempty"`
+	BackupNamePrefix    string             `json:"backup_name_prefix"`
 	BackupPolicyID      string             `json:"backup_policy_id,omitempty"`
 	BindRules           *VaultBindRules    `json:"bind_rules,omitempty"`
+	DemandBilling       *bool              `json:"demand_billing,omitempty"`
 	Description         string             `json:"description,omitempty"`
 	EnterpriseProjectID string             `json:"enterprise_project_id,omitempty"`
+	SmnNotify           *bool              `json:"smn_notify,omitempty"`
 	Tags                []tags.ResourceTag `json:"tags,omitempty"`
+	Threshold           int                `json:"threshold,omitempty"`
 }
 
 type BillingCreate struct {
@@ -97,9 +101,17 @@ type UpdateOpts struct {
 	AutoBind   *bool           `json:"auto_bind,omitempty"`
 	BindRules  *VaultBindRules `json:"bind_rules,omitempty"`
 	AutoExpand *bool           `json:"auto_expand,omitempty"`
+	SmnNotify  *bool           `json:"smn_notify,omitempty"`
+	Threshold  int             `json:"threshold,omitempty"`
 }
 
 type BillingUpdate struct {
+	// Vault specifications
+	// The valid values are as follows:
+	// + app_consistent
+	// + crash_consistent
+	ConsistentLevel string `json:"consistent_level,omitempty"`
+	// Vault size, in GB.
 	Size int `json:"size,omitempty"`
 }
 
@@ -149,8 +161,8 @@ type ListOptsBuilder interface {
 	ToPolicyListQuery() (string, error)
 }
 
-//List is a method to obtain the specified CBR vaults according to the vault ID, vault name and so on.
-//This method can also obtain all the CBR vaults through the default parameter settings.
+// List is a method to obtain the specified CBR vaults according to the vault ID, vault name and so on.
+// This method can also obtain all the CBR vaults through the default parameter settings.
 func List(client *golangsdk.ServiceClient, opts ListOptsBuilder) pagination.Pager {
 	url := rootURL(client)
 	if opts != nil {
@@ -167,7 +179,12 @@ func List(client *golangsdk.ServiceClient, opts ListOptsBuilder) pagination.Page
 }
 
 type BindPolicyOpts struct {
-	PolicyID string `json:"policy_id" required:"true"`
+	// The destination vault ID, only required if associate replication policy.
+	DestinationVaultId string `json:"destination_vault_id,omitempty"`
+	// The policy ID.
+	PolicyID string `json:"policy_id,omitempty"`
+	// The policy ID list.
+	PolicyIDs []string `json:"add_policy_ids,omitempty"`
 }
 
 func (opts BindPolicyOpts) ToBindPolicyMap() (map[string]interface{}, error) {

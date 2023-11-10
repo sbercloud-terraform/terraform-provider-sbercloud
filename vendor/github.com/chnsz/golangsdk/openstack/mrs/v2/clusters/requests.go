@@ -33,6 +33,7 @@ type CreateOpts struct {
 	// Click Virtual Private Cloud and select Virtual Private Cloud from the left list.
 	// On the Virtual Private Cloud page, obtain the VPC name from the list.
 	VpcName string `json:"vpc_name" required:"true"`
+	VpcId   string `json:"vpc_id,omitempty"`
 	// List of component names, which are separated by commas (,). The options are as follows:
 	// MRS 3.0.5
 	//   ANALYSIS: Hadoop,Spark2x,HBase,Hive,Hue,Loader,Flink,Oozie,ZooKeeper,Ranger,Tez,Impala,Presto,Kudu,Alluxio
@@ -118,6 +119,32 @@ type CreateOpts struct {
 	Tags []tags.ResourceTag `json:"tags,omitempty"`
 	// the component configurations of MRS cluster.
 	ComponentConfigs []ComponentConfigOpts `json:"component_configs,omitempty"`
+	// When deploying components such as Hive and Ranger, you can associate data connections and store metadata in associated databases
+	ExternalDatasources []ExternalDatasource `json:"external_datasources,omitempty"`
+	// The OBS path to which cluster logs are dumped.
+	// This parameter is available only for cluster versions that support dumping cluster logs to OBS.
+	LogURI string `json:"log_uri,omitempty"`
+}
+
+type ExternalDatasource struct {
+	ConnectorId   string `json:"connector_id,omitempty"`
+	ComponentName string `json:"component_name,omitempty"`
+	/**
+	Component role type. The options are as follows:
+		hive_metastore: Hive Metastore role
+		hive_data: Hive role
+		hbase_data: HBase role
+		ranger_data: Ranger role
+	**/
+	RoleType string `json:"role_type,omitempty"`
+	/**
+	Data connection type. The options are as follows:
+		LOCAL_DB: local metadata
+		RDS_POSTGRES: RDS PostgreSQL database
+		RDS_MYSQL: RDS MySQL database
+		gaussdb-mysql: GaussDB(for MySQL)
+	**/
+	SourceType string `json:"source_type,omitempty"`
 }
 
 // ChargeInfo is a structure representing billing information.
@@ -270,6 +297,7 @@ type ScriptOpts struct {
 	// Time when the bootstrap action script is executed. Currently, the following two options are available: Before component start and After component start
 	// The default value is false, indicating that the bootstrap action script is executed after the component is started.
 	BeforeComponentStart *bool `json:"before_component_start,omitempty"`
+	ExecuteNeedSudoRoot  *bool `json:"execute_need_sudo_root,omitempty"`
 }
 
 type ComponentConfigOpts struct {

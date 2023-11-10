@@ -6,11 +6,11 @@ import (
 	"strings"
 )
 
-// Request Object
+// ListPortsRequest Request Object
 type ListPortsRequest struct {
 
 	// 主机id
-	HostId *string `json:"host_id,omitempty"`
+	HostId string `json:"host_id"`
 
 	// 主机名称
 	HostName *string `json:"host_name,omitempty"`

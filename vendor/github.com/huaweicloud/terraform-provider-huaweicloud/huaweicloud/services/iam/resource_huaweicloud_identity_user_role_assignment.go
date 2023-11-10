@@ -125,7 +125,7 @@ func resourceIdentityUserRoleAssignmentDelete(_ context.Context, d *schema.Resou
 	roleID := d.Get("role_id").(string)
 	enterpriseProjectID := d.Get("enterprise_project_id").(string)
 
-	err = eps_permissions.UserPermissionsCreate(client, enterpriseProjectID, userID, roleID).ExtractErr()
+	err = eps_permissions.UserPermissionsDelete(client, enterpriseProjectID, userID, roleID).ExtractErr()
 	if err != nil {
 		errMessage := fmt.Sprintf("error unassigning role (%s) from enterprise project (%s) and user (%s)",
 			roleID, enterpriseProjectID, userID)
@@ -137,7 +137,7 @@ func resourceIdentityUserRoleAssignmentDelete(_ context.Context, d *schema.Resou
 }
 
 func resourceIdentityUserRoleAssignmentImportState(_ context.Context, d *schema.ResourceData, _ interface{}) ([]*schema.ResourceData, error) {
-	parts := strings.SplitN(d.Id(), "/", 3)
+	parts := strings.Split(d.Id(), "/")
 	if len(parts) != 3 {
 		return nil, fmt.Errorf("invalid format specified for import id," +
 			" must be <user_id>/<role_id>/<enterprise_project_id>")

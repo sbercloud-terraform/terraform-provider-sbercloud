@@ -82,6 +82,9 @@ type Config struct {
 	AgencyName       string
 	AgencyDomainName string
 	DelegatedProject string
+
+	// Metadata is used for extend
+	Metadata any
 }
 
 func (c *Config) LoadAndValidate() error {
@@ -179,13 +182,15 @@ func (c *Config) ObjectStorageClientWithSignature(region string) (*obs.ObsClient
 
 	clientConfigure := obs.WithHttpClient(&c.DomainClient.HTTPClient)
 	userAgentConfigure := obs.WithUserAgent(buildObsUserAgent())
+	envProxyConfigure := obs.WithProxyFromEnv(true)
 	obsEndpoint := getObsEndpoint(c, region)
 	if c.SecurityToken != "" {
 		return obs.New(c.AccessKey, c.SecretKey, obsEndpoint,
 			obs.WithSignature("OBS"), obs.WithSecurityToken(c.SecurityToken), clientConfigure,
-			userAgentConfigure)
+			userAgentConfigure, envProxyConfigure)
 	}
-	return obs.New(c.AccessKey, c.SecretKey, obsEndpoint, obs.WithSignature("OBS"), clientConfigure, userAgentConfigure)
+	return obs.New(c.AccessKey, c.SecretKey, obsEndpoint, obs.WithSignature("OBS"), clientConfigure,
+		userAgentConfigure, envProxyConfigure)
 }
 
 func (c *Config) ObjectStorageClient(region string) (*obs.ObsClient, error) {
@@ -208,12 +213,13 @@ func (c *Config) ObjectStorageClient(region string) (*obs.ObsClient, error) {
 
 	clientConfigure := obs.WithHttpClient(&c.DomainClient.HTTPClient)
 	userAgentConfigure := obs.WithUserAgent(buildObsUserAgent())
+	envProxyConfigure := obs.WithProxyFromEnv(true)
 	obsEndpoint := getObsEndpoint(c, region)
 	if c.SecurityToken != "" {
 		return obs.New(c.AccessKey, c.SecretKey, obsEndpoint, obs.WithSecurityToken(c.SecurityToken), clientConfigure,
-			userAgentConfigure)
+			userAgentConfigure, envProxyConfigure)
 	}
-	return obs.New(c.AccessKey, c.SecretKey, obsEndpoint, clientConfigure, userAgentConfigure)
+	return obs.New(c.AccessKey, c.SecretKey, obsEndpoint, clientConfigure, userAgentConfigure, envProxyConfigure)
 }
 
 func buildObsUserAgent() string {
@@ -253,6 +259,9 @@ func (c *Config) NewServiceClient(srv, region string) (*golangsdk.ServiceClient,
 	}
 
 	if endpoint, ok := c.Endpoints[srv]; ok {
+		if region != "" && region != c.Region {
+			return nil, fmt.Errorf("Resource-level region must be the same as Provider-level region when using customizing endpoints")
+		}
 		return c.newServiceClientByEndpoint(client, srv, endpoint)
 	}
 	return c.newServiceClientByName(client, serviceCatalog, region)
@@ -506,6 +515,14 @@ func (c *Config) EnterpriseProjectClient(region string) (*golangsdk.ServiceClien
 	return c.NewServiceClient("eps", region)
 }
 
+func (c *Config) TmsV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("tms", region)
+}
+
+func (c *Config) TmsV2Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("tmsv2", region)
+}
+
 // ********** client for Compute **********
 func (c *Config) ComputeV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("ecs", region)
@@ -585,6 +602,10 @@ func (c *Config) AosV1Client(region string) (*golangsdk.ServiceClient, error) {
 }
 
 // ********** client for Storage **********
+func (c *Config) BlockStorageV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("evsv1", region)
+}
+
 func (c *Config) BlockStorageV21Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("evsv21", region)
 }
@@ -611,6 +632,10 @@ func (c *Config) CsbsV1Client(region string) (*golangsdk.ServiceClient, error) {
 
 func (c *Config) VbsV2Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("vbs", region)
+}
+
+func (c *Config) SdrsV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("sdrs", region)
 }
 
 // ********** client for Network **********
@@ -847,6 +872,10 @@ func (c *Config) ServiceStageV2Client(region string) (*golangsdk.ServiceClient, 
 	return c.NewServiceClient("servicestagev2", region)
 }
 
+func (c *Config) EgV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("eg", region)
+}
+
 // ********** client for Database **********
 func (c *Config) RdsV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("rdsv1", region)
@@ -918,4 +947,9 @@ func (c *Config) MlsV1Client(region string) (*golangsdk.ServiceClient, error) {
 // NatV2Client has the endpoint: https://nat.{{region}}/{{cloud}}/v2.0/
 func (c *Config) NatV2Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("natv2", region)
+}
+
+// KooGalleryV1Client has the endpoint: https://mkt.{{cloud}}/v1/
+func (c *Config) KooGalleryV1Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("mkt", region)
 }

@@ -43,6 +43,9 @@ type Vault struct {
 	UserID              string             `json:"user_id"`
 	CreatedAt           string             `json:"created_at"`
 	AutoExpand          bool               `json:"auto_expand"`
+	SmnNotify           bool               `json:"smn_notify"`
+	Threshold           int                `json:"threshold"`
+	BackupNamePrefix    string             `json:"backup_name_prefix"`
 }
 
 type Billing struct {
@@ -143,7 +146,11 @@ type BindPolicyResult struct {
 }
 
 type PolicyBinding struct {
-	VaultID  string `json:"vault_id"`
+	// The destination vault ID, returned only for replication policy association.
+	DestinationVaultId string `json:"destination_vault_id"`
+	// The policy ID.
+	VaultID string `json:"vault_id"`
+	// The policy ID list.
 	PolicyID string `json:"policy_id"`
 }
 

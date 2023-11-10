@@ -85,14 +85,13 @@ func TestAccCssFlavorsDataSource_all(t *testing.T) {
 				Config: testAccDataSourceCssFlavors_all,
 				Check: resource.ComposeTestCheckFunc(
 					dc.CheckResourceExists(),
-					resource.TestCheckResourceAttr(dataSourceName, "flavors.0.type", "ess"),
-					resource.TestCheckResourceAttr(dataSourceName, "flavors.0.version", "7.9.3"),
-					resource.TestCheckResourceAttrSet(dataSourceName, "flavors.0.id"),
-					resource.TestCheckResourceAttr(dataSourceName, "flavors.0.region", "cn-north-4"),
-					resource.TestCheckResourceAttr(dataSourceName, "flavors.0.name", "ess.spec-ds.8xlarge.8"),
-					resource.TestCheckResourceAttr(dataSourceName, "flavors.0.memory", "256"),
-					resource.TestCheckResourceAttr(dataSourceName, "flavors.0.vcpus", "32"),
-					resource.TestCheckResourceAttrSet(dataSourceName, "flavors.0.disk_range"),
+					resource.TestCheckResourceAttr(dataSourceName, "type", "ess"),
+					resource.TestCheckResourceAttr(dataSourceName, "version", "7.9.3"),
+					resource.TestCheckResourceAttrSet(dataSourceName, "id"),
+					resource.TestCheckResourceAttr(dataSourceName, "region", "ru-moscow-1"),
+					resource.TestCheckResourceAttr(dataSourceName, "name", "ess.spec-ds.8xlarge.8"),
+					resource.TestCheckResourceAttr(dataSourceName, "memory", "256"),
+					resource.TestCheckResourceAttr(dataSourceName, "vcpus", "32"),
 				),
 			},
 		},
@@ -105,7 +104,7 @@ data "sbercloud_css_flavors" "test" {
   version = "7.9.3"
   vcpus   = 32
   memory  = 256
-  region  = "cn-north-4"
+  region  = "ru-moscow-1"
   name    = "ess.spec-ds.8xlarge.8"
 }
 `

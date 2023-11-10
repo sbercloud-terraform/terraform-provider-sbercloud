@@ -18,6 +18,7 @@ import (
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/apigw/dedicated/v2/instances"
 	"github.com/chnsz/golangsdk/openstack/networking/v1/eips"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
@@ -139,8 +140,7 @@ func ResourceApigInstanceV2() *schema.Resource {
 			"bandwidth_size": {
 				Type:         schema.TypeInt,
 				Optional:     true,
-				Computed:     true,
-				ValidateFunc: validation.IntBetween(1, 2000),
+				ValidateFunc: validation.IntBetween(0, 2000),
 				Description:  `The egress bandwidth size of the dedicated instance.`,
 			},
 			"eip_id": {
@@ -175,6 +175,13 @@ func ResourceApigInstanceV2() *schema.Resource {
 						"the hour is not 02, 06, 10, 14, 18 or 22."),
 				Description: `The start time of the maintenance time window.`,
 			},
+			"vpcep_service_name": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
+				Description: `Name of the VPC endpoint service.`,
+			},
+			"tags": common.TagsSchema(),
 			// Attributes
 			"maintain_end": {
 				Type:        schema.TypeString,
@@ -211,6 +218,11 @@ func ResourceApigInstanceV2() *schema.Resource {
 				Type:        schema.TypeString,
 				Computed:    true,
 				Description: `Status of the dedicated instance.`,
+			},
+			"vpcep_service_address": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `The address (full name) of the VPC endpoint service.`,
 			},
 			// Deprecated arguments
 			"available_zones": {
@@ -252,10 +264,10 @@ func buildInstanceAvailabilityZones(d *schema.ResourceData) ([]string, error) {
 		return utils.ExpandToStringList(v.([]interface{})), nil
 	}
 
-	return nil, fmt.Errorf("the parameter 'availability_zones' must be specified.")
+	return nil, fmt.Errorf("The parameter 'availability_zones' must be specified")
 }
 
-func buildInstanceCreateOpts(d *schema.ResourceData, config *config.Config) (instances.CreateOpts, error) {
+func buildInstanceCreateOpts(d *schema.ResourceData, cfg *config.Config) (instances.CreateOpts, error) {
 	result := instances.CreateOpts{
 		Name:                 d.Get("name").(string),
 		Edition:              d.Get("edition").(string),
@@ -265,9 +277,11 @@ func buildInstanceCreateOpts(d *schema.ResourceData, config *config.Config) (ins
 		Description:          d.Get("description").(string),
 		EipId:                d.Get("eip_id").(string),
 		BandwidthSize:        d.Get("bandwidth_size").(int), // Bandwidth 0 means turn off the egress access.
-		EnterpriseProjectId:  common.GetEnterpriseProjectID(d, config),
+		EnterpriseProjectId:  common.GetEnterpriseProjectID(d, cfg),
 		Ipv6Enable:           d.Get("ipv6_enable").(bool),
 		LoadbalancerProvider: d.Get("loadbalancer_provider").(string),
+		Tags:                 utils.ExpandResourceTags(d.Get("tags").(map[string]interface{})),
+		VpcepServiceName:     d.Get("vpcep_service_name").(string),
 	}
 
 	azList, err := buildInstanceAvailabilityZones(d)
@@ -290,14 +304,25 @@ func buildInstanceCreateOpts(d *schema.ResourceData, config *config.Config) (ins
 	return result, nil
 }
 
+func buildTagsUpdateOpts(tags map[string]interface{}, instanceId, action string) *instances.TagsUpdateOpts {
+	if len(tags) < 1 {
+		return nil
+	}
+	return &instances.TagsUpdateOpts{
+		InstanceId: instanceId,
+		Action:     action,
+		Tags:       utils.ExpandResourceTags(tags),
+	}
+}
+
 func resourceInstanceCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	client, err := config.ApigV2Client(config.GetRegion(d))
+	cfg := meta.(*config.Config)
+	client, err := cfg.ApigV2Client(cfg.GetRegion(d))
 	if err != nil {
 		return diag.Errorf("error creating APIG v2 client: %s", err)
 	}
 
-	opts, err := buildInstanceCreateOpts(d, config)
+	opts, err := buildInstanceCreateOpts(d, cfg)
 	if err != nil {
 		return diag.Errorf("error creating the dedicated instance options: %s", err)
 	}
@@ -309,18 +334,27 @@ func resourceInstanceCreate(ctx context.Context, d *schema.ResourceData, meta in
 	}
 	d.SetId(resp.Id)
 
+	instanceId := d.Id()
 	stateConf := &resource.StateChangeConf{
 		Pending:      []string{"PENDING"},
 		Target:       []string{"COMPLETED"},
-		Refresh:      InstanceStateRefreshFunc(client, d.Id(), []string{"Running"}),
+		Refresh:      InstanceStateRefreshFunc(client, instanceId, []string{"Running"}),
 		Timeout:      d.Timeout(schema.TimeoutCreate),
 		Delay:        20 * time.Second,
 		PollInterval: 20 * time.Second,
 	}
 	_, err = stateConf.WaitForStateContext(ctx)
 	if err != nil {
-		return diag.Errorf("error waiting for the dedicated instance (%s) to become running: %s", d.Id(), err)
+		return diag.Errorf("error waiting for the dedicated instance (%s) to become running: %s", instanceId, err)
 	}
+
+	if tagsRaw, ok := d.GetOk("tags"); ok {
+		err = instances.UpdateTags(client, buildTagsUpdateOpts(tagsRaw.(map[string]interface{}), instanceId, "create"))
+		if err != nil {
+			return diag.Errorf("error creating instance tags: %s", err)
+		}
+	}
+
 	return resourceInstanceRead(ctx, d, meta)
 }
 
@@ -334,13 +368,13 @@ func parseInstanceAvailabilityZones(azStr string) []string {
 	return strings.Split(codesStr, ",")
 }
 
-// The response of ingress acess does not contain EIP ID, just the IP address.
-func parseInstanceIngressAccess(config *config.Config, region, publicAddress string) (*string, error) {
+// The response of ingress access does not contain EIP ID, just the IP address.
+func parseInstanceIngressAccess(cfg *config.Config, region, publicAddress string) (*string, error) {
 	if publicAddress == "" {
 		return nil, nil
 	}
 
-	client, err := config.NetworkingV1Client(region)
+	client, err := cfg.NetworkingV1Client(region)
 	if err != nil {
 		return nil, fmt.Errorf("error creating VPC v1 client: %s", err)
 	}
@@ -370,18 +404,33 @@ func parseInstanceIpv6Enable(ipv6Address string) bool {
 	return ipv6Address != ""
 }
 
-func resourceInstanceRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	region := config.GetRegion(d)
-	client, err := config.ApigV2Client(region)
+func parseVpcepServiceName(serviceName string) string {
+	// The format of the service endpoint is the '{region}.{vpcep_service_name}.{service_id}'
+	regexExp := `^[\w-]+\.(.*)\.[a-f0-9-]+$`
+	result := regexp.MustCompile(regexExp).FindStringSubmatch(serviceName)
+	log.Printf("[DEBUG] The result of the regex matching is: %v (length: %d)", result, len(result))
+	if len(result) <= 1 {
+		return ""
+	}
+	// For the result of the regex matching, the first element (result[0]) is the full
+	// address ({region}.{vpcep_service_name}.{service_id}), the others (result[1:]) are match objects.
+	return result[1]
+}
+
+func resourceInstanceRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+	client, err := cfg.ApigV2Client(region)
 	if err != nil {
 		return diag.Errorf("error creating APIG v2 client: %s", err)
 	}
-	resp, err := instances.Get(client, d.Id()).Extract()
+
+	instanceId := d.Id()
+	resp, err := instances.Get(client, instanceId).Extract()
 	if err != nil {
-		return common.CheckDeletedDiag(d, err, fmt.Sprintf("error getting instance (%s) details form server", d.Id()))
+		return common.CheckDeletedDiag(d, err, fmt.Sprintf("error getting instance (%s) details form server", instanceId))
 	}
-	log.Printf("[DEBUG] Retrieved the dedicated instance (%s): %#v", d.Id(), resp)
+	log.Printf("[DEBUG] Retrieved the dedicated instance (%s): %#v", instanceId, resp)
 
 	mErr := multierror.Append(nil,
 		d.Set("region", region),
@@ -409,15 +458,29 @@ func resourceInstanceRead(ctx context.Context, d *schema.ResourceData, meta inte
 		d.Set("create_time", utils.FormatTimeStampRFC3339(resp.CreateTimestamp, false)),
 	)
 
-	if eipId, err := parseInstanceIngressAccess(config, region, resp.Ipv4IngressEipAddress); err != nil {
+	if eipId, err := parseInstanceIngressAccess(cfg, region, resp.Ipv4IngressEipAddress); err != nil {
 		mErr = multierror.Append(mErr, err)
 	} else {
 		mErr = multierror.Append(d.Set("eip_id", eipId))
 	}
 
+	if len(resp.EndpointServices) > 0 {
+		mErr = multierror.Append(mErr,
+			d.Set("vpcep_service_name", parseVpcepServiceName(resp.EndpointServices[0].ServiceName)),
+			d.Set("vpcep_service_address", resp.EndpointServices[0].ServiceName),
+		)
+	}
+
+	if tagList, err := instances.GetTags(client, instanceId); err != nil {
+		log.Printf("[WARN] error querying instance tags: %s", err)
+	} else {
+		mErr = multierror.Append(d.Set("tags", utils.TagsToMap(tagList)))
+	}
+
 	if mErr.ErrorOrNil() != nil {
 		return diag.Errorf("error saving resource fields of the dedicated instance: %s", mErr)
 	}
+
 	return nil
 }
 
@@ -431,6 +494,9 @@ func buildInstanceUpdateOpts(d *schema.ResourceData) (instances.UpdateOpts, erro
 	}
 	if d.HasChange("security_group_id") {
 		result.SecurityGroupId = d.Get("security_group_id").(string)
+	}
+	if d.HasChange("vpcep_service_name") {
+		result.VpcepServiceName = d.Get("vpcep_service_name").(string)
 	}
 	if d.HasChange("maintain_begin") {
 		startTime := d.Get("maintain_begin").(string)
@@ -503,9 +569,32 @@ func updateInstanceIngressAccess(d *schema.ResourceData, client *golangsdk.Servi
 	return
 }
 
+func updateInstanceTags(client *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	var (
+		err              error
+		instanceId       = d.Id()
+		oldRaws, newRaws = d.GetChange("tags")
+		rmTags           = oldRaws.(map[string]interface{})
+		addTags          = newRaws.(map[string]interface{})
+	)
+	if len(rmTags) > 0 {
+		err := instances.UpdateTags(client, buildTagsUpdateOpts(rmTags, instanceId, "delete"))
+		if err != nil {
+			return fmt.Errorf("error deleting instance tags: %s", err)
+		}
+	}
+	if len(addTags) > 0 {
+		err = instances.UpdateTags(client, buildTagsUpdateOpts(addTags, instanceId, "create"))
+		if err != nil {
+			return fmt.Errorf("[WARN] error creating instance tags: %s", err)
+		}
+	}
+	return nil
+}
+
 func resourceInstanceUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	client, err := config.ApigV2Client(config.GetRegion(d))
+	cfg := meta.(*config.Config)
+	client, err := cfg.ApigV2Client(cfg.GetRegion(d))
 	if err != nil {
 		return diag.Errorf("error creating APIG v2 client: %s", err)
 	}
@@ -522,7 +611,7 @@ func resourceInstanceUpdate(ctx context.Context, d *schema.ResourceData, meta in
 			return diag.Errorf("update ingress access failed: %s", err)
 		}
 	}
-	// Update instance name, maintain window, description and security group ID.
+	// Update instance name, maintain window, description, security group ID and vpcep service name.
 	updateOpts, err := buildInstanceUpdateOpts(d)
 	if err != nil {
 		return diag.Errorf("unable to get the update options of the dedicated instance: %s", err)
@@ -546,12 +635,17 @@ func resourceInstanceUpdate(ctx context.Context, d *schema.ResourceData, meta in
 			return diag.FromErr(err)
 		}
 	}
+	if d.HasChange("tags") {
+		if err = updateInstanceTags(client, d); err != nil {
+			return diag.FromErr(err)
+		}
+	}
 	return resourceInstanceRead(ctx, d, meta)
 }
 
 func resourceInstanceDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	client, err := config.ApigV2Client(config.GetRegion(d))
+	cfg := meta.(*config.Config)
+	client, err := cfg.ApigV2Client(cfg.GetRegion(d))
 	if err != nil {
 		return diag.Errorf("error creating APIG v2 client: %s", err)
 	}

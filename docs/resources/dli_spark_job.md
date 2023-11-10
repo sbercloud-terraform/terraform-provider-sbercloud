@@ -44,8 +44,9 @@ The following arguments are supported:
   The OBS paths are allowed, for example, `obs://<bucket name>/<package name>`.
   Changing this parameter will submit a new spark job.
 
-* `feature` - (Optional, String, ForceNew) Specifies the feature name for the Spark Job. 
-  Required for Spark 3. Known values: `basic`, `ai`, `custom`. 
+
+* `feature` - (Optional, String, ForceNew) Specifies the feature name for the Spark Job.
+  Required for Spark 3. Known values: `basic`, `ai`, `custom`.
   Changing this parameter will submit a new spark job.
 
 * `spark_version` - (Optional, String, ForceNew) Version of Spark to use.
@@ -92,7 +93,7 @@ The following arguments are supported:
   Changing this parameter will submit a new spark job.
 
   | type | resource | driver cores | excutor cores | driver memory | executor memory | num executor |
-    | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
+        | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
   | A | 8 vCPUs, 32-GB memory | 2 | 1 | 7G | 4G | 6 |
   | B | 16 vCPUs, 64-GB memory | 2 | 2 | 7G | 8G | 7 |
   | C | 32 vCPUs, 128-GB memory | 4 | 2 | 12G | 8G | 14 |

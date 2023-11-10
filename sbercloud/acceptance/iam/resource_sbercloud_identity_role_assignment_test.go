@@ -2,7 +2,6 @@ package iam
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
@@ -80,6 +79,10 @@ func testAccCheckIdentityV3RoleAssignmentExists(n string, role *roles.Role, grou
 			return fmtp.Errorf("Not found: %s", n)
 		}
 
+		groupID := rs.Primary.Attributes["group_id"]
+		roleID := rs.Primary.Attributes["role_id"]
+		domainID := rs.Primary.Attributes["domain_id"]
+		projectID := rs.Primary.Attributes["project_id"]
 		if rs.Primary.ID == "" {
 			return fmtp.Errorf("No ID is set")
 		}
@@ -89,8 +92,6 @@ func testAccCheckIdentityV3RoleAssignmentExists(n string, role *roles.Role, grou
 		if err != nil {
 			return fmtp.Errorf("Error creating SberCloud identity client: %s", err)
 		}
-
-		domainID, projectID, groupID, roleID := extractRoleAssignmentID(rs.Primary.ID)
 
 		opts := roles.ListAssignmentsOpts{
 			GroupID:        groupID,
@@ -169,9 +170,4 @@ resource "sbercloud_identity_role_assignment" "role_assignment_1" {
   domain_id = "%s"
 }
 `, rName, acceptance.SBC_DOMAIN_ID)
-}
-
-func extractRoleAssignmentID(roleAssignmentID string) (string, string, string, string) {
-	split := strings.Split(roleAssignmentID, "/")
-	return split[0], split[1], split[2], split[3]
 }

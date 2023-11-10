@@ -130,18 +130,17 @@ func ResourceAddon() *schema.Resource {
 	}
 }
 
-func getValuesValues(d *schema.ResourceData) (basic, custom, flavor map[string]interface{}, err error) {
+func buildAddonValues(d *schema.ResourceData) (basic, custom, flavor map[string]interface{}, err error) {
 	values := d.Get("values").([]interface{})
-	if len(values) == 0 {
-		basic = map[string]interface{}{}
+	if len(values) == 0 || values[0] == nil {
+		basic = make(map[string]interface{})
 		return
 	}
-	valuesMap := values[0].(map[string]interface{})
 
+	valuesMap := values[0].(map[string]interface{})
 	if basicRaw := valuesMap["basic"].(map[string]interface{}); len(basicRaw) != 0 {
 		basic = basicRaw
-	}
-	if basicJsonRaw := valuesMap["basic_json"].(string); basicJsonRaw != "" {
+	} else if basicJsonRaw := valuesMap["basic_json"].(string); basicJsonRaw != "" {
 		err = json.Unmarshal([]byte(basicJsonRaw), &basic)
 		if err != nil {
 			err = fmt.Errorf("error unmarshalling basic json: %s", err)
@@ -151,8 +150,7 @@ func getValuesValues(d *schema.ResourceData) (basic, custom, flavor map[string]i
 
 	if customRaw := valuesMap["custom"].(map[string]interface{}); len(customRaw) != 0 {
 		custom = customRaw
-	}
-	if customJsonRaw := valuesMap["custom_json"].(string); customJsonRaw != "" {
+	} else if customJsonRaw := valuesMap["custom_json"].(string); customJsonRaw != "" {
 		err = json.Unmarshal([]byte(customJsonRaw), &custom)
 		if err != nil {
 			err = fmt.Errorf("error unmarshalling custom json: %s", err)
@@ -162,8 +160,7 @@ func getValuesValues(d *schema.ResourceData) (basic, custom, flavor map[string]i
 
 	if flavorRaw := valuesMap["flavor"].(map[string]interface{}); len(flavorRaw) != 0 {
 		flavor = flavorRaw
-	}
-	if flavorJsonRaw := valuesMap["flavor_json"].(string); flavorJsonRaw != "" {
+	} else if flavorJsonRaw := valuesMap["flavor_json"].(string); flavorJsonRaw != "" {
 		err = json.Unmarshal([]byte(flavorJsonRaw), &flavor)
 		if err != nil {
 			err = fmt.Errorf("error unmarshalling flavor json %s", err)
@@ -178,14 +175,13 @@ func resourceAddonCreate(ctx context.Context, d *schema.ResourceData, meta inter
 	cfg := meta.(*config.Config)
 	cceClient, err := cfg.CceAddonV3Client(cfg.GetRegion(d))
 	if err != nil {
-		return diag.Errorf("unable to create CCE client : %s", err)
+		return diag.Errorf("error creating CCE v3 Client (without project): %s", err)
 	}
 
-	var clusterID = d.Get("cluster_id").(string)
-
-	basic, custom, flavor, err := getValuesValues(d)
+	clusterID := d.Get("cluster_id").(string)
+	basic, custom, flavor, err := buildAddonValues(d)
 	if err != nil {
-		return diag.Errorf("error getting values for CCE addon: %s", err)
+		return diag.Errorf("error getting values for CCE add-on: %s", err)
 	}
 
 	createOpts := addons.CreateOpts{
@@ -210,16 +206,17 @@ func resourceAddonCreate(ctx context.Context, d *schema.ResourceData, meta inter
 
 	create, err := addons.Create(cceClient, createOpts, clusterID).Extract()
 	if err != nil {
-		return diag.Errorf("error creating CCEAddon: %s", err)
+		return diag.Errorf("error creating CCE add-on: %s", err)
 	}
 
 	d.SetId(create.Metadata.Id)
 
-	log.Printf("[DEBUG] Waiting for CCEAddon (%s) to become available", create.Metadata.Id)
+	log.Printf("[DEBUG] Waiting for CCE add-on (%s) to become available", create.Metadata.Id)
 	stateConf := &resource.StateChangeConf{
-		Pending:      []string{"installing", "abnormal"},
-		Target:       []string{"running", "available"},
-		Refresh:      waitForAddonActive(cceClient, create.Metadata.Id, clusterID),
+		// The statuses of pending phase includes "installing" and "abnormal".
+		Pending:      []string{"PENDING"},
+		Target:       []string{"COMPLETED"},
+		Refresh:      addonStateRefreshFunc(cceClient, create.Metadata.Id, clusterID, []string{"running", "available"}),
 		Timeout:      d.Timeout(schema.TimeoutCreate),
 		Delay:        10 * time.Second,
 		PollInterval: 10 * time.Second,
@@ -227,7 +224,7 @@ func resourceAddonCreate(ctx context.Context, d *schema.ResourceData, meta inter
 
 	_, err = stateConf.WaitForStateContext(ctx)
 	if err != nil {
-		return diag.Errorf("error creating CCEAddon: %s", err)
+		return diag.Errorf("error waiting for CCE add-on (%s) to become available: %s", create.Metadata.Id, err)
 	}
 
 	return resourceAddonRead(ctx, d, meta)
@@ -237,14 +234,14 @@ func resourceAddonRead(_ context.Context, d *schema.ResourceData, meta interface
 	cfg := meta.(*config.Config)
 	cceClient, err := cfg.CceAddonV3Client(cfg.GetRegion(d))
 	if err != nil {
-		return diag.Errorf("error creating CCE client: %s", err)
+		return diag.Errorf("error creating CCE v3 Client (without project): %s", err)
 	}
 
-	var clusterID = d.Get("cluster_id").(string)
-
-	n, err := addons.Get(cceClient, d.Id(), clusterID).Extract()
+	clusterID := d.Get("cluster_id").(string)
+	addonID := d.Id()
+	n, err := addons.Get(cceClient, addonID, clusterID).Extract()
 	if err != nil {
-		return common.CheckDeletedDiag(d, err, "error retrieving CCE Addon")
+		return common.CheckDeletedDiag(d, err, "error retrieving CCE add-on")
 	}
 
 	mErr := multierror.Append(nil,
@@ -256,7 +253,7 @@ func resourceAddonRead(_ context.Context, d *schema.ResourceData, meta interface
 		d.Set("description", n.Spec.Description),
 	)
 	if err = mErr.ErrorOrNil(); err != nil {
-		return diag.Errorf("error setting CCE Addon fields: %s", err)
+		return diag.Errorf("error setting CCE add-on (%s) fields: %s", addonID, err)
 	}
 
 	return nil
@@ -266,14 +263,14 @@ func resourceAddonUpdate(ctx context.Context, d *schema.ResourceData, meta inter
 	cfg := meta.(*config.Config)
 	cceClient, err := cfg.CceAddonV3Client(cfg.GetRegion(d))
 	if err != nil {
-		return diag.Errorf("unable to create CCE client : %s", err)
+		return diag.Errorf("error creating CCE v3 Client (without project): %s", err)
 	}
 
-	var clusterID = d.Get("cluster_id").(string)
-
-	basic, custom, flavor, err := getValuesValues(d)
+	clusterID := d.Get("cluster_id").(string)
+	addonID := d.Id()
+	basic, custom, flavor, err := buildAddonValues(d)
 	if err != nil {
-		return diag.Errorf("error getting values for CCE addon: %s", err)
+		return diag.Errorf("error getting values for CCE add-on: %s", err)
 	}
 
 	updateOpts := addons.UpdateOpts{
@@ -296,24 +293,23 @@ func resourceAddonUpdate(ctx context.Context, d *schema.ResourceData, meta inter
 		},
 	}
 
-	update, err := addons.Update(cceClient, updateOpts, d.Id(), clusterID).Extract()
+	_, err = addons.Update(cceClient, updateOpts, addonID, clusterID).Extract()
 	if err != nil {
-		return diag.Errorf("error updating CCEAddon: %s", err)
+		return diag.Errorf("error updating CCE add-on (%s): %s", addonID, err)
 	}
 
-	log.Printf("[DEBUG] Waiting for CCEAddon (%s) to become available", update.Metadata.Id)
 	stateConf := &resource.StateChangeConf{
-		Pending:      []string{"installing", "abnormal"},
-		Target:       []string{"running", "available"},
-		Refresh:      waitForAddonActive(cceClient, update.Metadata.Id, clusterID),
+		// The statuses of pending phase includes "installing" and "abnormal".
+		Pending:      []string{"PENDING"},
+		Target:       []string{"COMPLETED"},
+		Refresh:      addonStateRefreshFunc(cceClient, addonID, clusterID, []string{"running", "available"}),
 		Timeout:      d.Timeout(schema.TimeoutUpdate),
 		Delay:        10 * time.Second,
 		PollInterval: 10 * time.Second,
 	}
-
 	_, err = stateConf.WaitForStateContext(ctx)
 	if err != nil {
-		return diag.Errorf("error updating CCEAddon: %s", err)
+		return diag.Errorf("error waiting for CCE add-on (%s) to become available: %s", addonID, err)
 	}
 
 	return resourceAddonRead(ctx, d, meta)
@@ -323,79 +319,68 @@ func resourceAddonDelete(ctx context.Context, d *schema.ResourceData, meta inter
 	cfg := meta.(*config.Config)
 	cceClient, err := cfg.CceAddonV3Client(cfg.GetRegion(d))
 	if err != nil {
-		return diag.Errorf("error creating CCEAddon Client: %s", err)
+		return diag.Errorf("error creating CCE v3 Client (without project): %s", err)
 	}
 
-	var clusterID = d.Get("cluster_id").(string)
-
-	err = addons.Delete(cceClient, d.Id(), clusterID).ExtractErr()
+	clusterID := d.Get("cluster_id").(string)
+	addonID := d.Id()
+	err = addons.Delete(cceClient, addonID, clusterID).ExtractErr()
 	if err != nil {
-		return diag.Errorf("error deleting CCE Addon: %s", err)
+		return diag.Errorf("error deleting CCE add-on: %s", err)
 	}
+
 	stateConf := &resource.StateChangeConf{
-		Pending:      []string{"Deleting", "Available", "Unavailable"},
-		Target:       []string{"Deleted"},
-		Refresh:      waitForAddonDelete(cceClient, d.Id(), clusterID),
+		// The statuses of pending phase includes "Deleting", "Available" and "Unavailable".
+		Pending:      []string{"PENDING"},
+		Target:       []string{"COMPLETED"},
+		Refresh:      addonStateRefreshFunc(cceClient, addonID, clusterID, nil),
 		Timeout:      d.Timeout(schema.TimeoutDelete),
 		Delay:        10 * time.Second,
 		PollInterval: 10 * time.Second,
 	}
-
 	_, err = stateConf.WaitForStateContext(ctx)
-
 	if err != nil {
-		return diag.Errorf("error deleting CCE Addon: %s", err)
+		return diag.Errorf("error waiting for CCE add-on (%s) to become deleted: %s", addonID, err)
 	}
-
-	d.SetId("")
 	return nil
 }
 
-func waitForAddonActive(cceAddonClient *golangsdk.ServiceClient, id, clusterID string) resource.StateRefreshFunc {
+func addonStateRefreshFunc(cceClient *golangsdk.ServiceClient, addonId, clusterId string,
+	targets []string) resource.StateRefreshFunc {
 	return func() (interface{}, string, error) {
-		n, err := addons.Get(cceAddonClient, id, clusterID).Extract()
-		if err != nil {
-			return nil, "", err
-		}
-
-		return n, n.Status.Status, nil
-	}
-}
-
-func waitForAddonDelete(cceClient *golangsdk.ServiceClient, id, clusterID string) resource.StateRefreshFunc {
-	return func() (interface{}, string, error) {
-		log.Printf("[DEBUG] Attempting to delete CCE Addon %s.\n", id)
-
-		r, err := addons.Get(cceClient, id, clusterID).Extract()
-
+		log.Printf("[DEBUG] Expect the status of CCE add-on to be any one of the status list: %v.", targets)
+		resp, err := addons.Get(cceClient, addonId, clusterId).Extract()
 		if err != nil {
 			if _, ok := err.(golangsdk.ErrDefault404); ok {
-				log.Printf("[DEBUG] Successfully deleted CCE Addon %s", id)
-				return r, "Deleted", nil
+				log.Printf("[DEBUG] The add-on (%s) has been deleted", addonId)
+				return resp, "COMPLETED", nil
 			}
-			return nil, "Available", err
+			return nil, "ERROR", err
 		}
 
-		if r.Status.Status == "Deleting" {
-			return r, "Deleting", nil
+		invalidStatuses := []string{"installFailed", "upgradeFailed", "deleteFailed", "rollbackFailed", "unknown"}
+		if utils.IsStrContainsSliceElement(resp.Status.Status, invalidStatuses, true, true) {
+			return resp, "", fmt.Errorf("unexpect status (%s)", resp.Status.Status)
 		}
-		log.Printf("[DEBUG] CCE Addon %s still available.\n", id)
-		return r, "Available", nil
+
+		if utils.StrSliceContains(targets, resp.Status.Status) {
+			return resp, "COMPLETED", nil
+		}
+		return resp, "PENDING", nil
 	}
 }
 
 func resourceAddonImport(_ context.Context, d *schema.ResourceData, _ interface{}) ([]*schema.ResourceData, error) {
-	parts := strings.Split(d.Id(), "/")
+	importId := d.Id()
+	parts := strings.Split(importId, "/")
 	if len(parts) != 2 {
-		err := fmt.Errorf("invalid format specified for CCE Addon. Format must be <cluster id>/<addon id>")
-		return nil, err
+		return nil, fmt.Errorf("invalid format specified for CCE add-on, want '<cluster_id>/<id>', but got '%s'", importId)
 	}
 
 	clusterID := parts[0]
 	addonID := parts[1]
 
 	d.SetId(addonID)
-	d.Set("cluster_id", clusterID)
-
-	return []*schema.ResourceData{d}, nil
+	err := d.Set("cluster_id", clusterID)
+	return []*schema.ResourceData{d}, err
 }

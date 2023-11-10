@@ -141,7 +141,7 @@ func TestAccElbV3LoadBalancer_withEIP(t *testing.T) {
 func testAccElbV3LoadBalancerConfig_basic(rName string) string {
 	return fmt.Sprintf(`
 data "sbercloud_vpc_subnet" "test" {
-  name = "subnet_elb_test"
+  name = "subnet-default"
 }
 
 data "sbercloud_availability_zones" "test" {}
@@ -166,7 +166,7 @@ resource "sbercloud_elb_loadbalancer" "test" {
 func testAccElbV3LoadBalancerConfig_update(rNameUpdate string) string {
 	return fmt.Sprintf(`
 data "sbercloud_vpc_subnet" "test" {
-  name = "subnet_elb_test"
+  name = "subnet-default"
 }
 
 data "sbercloud_availability_zones" "test" {}
@@ -192,7 +192,7 @@ resource "sbercloud_elb_loadbalancer" "test" {
 func testAccElbV3LoadBalancerConfig_withEpsId(rName string) string {
 	return fmt.Sprintf(`
 data "sbercloud_vpc_subnet" "test" {
-  name = "subnet_elb_test"
+  name = "subnet-default"
 }
 
 data "sbercloud_availability_zones" "test" {}
@@ -217,7 +217,7 @@ resource "sbercloud_elb_loadbalancer" "test" {
 func testAccElbV3LoadBalancerConfig_withEIP(rName string) string {
 	return fmt.Sprintf(`
 data "sbercloud_vpc_subnet" "test" {
-  name = "subnet_elb_test"
+  name = "subnet-default"
 }
 
 data "sbercloud_availability_zones" "test" {}

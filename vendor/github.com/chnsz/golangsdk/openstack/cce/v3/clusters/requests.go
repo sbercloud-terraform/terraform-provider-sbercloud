@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	"github.com/chnsz/golangsdk"
+	"github.com/chnsz/golangsdk/openstack/common/tags"
 )
 
 var RequestOpts golangsdk.RequestOpts = golangsdk.RequestOpts{
@@ -135,6 +136,8 @@ type CreateMetaData struct {
 	Labels map[string]string `json:"labels,omitempty"`
 	// Cluster annotation, key/value pair format
 	Annotations map[string]string `json:"annotations,omitempty"`
+	// Cluster alias
+	Alias string `json:"alias,omitempty"`
 }
 
 // ToClusterCreateMap builds a create request body from CreateOpts.
@@ -175,12 +178,38 @@ func GetCert(c *golangsdk.ServiceClient, id string) (r GetCertResult) {
 
 // UpdateOpts contains all the values needed to update a new cluster
 type UpdateOpts struct {
-	Spec UpdateSpec `json:"spec" required:"true"`
+	Spec     UpdateSpec      `json:"spec" required:"true"`
+	Metadata *UpdateMetadata `json:"metadata,omitempty"`
+}
+
+type UpdateMetadata struct {
+	// Cluster alias
+	Alias string `json:"alias"`
 }
 
 type UpdateSpec struct {
 	// Cluster description
 	Description string `json:"description,omitempty"`
+	// Custom san list for certificates
+	CustomSan []string `json:"customSan,omitempty"`
+	//Container network parameters
+	ContainerNetwork *UpdateContainerNetworkSpec `json:"containerNetwork,omitempty"`
+	// ENI network parameters
+	EniNetwork *EniNetworkSpec `json:"eniNetwork,omitempty"`
+	// Node network parameters
+	HostNetwork *UpdateHostNetworkSpec `json:"hostNetwork,omitempty"`
+}
+
+type UpdateContainerNetworkSpec struct {
+	// List of container CIDR blocks. In clusters of v1.21 and later, the cidrs field is used.
+	// When the cluster network type is vpc-router, you can add multiple container CIDR blocks.
+	// In versions earlier than v1.21, if the cidrs field is used, the first CIDR element in the array is used as the container CIDR block.
+	Cidrs []CidrSpec `json:"cidrs,omitempty"`
+}
+
+type UpdateHostNetworkSpec struct {
+	//The ID of the Security Group used to create the node
+	SecurityGroup string `json:"SecurityGroup,omitempty"`
 }
 
 // UpdateOptsBuilder allows extensions to add additional parameters to the
@@ -215,6 +244,7 @@ type DeleteOpts struct {
 	DeleteNet   string `q:"delete_net"`
 	DeleteObs   string `q:"delete_obs"`
 	DeleteSfs   string `q:"delete_sfs"`
+	DeleteSfs30 string `q:"delete_sfs30"`
 }
 
 type DeleteOptsBuilder interface {
@@ -289,6 +319,48 @@ func Operation(c *golangsdk.ServiceClient, id, action string) (r OperationResult
 	_, r.Err = c.Post(operationURL(c, id, action), nil, nil, &golangsdk.RequestOpts{
 		OkCodes:     []int{200},
 		MoreHeaders: RequestOpts.MoreHeaders, JSONBody: nil,
+	})
+	return
+}
+
+type UpdateTagsOpts struct {
+	Tags []tags.ResourceTag `json:"tags" required:"true"`
+}
+
+// AddTags will add tags to the cluster.
+func AddTags(c *golangsdk.ServiceClient, id string, tagList []tags.ResourceTag) (r UpdateIpResult) {
+	opts := UpdateTagsOpts{
+		Tags: tagList,
+	}
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		r.Err = err
+		return
+	}
+	_, r.Err = c.Post(tagsURL(c, id, "create"), b, nil, &golangsdk.RequestOpts{
+		OkCodes: []int{204},
+	})
+	return
+}
+
+// RemoveTags will remove tags from the cluster.
+func RemoveTags(c *golangsdk.ServiceClient, id string, tagList []tags.ResourceTag) (r UpdateIpResult) {
+	tagsWithKeys := make([]tags.ResourceTag, len(tagList))
+	for i, v := range tagList {
+		tagsWithKeys[i] = tags.ResourceTag{
+			Key: v.Key,
+		}
+	}
+	opts := UpdateTagsOpts{
+		Tags: tagsWithKeys,
+	}
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		r.Err = err
+		return
+	}
+	_, r.Err = c.Post(tagsURL(c, id, "delete"), b, nil, &golangsdk.RequestOpts{
+		OkCodes: []int{204},
 	})
 	return
 }
