@@ -2,6 +2,7 @@ package sbercloud
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/chnsz/golangsdk"
@@ -14,9 +15,9 @@ import (
 func TestAccGesGraphV1_basic(t *testing.T) {
 	name := fmt.Sprintf("tf_acc_test_%s", acctest.RandString(5))
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckGesGraphV1Destroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckGesGraphV1Destroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccGesGraphV1_basic(name),
@@ -59,12 +60,12 @@ resource "sbercloud_ges_graph" "graph" {
   subnet_id         = sbercloud_vpc_subnet.test.id
   vpc_id            = sbercloud_vpc.test.id
 }
-	`, name, name, name, name, SBC_REGION_NAME)
+	`, name, name, name, name, acceptance.SBC_REGION_NAME)
 }
 
 func testAccCheckGesGraphV1Destroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	client, err := config.GesV1Client(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	client, err := config.GesV1Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}
@@ -74,7 +75,7 @@ func testAccCheckGesGraphV1Destroy(s *terraform.State) error {
 			continue
 		}
 
-		url, err := replaceVarsForTest(rs, "graphs/{id}")
+		url, err := acceptance.ReplaceVarsForTest(rs, "graphs/{id}")
 		if err != nil {
 			return err
 		}
@@ -92,8 +93,8 @@ func testAccCheckGesGraphV1Destroy(s *terraform.State) error {
 
 func testAccCheckGesGraphV1Exists() resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		config := testAccProvider.Meta().(*config.Config)
-		client, err := config.GesV1Client(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		client, err := config.GesV1Client(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating sdk client, err=%s", err)
 		}
@@ -103,7 +104,7 @@ func testAccCheckGesGraphV1Exists() resource.TestCheckFunc {
 			return fmt.Errorf("Error checking sbercloud_ges_graph.graph exist, err=not found this resource")
 		}
 
-		url, err := replaceVarsForTest(rs, "graphs/{id}")
+		url, err := acceptance.ReplaceVarsForTest(rs, "graphs/{id}")
 		if err != nil {
 			return fmt.Errorf("Error checking sbercloud_ges_graph.graph exist, err=building url failed: %s", err)
 		}

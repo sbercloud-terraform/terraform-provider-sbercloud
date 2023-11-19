@@ -18,7 +18,6 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
-
 func ResourceDliSparkJobV2() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: ResourceDliSparkJobV2Create,

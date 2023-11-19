@@ -11,8 +11,6 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/sfs"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/swr"
 
-
-	dli2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dli"
 	elb2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/elb"
 	"sync"
 
