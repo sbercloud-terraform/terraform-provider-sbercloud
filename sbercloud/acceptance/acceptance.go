@@ -313,6 +313,16 @@ func TestAccPreCheckOBSBucket(t *testing.T) {
 	}
 }
 
+func TestAccPrecheckDomainId(t *testing.T) {
+	if SBC_DOMAIN_ID == "" {
+		t.Skip("SBC_DOMAIN_ID must be set for acceptance tests")
+	}
+}
+func TestAccPreCheckProjectID(t *testing.T) {
+	if SBC_PROJECT_ID == "" {
+		t.Skip("SBC_PROJECT_ID must be set for acceptance tests")
+	}
+}
 func RandomAccResourceName() string {
 	return fmt.Sprintf("tf_acc_test_%s", acctest.RandString(5))
 }
