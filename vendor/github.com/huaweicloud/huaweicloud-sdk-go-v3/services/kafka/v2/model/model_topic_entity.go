@@ -32,8 +32,17 @@ type TopicEntity struct {
 	// 扩展配置。
 	ExternalConfigs *interface{} `json:"external_configs,omitempty"`
 
-	// topic类型(0:普通Topic 1:系统(内部)Topic。
+	// topic类型(0:普通Topic 1:系统(内部)Topic)。
 	TopicType *int32 `json:"topic_type,omitempty"`
+
+	// topic其他配置
+	TopicOtherConfigs *[]TopicEntityTopicOtherConfigs `json:"topic_other_configs,omitempty"`
+
+	// topic描述
+	TopicDesc *string `json:"topic_desc,omitempty"`
+
+	// topic创建时间
+	CreatedAt *int64 `json:"created_at,omitempty"`
 }
 
 func (o TopicEntity) String() string {

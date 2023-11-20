@@ -9,11 +9,11 @@ import (
 	"strings"
 )
 
-// Request Object
+// ListInstancesRequest Request Object
 type ListInstancesRequest struct {
 
 	// 消息引擎：kafka。
-	Engine *string `json:"engine,omitempty"`
+	Engine *ListInstancesRequestEngine `json:"engine,omitempty"`
 
 	// 实例名称。
 	Name *string `json:"name,omitempty"`
@@ -21,7 +21,7 @@ type ListInstancesRequest struct {
 	// 实例ID。
 	InstanceId *string `json:"instance_id,omitempty"`
 
-	// 实例状态。
+	// 实例状态。 详细状态说明请参考[实例状态说明](kafka-api-180514012.xml)。
 	Status *ListInstancesRequestStatus `json:"status,omitempty"`
 
 	// 是否返回创建失败的实例数。  当参数值为“true”时，返回创建失败的实例数。参数值为“false”或者其他值，不返回创建失败的实例数。
@@ -32,6 +32,12 @@ type ListInstancesRequest struct {
 
 	// 企业项目ID。
 	EnterpriseProjectId *string `json:"enterprise_project_id,omitempty"`
+
+	// 偏移量，表示从此偏移量开始查询， offset大于等于0。
+	Offset *string `json:"offset,omitempty"`
+
+	// 当次查询返回的最大实例个数，默认值为10，取值范围为1~50。
+	Limit *string `json:"limit,omitempty"`
 }
 
 func (o ListInstancesRequest) String() string {
@@ -41,6 +47,49 @@ func (o ListInstancesRequest) String() string {
 	}
 
 	return strings.Join([]string{"ListInstancesRequest", string(data)}, " ")
+}
+
+type ListInstancesRequestEngine struct {
+	value string
+}
+
+type ListInstancesRequestEngineEnum struct {
+	KAFKA ListInstancesRequestEngine
+}
+
+func GetListInstancesRequestEngineEnum() ListInstancesRequestEngineEnum {
+	return ListInstancesRequestEngineEnum{
+		KAFKA: ListInstancesRequestEngine{
+			value: "kafka",
+		},
+	}
+}
+
+func (c ListInstancesRequestEngine) Value() string {
+	return c.value
+}
+
+func (c ListInstancesRequestEngine) MarshalJSON() ([]byte, error) {
+	return utils.Marshal(c.value)
+}
+
+func (c *ListInstancesRequestEngine) UnmarshalJSON(b []byte) error {
+	myConverter := converter.StringConverterFactory("string")
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
+		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
+	} else {
+		return errors.New("convert enum data to string error")
+	}
 }
 
 type ListInstancesRequestStatus struct {
@@ -93,13 +142,18 @@ func (c ListInstancesRequestStatus) MarshalJSON() ([]byte, error) {
 
 func (c *ListInstancesRequestStatus) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
-	if myConverter != nil {
-		val, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-		if err == nil {
-			c.value = val.(string)
-			return nil
-		}
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
 		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
 	} else {
 		return errors.New("convert enum data to string error")
 	}
@@ -135,13 +189,18 @@ func (c ListInstancesRequestIncludeFailure) MarshalJSON() ([]byte, error) {
 
 func (c *ListInstancesRequestIncludeFailure) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
-	if myConverter != nil {
-		val, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-		if err == nil {
-			c.value = val.(string)
-			return nil
-		}
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
 		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
 	} else {
 		return errors.New("convert enum data to string error")
 	}
@@ -177,13 +236,18 @@ func (c ListInstancesRequestExactMatchName) MarshalJSON() ([]byte, error) {
 
 func (c *ListInstancesRequestExactMatchName) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
-	if myConverter != nil {
-		val, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-		if err == nil {
-			c.value = val.(string)
-			return nil
-		}
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
 		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
 	} else {
 		return errors.New("convert enum data to string error")
 	}

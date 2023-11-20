@@ -33,6 +33,8 @@ const (
 	PolicyTypeShared      PolicyType = "API-shared"
 	PolicyTypeUser        PolicyType = "USER"
 	PolicyTypeApplication PolicyType = "APP"
+
+	includeSpecialThrottle int = 1
 )
 
 var (
@@ -199,11 +201,12 @@ func buildThrottlingPolicyOpts(d *schema.ResourceData) (throttles.ThrottlingPoli
 		Description:    d.Get("description").(string),
 	}
 	pType := d.Get("type").(string)
-	if val, ok := policyType[pType]; ok {
-		opt.Type = val
-	} else {
+	var val int
+	var ok bool
+	if val, ok = policyType[pType]; !ok {
 		return opt, fmt.Errorf("invalid throttling policy type: %s", pType)
 	}
+	opt.Type = val
 	return opt, nil
 }
 
@@ -227,8 +230,8 @@ func addSpecThrottlingPolicies(client *golangsdk.ServiceClient, policies *schema
 }
 
 func resourceThrottlingPolicyCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	client, err := config.ApigV2Client(config.GetRegion(d))
+	cfg := meta.(*config.Config)
+	client, err := cfg.ApigV2Client(cfg.GetRegion(d))
 	if err != nil {
 		return diag.Errorf("error creating APIG v2 client: %s", err)
 	}
@@ -307,8 +310,8 @@ func flattenSpecThrottlingPolicies(specThrottles []throttles.SpecThrottle) (user
 }
 
 func resourceThrottlingPolicyRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	client, err := config.ApigV2Client(config.GetRegion(d))
+	cfg := meta.(*config.Config)
+	client, err := cfg.ApigV2Client(cfg.GetRegion(d))
 	if err != nil {
 		return diag.Errorf("error creating APIG v2 client: %s", err)
 	}
@@ -322,21 +325,8 @@ func resourceThrottlingPolicyRead(_ context.Context, d *schema.ResourceData, met
 		return common.CheckDeletedDiag(d, err, "throttling policy")
 	}
 
-	// Get related special throttling policies.
-	pages, err := throttles.ListSpecThrottles(client, instanceId, d.Id(), throttles.SpecThrottlesListOpts{}).AllPages()
-	if err != nil {
-		return diag.Errorf("error retrieving special throttle: %s", err)
-	}
-	specResp, err := throttles.ExtractSpecThrottles(pages)
-	if err != nil {
-		return diag.Errorf("unable to find the special throttles from policy: %s", err)
-	}
-	userThrottles, appThrottles, err := flattenSpecThrottlingPolicies(specResp)
-	if err != nil {
-		return diag.Errorf("error retrieving special throttle: %s", err)
-	}
 	mErr := multierror.Append(nil,
-		d.Set("region", config.GetRegion(d)),
+		d.Set("region", cfg.GetRegion(d)),
 		d.Set("type", analyseThrottlingPolicyType(resp.Type)),
 		d.Set("name", resp.Name),
 		d.Set("period", resp.TimeInterval),
@@ -346,11 +336,29 @@ func resourceThrottlingPolicyRead(_ context.Context, d *schema.ResourceData, met
 		d.Set("max_app_requests", resp.AppCallLimits),
 		d.Set("max_ip_requests", resp.IpCallLimits),
 		d.Set("description", resp.Description),
-		d.Set("user_throttles", userThrottles),
-		d.Set("app_throttles", appThrottles),
 		// Attributes
 		d.Set("created_at", resp.CreateTime),
 	)
+
+	if resp.IsIncludeSpecialThrottle == includeSpecialThrottle {
+		// Get related special throttling policies.
+		pages, err := throttles.ListSpecThrottles(client, instanceId, d.Id(), throttles.SpecThrottlesListOpts{}).AllPages()
+		if err != nil {
+			return diag.Errorf("error retrieving special throttle: %s", err)
+		}
+		specResp, err := throttles.ExtractSpecThrottles(pages)
+		if err != nil {
+			return diag.Errorf("unable to find the special throttles from policy: %s", err)
+		}
+		userThrottles, appThrottles, err := flattenSpecThrottlingPolicies(specResp)
+		if err != nil {
+			return diag.Errorf("error retrieving special throttle: %s", err)
+		}
+		mErr = multierror.Append(mErr,
+			d.Set("user_throttles", userThrottles),
+			d.Set("app_throttles", appThrottles),
+		)
+	}
 	if err := mErr.ErrorOrNil(); err != nil {
 		return diag.Errorf("error saving throttling policy (%s) fields: %s", policyId, err)
 	}
@@ -425,8 +433,8 @@ func updateSpecThrottlingPolicies(d *schema.ResourceData, client *golangsdk.Serv
 }
 
 func resourceThrottlingPolicyUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	client, err := config.ApigV2Client(config.GetRegion(d))
+	cfg := meta.(*config.Config)
+	client, err := cfg.ApigV2Client(cfg.GetRegion(d))
 	if err != nil {
 		return diag.Errorf("error creating APIG v2 client: %s", err)
 	}
@@ -459,10 +467,10 @@ func resourceThrottlingPolicyUpdate(ctx context.Context, d *schema.ResourceData,
 }
 
 func resourceThrottlingPolicyDelete(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	client, err := config.ApigV2Client(config.GetRegion(d))
+	cfg := meta.(*config.Config)
+	client, err := cfg.ApigV2Client(cfg.GetRegion(d))
 	if err != nil {
-		return diag.Errorf("error creating HuaweiCloud APIG v2 client: %s", err)
+		return diag.Errorf("error creating APIG v2 client: %s", err)
 	}
 
 	var (
@@ -479,8 +487,8 @@ func resourceThrottlingPolicyDelete(_ context.Context, d *schema.ResourceData, m
 // The ID cannot find on the console, so we need to import by throttling policy name.
 func resourceThrottlingPolicyImportState(_ context.Context, d *schema.ResourceData,
 	meta interface{}) ([]*schema.ResourceData, error) {
-	config := meta.(*config.Config)
-	client, err := config.ApigV2Client(config.GetRegion(d))
+	cfg := meta.(*config.Config)
+	client, err := cfg.ApigV2Client(cfg.GetRegion(d))
 	if err != nil {
 		return []*schema.ResourceData{d}, fmt.Errorf("error creating APIG v2 client: %s", err)
 	}

@@ -18,7 +18,7 @@ type BatchRestartOrDeleteInstanceReq struct {
 	Action BatchRestartOrDeleteInstanceReqAction `json:"action"`
 
 	// 参数值为kafka，表示删除租户所有创建失败的Kafka实例。
-	AllFailure *BatchRestartOrDeleteInstanceReqAllFailure `json:"all_failure,omitempty"`
+	AllFailure *BatchRestartOrDeleteInstanceReqAllFailure `json:"allFailure,omitempty"`
 }
 
 func (o BatchRestartOrDeleteInstanceReq) String() string {
@@ -60,13 +60,18 @@ func (c BatchRestartOrDeleteInstanceReqAction) MarshalJSON() ([]byte, error) {
 
 func (c *BatchRestartOrDeleteInstanceReqAction) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
-	if myConverter != nil {
-		val, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-		if err == nil {
-			c.value = val.(string)
-			return nil
-		}
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
 		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
 	} else {
 		return errors.New("convert enum data to string error")
 	}
@@ -77,19 +82,11 @@ type BatchRestartOrDeleteInstanceReqAllFailure struct {
 }
 
 type BatchRestartOrDeleteInstanceReqAllFailureEnum struct {
-	TRUE  BatchRestartOrDeleteInstanceReqAllFailure
-	FALSE BatchRestartOrDeleteInstanceReqAllFailure
 	KAFKA BatchRestartOrDeleteInstanceReqAllFailure
 }
 
 func GetBatchRestartOrDeleteInstanceReqAllFailureEnum() BatchRestartOrDeleteInstanceReqAllFailureEnum {
 	return BatchRestartOrDeleteInstanceReqAllFailureEnum{
-		TRUE: BatchRestartOrDeleteInstanceReqAllFailure{
-			value: "true",
-		},
-		FALSE: BatchRestartOrDeleteInstanceReqAllFailure{
-			value: "false",
-		},
 		KAFKA: BatchRestartOrDeleteInstanceReqAllFailure{
 			value: "kafka",
 		},
@@ -106,13 +103,18 @@ func (c BatchRestartOrDeleteInstanceReqAllFailure) MarshalJSON() ([]byte, error)
 
 func (c *BatchRestartOrDeleteInstanceReqAllFailure) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
-	if myConverter != nil {
-		val, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-		if err == nil {
-			c.value = val.(string)
-			return nil
-		}
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
 		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
 	} else {
 		return errors.New("convert enum data to string error")
 	}

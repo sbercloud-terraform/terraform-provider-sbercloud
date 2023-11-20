@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// Request Object
+// ListStorageTypesRequest Request Object
 type ListStorageTypesRequest struct {
 
 	// 语言
@@ -42,6 +42,7 @@ type ListStorageTypesRequestDatabaseNameEnum struct {
 	MY_SQL      ListStorageTypesRequestDatabaseName
 	POSTGRE_SQL ListStorageTypesRequestDatabaseName
 	SQL_SERVER  ListStorageTypesRequestDatabaseName
+	MARIA_DB    ListStorageTypesRequestDatabaseName
 }
 
 func GetListStorageTypesRequestDatabaseNameEnum() ListStorageTypesRequestDatabaseNameEnum {
@@ -54,6 +55,9 @@ func GetListStorageTypesRequestDatabaseNameEnum() ListStorageTypesRequestDatabas
 		},
 		SQL_SERVER: ListStorageTypesRequestDatabaseName{
 			value: "SQLServer",
+		},
+		MARIA_DB: ListStorageTypesRequestDatabaseName{
+			value: "MariaDB",
 		},
 	}
 }
@@ -68,13 +72,18 @@ func (c ListStorageTypesRequestDatabaseName) MarshalJSON() ([]byte, error) {
 
 func (c *ListStorageTypesRequestDatabaseName) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
-	if myConverter != nil {
-		val, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-		if err == nil {
-			c.value = val.(string)
-			return nil
-		}
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
 		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
 	} else {
 		return errors.New("convert enum data to string error")
 	}
@@ -114,13 +123,18 @@ func (c ListStorageTypesRequestHaMode) MarshalJSON() ([]byte, error) {
 
 func (c *ListStorageTypesRequestHaMode) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
-	if myConverter != nil {
-		val, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-		if err == nil {
-			c.value = val.(string)
-			return nil
-		}
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
 		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
 	} else {
 		return errors.New("convert enum data to string error")
 	}

@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// 密钥对信息
+// Keypair 密钥对信息
 type Keypair struct {
 
 	// SSH密钥对的名称
@@ -18,7 +18,7 @@ type Keypair struct {
 	// SSH密钥对的类型，值为“ssh”或“x509”
 	Type *KeypairType `json:"type,omitempty"`
 
-	// 租户级或者用户级
+	// 租户级或者用户级。domain或user。
 	Scope *KeypairScope `json:"scope,omitempty"`
 
 	// SSH密钥对对应的publicKey信息
@@ -73,13 +73,18 @@ func (c KeypairType) MarshalJSON() ([]byte, error) {
 
 func (c *KeypairType) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
-	if myConverter != nil {
-		val, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-		if err == nil {
-			c.value = val.(string)
-			return nil
-		}
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
 		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
 	} else {
 		return errors.New("convert enum data to string error")
 	}
@@ -115,13 +120,18 @@ func (c KeypairScope) MarshalJSON() ([]byte, error) {
 
 func (c *KeypairScope) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
-	if myConverter != nil {
-		val, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-		if err == nil {
-			c.value = val.(string)
-			return nil
-		}
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
 		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
 	} else {
 		return errors.New("convert enum data to string error")
 	}

@@ -8,10 +8,10 @@ import (
 
 type TagEntity struct {
 
-	// 键。最大长度36个unicode字符。  key不能为空，不能为空字符串。  不能包含下列字符：非打印字符ASCII(0-31)，“=”,“*”,“<”,“>”,“\\”,“,”,“|”,“/”。
+	// 标签键。  - 不能为空。  - 对于同一个实例，Key值唯一。  [- 长度不超过36个字符。](tag:cmcc,ctc,g42,hk_g42,hk_tm,hws_eu,hws_ocb,ocb,tm,otc)  [- 长度为1~128个字符（中文也可以输入128个字符）。](tag:hws,hws_hk)  [- 不能包含“=”，“*”，“<”，“>”，“\\”，“,”，“|”，“/”](tag:cmcc,ctc,g42,hk_g42,hk_tm,hws_eu,hws_ocb,ocb,tm,otc)  [- 由任意语种字母、数字、空格和字符组成，字符仅支持_ . : = + - @](tag:hws,hws_hk)  - 首尾字符不能为空格。
 	Key *string `json:"key,omitempty"`
 
-	// 值。每个值最大长度43个unicode字符。  value不能为空，可以空字符串。  不能包含下列字符：非打印字符ASCII(0-31), “=”,“*”,“<”,“>”,“\\”,“,”,“|”,“/”。
+	// 标签值。  [- 不能为空。](tag:cmcc,ctc,g42,hk_g42,hk_tm,hws_eu,hws_ocb,ocb,tm,otc)  [- 长度不超过43个字符。](tag:cmcc,ctc,g42,hk_g42,hk_tm,hws_eu,hws_ocb,ocb,tm,otc)  [- 长度为0~255个字符（中文也可以输入128个字符）。](tag:hws,hws_hk)  [- 不能包含“=”，“*”，“<”，“>”，“\\”，“,”，“|”，“/”](tag:cmcc,ctc,g42,hk_g42,hk_tm,hws_eu,hws_ocb,ocb,tm,otc)  [- 由任意语种字母、数字、空格和字符组成，字符仅支持_ . : = + - @](tag:hws,hws_hk)  - 首尾字符不能为空格。
 	Value *string `json:"value,omitempty"`
 }
 

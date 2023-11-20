@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// 密钥对详细信息
+// KeypairDetail 密钥对详细信息
 type KeypairDetail struct {
 
 	// SSH密钥对的名称
@@ -18,10 +18,10 @@ type KeypairDetail struct {
 	// SSH密钥对的ID
 	Id *int64 `json:"id,omitempty"`
 
-	// SSH密钥对的类型
+	// SSH密钥对的类型。ssh或x509。
 	Type *KeypairDetailType `json:"type,omitempty"`
 
-	// 租户级或者用户级
+	// 租户级或者用户级。domain或user。
 	Scope *KeypairDetailScope `json:"scope,omitempty"`
 
 	// SSH密钥对对应的publicKey信息
@@ -53,6 +53,12 @@ type KeypairDetail struct {
 
 	// 冻结状态 - 0：正常状态 - 1：普通冻结 - 2：公安冻结 - 3：普通冻结及公安冻结 - 4：违规冻结 - 5：普通冻结及违规冻结 - 6：公安冻结及违规冻结 - 7：普通冻结、公安冻结及违规冻结 - 8：未实名认证冻结 - 9：普通冻结及未实名认证冻结 - 10：公安冻结及未实名认证冻结
 	FrozenState *int32 `json:"frozen_state,omitempty"`
+
+	// 密钥ID。
+	KeyId *string `json:"key_id,omitempty"`
+
+	// 生成算法。
+	Algorithm *string `json:"algorithm,omitempty"`
 }
 
 func (o KeypairDetail) String() string {
@@ -94,13 +100,18 @@ func (c KeypairDetailType) MarshalJSON() ([]byte, error) {
 
 func (c *KeypairDetailType) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
-	if myConverter != nil {
-		val, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-		if err == nil {
-			c.value = val.(string)
-			return nil
-		}
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
 		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
 	} else {
 		return errors.New("convert enum data to string error")
 	}
@@ -136,13 +147,18 @@ func (c KeypairDetailScope) MarshalJSON() ([]byte, error) {
 
 func (c *KeypairDetailScope) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
-	if myConverter != nil {
-		val, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-		if err == nil {
-			c.value = val.(string)
-			return nil
-		}
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
 		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
 	} else {
 		return errors.New("convert enum data to string error")
 	}

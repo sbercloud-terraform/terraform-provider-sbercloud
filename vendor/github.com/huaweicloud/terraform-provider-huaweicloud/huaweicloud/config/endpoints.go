@@ -23,7 +23,7 @@ var multiCatalogKeys = map[string][]string{
 	"iam":          {"identity", "iam_no_version"},
 	"bss":          {"bssv2"},
 	"ecs":          {"ecsv21", "ecsv11"},
-	"evs":          {"evsv21"},
+	"evs":          {"evsv21", "evsv1"},
 	"cce":          {"ccev1", "cce_addon"},
 	"cci":          {"cciv1_bata"},
 	"vpc":          {"networkv2", "vpcv3", "fwv2"},
@@ -46,6 +46,8 @@ var multiCatalogKeys = map[string][]string{
 	"smn":          {"smn-tag"},
 	"ces":          {"cesv2"},
 	"ims":          {"imsv1"},
+	"config":       {"rms"}, // config is named as Resource Management Service(RMS) before
+	"tms":          {"tmsv2"},
 }
 
 // GetServiceDerivedCatalogKeys returns the derived catalog keys of a service.
@@ -78,6 +80,19 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		WithOutProjectID: true,
 		Product:          "IAM",
 	},
+	"identitycenter": {
+		Name:             "identitycenter",
+		Version:          "v1",
+		Scope:            "global",
+		WithOutProjectID: true,
+		Product:          "IdentityCenter",
+	},
+	"identitystore": {
+		Name:             "identitystore",
+		Version:          "v1",
+		WithOutProjectID: true,
+		Product:          "IdentityCenter",
+	},
 	"cdn": {
 		Name:             "cdn",
 		Version:          "v1.0",
@@ -107,7 +122,6 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		WithOutProjectID: true,
 		Product:          "BSS",
 	},
-
 	// ******* catalog for Compute *******
 	"ecs": {
 		Name:    "ecs",
@@ -141,6 +155,8 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		WithOutProjectID: true,
 		Product:          "IMS",
 	},
+
+	// ******* catalog for Container *******
 	"ccev1": {
 		Name:             "cce",
 		Version:          "api/v1",
@@ -158,10 +174,11 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		WithOutProjectID: true,
 		Product:          "CCE",
 	},
-	"aom": {
-		Name:    "aom",
-		Version: "svcstg/icmgr/v1",
-		Product: "AOM",
+	"swr": {
+		Name:             "swr-api",
+		Version:          "v2",
+		WithOutProjectID: true,
+		Product:          "SWR",
 	},
 	"cci": {
 		Name:             "cci",
@@ -175,16 +192,24 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		WithOutProjectID: true,
 		Product:          "CCI",
 	},
+	"ucs": {
+		Name:             "ucs",
+		Version:          "v1",
+		Scope:            "global",
+		Admin:            true,
+		WithOutProjectID: true,
+		Product:          "UCS",
+	},
+
+	"aom": {
+		Name:    "aom",
+		Version: "svcstg/icmgr/v1",
+		Product: "AOM",
+	},
 	"fgs": {
 		Name:    "functiongraph",
 		Version: "v2",
 		Product: "FunctionGraph",
-	},
-	"swr": {
-		Name:             "swr-api",
-		Version:          "v2",
-		WithOutProjectID: true,
-		Product:          "SWR",
 	},
 	"bms": {
 		Name:    "bms",
@@ -198,6 +223,11 @@ var allServiceCatalog = map[string]ServiceCatalog{
 	},
 
 	// ******* catalog for storage ******
+	"evsv1": {
+		Name:    "evs",
+		Version: "v1",
+		Product: "EVS",
+	},
 	"evs": {
 		Name:    "evs",
 		Version: "v2",
@@ -237,6 +267,11 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Name:    "vbs",
 		Version: "v2",
 		Product: "VBS",
+	},
+	"sdrs": {
+		Name:    "sdrs",
+		Version: "v1",
+		Product: "SDRS",
 	},
 
 	// ******* catalog for network ******
@@ -351,6 +386,13 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Version: "v3",
 		Product: "RDS",
 	},
+	"ram": {
+		Name:             "ram",
+		Version:          "v1",
+		WithOutProjectID: true,
+		Scope:            "global",
+		Product:          "RAM",
+	},
 	"dds": {
 		Name:    "dds",
 		Version: "v3",
@@ -369,12 +411,12 @@ var allServiceCatalog = map[string]ServiceCatalog{
 	"gaussdb": {
 		Name:    "gaussdb",
 		Version: "v3",
-		Product: "GaussDB",
+		Product: "GaussDBforMySQL",
 	},
 	"opengauss": {
 		Name:    "gaussdb-opengauss",
 		Version: "v3",
-		Product: "GaussDBforopenGauss",
+		Product: "GaussDB",
 	},
 	"drs": {
 		Name:    "drs",
@@ -431,6 +473,15 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Name:             "tms",
 		Version:          "v1.0",
 		Scope:            "global",
+		Admin:            true, // The 'X-Domain-Id' is required for TMS service requests.
+		WithOutProjectID: true,
+		Product:          "TMS",
+	},
+	"tmsv2": {
+		Name:             "tms",
+		Version:          "v2.0",
+		Scope:            "global",
+		Admin:            true, // The 'X-Domain-Id' is required for TMS service requests.
 		WithOutProjectID: true,
 		Product:          "TMS",
 	},
@@ -439,7 +490,14 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Scope:            "global",
 		Version:          "v1",
 		WithOutProjectID: true,
-		Product:          "RMS",
+		Product:          "Config",
+	},
+	"organizations": {
+		Name:             "organizations",
+		Version:          "v1",
+		Scope:            "global",
+		WithOutProjectID: true,
+		Product:          "Organizations",
 	},
 	// catalog for Meeting service, only used for API scan
 	"meeting": {
@@ -648,6 +706,11 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Version: "v2",
 		Product: "ServiceStage",
 	},
+	"eg": {
+		Name:    "eg",
+		Version: "v1",
+		Product: "EG",
+	},
 
 	// catalog for IEC which is a global service
 	"iec": {
@@ -741,6 +804,12 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Product: "ProjectMan",
 	},
 
+	"codearts_deploy": {
+		Name:    "codearts-deploy",
+		Version: "v2",
+		Product: "CodeArtsDeploy",
+	},
+
 	// catalog for Data Security Center
 	"dsc": {
 		Name:    "sdg",
@@ -765,6 +834,15 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Version:          "v2.0",
 		WithOutProjectID: true,
 		Product:          "NAT",
+	},
+
+	// catalog for KooGallery
+	"mkt": {
+		Name:             "mkt",
+		Version:          "api/mkp-openapi-public/v1",
+		Scope:            "global",
+		WithOutProjectID: true,
+		Product:          "KooGallery",
 	},
 }
 

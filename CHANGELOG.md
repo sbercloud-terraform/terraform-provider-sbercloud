@@ -1,3 +1,20 @@
+## 1.11.6 (November 20, 2023)
+
+FEATURES:
+
+* **Updated Resource:** `sbercloud_dli_spark_job` 
+
+ENHANCEMENTS:
+
+* Changed test flavour in sbercloud_cdm_cluster
+* Upgrade to terraform-provider-huaweicloud `v1.57.0`
+* Updated dependencies
+* Updated elb_monitor
+* Added new parameters in sbercloud_dli_spark_job
+* Updated ges_graph test
+
+
+
 ## 1.11.5 (September 15, 2023)
 
 FEATURES:

@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// Request Object
+// ListFlavorsRequest Request Object
 type ListFlavorsRequest struct {
 
 	// 语言
@@ -42,6 +42,7 @@ type ListFlavorsRequestDatabaseNameEnum struct {
 	MY_SQL      ListFlavorsRequestDatabaseName
 	POSTGRE_SQL ListFlavorsRequestDatabaseName
 	SQL_SERVER  ListFlavorsRequestDatabaseName
+	MARIA_DB    ListFlavorsRequestDatabaseName
 }
 
 func GetListFlavorsRequestDatabaseNameEnum() ListFlavorsRequestDatabaseNameEnum {
@@ -54,6 +55,9 @@ func GetListFlavorsRequestDatabaseNameEnum() ListFlavorsRequestDatabaseNameEnum 
 		},
 		SQL_SERVER: ListFlavorsRequestDatabaseName{
 			value: "SQLServer",
+		},
+		MARIA_DB: ListFlavorsRequestDatabaseName{
+			value: "MariaDB",
 		},
 	}
 }
@@ -68,13 +72,18 @@ func (c ListFlavorsRequestDatabaseName) MarshalJSON() ([]byte, error) {
 
 func (c *ListFlavorsRequestDatabaseName) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
-	if myConverter != nil {
-		val, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-		if err == nil {
-			c.value = val.(string)
-			return nil
-		}
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
 		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
 	} else {
 		return errors.New("convert enum data to string error")
 	}

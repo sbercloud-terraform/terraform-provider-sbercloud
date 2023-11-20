@@ -44,6 +44,7 @@ The following arguments are supported:
   The OBS paths are allowed, for example, `obs://<bucket name>/<package name>`.
   Changing this parameter will submit a new spark job.
 
+
 * `feature` - (Optional, String, ForceNew) Specifies the feature name for the Spark Job.
   Required for Spark 3. Known values: `basic`, `ai`, `custom`.
   Changing this parameter will submit a new spark job.

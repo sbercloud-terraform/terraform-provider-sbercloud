@@ -18,13 +18,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
-const (
-	jarFile    = "jar"
-	pythonFile = "pyFile"
-	userFile   = "file"
-)
-
-func ResourceDliSparkJob() *schema.Resource {
+func ResourceDliSparkJobV2() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: ResourceDliSparkJobV2Create,
 		ReadContext:   ResourceDliSparkJobV2Read,

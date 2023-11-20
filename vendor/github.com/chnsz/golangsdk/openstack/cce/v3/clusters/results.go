@@ -39,6 +39,8 @@ type MetaData struct {
 	Labels map[string]string `json:"labels,omitempty"`
 	//Cluster annotation, key/value pair format
 	Annotations map[string]string `json:"annotations,omitempty"`
+	// Cluster alias
+	Alias string `json:"alias"`
 }
 
 // Specifications to create a cluster
@@ -71,8 +73,25 @@ type Spec struct {
 	Masters []MasterSpec `json:"masters,omitempty"`
 	//Range of kubernetes clusterIp
 	KubernetesSvcIPRange string `json:"kubernetesSvcIpRange,omitempty"`
+	//Custom san list for certificates
+	CustomSan []string `json:"customSan,omitempty"`
 	// Tags of cluster, key value pair format
 	ClusterTags []tags.ResourceTag `json:"clusterTags,omitempty"`
+	// configurationsOverride
+	ConfigurationsOverride []PackageConfiguration `json:"configurationsOverride,omitempty"`
+	// Whether to enable IPv6
+	IPv6Enable bool `json:"ipv6enable,omitempty"`
+	// K8s proxy mode
+	KubeProxyMode string `json:"kubeProxyMode,omitempty"`
+	// Whether to enable Istio
+	SupportIstio bool `json:"supportIstio,omitempty"`
+	// The category, the value can be CCE and CCE
+	Category string `json:"category,omitempty"`
+}
+
+type PackageConfiguration struct {
+	Name           string        `json:"name,omitempty"`
+	Configurations []interface{} `json:"configurations,omitempty"`
 }
 
 // Node network parameters
@@ -106,10 +125,16 @@ type CidrSpec struct {
 }
 
 type EniNetworkSpec struct {
-	//Eni network subnet id
-	SubnetId string `json:"eniSubnetId" required:"true"`
-	//Eni network cidr
-	Cidr string `json:"eniSubnetCIDR" required:"true"`
+	//Eni network subnet id, will be deprecated in the future
+	SubnetId string `json:"eniSubnetId,omitempty"`
+	//Eni network cidr, will be deprecated in the future
+	Cidr string `json:"eniSubnetCIDR,omitempty"`
+	// Eni network subnet IDs
+	Subnets []EniSubnetSpec `json:"subnets" required:"true"`
+}
+
+type EniSubnetSpec struct {
+	SubnetID string `json:"subnetID" required:"true"`
 }
 
 // Authentication parameters

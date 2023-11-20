@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// Response Object
+// CreateTrackerResponse Response Object
 type CreateTrackerResponse struct {
 
 	// 追踪器唯一标识。
@@ -23,6 +23,11 @@ type CreateTrackerResponse struct {
 
 	// 是否打开事件文件校验。当前环境仅\"tracker_type\"参数值为\"system\"时支持该功能。
 	IsSupportValidate *bool `json:"is_support_validate,omitempty"`
+
+	// 是否应用到我的组织。 只针对管理类追踪器。设置为true时，ORG组织下所有成员当前区域的审计日志会转储到该追踪器配置的OBS桶或者LTS日志流，但是事件列表界面不支持查看其它组织成员的审计日志。
+	IsOrganizationTracker *bool `json:"is_organization_tracker,omitempty"`
+
+	ManagementEventSelector *ManagementEventSelector `json:"management_event_selector,omitempty"`
 
 	Lts *Lts `json:"lts,omitempty"`
 
@@ -92,13 +97,18 @@ func (c CreateTrackerResponseTrackerType) MarshalJSON() ([]byte, error) {
 
 func (c *CreateTrackerResponseTrackerType) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
-	if myConverter != nil {
-		val, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-		if err == nil {
-			c.value = val.(string)
-			return nil
-		}
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
 		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
 	} else {
 		return errors.New("convert enum data to string error")
 	}
@@ -134,13 +144,18 @@ func (c CreateTrackerResponseStatus) MarshalJSON() ([]byte, error) {
 
 func (c *CreateTrackerResponseStatus) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
-	if myConverter != nil {
-		val, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-		if err == nil {
-			c.value = val.(string)
-			return nil
-		}
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
 		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
 	} else {
 		return errors.New("convert enum data to string error")
 	}

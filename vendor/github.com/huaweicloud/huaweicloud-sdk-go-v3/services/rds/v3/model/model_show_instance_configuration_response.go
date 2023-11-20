@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// Response Object
+// ShowInstanceConfigurationResponse Response Object
 type ShowInstanceConfigurationResponse struct {
 
 	// 引擎版本。
@@ -46,6 +46,7 @@ type ShowInstanceConfigurationResponseDatastoreNameEnum struct {
 	MYSQL      ShowInstanceConfigurationResponseDatastoreName
 	POSTGRESQL ShowInstanceConfigurationResponseDatastoreName
 	SQLSERVER  ShowInstanceConfigurationResponseDatastoreName
+	MARIADB    ShowInstanceConfigurationResponseDatastoreName
 }
 
 func GetShowInstanceConfigurationResponseDatastoreNameEnum() ShowInstanceConfigurationResponseDatastoreNameEnum {
@@ -58,6 +59,9 @@ func GetShowInstanceConfigurationResponseDatastoreNameEnum() ShowInstanceConfigu
 		},
 		SQLSERVER: ShowInstanceConfigurationResponseDatastoreName{
 			value: "sqlserver",
+		},
+		MARIADB: ShowInstanceConfigurationResponseDatastoreName{
+			value: "mariadb",
 		},
 	}
 }
@@ -72,13 +76,18 @@ func (c ShowInstanceConfigurationResponseDatastoreName) MarshalJSON() ([]byte, e
 
 func (c *ShowInstanceConfigurationResponseDatastoreName) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
-	if myConverter != nil {
-		val, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-		if err == nil {
-			c.value = val.(string)
-			return nil
-		}
+	if myConverter == nil {
+		return errors.New("unsupported StringConverter type: string")
+	}
+
+	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
+	if err != nil {
 		return err
+	}
+
+	if val, ok := interf.(string); ok {
+		c.value = val
+		return nil
 	} else {
 		return errors.New("convert enum data to string error")
 	}

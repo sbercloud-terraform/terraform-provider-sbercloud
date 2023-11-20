@@ -50,7 +50,7 @@ resource "sbercloud_networking_secgroup" "secgroup" {
 
 resource "sbercloud_cdm_cluster" "cluster" {
  availability_zone = data.sbercloud_availability_zones.test.names[0]
- flavor_id         = data.sbercloud_cdm_flavors.test.flavors[0].id
+ flavor_id         = data.sbercloud_cdm_flavors.test.flavors[2].id
  name              = "%s"
  security_group_id = sbercloud_networking_secgroup.secgroup.id
  subnet_id         = data.sbercloud_vpc_subnet.test.id
