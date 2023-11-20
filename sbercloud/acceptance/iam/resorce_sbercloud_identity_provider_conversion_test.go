@@ -10,7 +10,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/iam"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 )
 
@@ -20,7 +19,7 @@ func getProviderConversionFunc(c *config.Config, state *terraform.ResourceState)
 		return nil, fmt.Errorf("error creating SberCLoud IAM without version: %s", err)
 	}
 	providerID := state.Primary.Attributes["provider_id"]
-	conversionID := iam.MappingIDPrefix + providerID
+	conversionID := "mapping_" + providerID
 	return mappings.Get(client, conversionID)
 }
 
