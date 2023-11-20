@@ -1,7 +1,8 @@
-## 1.11.6 (November 20, 2023)
+
+ ## 1.11.6 (November 20, 2023)
 
 FEATURES:
-
+* **Added Resource:** `sbercloud_identity_group_role_assinment`
 * **Updated Resource:** `sbercloud_dli_spark_job` 
 
 ENHANCEMENTS:
@@ -12,7 +13,6 @@ ENHANCEMENTS:
 * Updated elb_monitor
 * Added new parameters in sbercloud_dli_spark_job
 * Updated ges_graph test
-
 
 
 ## 1.11.5 (September 15, 2023)
