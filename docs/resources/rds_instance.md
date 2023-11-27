@@ -145,6 +145,8 @@ The following arguments are supported:
 
 * `volume` - (Required, List) Specifies the volume information. Structure is documented below.
 
+* `restore` - (Optional, List, ForceNew) Specifies the restoration information. Structure is documented below. Changing this parameter will create a new resource.
+
 * `fixed_ip` - (Optional, String, ForceNew) Specifies an intranet floating IP address of RDS DB instance.
   Changing this parameter will create a new resource.
 
@@ -210,6 +212,17 @@ The `volume` block supports:
 
 * `disk_encryption_id` - (Optional) Specifies the key ID for disk encryption.
   Changing this parameter will create a new resource.
+
+The `restore` block supports:
+
+* `instance_id` - (Required, String, ForceNew) Specifies the source DB instance ID. Changing this parameter will create
+  a new resource.
+
+* `backup_id` - (Required, String, ForceNew) Specifies the ID of the backup used to restore data. Changing this
+  parameter will create a new resource.
+
+* `database_name` - (Optional, Map, ForceNew) Specifies the database to be restored. This parameter applies only to
+  Microsoft SQL Server databases. Changing this parameter will create a new resource.
 
 The `backup_strategy` block supports:
 
