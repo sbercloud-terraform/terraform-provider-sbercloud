@@ -141,7 +141,6 @@ The following arguments are supported:
   Changing this parameter will create a new resource.
 
 * `security_group_id` - (Required, String, ForceNew) Specifies the security group which the RDS DB instance belongs to.
-  Changing this parameter will create a new resource.
 
 * `volume` - (Required, List) Specifies the volume information. Structure is documented below.
 
@@ -190,7 +189,7 @@ The `db` block supports:
   and lowercase letters, digits, and the following special
   characters: ~!@#%^*-_=+? You are advised to enter a strong
   password to improve security, preventing security risks such as
-  brute force cracking. Changing this parameter will create a new resource.
+  brute force cracking.
 
 * `port` - (Optional, Int,  ForceNew) Specifies the database port. Changing this parameter will create a new resource.
   - The MySQL database port ranges from 1024 to 65535 (excluding 12017 and 33071, which are
