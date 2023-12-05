@@ -153,7 +153,7 @@ The following arguments are supported:
 * `backup_strategy` - (Optional, List) Specifies the advanced backup policy. Structure is documented below.
 
 * `ha_replication_mode` - (Optional, String, ForceNew) Specifies the replication mode for the standby DB instance.
-  Changing this parameter will create a new resource.
+  Required for the standby DB instances. Changing this parameter will create a new resource.
   - For MySQL, the value is *async* or *semisync*.
   - For PostgreSQL, the value is *async* or *sync*.
   - For Microsoft SQL Server, the value is *sync*.
