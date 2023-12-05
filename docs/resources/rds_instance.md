@@ -114,6 +114,55 @@ resource "sbercloud_rds_instance" "instance" {
 }
 ```
 
+### create db instance with customized parameters
+
+```hcl
+variable "vpc_id" {}
+variable "subnet_id" {}
+variable "secgroup_id" {}
+variable "availability_zone" {}
+
+resource "sbercloud_rds_instance" "instance" {
+  name              = "terraform_test_rds_instance"
+  flavor            = "rds.pg.n1.large.2"
+  vpc_id            = var.vpc_id
+  subnet_id         = var.subnet_id
+  security_group_id = var.secgroup_id
+  availability_zone = [var.availability_zone]
+
+  db {
+    type     = "PostgreSQL"
+    version  = "12"
+    password = "Huangwei!120521"
+  }
+
+  volume {
+    type = "ULTRAHIGH"
+    size = 100
+  }
+
+  backup_strategy {
+    start_time = "08:00-09:00"
+    keep_days  = 1
+  }
+
+  parameters {
+    name  = "authentication_timeout"
+    value = "50"
+  }
+  
+  parameters {
+    name  = "commit_delay"
+    value = "10"
+  }
+
+  parameters {
+    name  = "log_rotation_age"
+    value = "70"
+  }
+}
+```
+
 ## Argument Reference
 
 The following arguments are supported:
