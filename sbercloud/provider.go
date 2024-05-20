@@ -284,6 +284,7 @@ func Provider() *schema.Provider {
 			"sbercloud_as_configuration":                as.ResourceASConfiguration(),
 			"sbercloud_as_group":                        as.ResourceASGroup(),
 			"sbercloud_as_policy":                       as.ResourceASPolicy(),
+			"sbercloud_as_bandwidth_policy":             as.ResourceASBandWidthPolicy(),
 			"sbercloud_cbr_policy":                      cbr.ResourcePolicy(),
 			"sbercloud_cbr_vault":                       cbr.ResourceVault(),
 			"sbercloud_css_cluster":                     css.ResourceCssCluster(),
