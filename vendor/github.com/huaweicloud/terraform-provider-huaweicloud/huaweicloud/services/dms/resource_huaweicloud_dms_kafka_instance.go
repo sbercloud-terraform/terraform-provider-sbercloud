@@ -85,12 +85,13 @@ func ResourceDmsKafkaInstance() *schema.Resource {
 			},
 			"manager_user": {
 				Type:     schema.TypeString,
-				Required: true,
+				Optional: true,
+				Computed: true,
 				ForceNew: true,
 			},
 			"manager_password": {
 				Type:      schema.TypeString,
-				Required:  true,
+				Optional:  true,
 				Sensitive: true,
 				ForceNew:  true,
 			},
@@ -135,7 +136,6 @@ func ResourceDmsKafkaInstance() *schema.Resource {
 				Type:      schema.TypeString,
 				Sensitive: true,
 				Optional:  true,
-				ForceNew:  true,
 				RequiredWith: []string{
 					"access_user",
 				},
@@ -187,7 +187,6 @@ func ResourceDmsKafkaInstance() *schema.Resource {
 				Type:     schema.TypeBool,
 				Optional: true,
 				Computed: true,
-				ForceNew: true,
 			},
 			"enterprise_project_id": {
 				Type:     schema.TypeString,
@@ -352,7 +351,7 @@ func getKafkaProductDetails(cfg *config.Config, d *schema.ResourceData) (*produc
 	return nil, fmt.Errorf("can not found Kafka product details base on product_id: %s", productID)
 }
 
-func updateCrossVpcAccess(client *golangsdk.ServiceClient, d *schema.ResourceData) error {
+func updateCrossVpcAccess(ctx context.Context, client *golangsdk.ServiceClient, d *schema.ResourceData) error {
 	newVal := d.Get("cross_vpc_accesses")
 	var crossVpcAccessArr []map[string]interface{}
 
@@ -389,12 +388,26 @@ func updateCrossVpcAccess(client *golangsdk.ServiceClient, d *schema.ResourceDat
 
 	log.Printf("[DEBUG} Update Kafka cross-vpc contentMap: %#v", contentMap)
 
-	updateRst, err := instances.UpdateCrossVpc(client, d.Id(), instances.CrossVpcUpdateOpts{
-		Contents: contentMap,
+	retryFunc := func() (interface{}, bool, error) {
+		updateRst, err := instances.UpdateCrossVpc(client, d.Id(), instances.CrossVpcUpdateOpts{
+			Contents: contentMap,
+		})
+		retry, err := handleMultiOperationsError(err)
+		return updateRst, retry, err
+	}
+	r, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     KafkaInstanceStateRefreshFunc(client, d.Id()),
+		WaitTarget:   []string{"RUNNING"},
+		Timeout:      d.Timeout(schema.TimeoutUpdate),
+		DelayTimeout: 10 * time.Second,
+		PollInterval: 10 * time.Second,
 	})
 	if err != nil {
 		return fmt.Errorf("error updating advertised IP: %v", err)
 	}
+	updateRst := r.(*instances.CrossVpc)
 
 	if !updateRst.Success {
 		failedIps := make([]string, 0, len(updateRst.Connections))
@@ -441,7 +454,7 @@ func resourceDmsKafkaInstanceCreate(ctx context.Context, d *schema.ResourceData,
 	}
 
 	if _, ok := d.GetOk("cross_vpc_accesses"); ok {
-		if err = updateCrossVpcAccess(client, d); err != nil {
+		if err = updateCrossVpcAccess(ctx, client, d); err != nil {
 			return diag.Errorf("failed to update default advertised IP: %s", err)
 		}
 	}
@@ -815,11 +828,11 @@ func unmarshalFlattenCrossVpcInfo(crossVpcInfoStr string) ([]map[string]interfac
 }
 
 func setKafkaFlavorId(d *schema.ResourceData, flavorId string) error {
-	re := regexp.MustCompile(`^[a-z0-9]+\.\d+u\d+g\.cluster|single$`)
+	re := regexp.MustCompile(`^\d(\d|-)*\d$`)
 	if re.MatchString(flavorId) {
-		return d.Set("flavor_id", flavorId)
+		return d.Set("product_id", flavorId)
 	}
-	return d.Set("product_id", flavorId)
+	return d.Set("flavor_id", flavorId)
 }
 
 func resourceDmsKafkaInstanceRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -940,7 +953,20 @@ func resourceDmsKafkaInstanceUpdate(ctx context.Context, d *schema.ResourceData,
 			updateOpts.Name = d.Get("name").(string)
 		}
 
-		err = instances.Update(client, d.Id(), updateOpts).Err
+		retryFunc := func() (interface{}, bool, error) {
+			err = instances.Update(client, d.Id(), updateOpts).Err
+			retry, err := handleMultiOperationsError(err)
+			return nil, retry, err
+		}
+		_, err = common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+			Ctx:          ctx,
+			RetryFunc:    retryFunc,
+			WaitFunc:     KafkaInstanceStateRefreshFunc(client, d.Id()),
+			WaitTarget:   []string{"RUNNING"},
+			Timeout:      d.Timeout(schema.TimeoutUpdate),
+			DelayTimeout: 1 * time.Second,
+			PollInterval: 10 * time.Second,
+		})
 		if err != nil {
 			mErr = multierror.Append(mErr, fmt.Errorf("error updating Kafka Instance: %s", err))
 		}
@@ -962,7 +988,7 @@ func resourceDmsKafkaInstanceUpdate(ctx context.Context, d *schema.ResourceData,
 	}
 
 	if d.HasChange("cross_vpc_accesses") {
-		if err = updateCrossVpcAccess(client, d); err != nil {
+		if err = updateCrossVpcAccess(ctx, client, d); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
 	}
@@ -974,6 +1000,70 @@ func resourceDmsKafkaInstanceUpdate(ctx context.Context, d *schema.ResourceData,
 		}
 		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), d.Id()); err != nil {
 			return diag.Errorf("error updating the auto-renew of the Kafka instance (%s): %s", d.Id(), err)
+		}
+	}
+
+	if d.HasChange("enable_auto_topic") {
+		enableAutoTopic := d.Get("enable_auto_topic").(bool)
+		autoTopicOpts := instances.AutoTopicOpts{
+			EnableAutoTopic: &enableAutoTopic,
+		}
+		retryFunc := func() (interface{}, bool, error) {
+			err = instances.UpdateAutoTopic(client, d.Id(), autoTopicOpts).Err
+			retry, err := handleMultiOperationsError(err)
+			return nil, retry, err
+		}
+		_, err = common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+			Ctx:          ctx,
+			RetryFunc:    retryFunc,
+			WaitFunc:     KafkaInstanceStateRefreshFunc(client, d.Id()),
+			WaitTarget:   []string{"RUNNING"},
+			Timeout:      d.Timeout(schema.TimeoutUpdate),
+			DelayTimeout: 1 * time.Second,
+			PollInterval: 10 * time.Second,
+		})
+		if err != nil {
+			mErr = multierror.Append(mErr, fmt.Errorf("error enabling or disabling automatic topic: %s", err))
+		}
+
+		// The enabling or disabling automatic topic is done if the status of its related task is SUCCESS
+		stateConf := &resource.StateChangeConf{
+			Pending:      []string{"CREATED"},
+			Target:       []string{"SUCCESS"},
+			Refresh:      autoTopicTaskRefreshFunc(client, d.Id(), "kafkaConfigModify"),
+			Timeout:      d.Timeout(schema.TimeoutUpdate),
+			Delay:        1 * time.Second,
+			PollInterval: 5 * time.Second,
+		}
+
+		_, err = stateConf.WaitForStateContext(ctx)
+		if err != nil {
+			mErr = multierror.Append(mErr,
+				fmt.Errorf("error waiting for the automatic topic task of the instance (%s) to be done: %s", d.Id(), err))
+		}
+	}
+
+	if d.HasChange("password") {
+		resetPasswordOpts := instances.ResetPasswordOpts{
+			NewPassword: d.Get("password").(string),
+		}
+		retryFunc := func() (interface{}, bool, error) {
+			err = instances.ResetPassword(client, d.Id(), resetPasswordOpts).Err
+			retry, err := handleMultiOperationsError(err)
+			return nil, retry, err
+		}
+		_, err = common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+			Ctx:          ctx,
+			RetryFunc:    retryFunc,
+			WaitFunc:     KafkaInstanceStateRefreshFunc(client, d.Id()),
+			WaitTarget:   []string{"RUNNING"},
+			Timeout:      d.Timeout(schema.TimeoutUpdate),
+			DelayTimeout: 1 * time.Second,
+			PollInterval: 10 * time.Second,
+		})
+		if err != nil {
+			e := fmt.Errorf("error resetting password: %s", err)
+			mErr = multierror.Append(mErr, e)
 		}
 	}
 
@@ -1070,12 +1160,26 @@ func resizeKafkaInstanceStorage(ctx context.Context, d *schema.ResourceData, cli
 }
 
 func doKafkaInstanceResize(ctx context.Context, d *schema.ResourceData, client *golangsdk.ServiceClient, opts instances.ResizeInstanceOpts) error {
-	if _, err := instances.Resize(client, d.Id(), opts); err != nil {
+	retryFunc := func() (interface{}, bool, error) {
+		_, err := instances.Resize(client, d.Id(), opts)
+		retry, err := handleMultiOperationsError(err)
+		return nil, retry, err
+	}
+	_, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     KafkaInstanceStateRefreshFunc(client, d.Id()),
+		WaitTarget:   []string{"RUNNING"},
+		Timeout:      d.Timeout(schema.TimeoutUpdate),
+		DelayTimeout: 1 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
+	if err != nil {
 		return fmt.Errorf("resize Kafka instance failed: %s", err)
 	}
 
 	stateConf := &resource.StateChangeConf{
-		Pending:      []string{"PENDING"},
+		Pending:      []string{"PENDING", "EXTENDING"},
 		Target:       []string{"RUNNING"},
 		Refresh:      kafkaResizeStateRefresh(client, d, opts.OperType),
 		Timeout:      d.Timeout(schema.TimeoutUpdate),
@@ -1120,11 +1224,38 @@ func resourceDmsKafkaInstanceDelete(ctx context.Context, d *schema.ResourceData,
 	}
 
 	if d.Get("charging_mode") == "prePaid" {
-		if err = common.UnsubscribePrePaidResource(d, cfg, []string{d.Id()}); err != nil {
+		retryFunc := func() (interface{}, bool, error) {
+			err = common.UnsubscribePrePaidResource(d, cfg, []string{d.Id()})
+			retry, err := handleMultiOperationsError(err)
+			return nil, retry, err
+		}
+		_, err = common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+			Ctx:          ctx,
+			RetryFunc:    retryFunc,
+			WaitFunc:     KafkaInstanceStateRefreshFunc(client, d.Id()),
+			WaitTarget:   []string{"RUNNING"},
+			Timeout:      d.Timeout(schema.TimeoutDelete),
+			DelayTimeout: 1 * time.Second,
+			PollInterval: 10 * time.Second,
+		})
+		if err != nil {
 			return diag.Errorf("error unsubscribe Kafka instance: %s", err)
 		}
 	} else {
-		err = instances.Delete(client, d.Id()).ExtractErr()
+		retryFunc := func() (interface{}, bool, error) {
+			err = instances.Delete(client, d.Id()).ExtractErr()
+			retry, err := handleMultiOperationsError(err)
+			return nil, retry, err
+		}
+		_, err = common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+			Ctx:          ctx,
+			RetryFunc:    retryFunc,
+			WaitFunc:     KafkaInstanceStateRefreshFunc(client, d.Id()),
+			WaitTarget:   []string{"RUNNING"},
+			Timeout:      d.Timeout(schema.TimeoutDelete),
+			DelayTimeout: 1 * time.Second,
+			PollInterval: 10 * time.Second,
+		})
 		if err != nil {
 			return common.CheckDeletedDiag(d, err, "failed to delete Kafka instance")
 		}
@@ -1262,4 +1393,62 @@ func getAvailableZones(cfg *config.Config, region string) ([]availablezones.Avai
 	}
 
 	return r.AvailableZones, nil
+}
+
+func handleMultiOperationsError(err error) (bool, error) {
+	if err == nil {
+		// The operation was executed successfully and does not need to be executed again.
+		return false, nil
+	}
+	if errCode, ok := err.(golangsdk.ErrDefault400); ok {
+		var apiError interface{}
+		if jsonErr := json.Unmarshal(errCode.Body, &apiError); jsonErr != nil {
+			return false, fmt.Errorf("unmarshal the response body failed: %s", jsonErr)
+		}
+
+		errorCode, errorCodeErr := jmespath.Search("error_code", apiError)
+		if errorCodeErr != nil {
+			return false, fmt.Errorf("error parse errorCode from response body: %s", errorCodeErr)
+		}
+
+		// CBC.99003651: unsubscribe fail, another operation is being performed
+		if errorCode.(string) == "DMS.00400026" || errorCode == "CBC.99003651" {
+			return true, err
+		}
+	}
+	return false, err
+}
+
+func autoTopicTaskRefreshFunc(client *golangsdk.ServiceClient, instanceID string, taskName string) resource.StateRefreshFunc {
+	return func() (interface{}, string, error) {
+		// getAutoTopicTask: query automatic topic task
+		getAutoTopicTaskHttpUrl := "v2/{project_id}/instances/{instance_id}/tasks"
+		getAutoTopicTaskPath := client.Endpoint + getAutoTopicTaskHttpUrl
+		getAutoTopicTaskPath = strings.ReplaceAll(getAutoTopicTaskPath, "{project_id}",
+			client.ProjectID)
+		getAutoTopicTaskPath = strings.ReplaceAll(getAutoTopicTaskPath, "{instance_id}", instanceID)
+
+		getAutoTopicTaskPathOpt := golangsdk.RequestOpts{
+			KeepResponseBody: true,
+		}
+		getAutoTopicTaskPathResp, err := client.Request("GET", getAutoTopicTaskPath,
+			&getAutoTopicTaskPathOpt)
+
+		if err != nil {
+			return nil, "QUERY ERROR", err
+		}
+
+		getAutoTopicTaskRespBody, err := utils.FlattenResponse(getAutoTopicTaskPathResp)
+		if err != nil {
+			return nil, "PARSE ERROR", err
+		}
+
+		task := utils.PathSearch(fmt.Sprintf("tasks|[?name=='%s']|[0]", taskName), getAutoTopicTaskRespBody, nil)
+		if task == nil {
+			return nil, "NIL ERROR", fmt.Errorf("failed to find the task of the automatic topic")
+		}
+
+		status := utils.PathSearch("status", task, nil)
+		return task, fmt.Sprint(status), nil
+	}
 }

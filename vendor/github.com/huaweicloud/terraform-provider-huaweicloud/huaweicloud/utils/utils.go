@@ -16,10 +16,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chnsz/golangsdk"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/jmespath/go-jmespath"
+
+	"github.com/chnsz/golangsdk"
 )
 
 // ConvertStructToMap converts an instance of struct to a map object, and
@@ -540,4 +541,41 @@ func SchemaDesc(description string, schemaDescInput SchemaDescInput) string {
 	}
 
 	return description
+}
+
+// ConvertMemoryUnit is a method that used to convert the memory unit.
+// Parameters:
+// + memory: The memory size of the current unit, only supports int value or string corresponding to int value.
+// + diffLevel: Difference level between units before and after conversion.
+// diffLevel greater than 0 means that the unit is converted to a higher level, and vice versa to a lower level, e.g.
+// the unit of memory input is MB, -2 means it is converted from MB to B, and 2 means it is converted from MB to TB.
+func ConvertMemoryUnit(memory interface{}, diffLevel int) int {
+	var memoryInt int
+	switch memory := memory.(type) {
+	case int:
+		memoryInt = memory
+	case string:
+		var err error
+		memoryInt, err = strconv.Atoi(memory)
+		if err != nil {
+			log.Printf("convert string value (%v) to int fail: %s", memory, err)
+			return -1
+		}
+	default:
+		log.Printf("unsupported memory unit type, want 'int' or 'string', but got '%T'", memory)
+		return -1
+	}
+
+	if diffLevel >= 0 {
+		return memoryInt / Power(1024, diffLevel)
+	}
+	return memoryInt * Power(1024, -diffLevel)
+}
+
+// IsUUID is a method used to determine whether a string is in UUID format.
+func IsUUID(uuid string) bool {
+	// Using regular expressions to match UUID formats, with or without underscores.
+	pattern := "[0-9a-fA-F]{8}(-?[0-9a-fA-F]{4}){3}-?[0-9a-fA-F]{12}"
+	match, _ := regexp.MatchString(pattern, uuid)
+	return match
 }

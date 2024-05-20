@@ -11,7 +11,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+
 	"github.com/huaweicloud/huaweicloud-sdk-go-v3/services/live/v1/model"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
@@ -130,7 +132,7 @@ func resourceTranscodingCreate(ctx context.Context, d *schema.ResourceData, meta
 	return resourceTranscodingRead(ctx, d, meta)
 }
 
-func resourceTranscodingRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceTranscodingRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*config.Config)
 	region := c.GetRegion(d)
 	client, err := c.HcLiveV1Client(region)
@@ -191,7 +193,7 @@ func resourceTranscodingUpdate(ctx context.Context, d *schema.ResourceData, meta
 	return resourceTranscodingRead(ctx, d, meta)
 }
 
-func resourceTranscodingDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceTranscodingDelete(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*config.Config)
 	region := c.GetRegion(d)
 	client, err := c.HcLiveV1Client(region)
@@ -255,7 +257,7 @@ func buildTranscodingParams(d *schema.ResourceData) (*model.StreamTranscodingTem
 
 		qualityInfo[i] = model.QualityInfo{
 			TemplateName:   utils.String(template["name"].(string)),
-			Quality:        template["name"].(string),
+			Quality:        "userdefine",
 			Width:          utils.Int32(int32(width)),
 			Height:         utils.Int32(int32(height)),
 			Bitrate:        int32(template["bitrate"].(int)),
@@ -304,7 +306,7 @@ func setTemplatesToState(d *schema.ResourceData, qualityInfo *[]model.QualityInf
 	return nil
 }
 
-func parseTranscodingId(id string) (string, string, error) {
+func parseTranscodingId(id string) (domainName string, appName string, err error) {
 	idArrays := strings.SplitN(id, "/", 2)
 	if len(idArrays) != 2 {
 		return "", "", fmt.Errorf("invalid format specified for import ID. Format must be <domain_name>/<app_name>")

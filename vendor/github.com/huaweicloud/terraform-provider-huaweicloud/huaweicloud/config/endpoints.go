@@ -23,18 +23,19 @@ var multiCatalogKeys = map[string][]string{
 	"iam":          {"identity", "iam_no_version"},
 	"bss":          {"bssv2"},
 	"ecs":          {"ecsv21", "ecsv11"},
-	"evs":          {"evsv21", "evsv1"},
+	"evs":          {"evsv21", "evsv1", "evsv5"},
 	"cce":          {"ccev1", "cce_addon"},
 	"cci":          {"cciv1_bata"},
 	"vpc":          {"networkv2", "vpcv3", "fwv2"},
 	"elb":          {"elbv2", "elbv3"},
-	"dns":          {"dns_region"},
+	"dns":          {"dns_region", "dnsv21"},
 	"kms":          {"kmsv1", "kmsv3"},
 	"mrs":          {"mrsv2"},
 	"nat":          {"natv3"},
 	"rds":          {"rdsv1"},
 	"waf":          {"waf-dedicated"},
 	"geminidb":     {"geminidbv31"},
+	"dataarts":     {"dataarts-dlf"},
 	"dli":          {"dliv2"},
 	"dcs":          {"dcsv1"},
 	"dis":          {"disv3"},
@@ -48,6 +49,7 @@ var multiCatalogKeys = map[string][]string{
 	"ims":          {"imsv1"},
 	"config":       {"rms"}, // config is named as Resource Management Service(RMS) before
 	"tms":          {"tmsv2"},
+	"anti-ddos":    {"anti-ddosv2"},
 }
 
 // GetServiceDerivedCatalogKeys returns the derived catalog keys of a service.
@@ -155,6 +157,13 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		WithOutProjectID: true,
 		Product:          "IMS",
 	},
+	"cms": {
+		Name:             "cms",
+		Version:          "v2",
+		Scope:            "global",
+		WithOutProjectID: true,
+		Product:          "CMS",
+	},
 
 	// ******* catalog for Container *******
 	"ccev1": {
@@ -206,6 +215,12 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Version: "svcstg/icmgr/v1",
 		Product: "AOM",
 	},
+	"coc": {
+		Name:    "coc",
+		Version: "v1",
+		Scope:   "global",
+		Product: "COC",
+	},
 	"fgs": {
 		Name:    "functiongraph",
 		Version: "v2",
@@ -236,6 +251,11 @@ var allServiceCatalog = map[string]ServiceCatalog{
 	"evsv21": {
 		Name:    "evs",
 		Version: "v2.1",
+		Product: "EVS",
+	},
+	"evsv5": {
+		Name:    "evs",
+		Version: "v5",
 		Product: "EVS",
 	},
 	"sfs": {
@@ -292,6 +312,13 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Version: "v3",
 		Product: "VPC",
 	},
+	"geip": {
+		Name:             "eip",
+		Version:          "v3",
+		Scope:            "global",
+		WithOutProjectID: true,
+		Product:          "EIP",
+	},
 	"nat": {
 		Name:    "nat",
 		Version: "v2",
@@ -339,6 +366,12 @@ var allServiceCatalog = map[string]ServiceCatalog{
 	"dns_region": {
 		Name:             "dns",
 		Version:          "v2",
+		WithOutProjectID: true,
+		Product:          "DNS",
+	},
+	"dnsv21": {
+		Name:             "dns",
+		Version:          "v2.1",
 		WithOutProjectID: true,
 		Product:          "DNS",
 	},
@@ -521,6 +554,11 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Version: "v1",
 		Product: "Anti-DDoS",
 	},
+	"anti-ddosv2": {
+		Name:    "antiddos",
+		Version: "v2",
+		Product: "Anti-DDoS",
+	},
 	"kms": {
 		Name:             "kms",
 		Version:          "v1.0",
@@ -588,6 +626,11 @@ var allServiceCatalog = map[string]ServiceCatalog{
 	},
 	"dataarts": {
 		Name:    "dayu",
+		Version: "v1",
+		Product: "DataArtsStudio",
+	},
+	"dataarts-dlf": {
+		Name:    "dayu-dlf",
 		Version: "v1",
 		Product: "DataArtsStudio",
 	},
@@ -737,7 +780,13 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Name:             "scm",
 		Version:          "v3",
 		WithOutProjectID: true,
-		Product:          "SCM",
+		Product:          "CCM",
+	},
+	"ccm": {
+		Name:             "ccm",
+		Version:          "v1",
+		WithOutProjectID: true,
+		Product:          "CCM",
 	},
 
 	// catalog for cc
@@ -746,6 +795,7 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Version:          "v3",
 		Scope:            "global",
 		WithOutProjectID: true,
+		Admin:            true,
 		Product:          "CC",
 	},
 
@@ -808,6 +858,13 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Name:    "codearts-deploy",
 		Version: "v2",
 		Product: "CodeArtsDeploy",
+	},
+
+	"vss": {
+		Name:    "vss",
+		Version: "v3",
+		Scope:   "global",
+		Product: "CodeArtsInspector",
 	},
 
 	// catalog for Data Security Center

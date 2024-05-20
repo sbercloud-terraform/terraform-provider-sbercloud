@@ -6,15 +6,17 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/bss/v2/orders"
 	"github.com/chnsz/golangsdk/openstack/common/tags"
 	"github.com/chnsz/golangsdk/openstack/geminidb/v3/backups"
 	"github.com/chnsz/golangsdk/openstack/geminidb/v3/configurations"
 	"github.com/chnsz/golangsdk/openstack/geminidb/v3/instances"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
@@ -847,7 +849,7 @@ func resourceGeminiDBInstanceV3Update(d *schema.ResourceData, meta interface{}, 
 			}
 			// Reduce Nodes
 			shrinkSize := old.(int) - newnum.(int)
-			// API accepts maxinum num of 10
+			// the API accepts maxinum num of 10
 			reduceNum := 10
 			loopSize := shrinkSize / reduceNum
 			lastNum := shrinkSize % reduceNum

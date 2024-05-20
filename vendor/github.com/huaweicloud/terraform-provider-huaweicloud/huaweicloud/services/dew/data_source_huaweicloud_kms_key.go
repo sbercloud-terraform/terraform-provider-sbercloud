@@ -16,6 +16,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DEW POST /v1.0/{project_id}/kms/list-keys
+// @API DEW POST /v1.0/{project_id}/kms/get-key-rotation-status
+// @API DEW GET /v1.0/{project_id}/kms/{key_id}/tags
 func DataSourceKmsKey() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: dataSourceKmsKeyRead,
@@ -99,21 +102,21 @@ func DataSourceKmsKey() *schema.Resource {
 }
 
 func dataSourceKmsKeyRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	region := config.GetRegion(d)
-	kmsKeyV1Client, err := config.KmsKeyV1Client(region)
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+	kmsKeyV1Client, err := cfg.KmsKeyV1Client(region)
 	if err != nil {
 		return diag.Errorf("error creating kms key client: %s", err)
 	}
 
-	is_list_key := true
-	next_marker := ""
+	isListKey := true
+	nextMarker := ""
 	allKeys := []keys.Key{}
-	for is_list_key {
+	for isListKey {
 		req := &keys.ListOpts{
 			KeyState: d.Get("key_state").(string),
 			Limit:    "",
-			Marker:   next_marker,
+			Marker:   nextMarker,
 		}
 
 		v, err := keys.List(kmsKeyV1Client, req).ExtractListKey()
@@ -121,8 +124,8 @@ func dataSourceKmsKeyRead(_ context.Context, d *schema.ResourceData, meta interf
 			return diag.FromErr(err)
 		}
 
-		is_list_key = v.Truncated == "true"
-		next_marker = v.NextMarker
+		isListKey = v.Truncated == "true"
+		nextMarker = v.NextMarker
 		allKeys = append(allKeys, v.KeyDetails...)
 	}
 
@@ -171,7 +174,7 @@ func dataSourceKmsKeyRead(_ context.Context, d *schema.ResourceData, meta interf
 			return diag.Errorf("error saving tags to state for kms key(%s): %s", key.KeyID, err)
 		}
 	} else {
-		log.Printf("[WARN] Error fetching tags of kms key(%s): %s", key.KeyID, err)
+		log.Printf("[WARN] error fetching tags of kms key(%s): %s", key.KeyID, err)
 	}
 
 	// Set KMS rotation
@@ -186,7 +189,7 @@ func dataSourceKmsKeyRead(_ context.Context, d *schema.ResourceData, meta interf
 			d.Set("rotation_number", r.NumberOfRotations)
 		}
 	} else {
-		log.Printf("[WARN] Error fetching details about key rotation: %s", err)
+		log.Printf("[WARN] error fetching details about key rotation: %s", err)
 	}
 
 	return nil

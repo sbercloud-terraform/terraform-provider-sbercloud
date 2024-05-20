@@ -4,12 +4,15 @@ import (
 	"context"
 	"time"
 
-	"github.com/chnsz/golangsdk/openstack/kms/v1/keys"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+
+	"github.com/chnsz/golangsdk/openstack/kms/v1/keys"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
+// @API DEW POST /v1.0/{project_id}/kms/create-datakey
 func DataSourceKmsDataKeyV1() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: resourceKmsDataKeyV1Read,
@@ -61,7 +64,7 @@ func resourceKmsDataKeyV1Read(_ context.Context, d *schema.ResourceData, meta in
 		return diag.FromErr(err)
 	}
 
-	//lintignore:R017
+	// lintignore:R017
 	d.SetId(time.Now().UTC().String())
 	d.Set("plain_text", v.PlainText)
 	d.Set("cipher_text", v.CipherText)

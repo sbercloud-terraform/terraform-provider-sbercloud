@@ -4,43 +4,42 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
-
-	aomservice "github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/aom"
-
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 
 	aom "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/aom/v2/model"
+
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 )
 
-func getServiceDiscoveryRuleResourceFunc(conf *config.Config, state *terraform.ResourceState) (interface{}, error) {
+func getAlarmRuleResourceFunc(conf *config.Config, state *terraform.ResourceState) (interface{}, error) {
 	c, err := conf.HcAomV2Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return nil, fmt.Errorf("error creating AOM client: %s", err)
 	}
-
-	response, err := c.ListServiceDiscoveryRules(&aom.ListServiceDiscoveryRulesRequest{})
+	response, err := c.ShowAlarmRule(&aom.ShowAlarmRuleRequest{AlarmRuleId: state.Primary.ID})
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving AOM service discovery rule: %s", state.Primary.ID)
+		return nil, fmt.Errorf("error retrieving AOM alarm rule: %s", state.Primary.ID)
 	}
 
-	allRules := *response.AppRules
-
-	return aomservice.FilterRules(allRules, state.Primary.ID)
+	allRules := *response.Thresholds
+	if len(allRules) != 1 {
+		return nil, fmt.Errorf("error retrieving AOM alarm rule %s", state.Primary.ID)
+	}
+	rule := allRules[0]
+	return rule, nil
 }
 
-func TestAccAOMServiceDiscoveryRule_basic(t *testing.T) {
+func TestAccAOMAlarmRule_basic(t *testing.T) {
 	var ar aom.QueryAlarmResult
 	rName := acceptance.RandomAccResourceNameWithDash()
-	rNameUpdate := rName + "-update"
-	resourceName := "sbercloud_aom_service_discovery_rule.test"
+	resourceName := "sbercloud_aom_alarm_rule.test"
 
 	rc := acceptance.InitResourceCheck(
 		resourceName,
 		&ar,
-		getServiceDiscoveryRuleResourceFunc,
+		getAlarmRuleResourceFunc,
 	)
 
 	resource.ParallelTest(t, resource.TestCase{
@@ -49,22 +48,19 @@ func TestAccAOMServiceDiscoveryRule_basic(t *testing.T) {
 		CheckDestroy:      rc.CheckResourceDestroy(),
 		Steps: []resource.TestStep{
 			{
-				Config: testAOMServiceDiscoveryRule_basic(rName),
+				Config: testAOMAlarmRule_basic(rName),
 				Check: resource.ComposeTestCheckFunc(
 					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
-					resource.TestCheckResourceAttr(resourceName, "priority", "9999"),
-					resource.TestCheckResourceAttr(resourceName, "detect_log_enabled", "true"),
-					resource.TestCheckResourceAttr(resourceName, "discovery_rule_enabled", "true"),
-					resource.TestCheckResourceAttr(resourceName, "is_default_rule", "true"),
-					resource.TestCheckResourceAttr(resourceName, "log_file_suffix.0", "log"),
-					resource.TestCheckResourceAttr(resourceName, "service_type", "Python"),
-					resource.TestCheckResourceAttr(resourceName, "discovery_rules.0.check_content.0", "python"),
-					resource.TestCheckResourceAttr(resourceName, "log_path_rules.0.args.0", "python"),
-					resource.TestCheckResourceAttr(
-						resourceName, "name_rules.0.service_name_rule.0.args.0", "python"),
-					resource.TestCheckResourceAttr(
-						resourceName, "name_rules.0.application_name_rule.0.args.0", "python"),
+					resource.TestCheckResourceAttr(resourceName, "description", "test rule"),
+					resource.TestCheckResourceAttr(resourceName, "alarm_enabled", "true"),
+					resource.TestCheckResourceAttr(resourceName, "alarm_level", "2"),
+					resource.TestCheckResourceAttr(resourceName, "dimensions.0.name", "hostID"),
+					resource.TestCheckResourceAttrPair(resourceName, "dimensions.0.value", "sbercloud_compute_instance.test", "id"),
+					resource.TestCheckResourceAttr(resourceName, "comparison_operator", ">"),
+					resource.TestCheckResourceAttr(resourceName, "period", "300000"),
+					resource.TestCheckResourceAttr(resourceName, "threshold", "2"),
+					resource.TestCheckResourceAttr(resourceName, "evaluation_periods", "3"),
 				),
 			},
 			{
@@ -73,97 +69,92 @@ func TestAccAOMServiceDiscoveryRule_basic(t *testing.T) {
 				ImportStateVerify: true,
 			},
 			{
-				Config: testAOMServiceDiscoveryRule_update(rNameUpdate),
+				Config: testAOMAlarmRule_update(rName),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr(resourceName, "name", rNameUpdate),
-					resource.TestCheckResourceAttr(resourceName, "priority", "9998"),
-					resource.TestCheckResourceAttr(resourceName, "detect_log_enabled", "false"),
-					resource.TestCheckResourceAttr(resourceName, "discovery_rule_enabled", "false"),
-					resource.TestCheckResourceAttr(resourceName, "is_default_rule", "false"),
-					resource.TestCheckResourceAttr(resourceName, "log_file_suffix.0", "trace"),
-					resource.TestCheckResourceAttr(resourceName, "service_type", "Java"),
-					resource.TestCheckResourceAttr(resourceName, "discovery_rules.0.check_content.0", "java"),
-					resource.TestCheckResourceAttr(resourceName, "log_path_rules.0.args.0", "java"),
-					resource.TestCheckResourceAttr(
-						resourceName, "name_rules.0.service_name_rule.0.args.0", "java"),
-					resource.TestCheckResourceAttr(
-						resourceName, "name_rules.0.application_name_rule.0.args.0", "java"),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttr(resourceName, "description", "test rule update"),
+					resource.TestCheckResourceAttr(resourceName, "alarm_enabled", "true"),
+					resource.TestCheckResourceAttr(resourceName, "alarm_level", "3"),
+					resource.TestCheckResourceAttr(resourceName, "comparison_operator", ">="),
+					resource.TestCheckResourceAttr(resourceName, "period", "60000"),
+					resource.TestCheckResourceAttr(resourceName, "threshold", "3"),
+					resource.TestCheckResourceAttr(resourceName, "evaluation_periods", "2"),
 				),
 			},
 		},
 	})
 }
 
-func testAOMServiceDiscoveryRule_basic(rName string) string {
+func testAOMAlarmRule_base(rName string) string {
 	return fmt.Sprintf(`
-resource "sbercloud_aom_service_discovery_rule" "test" {
-  name                   = "%s"
-  priority               = 9999
-  detect_log_enabled     = true
-  discovery_rule_enabled = true
-  is_default_rule        = true
-  log_file_suffix        = ["log"]
-  service_type           = "Python"
+%s
 
-  discovery_rules {
-    check_content = ["python"]
-    check_mode    = "contain"
-    check_type    = "cmdLine"
-  }
+resource "sbercloud_compute_instance" "test" {
+  name               = "ecs-%s"
+  image_id           = data.sbercloud_images_image.test.id
+  flavor_id          = data.sbercloud_compute_flavors.test.ids[0]
+  security_group_ids = [sbercloud_networking_secgroup.test.id]
+  availability_zone  = data.sbercloud_availability_zones.test.names[0]
 
-  log_path_rules {
-    name_type = "cmdLineHash"
-    args      = ["python"]
-    value     = ["/tmp/log"]
-  }
-
-  name_rules {
-    service_name_rule {
-      name_type = "str"
-      args      = ["python"]
-    }
-    application_name_rule {
-      name_type = "str"
-      args      = ["python"]
-    }
+  network {
+    uuid = sbercloud_vpc_subnet.test.id
   }
 }
-`, rName)
+`, acceptance.TestBaseComputeResources(rName), rName)
 }
 
-func testAOMServiceDiscoveryRule_update(rName string) string {
+func testAOMAlarmRule_basic(rName string) string {
 	return fmt.Sprintf(`
-resource "sbercloud_aom_service_discovery_rule" "test" {
-  name                   = "%s"
-  priority               = 9998
-  detect_log_enabled     = false
-  discovery_rule_enabled = false
-  is_default_rule        = false
-  log_file_suffix        = ["trace"]
-  service_type           = "Java"
+%s
 
-  discovery_rules {
-    check_content = ["java"]
-    check_mode    = "contain"
-    check_type    = "cmdLine"
+resource "sbercloud_aom_alarm_rule" "test" {
+  name                 = "%s"
+  alarm_level          = 2
+  alarm_action_enabled = false
+  description          = "test rule"
+
+  namespace   = "PAAS.NODE"
+  metric_name = "cupUsage"
+
+  dimensions {
+    name  = "hostID"
+    value = sbercloud_compute_instance.test.id
   }
 
-  log_path_rules {
-    name_type = "cmdLineHash"
-    args      = ["java"]
-    value     = ["/tmp/log"]
-  }
-
-  name_rules {
-    service_name_rule {
-      name_type = "str"
-      args      = ["java"]
-    }
-    application_name_rule {
-      name_type = "str"
-      args      = ["java"]
-    }
-  }
+  comparison_operator = ">"
+  period              = 300000
+  statistic           = "average"
+  threshold           = 2
+  unit                = "Percent"
+  evaluation_periods  = 3
 }
-`, rName)
+`, testAOMAlarmRule_base(rName), rName)
+}
+
+func testAOMAlarmRule_update(rName string) string {
+	return fmt.Sprintf(`
+%s
+
+resource "sbercloud_aom_alarm_rule" "test" {
+  name                 = "%s"
+  alarm_level          = 3
+  alarm_action_enabled = false
+  description          = "test rule update"
+
+  namespace   = "PAAS.NODE"
+  metric_name = "cupUsage"
+
+  dimensions {
+    name  = "hostID"
+    value = sbercloud_compute_instance.test.id
+  }
+
+  comparison_operator = ">="
+  period              = 60000
+  statistic           = "average"
+  threshold           = 3
+  unit                = "Percent"
+  evaluation_periods  = 2
+}
+`, testAOMAlarmRule_base(rName), rName)
 }

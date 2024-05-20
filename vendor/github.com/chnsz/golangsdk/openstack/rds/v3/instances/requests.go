@@ -321,7 +321,8 @@ type EnlargeVolumeOpts struct {
 }
 
 type EnlargeVolumeSize struct {
-	Size int `json:"size" required:"true"`
+	Size      int  `json:"size" required:"true"`
+	IsAutoPay bool `json:"is_auto_pay,omitempty"`
 }
 
 func (opts EnlargeVolumeOpts) ToActionInstanceMap() (map[string]interface{}, error) {
@@ -620,5 +621,82 @@ func ModifyAlias(c *golangsdk.ServiceClient, opts ActionInstanceBuilder, instanc
 	_, r.Err = c.Put(updateURL(c, instanceId, "alias"), b, nil, &golangsdk.RequestOpts{
 		OkCodes: []int{200, 202},
 	})
+	return
+}
+
+type ModifyMaintainWindowOpts struct {
+	StartTime string `json:"start_time" required:"true"`
+	EndTime   string `json:"end_time" required:"true"`
+}
+
+func (opts ModifyMaintainWindowOpts) ToActionInstanceMap() (map[string]interface{}, error) {
+	return toActionInstanceMap(opts)
+}
+
+// ModifyMaintainWindow is a method used to modify maintain window.
+func ModifyMaintainWindow(c *golangsdk.ServiceClient, opts ActionInstanceBuilder, instanceId string) (r ModifyMaintainWindowResult) {
+	b, err := opts.ToActionInstanceMap()
+	if err != nil {
+		r.Err = err
+		return
+	}
+	_, r.Err = c.Put(updateURL(c, instanceId, "ops-window"), b, nil, &golangsdk.RequestOpts{})
+	return
+}
+
+type ModifyReplicationModeOpts struct {
+	Mode string `json:"mode" required:"true"`
+}
+
+func (opts ModifyReplicationModeOpts) ToActionInstanceMap() (map[string]interface{}, error) {
+	return toActionInstanceMap(opts)
+}
+
+// ModifyReplicationMode is a method used to modify replication mode.
+func ModifyReplicationMode(c *golangsdk.ServiceClient, opts ActionInstanceBuilder, instanceId string) (r ModifyReplicationModeResult) {
+	b, err := opts.ToActionInstanceMap()
+	if err != nil {
+		r.Err = err
+		return
+	}
+	_, r.Err = c.Put(updateURL(c, instanceId, "failover/mode"), b, &r.Body, &golangsdk.RequestOpts{})
+	return
+}
+
+type ModifySwitchStrategyOpts struct {
+	RepairStrategy string `json:"repairStrategy" required:"true"`
+}
+
+func (opts ModifySwitchStrategyOpts) ToActionInstanceMap() (map[string]interface{}, error) {
+	return toActionInstanceMap(opts)
+}
+
+// ModifySwitchStrategy is a method used to modify replication mode.
+func ModifySwitchStrategy(c *golangsdk.ServiceClient, opts ActionInstanceBuilder, instanceId string) (r ModifySwitchStrategyResult) {
+	b, err := opts.ToActionInstanceMap()
+	if err != nil {
+		r.Err = err
+		return
+	}
+	_, r.Err = c.Put(updateURL(c, instanceId, "failover/strategy"), b, &r.Body, &golangsdk.RequestOpts{})
+	return
+}
+
+type ModifyCollationOpts struct {
+	Collation string `json:"collation" required:"true"`
+}
+
+func (opts ModifyCollationOpts) ToActionInstanceMap() (map[string]interface{}, error) {
+	return toActionInstanceMap(opts)
+}
+
+// ModifyCollation is a method used to modify collation.
+func ModifyCollation(c *golangsdk.ServiceClient, opts ActionInstanceBuilder, instanceId string) (r ModifyCollationResult) {
+	b, err := opts.ToActionInstanceMap()
+	if err != nil {
+		r.Err = err
+		return
+	}
+	_, r.Err = c.Put(updateURL(c, instanceId, "collations"), b, &r.Body, &golangsdk.RequestOpts{})
 	return
 }

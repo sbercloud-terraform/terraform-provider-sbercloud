@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -14,8 +15,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
 	"github.com/chnsz/golangsdk"
+	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 	"github.com/chnsz/golangsdk/openstack/workspace/v2/desktops"
 	"github.com/chnsz/golangsdk/openstack/workspace/v2/jobs"
+	"github.com/chnsz/golangsdk/openstack/workspace/v2/users"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
@@ -83,7 +87,6 @@ func ResourceDesktop() *schema.Resource {
 			"image_type": {
 				Type:     schema.TypeString,
 				Required: true,
-				ForceNew: true,
 				ValidateFunc: validation.StringInSlice([]string{
 					"market", "gold", "private",
 				}, false),
@@ -91,7 +94,6 @@ func ResourceDesktop() *schema.Resource {
 			"image_id": {
 				Type:     schema.TypeString,
 				Required: true,
-				ForceNew: true,
 			},
 			"vpc_id": {
 				Type:     schema.TypeString,
@@ -144,13 +146,12 @@ func ResourceDesktop() *schema.Resource {
 			"nic": {
 				Type:     schema.TypeList,
 				Optional: true,
-				ForceNew: true,
+				Computed: true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"network_id": {
 							Type:     schema.TypeString,
 							Required: true,
-							ForceNew: true,
 						},
 					},
 				},
@@ -170,12 +171,24 @@ func ResourceDesktop() *schema.Resource {
 			"enterprise_project_id": {
 				Type:     schema.TypeString,
 				Optional: true,
-				ForceNew: true,
 				Computed: true,
 			},
 			"delete_user": {
 				Type:     schema.TypeBool,
 				Optional: true,
+			},
+			"power_action": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+			},
+			"power_action_type": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+			"status": {
+				Type:     schema.TypeString,
+				Computed: true,
 			},
 		},
 	}
@@ -327,6 +340,14 @@ func resourceDesktopCreate(ctx context.Context, d *schema.ResourceData, meta int
 	log.Printf("[DEBUG] The job (%s) has been completed", resp.JobId)
 
 	d.SetId(desktopId)
+
+	if action, ok := d.GetOk("power_action"); ok {
+		if action == "os-start" {
+			log.Printf("[WARN] the power action (os-start) is invalid after desktop created")
+		} else if err = updateDesktopPowerAction(ctx, client, d); err != nil {
+			return diag.FromErr(err)
+		}
+	}
 	return resourceDesktopRead(ctx, d, meta)
 }
 
@@ -387,6 +408,25 @@ func flattenDesktopSecurityGroups(securityGroups []desktops.SecurityGroup) []int
 	return result
 }
 
+func getDesktopNetwork(client *golangsdk.ServiceClient, desktopId string) ([]map[string]interface{}, error) {
+	network, err := desktops.GetNetwork(client, desktopId)
+	if err != nil {
+		return nil, fmt.Errorf("error getting desktop network info: %s", err)
+	}
+
+	if len(network) < 1 {
+		return nil, fmt.Errorf("unable to find any network information under Workspace desktop (%s)", desktopId)
+	}
+
+	nic := []map[string]interface{}{
+		{
+			"network_id": network[0].Subnet.ID,
+		},
+	}
+
+	return nic, err
+}
+
 func resourceDesktopRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	conf := meta.(*config.Config)
 	region := conf.GetRegion(d)
@@ -395,7 +435,8 @@ func resourceDesktopRead(_ context.Context, d *schema.ResourceData, meta interfa
 		return diag.Errorf("error creating Workspace v2 client: %s", err)
 	}
 
-	resp, err := desktops.Get(client, d.Id())
+	desktopId := d.Id()
+	resp, err := desktops.Get(client, desktopId)
 	if err != nil {
 		return common.CheckDeletedDiag(d, err, "Workspace desktop")
 	}
@@ -406,17 +447,31 @@ func resourceDesktopRead(_ context.Context, d *schema.ResourceData, meta interfa
 		d.Set("root_volume", flattenDesktopRootVolume(resp.RootVolume)),
 		d.Set("data_volume", flattenDesktopDataVolumes(resp.DataVolumes)),
 		d.Set("availability_zone", resp.AvailabilityZone),
-		d.Set("security_groups", flattenDesktopSecurityGroups(resp.SecurityGroups)),
 		d.Set("user_group", resp.UserGroup),
 		d.Set("name", resp.Name),
 		d.Set("tags", utils.TagsToMap(resp.Tags)),
 		d.Set("enterprise_project_id", resp.EnterpriseProjectId),
+		d.Set("status", resp.Status),
 	)
 
 	if imageId, ok := resp.Metadata["metering.image_id"]; ok {
 		mErr = multierror.Append(mErr, d.Set("image_id", imageId))
 	} else {
 		mErr = multierror.Append(mErr, fmt.Errorf("the image_id field does not found in metadata structure"))
+	}
+
+	securityGroups := resp.SecurityGroups
+	if len(securityGroups) < 1 {
+		mErr = multierror.Append(mErr, fmt.Errorf("the security_groups field does not found in API response"))
+	} else {
+		mErr = multierror.Append(mErr, d.Set("security_groups", flattenDesktopSecurityGroups(securityGroups)))
+	}
+
+	nicVal, err := getDesktopNetwork(client, desktopId)
+	if err != nil {
+		mErr = multierror.Append(mErr, err)
+	} else {
+		mErr = multierror.Append(mErr, d.Set("nic", nicVal))
 	}
 
 	if err = mErr.ErrorOrNil(); err != nil {
@@ -471,7 +526,7 @@ func updateDesktopVolumes(ctx context.Context, client *golangsdk.ServiceClient, 
 		newLen := len(newRaw)
 		oldLen := len(oldRaw)
 		if newLen < oldLen {
-			return fmt.Errorf("The number of volumes cannot be reduced")
+			return fmt.Errorf("the number of volumes cannot be reduced")
 		}
 		lengthDiff = newLen - oldLen
 
@@ -541,17 +596,143 @@ func updateDesktopVolumes(ctx context.Context, client *golangsdk.ServiceClient, 
 	return nil
 }
 
+func updateDesktopNetwork(ctx context.Context, client *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	nicRaw := d.Get("nic").([]interface{})
+	if len(nicRaw) < 1 {
+		return nil
+	}
+
+	nicVal := nicRaw[0].(map[string]interface{})
+	securityGroups := d.Get("security_groups").(*schema.Set)
+	listId := make([]string, securityGroups.Len())
+	for i, id := range securityGroups.List() {
+		listId[i] = id.(string)
+	}
+
+	desktopId := d.Id()
+	opts := desktops.UpdateNetworkOpts{
+		DesktopId:        desktopId,
+		VpcId:            d.Get("vpc_id").(string),
+		SubnetId:         nicVal["network_id"].(string),
+		SecurityGroupIds: listId,
+	}
+
+	resp, err := desktops.UpdateNetwork(client, opts)
+	if err != nil {
+		return fmt.Errorf("error updating the network of the Workspace desktop (%s): %s", desktopId, err)
+	}
+	_, err = waitForWorkspaceJobCompleted(ctx, client, resp.JobId, d.Timeout(schema.TimeoutUpdate))
+	if err != nil {
+		return fmt.Errorf("error waiting for the job (%s) completed: %s", resp.JobId, err)
+	}
+	log.Printf("[DEBUG] The job (%s) has been completed", resp.JobId)
+	return nil
+}
+
+func waitForWorkspaceStatusCompleted(ctx context.Context, client *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	stateConf := &resource.StateChangeConf{
+		Pending:      []string{"PENDING"},
+		Target:       []string{"COMPLETED"},
+		Refresh:      desktopStatusRefreshFunc(client, d),
+		Timeout:      d.Timeout(schema.TimeoutUpdate),
+		Delay:        10 * time.Second,
+		PollInterval: 10 * time.Second,
+		// The final status of both startup and restart is "ACTIVE". the parameter only applies to "REBOOT" action.
+		ContinuousTargetOccurence: 2,
+	}
+	_, err := stateConf.WaitForStateContext(ctx)
+	return err
+}
+
+func desktopStatusRefreshFunc(client *golangsdk.ServiceClient, d *schema.ResourceData) resource.StateRefreshFunc {
+	return func() (interface{}, string, error) {
+		desktopId := d.Id()
+		resp, err := desktops.Get(client, desktopId)
+		if err != nil {
+			return resp, "", err
+		}
+
+		// In statusMap, key represents the power action of the desktop, and value represents the status after the desktop operation is completed.
+		// Use statusMap to make a mapping relationship between the power action of the desktop and the final status of the desktop.
+		statusMap := map[string]string{
+			"os-start":     "ACTIVE",
+			"os-stop":      "SHUTOFF",
+			"reboot":       "ACTIVE",
+			"os-hibernate": "SHUTOFF",
+		}
+
+		powerAction := d.Get("power_action").(string)
+		// TaskStatus variable is always an empty string when the desktop power action is completed.
+		// If the desktop power action changes from one state to another, taskStatus is an empty string for a long time,
+		// whether a desktop action is completed cannot be determined only by taskStatus.
+		if resp.TaskStatus == "" && resp.Status == statusMap[powerAction] {
+			return resp, "COMPLETED", nil
+		}
+		return resp, "PENDING", nil
+	}
+}
+
+func updateDesktopPowerAction(ctx context.Context, client *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	desktopId := d.Id()
+	action := d.Get("power_action").(string)
+	opts := desktops.ActionOpts{
+		DesktopIds: []string{desktopId},
+		OpType:     action,
+		Type:       d.Get("power_action_type").(string),
+	}
+
+	resp, err := desktops.DoAction(client, opts)
+	if err != nil {
+		return fmt.Errorf("error updating the power action of the Workspace desktop (%s): %s", desktopId, err)
+	}
+
+	if resp.JobId == "" {
+		err = waitForWorkspaceStatusCompleted(ctx, client, d)
+		if err != nil {
+			return fmt.Errorf("error waiting for power action (%s) for desktop (%s) failed: %s", action, desktopId, err)
+		}
+		return nil
+	}
+
+	// Job ID is returned when cold migration is started.
+	_, err = waitForWorkspaceJobCompleted(ctx, client, resp.JobId, d.Timeout(schema.TimeoutUpdate))
+	if err != nil {
+		return fmt.Errorf("error waiting for the job (%s) completed: %s", resp.JobId, err)
+	}
+	log.Printf("[DEBUG] The job (%s) has been completed", resp.JobId)
+	return nil
+}
+
 func resourceDesktopUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	conf := meta.(*config.Config)
-	client, err := conf.WorkspaceV2Client(conf.GetRegion(d))
+	region := conf.GetRegion(d)
+	client, err := conf.WorkspaceV2Client(region)
 	if err != nil {
 		return diag.Errorf("error creating Workspace v2 client: %s", err)
 	}
 
+	desktopId := d.Id()
 	if d.HasChange("flavor_id") {
 		if err = updateDesktopFlavor(ctx, client, d); err != nil {
 			return diag.FromErr(err)
 		}
+	}
+
+	if d.HasChanges("image_type", "image_id") {
+		rebuildOpts := desktops.RebuildOpts{
+			DesktopIds: []string{desktopId},
+			ImageType:  d.Get("image_type").(string),
+			ImageId:    d.Get("image_id").(string),
+		}
+		resp, err := desktops.Rebuild(client, rebuildOpts)
+		if err != nil {
+			return diag.Errorf("error rebuild Workspace desktop: %s", err)
+		}
+		_, err = waitForWorkspaceJobCompleted(ctx, client, resp.JobId, d.Timeout(schema.TimeoutUpdate))
+		if err != nil {
+			return diag.Errorf("error waiting for the job (%s) completed: %s", resp.JobId, err)
+		}
+		log.Printf("[DEBUG] The job (%s) has been completed", resp.JobId)
 	}
 
 	if d.HasChanges("root_volume", "data_volume") {
@@ -561,10 +742,35 @@ func resourceDesktopUpdate(ctx context.Context, d *schema.ResourceData, meta int
 	}
 
 	if d.HasChange("tags") {
-		desktopId := d.Id()
 		err = utils.UpdateResourceTags(client, d, "desktops", desktopId)
 		if err != nil {
 			return diag.Errorf("error updating tags of Workspace desktop (%s): %s", desktopId, err)
+		}
+	}
+
+	if d.HasChange("nic") {
+		err = updateDesktopNetwork(ctx, client, d)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	if d.HasChange("enterprise_project_id") {
+		migrateOpts := enterpriseprojects.MigrateResourceOpts{
+			ResourceId:   desktopId,
+			ResourceType: "workspace-desktop",
+			RegionId:     region,
+			ProjectId:    client.ProjectID,
+		}
+		if err := common.MigrateEnterpriseProject(ctx, conf, d, migrateOpts); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	if d.HasChanges("power_action") {
+		err = updateDesktopPowerAction(ctx, client, d)
+		if err != nil {
+			return diag.FromErr(err)
 		}
 	}
 
@@ -573,8 +779,8 @@ func resourceDesktopUpdate(ctx context.Context, d *schema.ResourceData, meta int
 
 func waitForDesktopDeleted(ctx context.Context, client *golangsdk.ServiceClient, desktopId string, timeout time.Duration) error {
 	stateConf := &resource.StateChangeConf{
-		Pending:      []string{"deleting"},
-		Target:       []string{"deleted"},
+		Pending:      []string{"ACTIVE", "DELETING", "SHUTOFF"},
+		Target:       []string{"DELETED"},
 		Refresh:      refreshDesktopStatusFunc(client, desktopId),
 		Timeout:      timeout,
 		Delay:        10 * time.Second,
@@ -590,18 +796,44 @@ func refreshDesktopStatusFunc(client *golangsdk.ServiceClient, desktopId string)
 		resp, err := desktops.Get(client, desktopId)
 		if err != nil {
 			if _, ok := err.(golangsdk.ErrDefault404); ok {
-				return resp, "deleted", nil
+				return resp, "DELETED", nil
 			}
-			return resp, "", err
+			return resp, "ERROR", err
 		}
 		// During the removal process of desktop, the workspace service cannot perceive the ECS mechine and the API will
 		// return an empty status.
 		if resp.Status == "" {
-			return resp, "deleting", nil
+			return resp, "DELETING", nil
 		}
-
-		return resp, resp.TaskStatus, nil
+		// The uppercase characters is the default format for attribute 'status' in the API response.
+		return resp, strings.ToUpper(resp.Status), nil
 	}
+}
+
+func waitForDesktopUserDeleted(ctx context.Context, client *golangsdk.ServiceClient, userName string, timeout time.Duration) error {
+	listOpts := users.ListOpts{
+		Name: userName,
+	}
+	stateConf := &resource.StateChangeConf{
+		Pending: []string{"ACTIVE"},
+		Target:  []string{"DELETED"},
+		Refresh: func() (interface{}, string, error) {
+			resp, err := users.List(client, listOpts)
+			if err != nil {
+				return resp, "ERROR", err
+			}
+			if len(resp.Users) < 1 {
+				return resp, "DELETED", nil
+			}
+			return resp, "ACTIVE", nil
+		},
+		Timeout:      timeout,
+		Delay:        10 * time.Second,
+		PollInterval: 10 * time.Second,
+	}
+
+	_, err := stateConf.WaitForStateContext(ctx)
+	return err
 }
 
 func resourceDesktopDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -611,17 +843,27 @@ func resourceDesktopDelete(ctx context.Context, d *schema.ResourceData, meta int
 		return diag.Errorf("error creating Workspace v2 client: %s", err)
 	}
 
+	isDeleteUser := d.Get("delete_user").(bool)
 	opts := desktops.DeleteOpts{
-		DeleteUser:        d.Get("delete_user").(bool),
+		DeleteUser:        isDeleteUser,
 		EmailNotification: d.Get("email_notification").(bool),
 	}
 	err = desktops.Delete(client, d.Id(), opts)
 	if err != nil {
 		return diag.Errorf("error deleting desktop (%s): %s", d.Id(), err)
 	}
+	// Make sure the desktop has been deleted.
 	err = waitForDesktopDeleted(ctx, client, d.Id(), d.Timeout(schema.TimeoutDelete))
 	if err != nil {
 		return diag.Errorf("an error occur when delete desktop: %s", err)
+	}
+	if isDeleteUser {
+		// Make sure the related user has been deleted.
+		userName := d.Get("user_name").(string)
+		err = waitForDesktopUserDeleted(ctx, client, userName, d.Timeout(schema.TimeoutDelete))
+		if err != nil {
+			return diag.Errorf("an error occur when delete user: %s", err)
+		}
 	}
 	return nil
 }

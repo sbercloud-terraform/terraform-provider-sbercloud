@@ -18,6 +18,7 @@ import (
 	"github.com/chnsz/golangsdk/openstack/er/v3/associations"
 	"github.com/chnsz/golangsdk/openstack/er/v3/propagations"
 	"github.com/chnsz/golangsdk/openstack/er/v3/routetables"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
@@ -74,7 +75,7 @@ func ResourceRouteTable() *schema.Resource {
 						"The angle brackets (< and >) are not allowed."),
 				),
 			},
-			"tags": common.TagsForceNewSchema(),
+			"tags": common.TagsSchema(),
 			// Attributes
 			"is_default_association": {
 				Type:        schema.TypeBool,
@@ -114,8 +115,8 @@ func buildRouteTableCreateOpts(d *schema.ResourceData) routetables.CreateOpts {
 }
 
 func resourceRouteTableCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	client, err := config.ErV3Client(config.GetRegion(d))
+	cfg := meta.(*config.Config)
+	client, err := cfg.ErV3Client(cfg.GetRegion(d))
 	if err != nil {
 		return diag.Errorf("error creating ER v3 client: %s", err)
 	}
@@ -168,9 +169,9 @@ func routeTableStatusRefreshFunc(client *golangsdk.ServiceClient, instanceId, ro
 }
 
 func resourceRouteTableRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	region := config.GetRegion(d)
-	client, err := config.ErV3Client(region)
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+	client, err := cfg.ErV3Client(region)
 	if err != nil {
 		return diag.Errorf("error creating ER v3 client: %s", err)
 	}
@@ -229,9 +230,9 @@ func updateRouteTableBasicInfo(ctx context.Context, client *golangsdk.ServiceCli
 }
 
 func resourceRouteTableUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	region := config.GetRegion(d)
-	client, err := config.ErV3Client(region)
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+	client, err := cfg.ErV3Client(region)
 	if err != nil {
 		return diag.Errorf("error creating ER v3 client: %s", err)
 	}
@@ -239,6 +240,13 @@ func resourceRouteTableUpdate(ctx context.Context, d *schema.ResourceData, meta 
 	if d.HasChanges("name", "description") {
 		if err = updateRouteTableBasicInfo(ctx, client, d); err != nil {
 			return diag.FromErr(err)
+		}
+	}
+
+	if d.HasChange("tags") {
+		err = utils.UpdateResourceTags(client, d, "route-table", d.Id())
+		if err != nil {
+			return diag.Errorf("error updating route table tags: %s", err)
 		}
 	}
 
@@ -282,9 +290,9 @@ func releaseRouteTablePropagations(client *golangsdk.ServiceClient, instanceId, 
 }
 
 func resourceRouteTableDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	region := config.GetRegion(d)
-	client, err := config.ErV3Client(region)
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+	client, err := cfg.ErV3Client(region)
 	if err != nil {
 		return diag.Errorf("error creating ER v3 client: %s", err)
 	}

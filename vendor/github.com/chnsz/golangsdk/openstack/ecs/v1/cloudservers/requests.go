@@ -52,6 +52,8 @@ type CreateOpts struct {
 	ServerTags []tags.ResourceTag `json:"server_tags,omitempty"`
 
 	Description string `json:"description,omitempty"`
+
+	AutoTerminateTime string `json:"auto_terminate_time,omitempty"`
 }
 
 // CreateOptsBuilder allows extensions to add additional parameters to the
@@ -420,13 +422,27 @@ type UpdateOptsBuilder interface {
 // server.
 type UpdateOpts struct {
 	Name        string  `json:"name,omitempty"`
-	Description *string `json:"description,omitempty"`
 	Hostname    string  `json:"hostname,omitempty"`
+	UserData    []byte  `json:"-"`
+	Description *string `json:"description,omitempty"`
 }
 
 // ToServerUpdateMap formats an UpdateOpts structure into a request body.
 func (opts UpdateOpts) ToServerUpdateMap() (map[string]interface{}, error) {
-	return golangsdk.BuildRequestBody(opts, "server")
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var userData string
+	if _, err := base64.StdEncoding.DecodeString(string(opts.UserData)); err != nil {
+		userData = base64.StdEncoding.EncodeToString(opts.UserData)
+	} else {
+		userData = string(opts.UserData)
+	}
+	b["user_data"] = &userData
+
+	return map[string]interface{}{"server": b}, nil
 }
 
 // Update requests that various attributes of the indicated server be changed.
@@ -454,5 +470,14 @@ func UpdateMetadata(client *golangsdk.ServiceClient, id string, opts map[string]
 // DeleteMetadatItem will delete the key-value pair with the given key for the given server ID.
 func DeleteMetadatItem(client *golangsdk.ServiceClient, id, key string) (r DeleteMetadatItemResult) {
 	_, r.Err = client.Delete(metadatItemURL(client, id, key), nil)
+	return
+}
+
+// update auto terminate time for the given server ID.
+func UpdateAutoTerminateTime(client *golangsdk.ServiceClient, id, terminateTime string) (r UpdateResult) {
+	body := map[string]interface{}{
+		"auto_terminate_time": terminateTime,
+	}
+	_, r.Err = client.Post(updateAutoTerminateTimeURL(client, id), body, nil, &golangsdk.RequestOpts{OkCodes: []int{204}})
 	return
 }

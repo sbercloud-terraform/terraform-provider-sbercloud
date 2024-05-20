@@ -3,6 +3,7 @@ package services
 import (
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/common/tags"
+	"github.com/chnsz/golangsdk/pagination"
 )
 
 // PostOptsBuilder allows extensions to add parameters to the
@@ -134,6 +135,28 @@ type ListOpts struct {
 	ID          string `q:"id"`
 	// Status is not supported for ListPublic
 	Status string `q:"status"`
+	// Number of records to be queried.
+	// The valid value is range from 1 to 1000, defaults to 10.
+	Limit int `q:"limit"`
+	// Specifies the index position, which starts from the next data record specified by offset.
+	// The value must be a number and connot be a negative number, defaults to 0.
+	Offset int `q:"offset"`
+	// Specifies the sorting field of the VPC endpoint services, which can be:
+	// create_at: VPC endpoint services are sorted by creation time.
+	// update_at: VPC endpoint services are sorted by update time. The default field is create_at.
+	// Default: create_at
+	SortKey string `q:"sort_key"`
+	// Specifies the sorting method of VPC endpoint services, which can be:
+	// desc: VPC endpoint services are sorted in descending order.
+	// asc: VPC endpoint services are sorted in ascending order. The default method is desc.
+	// Default: desc
+	SortDir string `q:"sort_dir"`
+	// Specifies the VPC endpoint service that matches the edge attribute in the filtering result.
+	PublicBorderGroup string `q:"public_border_group"`
+	// Specifies the resource type, which can be:
+	// VM: indicates a cloud server.
+	// LB: indicates a shared load balancer.
+	ServerType string `q:"server_type"`
 }
 
 // ToListQuery formats a ListOpts into a query string.
@@ -190,6 +213,44 @@ func ListPublic(client *golangsdk.ServiceClient, opts ListOptsBuilder) ([]Public
 	return allNodes, nil
 }
 
+// ListAllPublics is a method to query the supported PublicService list using given parameters.
+func ListAllPublics(client *golangsdk.ServiceClient, opts ListOpts) ([]PublicService, error) {
+	url := publicResourceURL(client)
+	query, err := golangsdk.BuildQueryString(opts)
+	if err != nil {
+		return nil, err
+	}
+	url += query.String()
+
+	pages, err := pagination.NewPager(client, url, func(r pagination.PageResult) pagination.Page {
+		p := PublicServicePage{pagination.OffsetPageBase{PageResult: r}}
+		return p
+	}).AllPages()
+	if err != nil {
+		return nil, err
+	}
+	return extractPublicService(pages)
+}
+
+// ListAllServices is a method to query the supported Service list using given parameters with **pagination**.
+func ListAllServices(client *golangsdk.ServiceClient, opts ListOpts) ([]Service, error) {
+	url := rootURL(client)
+	query, err := golangsdk.BuildQueryString(opts)
+	if err != nil {
+		return nil, err
+	}
+	url += query.String()
+
+	pages, err := pagination.NewPager(client, url, func(r pagination.PageResult) pagination.Page {
+		p := PublicServicePage{pagination.OffsetPageBase{PageResult: r}}
+		return p
+	}).AllPages()
+	if err != nil {
+		return nil, err
+	}
+	return extractService(pages)
+}
+
 // ConnActionOpts used to receive or reject a VPC endpoint for a VPC endpoint service.
 type ConnActionOpts struct {
 	// Specifies whether to receive or reject a VPC endpoint for a VPC endpoint service.
@@ -222,6 +283,29 @@ type ListConnOpts struct {
 	EndpointID string `q:"id"`
 	// Specifies the packet ID of the VPC endpoint
 	MarkerID string `q:"marker_id"`
+	// Specifies the connection status of the VPC endpoint.
+	// pendingAcceptance: The VPC endpoint connection is to be accepted.
+	// creating: The VPC endpoint connection is being created.
+	// accepted: The VPC endpoint connection has been accepted.
+	// failed: The VPC endpoint connection failed.
+	Status string `q:"status"`
+	// Specifies the sorting field of the VPC endpoints, which can be:
+	// create_at: VPC endpoints are sorted by creation time.
+	// update_at: VPC endpoints are sorted by update time.
+	// The default field is create_at.
+	SortKey string `q:"sort_key"`
+	// Specifies the sorting method of VPC endpoints, which can be:
+	// desc: VPC endpoints are sorted in descending order.
+	// asc: VPC endpoints are sorted in ascending order.
+	// The default method is desc.
+	SortDir string `q:"sort_dir"`
+	// Specifies the maximum number of connections displayed on each page.
+	// The value ranges from 0 to 1000 and is generally 10, 20, or 50.
+	// The default number is 10.
+	Limit int `q:"limit"`
+	// Specifies the offset. All VPC endpoint services after this offset will be queried.
+	// The offset must be an integer greater than 0 but less than the number of VPC endpoint services.
+	Offset int `q:"offset"`
 }
 
 // ToListQuery formats a ListConnOpts into a query string.
@@ -254,12 +338,35 @@ func ListConnections(client *golangsdk.ServiceClient, serviceID string, opts Lis
 	return allConnections, nil
 }
 
+// ListAllConnections is a method to query the supported connections list using given parameters.
+func ListAllConnections(client *golangsdk.ServiceClient, serviceID string, opts ListOptsBuilder) ([]Connection, error) {
+	url := connectionsURL(client, serviceID)
+	if opts != nil {
+		query, err := golangsdk.BuildQueryString(opts)
+		if err != nil {
+			return nil, err
+		}
+		url += query.String()
+	}
+
+	pages, err := pagination.NewPager(client, url, func(r pagination.PageResult) pagination.Page {
+		p := ConnectionPage{pagination.OffsetPageBase{PageResult: r}}
+		return p
+	}).AllPages()
+	if err != nil {
+		return nil, err
+	}
+	return extractConnection(pages)
+}
+
 // PermActionOpts used to add to or delete whitelist records from a VPC endpoint service.
 type PermActionOpts struct {
-	// Specifies the operation to be performed: dd or remove.
+	// Specifies the operation to be performed: add or remove.
 	Action string `json:"action" required:"true"`
-	// Lists the whitelist records. The record is in the iam:domain::domain_id format.
+	// Lists the whitelist records. The record is in the iam:domain::domain_id format or organizations:orgPath::org_path.
 	Permissions []string `json:"permissions" required:"true"`
+	// Specifies the type of the whitelist: domainId or orgPath.
+	PermissionType string `json:"permission_type,omitempty"`
 }
 
 // ToServicePostMap assembles a request body based on the contents of a PermActionOpts.
@@ -280,6 +387,31 @@ func PermAction(c *golangsdk.ServiceClient, serviceID string, opts PostOptsBuild
 	return
 }
 
+// ListPermOpts used to query permissions of a VPC endpoint service.
+type ListPermOpts struct {
+	Permission string `q:"permission"`
+	// Specifies the number of returned whitelist records of the VPC endpoint service on each page.
+	// The value ranges from 0 to 500 and is generally 10, 20, or 50. The default number is 10.
+	Limit int `q:"limit"`
+	// Specifies the offset. All VPC endpoint services after this offset will be queried.
+	// The offset must be an integer greater than 0 but less than the number of VPC endpoint services.
+	Offset int `q:"offset"`
+	// Specifies the sorting field of whitelist records.
+	// The value is create_at, indicating the time when the whitelist record is added.
+	SortKey string `q:"sort_key"`
+	// Specifies the sorting method of whitelist records, which can be:
+	// desc: The whitelist records are sorted in descending order.
+	// asc: The whitelist records are sorted in ascending order.
+	//The default method is desc.
+	SortDir string `q:"sort_dir"`
+}
+
+// ToListQuery formats a ListPermOpts into a query string.
+func (opts ListPermOpts) ToListQuery() (string, error) {
+	q, err := golangsdk.BuildQueryString(opts)
+	return q.String(), err
+}
+
 // ListPermissions makes a request against the API to query the whitelist records of
 // a VPC endpoint service.
 func ListPermissions(client *golangsdk.ServiceClient, serviceID string) ([]Permission, error) {
@@ -297,4 +429,25 @@ func ListPermissions(client *golangsdk.ServiceClient, serviceID string) ([]Permi
 	}
 
 	return allPermissions, nil
+}
+
+// ListAllPermissions is a method to query the supported permissions list using given parameters.
+func ListAllPermissions(client *golangsdk.ServiceClient, serviceID string, opts ListOptsBuilder) ([]Permission, error) {
+	url := permissionsURL(client, serviceID)
+	if opts != nil {
+		query, err := golangsdk.BuildQueryString(opts)
+		if err != nil {
+			return nil, err
+		}
+		url += query.String()
+	}
+
+	pages, err := pagination.NewPager(client, url, func(r pagination.PageResult) pagination.Page {
+		p := PermissionPage{pagination.OffsetPageBase{PageResult: r}}
+		return p
+	}).AllPages()
+	if err != nil {
+		return nil, err
+	}
+	return extractPermission(pages)
 }

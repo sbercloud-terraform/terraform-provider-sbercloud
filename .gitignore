@@ -32,3 +32,4 @@ sbercloud/acceptance/rds
 
 *.pem
 test.txt
+.DS_Store

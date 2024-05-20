@@ -9,8 +9,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	v5 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/iotda/v5"
+
+	iotdav5 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/iotda/v5"
 	"github.com/huaweicloud/huaweicloud-sdk-go-v3/services/iotda/v5/model"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
@@ -71,7 +73,7 @@ func ResourceDevice() *schema.Resource {
 				ForceNew: true,
 			},
 
-			"device_id": { //keep same with console
+			"device_id": { // keep same with console
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
@@ -212,7 +214,6 @@ func ResourceDeviceRead(_ context.Context, d *schema.ResourceData, meta interfac
 		d.Set("name", response.DeviceName),
 		d.Set("device_id", response.DeviceId),
 		d.Set("node_id", response.NodeId),
-		d.Set("name", response.DeviceName),
 		d.Set("product_id", response.ProductId),
 		d.Set("gateway_id", response.GatewayId),
 		d.Set("description", response.Description),
@@ -317,7 +318,7 @@ func ResourceDeviceDelete(_ context.Context, d *schema.ResourceData, meta interf
 	return nil
 }
 
-func bindDeviceTags(client *v5.IoTDAClient, deviceId string, oMap, nMap map[string]interface{}) error {
+func bindDeviceTags(client *iotdav5.IoTDAClient, deviceId string, oMap, nMap map[string]interface{}) error {
 	// remove old tags
 	if len(oMap) > 0 {
 		keys := ExpandKeyOfTags(oMap)
@@ -430,7 +431,7 @@ func flattenTags(s *[]model.TagV5Dto) map[string]interface{} {
 	return rst
 }
 
-func updateDeviceStatus(client *v5.IoTDAClient, deviceId, status string, isFrozen bool) error {
+func updateDeviceStatus(client *iotdav5.IoTDAClient, deviceId, status string, isFrozen bool) error {
 	if isFrozen && status != deviceStatusFrozen {
 		_, err := client.FreezeDevice(&model.FreezeDeviceRequest{
 			DeviceId: deviceId,

@@ -3,16 +3,17 @@ package cce
 import (
 	"context"
 
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/hashcode"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
-
-	"github.com/chnsz/golangsdk/openstack/cce/v3/clusters"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+
+	"github.com/chnsz/golangsdk/openstack/cce/v3/clusters"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/hashcode"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
 )
 
 func DataSourceCCEClusters() *schema.Resource {
@@ -271,7 +272,9 @@ func dataSourceCCEClustersV3Read(_ context.Context, d *schema.ResourceData, meta
 		}
 		cluster["endpoints"] = endpoints
 
-		r := clusters.GetCert(cceClient, v.Metadata.Id)
+		// duration -1 is equal to the maximum value 1827 days
+		opts := clusters.GetCertOpts{Duration: -1}
+		r := clusters.GetCert(cceClient, d.Id(), opts)
 
 		kubeConfigRaw, err := utils.JsonMarshal(r.Body)
 
@@ -284,7 +287,7 @@ func dataSourceCCEClustersV3Read(_ context.Context, d *schema.ResourceData, meta
 		cert, err := r.Extract()
 
 		if err != nil {
-			logp.Printf("Error retrieving HuaweiCloud CCE cluster cert: %s", err)
+			logp.Printf("Error retrieving CCE cluster cert: %s", err)
 		}
 
 		//Set Certificate Clusters

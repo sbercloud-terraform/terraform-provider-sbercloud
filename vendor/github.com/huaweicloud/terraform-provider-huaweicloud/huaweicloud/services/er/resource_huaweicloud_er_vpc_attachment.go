@@ -8,13 +8,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chnsz/golangsdk"
-	"github.com/chnsz/golangsdk/openstack/er/v3/vpcattachments"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+
+	"github.com/chnsz/golangsdk"
+	"github.com/chnsz/golangsdk/openstack/er/v3/vpcattachments"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
@@ -90,7 +92,7 @@ func ResourceVpcAttachment() *schema.Resource {
 				ForceNew:    true,
 				Description: `Whether to automatically configure routes for the VPC which pointing to the ER instance.`,
 			},
-			"tags": common.TagsForceNewSchema(),
+			"tags": common.TagsSchema(),
 			// Attributes
 			"status": {
 				Type:        schema.TypeString,
@@ -112,8 +114,8 @@ func ResourceVpcAttachment() *schema.Resource {
 }
 
 func resourceVpcAttachmentCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	client, err := config.ErV3Client(config.GetRegion(d))
+	cfg := meta.(*config.Config)
+	client, err := cfg.ErV3Client(cfg.GetRegion(d))
 	if err != nil {
 		return diag.Errorf("error creating ER v3 client: %s", err)
 	}
@@ -150,13 +152,13 @@ func resourceVpcAttachmentCreate(ctx context.Context, d *schema.ResourceData, me
 
 func resourceVpcAttachmentRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	var (
-		config       = meta.(*config.Config)
-		region       = config.GetRegion(d)
+		cfg          = meta.(*config.Config)
+		region       = cfg.GetRegion(d)
 		instanceId   = d.Get("instance_id").(string)
 		attachmentId = d.Id()
 	)
 
-	client, err := config.ErV3Client(region)
+	client, err := cfg.ErV3Client(region)
 	if err != nil {
 		return diag.Errorf("error creating ER v3 client: %s", err)
 	}
@@ -237,8 +239,8 @@ func vpcAttachmentStatusRefreshFunc(client *golangsdk.ServiceClient, instanceId,
 }
 
 func resourceVpcAttachmentUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	client, err := config.ErV3Client(config.GetRegion(d))
+	cfg := meta.(*config.Config)
+	client, err := cfg.ErV3Client(cfg.GetRegion(d))
 	if err != nil {
 		return diag.Errorf("error creating ER v3 client: %s", err)
 	}
@@ -249,12 +251,19 @@ func resourceVpcAttachmentUpdate(ctx context.Context, d *schema.ResourceData, me
 		}
 	}
 
+	if d.HasChange("tags") {
+		err = utils.UpdateResourceTags(client, d, "vpc-attachment", d.Id())
+		if err != nil {
+			return diag.Errorf("error updating VPC attachment tags: %s", err)
+		}
+	}
+
 	return resourceVpcAttachmentRead(ctx, d, meta)
 }
 
 func resourceVpcAttachmentDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	client, err := config.ErV3Client(config.GetRegion(d))
+	cfg := meta.(*config.Config)
+	client, err := cfg.ErV3Client(cfg.GetRegion(d))
 	if err != nil {
 		return diag.Errorf("error creating ER v3 client: %s", err)
 	}

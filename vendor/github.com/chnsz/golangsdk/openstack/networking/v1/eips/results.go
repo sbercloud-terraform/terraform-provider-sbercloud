@@ -5,7 +5,7 @@ import (
 	"github.com/chnsz/golangsdk/pagination"
 )
 
-//ApplyResult is a struct which represents the result of apply public ip
+// ApplyResult is a struct which represents the result of apply public ip
 type ApplyResult struct {
 	golangsdk.Result
 }
@@ -27,7 +27,7 @@ func (r ApplyResult) Extract() (PublicIp, error) {
 	return ipResp.IP, err
 }
 
-//PublicIp is a struct that represents a public ip
+// PublicIp is a struct that represents a public ip
 type PublicIp struct {
 	ID                       string   `json:"id"`
 	Status                   string   `json:"status"`
@@ -47,9 +47,19 @@ type PublicIp struct {
 	IpVersion                int      `json:"ip_version"`
 	Alias                    string   `json:"alias"`
 	AllowShareBandwidthTypes []string `json:"allow_share_bandwidth_types"`
+
+	Profile Profile  `json:"profile"`
+	Tags    []string `json:"tags"`
 }
 
-//GetResult is a return struct of get method
+type Profile struct {
+	UserID    string `json:"user_id"`
+	ProductID string `json:"product_id"`
+	RegionID  string `json:"region_id"`
+	OrderID   string `json:"order_id"`
+}
+
+// GetResult is a return struct of get method
 type GetResult struct {
 	golangsdk.Result
 }
@@ -62,12 +72,12 @@ func (r GetResult) Extract() (PublicIp, error) {
 	return getResp.IP, err
 }
 
-//DeleteResult is a struct of delete result
+// DeleteResult is a struct of delete result
 type DeleteResult struct {
 	golangsdk.ErrResult
 }
 
-//UpdateResult is a struct which contains the result of update method
+// UpdateResult is a struct which contains the result of update method
 type UpdateResult struct {
 	golangsdk.Result
 }
@@ -102,4 +112,18 @@ func ExtractPublicIPs(r pagination.Page) ([]PublicIp, error) {
 func (r PublicIPPage) IsEmpty() (bool, error) {
 	s, err := ExtractPublicIPs(r)
 	return len(s) == 0, err
+}
+
+type ChangeResult struct {
+	golangsdk.Result
+}
+
+func (r ChangeResult) Extract() (string, error) {
+	var s struct {
+		PublicIPIDs []string `json:"publicip_ids"`
+		OrderID     string   `json:"order_id"`
+		RequestID   string   `json:"request_id"`
+	}
+	err := r.ExtractInto(&s)
+	return s.OrderID, err
 }

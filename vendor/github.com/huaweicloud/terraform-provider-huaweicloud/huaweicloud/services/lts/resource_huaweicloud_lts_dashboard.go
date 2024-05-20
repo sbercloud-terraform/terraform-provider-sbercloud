@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/internal/entity"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/internal/httpclient_go"
@@ -230,7 +231,8 @@ func ltsResourceImportState(_ context.Context, d *schema.ResourceData,
 	_ interface{}) ([]*schema.ResourceData, error) {
 	parts := strings.SplitN(d.Id(), "/", 5)
 	if len(parts) != 5 {
-		return nil, fmt.Errorf("invalid format specified for import id, must be <id>/<log_group_id>/<log_group_name>/<log_stream_id>/<log_stream_name>")
+		return nil, fmt.Errorf("invalid format specified for import id, " +
+			"must be <id>/<log_group_id>/<log_group_name>/<log_stream_id>/<log_stream_name>")
 	}
 
 	d.SetId(parts[0])

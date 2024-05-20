@@ -15,6 +15,7 @@ import (
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/cbr/v3/policies"
 	"github.com/chnsz/golangsdk/openstack/cbr/v3/vaults"
+	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -28,6 +29,12 @@ const (
 	VaultTypeDisk = "disk"
 	// VaultTypeTurbo is the object type of the SFS Turbo Backups.
 	VaultTypeTurbo = "turbo"
+	// VaultTypeTurbo is the object type of the Cloud desktop Backups.
+	VaultTypeWorkspace = "workspace"
+	// VaultTypeTurbo is the object type of the VM Ware Backups.
+	VaultTypeVMware = "vmware"
+	// VaultTypeTurbo is the object type of the Cloud files Backups.
+	VaultTypeFile = "file"
 
 	// ResourceTypeServer is the type of the Cloud Server resources to be backed up.
 	ResourceTypeServer = "OS::Nova::Server"
@@ -35,13 +42,20 @@ const (
 	ResourceTypeDisk = "OS::Cinder::Volume"
 	// ResourceTypeTurbo is the type of the SFS Turbo resources to be backed up.
 	ResourceTypeTurbo = "OS::Sfs::Turbo"
+	// ResourceTypeWorkspace is the type of the Cloud desktop resources to be backed up.
+	ResourceTypeWorkspace = "OS::Workspace::DesktopV2"
+	// ResourceTypeNone is the type that used to mark no resource needs to be backed up.
+	ResourceTypeNone = "No resource to backup"
 )
 
 var (
 	resourceType = map[string]string{
-		VaultTypeServer: ResourceTypeServer,
-		VaultTypeDisk:   ResourceTypeDisk,
-		VaultTypeTurbo:  ResourceTypeTurbo,
+		VaultTypeServer:    ResourceTypeServer,
+		VaultTypeDisk:      ResourceTypeDisk,
+		VaultTypeTurbo:     ResourceTypeTurbo,
+		VaultTypeWorkspace: ResourceTypeWorkspace,
+		VaultTypeVMware:    ResourceTypeNone,
+		VaultTypeFile:      ResourceTypeNone,
 	}
 )
 
@@ -119,7 +133,6 @@ func ResourceVault() *schema.Resource {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Computed:    true,
-				ForceNew:    true,
 				Description: "The enterprise project ID to which the vault belongs.",
 			},
 			"policy": {
@@ -178,6 +191,13 @@ func ResourceVault() *schema.Resource {
 				ForceNew:    true,
 				Description: "The backup name prefix.",
 			},
+			"is_multi_az": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Computed:    true,
+				ForceNew:    true,
+				Description: "Whether multiple availability zones are used for backing up.",
+			},
 			// Public parameters.
 			"tags":          common.TagsSchema(),
 			"charging_mode": common.SchemaChargingMode(nil),
@@ -222,6 +242,7 @@ func ResourceVault() *schema.Resource {
 }
 
 func buildAssociateResourcesForServer(rType string, resources []interface{}) ([]vaults.ResourceCreate, error) {
+	// If no resource is set, send an empty slice to the CBR service.
 	results := make([]vaults.ResourceCreate, len(resources))
 
 	for i, val := range resources {
@@ -256,7 +277,8 @@ func buildAssociateResourcesForDisk(rType string, resources []interface{}) ([]va
 	if len(resources) > 1 {
 		return nil, fmt.Errorf("the size of resources cannot grant than one for disk and turbo vault")
 	} else if len(resources) == 0 {
-		return []vaults.ResourceCreate{}, nil
+		// If no resource is set, send an empty slice to the CBR service.
+		return make([]vaults.ResourceCreate, 0), nil
 	}
 
 	res, ok := resources[0].(map[string]interface{})
@@ -278,7 +300,7 @@ func buildAssociateResourcesForDisk(rType string, resources []interface{}) ([]va
 }
 
 func buildAssociateResources(vType string, resources *schema.Set) ([]vaults.ResourceCreate, error) {
-	var result []vaults.ResourceCreate
+	var result = make([]vaults.ResourceCreate, 0)
 	var err error
 	rType, ok := resourceType[vType]
 	if !ok {
@@ -286,12 +308,14 @@ func buildAssociateResources(vType string, resources *schema.Set) ([]vaults.Reso
 	}
 	log.Printf("[DEBUG] The resource type is: %s", rType)
 	switch rType {
-	case ResourceTypeServer:
+	case ResourceTypeServer, ResourceTypeWorkspace:
 		result, err = buildAssociateResourcesForServer(rType, resources.List())
 	case ResourceTypeDisk, ResourceTypeTurbo:
 		result, err = buildAssociateResourcesForDisk(rType, resources.List())
+	case ResourceTypeNone:
+		// Nothing to do.
 	default:
-		err = fmt.Errorf("the vault type only support server, disk and turbo")
+		err = fmt.Errorf("invalid vault type: %s", vType)
 	}
 	return result, err
 }
@@ -332,19 +356,24 @@ func buildDissociateResourcesForDisk(resources []interface{}) ([]string, error) 
 }
 
 func buildDissociateResources(vType string, resources *schema.Set) ([]string, error) {
+	var result []string
+	var err error
 	rType, ok := resourceType[vType]
 	if !ok {
 		return nil, fmt.Errorf("invalid resource type: %s", vType)
 	}
 	log.Printf("[DEBUG] The resource type is %s", rType)
 	switch rType {
-	case ResourceTypeServer:
-		return buildDissociateResourcesForServer(resources.List())
+	case ResourceTypeServer, ResourceTypeWorkspace:
+		result, err = buildDissociateResourcesForServer(resources.List())
 	case ResourceTypeDisk, ResourceTypeTurbo:
 		return buildDissociateResourcesForDisk(resources.List())
+	case ResourceTypeNone:
+		// Nothing to do.
 	default:
-		return nil, fmt.Errorf("the vault type only support server, disk and turbo")
+		err = fmt.Errorf("invalid vault type: %s", vType)
 	}
+	return result, err
 }
 
 func isPrePaid(d *schema.ResourceData) bool {
@@ -357,6 +386,7 @@ func buildBillingStructure(d *schema.ResourceData) *vaults.BillingCreate {
 		ConsistentLevel: d.Get("consistent_level").(string),
 		ProtectType:     d.Get("protection_type").(string),
 		Size:            d.Get("size").(int),
+		IsMultiAz:       d.Get("is_multi_az").(bool),
 	}
 
 	if isPrePaid(d) {
@@ -504,11 +534,12 @@ func parseVaultResourcesForDisk(resources []vaults.ResourceResp) []map[string]in
 
 func flattenVaultResources(vType string, resources []vaults.ResourceResp) []map[string]interface{} {
 	switch vType {
-	case VaultTypeServer:
+	case VaultTypeServer, VaultTypeWorkspace:
 		return parseVaultResourcesForServer(resources)
 	case VaultTypeDisk, VaultTypeTurbo:
 		return parseVaultResourcesForDisk(resources)
 	default:
+		// Nothing to do for type file and type vmware.
 	}
 	return nil
 }
@@ -602,6 +633,7 @@ func resourceVaultRead(_ context.Context, d *schema.ResourceData, meta interface
 		d.Set("auto_bind", resp.AutoBind),
 		d.Set("enterprise_project_id", resp.EnterpriseProjectID),
 		d.Set("backup_name_prefix", resp.BackupNamePrefix),
+		d.Set("is_multi_az", resp.Billing.IsMultiAz),
 		d.Set("tags", utils.TagsToMap(resp.Tags)),
 		d.Set("bind_rules", utils.TagsToMap(resp.BindRules.Tags)),
 		d.Set("policy", flattenPolicies(client, vaultId)),
@@ -818,6 +850,7 @@ func resourceVaultUpdate(ctx context.Context, d *schema.ResourceData, meta inter
 		return diag.Errorf("error creating CBR v3 client: %s", err)
 	}
 
+	vaultId := d.Id()
 	if d.HasChanges("name", "consistent_level", "size", "auto_expand", "auto_bind", "bind_rules") {
 		if err = updateBasicParameters(client, d); err != nil {
 			return diag.FromErr(err)
@@ -836,7 +869,7 @@ func resourceVaultUpdate(ctx context.Context, d *schema.ResourceData, meta inter
 	}
 
 	if d.HasChange("tags") {
-		if err = utils.UpdateResourceTags(client, d, "vault", d.Id()); err != nil {
+		if err = utils.UpdateResourceTags(client, d, "vault", vaultId); err != nil {
 			return diag.Errorf("failed to update tags: %s", err)
 		}
 	}
@@ -846,8 +879,20 @@ func resourceVaultUpdate(ctx context.Context, d *schema.ResourceData, meta inter
 		if err != nil {
 			return diag.Errorf("error creating BSS V2 client: %s", err)
 		}
-		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), d.Id()); err != nil {
-			return diag.Errorf("error updating the auto-renew of the vault (%s): %s", d.Id(), err)
+		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), vaultId); err != nil {
+			return diag.Errorf("error updating the auto-renew of the vault (%s): %s", vaultId, err)
+		}
+	}
+
+	if d.HasChange("enterprise_project_id") {
+		migrateOpts := enterpriseprojects.MigrateResourceOpts{
+			ResourceId:   vaultId,
+			ResourceType: "vault",
+			RegionId:     region,
+			ProjectId:    client.ProjectID,
+		}
+		if err := common.MigrateEnterpriseProject(ctx, cfg, d, migrateOpts); err != nil {
+			return diag.FromErr(err)
 		}
 	}
 

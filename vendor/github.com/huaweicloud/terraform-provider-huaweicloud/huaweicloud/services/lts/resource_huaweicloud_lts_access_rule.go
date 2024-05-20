@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/internal/entity"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/internal/httpclient_go"
@@ -95,6 +96,7 @@ func ResourceAomMappingRule() *schema.Resource {
 		},
 	}
 }
+
 func buildLogStreamOpts(rawRule []interface{}) entity.AomMappingLogStreamInfo {
 	s := rawRule[0].(map[string]interface{})
 	rst := entity.AomMappingLogStreamInfo{
@@ -216,14 +218,14 @@ func resourceAomMappingRuleDelete(_ context.Context, d *schema.ResourceData, met
 	return diag.Errorf("error delete AomMappingRule %s:  %s", d.Id(), string(body))
 }
 
-func resourceAomMappingRuleUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceAomMappingRuleUpdate(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	region := cfg.GetRegion(d)
 	client, err := httpclient_go.NewHttpClientGo(cfg, "lts", region)
 	if err != nil {
 		return diag.Errorf("err creating Client: %s", err)
 	}
-	Opts := entity.AomMappingRequestInfo{
+	opts := entity.AomMappingRequestInfo{
 		ProjectId: cfg.GetProjectID(region),
 		RuleId:    d.Id(),
 		RuleName:  d.Get("rule_name").(string),
@@ -235,12 +237,12 @@ func resourceAomMappingRuleUpdate(ctx context.Context, d *schema.ResourceData, m
 			Files:       buildFileOpts(d.Get("files").([]interface{})),
 		},
 	}
-	client.WithMethod(httpclient_go.MethodPut).WithUrl("v2/" + cfg.GetProjectID(region) + "/lts/aom-mapping").WithBody(Opts)
+	client.WithMethod(httpclient_go.MethodPut).WithUrl("v2/" + cfg.GetProjectID(region) + "/lts/aom-mapping").WithBody(opts)
 	response, err := client.Do()
 	if err != nil {
-		return diag.Errorf("error update AomMappingRule fields %s: %s", Opts.RuleName, err)
+		return diag.Errorf("error update AomMappingRule fields %s: %s", opts.RuleName, err)
 	}
-	d.SetId(Opts.RuleId)
+	d.SetId(opts.RuleId)
 
 	defer response.Body.Close()
 	body, err := io.ReadAll(response.Body)
@@ -250,9 +252,9 @@ func resourceAomMappingRuleUpdate(ctx context.Context, d *schema.ResourceData, m
 	if response.StatusCode == 200 {
 		return nil
 	}
-	return diag.Errorf("error update AomMappingRule %s:  %s", Opts.RuleName, string(body))
+	return diag.Errorf("error update AomMappingRule %s:  %s", opts.RuleName, string(body))
 }
 
-func SuppressCaseDiffs(k, old, new string, d *schema.ResourceData) bool {
+func SuppressCaseDiffs(_, old, new string, _ *schema.ResourceData) bool {
 	return strings.Split(old, "_")[0] == strings.Split(new, "_")[0]
 }

@@ -3,6 +3,7 @@ package cdm
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/hashicorp/go-multierror"
@@ -144,8 +145,10 @@ func buildLinkConfigParamter(d *schema.ResourceData) (*link.LinkConfigs, error) 
 
 	if v, ok := d.GetOk("password"); ok {
 		if connector == link.GenericJdbcConnector || connector == link.HdfsConnector ||
-			connector == link.HbaseConnector || connector == link.SftpConnector ||
-			connector == link.MongodbConnector || connector == link.ElasticsearchConnector {
+			connector == link.HbaseConnector || connector == link.HiveConnector || connector == link.SftpConnector ||
+			connector == link.MongodbConnector || connector == link.RedisConnector ||
+			connector == link.KafkaConnector || connector == link.ElasticsearchConnector ||
+			connector == link.DmsKafkaConnector {
 			input := link.Input{
 				Name:  fmt.Sprintf("%s%s", configPref, "password"),
 				Value: v.(string),
@@ -155,8 +158,7 @@ func buildLinkConfigParamter(d *schema.ResourceData) (*link.LinkConfigs, error) 
 	}
 
 	if v, ok := d.GetOk("secret_key"); ok {
-		if connector == link.ObsConnector || connector == link.ThirdpartyObsConnector ||
-			connector == link.HbaseConnector {
+		if connector == link.ObsConnector || connector == link.HbaseConnector {
 			ak := link.Input{
 				Name:  fmt.Sprintf("%s%s", configPref, "accessKey"),
 				Value: d.Get("access_key").(string),
@@ -167,14 +169,14 @@ func buildLinkConfigParamter(d *schema.ResourceData) (*link.LinkConfigs, error) 
 			}
 			configs = append(configs, ak, sk)
 		} else if connector == link.DisConnector || connector == link.DliConnector ||
-			connector == link.OpentsdbConnector || connector == link.DmsKafkaConnector {
+			connector == link.OpentsdbConnector {
 			ak := link.Input{
 				Name:  fmt.Sprintf("%s%s", configPref, "ak"),
-				Value: d.Get("ak").(string),
+				Value: d.Get("access_key").(string),
 			}
 			sk := link.Input{
 				Name:  fmt.Sprintf("%s%s", configPref, "sk"),
-				Value: d.Get("sk").(string),
+				Value: v.(string),
 			}
 			configs = append(configs, ak, sk)
 		}
@@ -239,14 +241,15 @@ func setLinkConfigToState(d *schema.ResourceData, configs []link.Configs) error 
 				if v.Value != "" {
 					key := strings.Replace(v.Name, configPref, "", 1)
 					switch key {
-					case "password":
-						d.Set("password", v.Value)
-					case "securityKey", "sk":
-						d.Set("secret_key", v.Value)
 					case "accessKey", "ak":
 						d.Set("access_key", v.Value)
 					default:
-						result[key] = v.Value
+						// Value in return is encoded, use `url.PathUnescape` to decode it.
+						rst, err := url.PathUnescape(v.Value)
+						if err != nil {
+							return err
+						}
+						result[key] = rst
 					}
 				}
 			}
@@ -311,10 +314,6 @@ func resourceCdmLinkDelete(_ context.Context, d *schema.ResourceData, meta inter
 	_, err = link.Delete(client, clusterId, linkName)
 	if err != nil {
 		return diag.Errorf("delete CDM link failed. %q: %s", d.Id(), err)
-	}
-
-	if err != nil {
-		return diag.FromErr(err)
 	}
 
 	return nil

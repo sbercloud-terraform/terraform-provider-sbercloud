@@ -3,6 +3,7 @@ package desktops
 import (
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/common/tags"
+	"github.com/chnsz/golangsdk/pagination"
 )
 
 // CreateOpts is the structure required by the Create method to create a new desktop.
@@ -214,6 +215,195 @@ func ExpandVolumes(c *golangsdk.ServiceClient, opts VolumeExpandOpts) (*ExpandVo
 
 	var r ExpandVolumesResp
 	_, err = c.Post(volumeExpandURL(c), b, &r, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return &r, err
+}
+
+// RebuildOpts is the structure that used to modify desktop image and os.
+type RebuildOpts struct {
+	// ID list of workspace desktops that wants to rebuild.
+	DesktopIds []string `json:"desktop_ids" required:"true"`
+	// New image type.
+	ImageType string `json:"image_type" required:"true"`
+	// New image ID.
+	ImageId string `json:"image_id" required:"true"`
+	// New OS type.
+	OsType string `json:"os_type,omitempty"`
+	// Delay time.
+	DelayTime string `json:"delay_time,omitempty"`
+	// Rebuild message send to the users.
+	Message string `json:"message,omitempty"`
+	// Enterprise project ID.
+	EnterpriseProjectId string `json:"enterprise_project_id,omitempty"`
+}
+
+// Rebuild is the method that used to modify desktop using given parameters.
+func Rebuild(c *golangsdk.ServiceClient, opts RebuildOpts) (*RebuildResp, error) {
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var r RebuildResp
+	_, err = c.Post(rebuildURL(c), b, &r, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return &r, err
+}
+
+// ListEipOpts is the structure that used to query the bound desktop and unbound EIPs.
+type ListEipOpts struct {
+	// EnterpriseProject ID of desktop.
+	EnterpriseProjectId string `q:"enterprise_project_id"`
+	// Desktop ID.
+	DesktopId string `q:"desktop_id"`
+	// Desktop name.
+	DesktopName string `q:"desktop_name"`
+	// User name.
+	UserName string `q:"user_name"`
+	// EIP address.
+	Address string `q:"address"`
+	// Offset from which the query starts.
+	// The starting record sequence number of the query starts from 0.
+	Offset int `q:"offset"`
+	// Number of items displayed on each page.
+	// If not specified, all matching records are returned.
+	Limit int `q:"limit"`
+	// EIP binding status.
+	// + bind: binded EIP
+	// + unbind: unbinded EIP
+	State string `q:"state"`
+}
+
+// ListEips is the method that used to query the EIPs in which bound desktop and unbound desktop.
+func ListEips(c *golangsdk.ServiceClient, desktopId string) ([]EipResp, error) {
+	url := eipsURL(c)
+	opts := ListEipOpts{
+		DesktopId: desktopId,
+	}
+	query, err := golangsdk.BuildQueryString(opts)
+	if err != nil {
+		return nil, err
+	}
+	url += query.String()
+
+	pager := pagination.NewPager(c, url, func(r pagination.PageResult) pagination.Page {
+		p := EipPage{pagination.OffsetPageBase{PageResult: r}}
+		return p
+	})
+	pager.Headers = requestOpts.MoreHeaders
+	pages, err := pager.AllPages()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return ExtractEips(pages)
+}
+
+// BindEipOpts is the structure that used to bind EIP to desktop.
+type BindEipOpts struct {
+	// ID list of workspace desktops that wants to apply EIP.
+	DesktopId string `json:"desktop_id" required:"true"`
+	// EIP ID of worksoaces that wants to apply.
+	ID string `json:"eip_id" required:"true"`
+}
+
+// BindEip is the method that used to bind EIP to desktop.
+func BindEip(c *golangsdk.ServiceClient, opts BindEipOpts) error {
+	b, err := golangsdk.BuildRequestBody(opts, "")
+
+	if err != nil {
+		return err
+	}
+
+	_, err = c.Post(bindEipURL(c, "binding"), b, nil, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return err
+}
+
+// UnbindEipOpt is the structure that used to unbind EIP from desktop.
+type UnbindEipOpt struct {
+	// Desktop ID of the EIP want to be unbind.
+	DesktopIds []string `json:"desktop_ids" required:"true"`
+}
+
+// UnbindEip is the method that used to unbind EIP from desktop.
+func UnbindEip(c *golangsdk.ServiceClient, opts UnbindEipOpt) error {
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		return err
+	}
+
+	_, err = c.Post(bindEipURL(c, "unbinding"), b, nil, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return err
+}
+
+// GetNetwork is the method that used to query desktop network infomation.
+func GetNetwork(c *golangsdk.ServiceClient, desktopId string) ([]NetworkInfos, error) {
+	var r NetworkResp
+	_, err := c.Get(networkURL(c, desktopId), &r, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return r.Network, err
+}
+
+// UpdateNetworkOpts is the structure that used to modify desktop network.
+type UpdateNetworkOpts struct {
+	DesktopId string `json:"-"`
+	// The ID of the vpc to be change.
+	VpcId string `json:"vpc_id" required:"true"`
+	// The ID of the subnet to be change.
+	SubnetId string `json:"subnet_id" required:"true"`
+	// ID list of security group.
+	SecurityGroupIds []string `json:"security_group_ids" required:"true"`
+	// Specifies a private ID address.
+	PrivateId string `json:"private_ip,omitempty"`
+}
+
+// UpdateNetwork is the method that used to modify desktop network infomation using given parameters.
+func UpdateNetwork(c *golangsdk.ServiceClient, opts UpdateNetworkOpts) (*UpdateNetworkResp, error) {
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var r UpdateNetworkResp
+	_, err = c.Put(networkURL(c, opts.DesktopId), b, &r, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return &r, err
+}
+
+// ActionOpts is the structure required by the DoAction method operate the power state of the desktop.
+type ActionOpts struct {
+	// ID list of workspace desktops that wants to operate.
+	DesktopIds []string `json:"desktop_ids" required:"true"`
+	// The power type of the desktop. The valid values are as follows:
+	// + os-start
+	// + os-stop
+	// + reboot
+	// + os-hibernate
+	OpType string `json:"op_type" requires:"true"`
+	// The operation type. The valid values are as follows:
+	// + SOFT: Normal operation.
+	// + HARD: Forced operation.
+	Type string `json:"type,omitempty"`
+}
+
+// DoAction is a method that used to operate the power state of the desktop.
+func DoAction(client *golangsdk.ServiceClient, opts ActionOpts) (*ActionResp, error) {
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var r ActionResp
+	_, err = client.Post(actionURL(client), b, &r, &golangsdk.RequestOpts{
 		MoreHeaders: requestOpts.MoreHeaders,
 	})
 	return &r, err
