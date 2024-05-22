@@ -16,6 +16,7 @@ package sbercloud
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"regexp"
 	"strings"
 	"testing"
@@ -33,9 +34,9 @@ func TestAccNatDnat_basic(t *testing.T) {
 	resourceName := "sbercloud_nat_dnat_rule.dnat"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckNatDnatDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckNatDnatDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccNatV2DnatRule_basic(randSuffix),
@@ -59,9 +60,9 @@ func TestAccNatDnat_protocol(t *testing.T) {
 	resourceName := "sbercloud_nat_dnat_rule.dnat"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckNatDnatDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckNatDnatDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccNatV2DnatRule_protocol(randSuffix),
@@ -81,8 +82,8 @@ func TestAccNatDnat_protocol(t *testing.T) {
 }
 
 func testAccCheckNatDnatDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	client, err := config.NatGatewayClient(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	client, err := config.NatGatewayClient(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating sdk client, err=%s", err)
 	}
@@ -111,8 +112,8 @@ func testAccCheckNatDnatDestroy(s *terraform.State) error {
 
 func testAccCheckNatDnatExists() resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		config := testAccProvider.Meta().(*config.Config)
-		client, err := config.NatGatewayClient(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		client, err := config.NatGatewayClient(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating sdk client, err=%s", err)
 		}

@@ -2,6 +2,7 @@ package sbercloud
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -17,9 +18,9 @@ func TestAccNatGateway_basic(t *testing.T) {
 	resourceName := "sbercloud_nat_gateway.nat_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckNatV2GatewayDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckNatV2GatewayDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccNatV2Gateway_basic(randSuffix),
@@ -53,15 +54,15 @@ func TestAccNatGateway_withEpsId(t *testing.T) {
 	resourceName := "sbercloud_nat_gateway.nat_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t); testAccPreCheckEpsID(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckNatV2GatewayDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t); acceptance.TestAccPreCheckEpsID(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckNatV2GatewayDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccNatV2Gateway_epsId(randSuffix),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckNatV2GatewayExists(resourceName),
-					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", SBC_ENTERPRISE_PROJECT_ID_TEST),
+					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST),
 				),
 			},
 		},
@@ -69,8 +70,8 @@ func TestAccNatGateway_withEpsId(t *testing.T) {
 }
 
 func testAccCheckNatV2GatewayDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	natClient, err := config.NatGatewayClient(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	natClient, err := config.NatGatewayClient(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating SberCloud nat client: %s", err)
 	}
@@ -100,8 +101,8 @@ func testAccCheckNatV2GatewayExists(n string) resource.TestCheckFunc {
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		natClient, err := config.NatGatewayClient(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		natClient, err := config.NatGatewayClient(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud nat client: %s", err)
 		}
@@ -176,5 +177,5 @@ resource "sbercloud_nat_gateway" "nat_1" {
   subnet_id             = sbercloud_vpc_subnet.subnet_1.id
   enterprise_project_id = "%s"
 }
-	`, testAccNatPreCondition(suffix), suffix, SBC_ENTERPRISE_PROJECT_ID_TEST)
+	`, testAccNatPreCondition(suffix), suffix, acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST)
 }

@@ -2,6 +2,7 @@ package sbercloud
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -17,9 +18,9 @@ func TestAccNatSnatRule_basic(t *testing.T) {
 	resourceName := "sbercloud_nat_snat_rule.snat_1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckNatV2SnatRuleDestroy,
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      testAccCheckNatV2SnatRuleDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccNatV2SnatRule_basic(randSuffix),
@@ -39,8 +40,8 @@ func TestAccNatSnatRule_basic(t *testing.T) {
 }
 
 func testAccCheckNatV2SnatRuleDestroy(s *terraform.State) error {
-	config := testAccProvider.Meta().(*config.Config)
-	natClient, err := config.NatGatewayClient(SBC_REGION_NAME)
+	config := acceptance.TestAccProvider.Meta().(*config.Config)
+	natClient, err := config.NatGatewayClient(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return fmt.Errorf("Error creating SberCloud nat client: %s", err)
 	}
@@ -70,8 +71,8 @@ func testAccCheckNatV2SnatRuleExists(n string) resource.TestCheckFunc {
 			return fmt.Errorf("No ID is set")
 		}
 
-		config := testAccProvider.Meta().(*config.Config)
-		natClient, err := config.NatGatewayClient(SBC_REGION_NAME)
+		config := acceptance.TestAccProvider.Meta().(*config.Config)
+		natClient, err := config.NatGatewayClient(acceptance.SBC_REGION_NAME)
 		if err != nil {
 			return fmt.Errorf("Error creating SberCloud nat client: %s", err)
 		}
