@@ -1,123 +1,157 @@
-package sbercloud
+package ges
 
 import (
 	"fmt"
-	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
+	"strings"
 	"testing"
 
-	"github.com/chnsz/golangsdk"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+
+	"github.com/chnsz/golangsdk"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 )
 
-func TestAccGesGraphV1_basic(t *testing.T) {
-	name := fmt.Sprintf("tf_acc_test_%s", acctest.RandString(5))
+func getGesGraphResourceFunc(cfg *config.Config, state *terraform.ResourceState) (interface{}, error) {
+	region := acceptance.SBC_REGION_NAME
+	// getGraph: Query the GES graph.
+	var (
+		getGraphHttpUrl = "v2/{project_id}/graphs/{id}"
+		getGraphProduct = "ges"
+	)
+	getGraphClient, err := cfg.NewServiceClient(getGraphProduct, region)
+	if err != nil {
+		return nil, fmt.Errorf("error creating GES Client: %s", err)
+	}
+
+	getGraphPath := getGraphClient.Endpoint + getGraphHttpUrl
+	getGraphPath = strings.ReplaceAll(getGraphPath, "{project_id}", getGraphClient.ProjectID)
+	getGraphPath = strings.ReplaceAll(getGraphPath, "{id}", state.Primary.ID)
+
+	getGraphOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		OkCodes: []int{
+			200,
+		},
+		MoreHeaders: map[string]string{"Content-Type": "application/json;charset=UTF-8"},
+	}
+
+	getGraphResp, err := getGraphClient.Request("GET", getGraphPath, &getGraphOpt)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving GesGraph: %s", err)
+	}
+
+	getGraphRespBody, err := utils.FlattenResponse(getGraphResp)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving GesGraph: %s", err)
+	}
+
+	return getGraphRespBody, nil
+}
+
+func TestAccGesGraph_basic(t *testing.T) {
+	var obj interface{}
+
+	name := acceptance.RandomAccResourceName()
+	rName := "sbercloud_ges_graph.test"
+
+	rc := acceptance.InitResourceCheck(
+		rName,
+		&obj,
+		getGesGraphResourceFunc,
+	)
+
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
 		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy:      testAccCheckGesGraphV1Destroy,
+		CheckDestroy:      rc.CheckResourceDestroy(),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccGesGraphV1_basic(name),
+				Config: testGesGraph_basic(name),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckGesGraphV1Exists(),
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(rName, "name", name),
+					resource.TestCheckResourceAttr(rName, "graph_size_type_index", "1"),
+					resource.TestCheckResourceAttr(rName, "cpu_arch", "x86_64"),
+					resource.TestCheckResourceAttr(rName, "crypt_algorithm", "generalCipher"),
+					resource.TestCheckResourceAttr(rName, "enable_https", "false"),
+					resource.TestCheckResourceAttrSet(rName, "az_code"),
+					resource.TestCheckResourceAttrSet(rName, "status"),
+					resource.TestCheckResourceAttrSet(rName, "private_ip"),
+					resource.TestCheckResourceAttrSet(rName, "traffic_ip_list.#"),
 				),
+			},
+			{
+				Config: testGesGraph_basic_update(name),
+				Check: resource.ComposeTestCheckFunc(
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(rName, "name", name),
+					resource.TestCheckResourceAttr(rName, "graph_size_type_index", "2"),
+					resource.TestCheckResourceAttr(rName, "cpu_arch", "x86_64"),
+					resource.TestCheckResourceAttr(rName, "crypt_algorithm", "generalCipher"),
+					resource.TestCheckResourceAttr(rName, "enable_https", "false"),
+					resource.TestCheckResourceAttrSet(rName, "az_code"),
+					resource.TestCheckResourceAttrSet(rName, "status"),
+					resource.TestCheckResourceAttrSet(rName, "private_ip"),
+					resource.TestCheckResourceAttrSet(rName, "traffic_ip_list.#"),
+				),
+			},
+			{
+				ResourceName:      rName,
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 		},
 	})
 }
 
-func testAccGesGraphV1_basic(name string) string {
+func testGesGraph_basic(name string) string {
+	baseNetwork := acceptance.TestBaseNetwork(name)
+
 	return fmt.Sprintf(`
-data "sbercloud_availability_zones" "test" {}
+%s
 
-resource "sbercloud_vpc" "test" {
-  name = "%s"
-  cidr = "192.168.0.0/16"
+resource "sbercloud_ges_graph" "test" {
+  name                  = "%s"
+  graph_size_type_index = "1"
+  cpu_arch              = "x86_64"
+  vpc_id                = sbercloud_vpc.test.id
+  subnet_id             = sbercloud_vpc_subnet.test.id
+  security_group_id     = sbercloud_networking_secgroup.test.id
+  crypt_algorithm       = "generalCipher"
+  enable_https          = false
+
+  tags = {
+    key = "val"
+    foo = "bar"
+  }
+}
+`, baseNetwork, name)
 }
 
-resource "sbercloud_vpc_subnet" "test" {
-  name          = "%s"
-  cidr          = "192.168.0.0/24"
-  gateway_ip    = "192.168.0.1"
-  primary_dns   = "100.125.1.250"
-  secondary_dns = "100.125.21.250"
-  vpc_id        = sbercloud_vpc.test.id
+func testGesGraph_basic_update(name string) string {
+	baseNetwork := acceptance.TestBaseNetwork(name)
+
+	return fmt.Sprintf(`
+%s
+
+resource "sbercloud_ges_graph" "test" {
+  name                  = "%s"
+  graph_size_type_index = "2"
+  cpu_arch              = "x86_64"
+  vpc_id                = sbercloud_vpc.test.id
+  subnet_id             = sbercloud_vpc_subnet.test.id
+  security_group_id     = sbercloud_networking_secgroup.test.id
+  crypt_algorithm       = "generalCipher"
+  enable_https          = false
+
+  tags = {
+    key = "val"
+    foo = "bar"
+  }
 }
-
-resource "sbercloud_networking_secgroup" "test" {
-  name = "%s"
-}
-
-resource "sbercloud_ges_graph" "graph" {
-  availability_zone = data.sbercloud_availability_zones.test.names[1]
-  graph_size_type   = 0
-  name              = "%s"
-  region            = "%s"
-  security_group_id = sbercloud_networking_secgroup.test.id
-  subnet_id         = sbercloud_vpc_subnet.test.id
-  vpc_id            = sbercloud_vpc.test.id
-}
-	`, name, name, name, name, acceptance.SBC_REGION_NAME)
-}
-
-func testAccCheckGesGraphV1Destroy(s *terraform.State) error {
-	config := acceptance.TestAccProvider.Meta().(*config.Config)
-	client, err := config.GesV1Client(acceptance.SBC_REGION_NAME)
-	if err != nil {
-		return fmt.Errorf("Error creating sdk client, err=%s", err)
-	}
-
-	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "sbercloud_ges_graph" {
-			continue
-		}
-
-		url, err := acceptance.ReplaceVarsForTest(rs, "graphs/{id}")
-		if err != nil {
-			return err
-		}
-		url = client.ServiceURL(url)
-
-		_, err = client.Get(url, nil, &golangsdk.RequestOpts{
-			MoreHeaders: map[string]string{"Content-Type": "application/json"}})
-		if err == nil {
-			return fmt.Errorf("sbercloud_ges_graph still exists at %s", url)
-		}
-	}
-
-	return nil
-}
-
-func testAccCheckGesGraphV1Exists() resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		config := acceptance.TestAccProvider.Meta().(*config.Config)
-		client, err := config.GesV1Client(acceptance.SBC_REGION_NAME)
-		if err != nil {
-			return fmt.Errorf("Error creating sdk client, err=%s", err)
-		}
-
-		rs, ok := s.RootModule().Resources["sbercloud_ges_graph.graph"]
-		if !ok {
-			return fmt.Errorf("Error checking sbercloud_ges_graph.graph exist, err=not found this resource")
-		}
-
-		url, err := acceptance.ReplaceVarsForTest(rs, "graphs/{id}")
-		if err != nil {
-			return fmt.Errorf("Error checking sbercloud_ges_graph.graph exist, err=building url failed: %s", err)
-		}
-		url = client.ServiceURL(url)
-
-		_, err = client.Get(url, nil, &golangsdk.RequestOpts{
-			MoreHeaders: map[string]string{"Content-Type": "application/json"}})
-		if err != nil {
-			if _, ok := err.(golangsdk.ErrDefault404); ok {
-				return fmt.Errorf("sbercloud_ges_graph.graph is not exist")
-			}
-			return fmt.Errorf("Error checking sbercloud_ges_graph.graph exist, err=send request failed: %s", err)
-		}
-		return nil
-	}
+`, baseNetwork, name)
 }
