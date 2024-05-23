@@ -21,8 +21,7 @@ func getIdentityProjectResourceFunc(c *config.Config, state *terraform.ResourceS
 	}
 	return projects.Get(client, state.Primary.ID).Extract()
 }
-
-func TestAccIdentityV3Project_basic(t *testing.T) {
+func TestAccIdentityProject_basic(t *testing.T) {
 	var project projects.Project
 	var projectName = acceptance.RandomAccResourceName()
 	resourceName := "sbercloud_identity_project.project_1"
@@ -40,13 +39,14 @@ func TestAccIdentityV3Project_basic(t *testing.T) {
 			acceptance.TestAccPreCheckProject(t)
 		},
 		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy:      rc.CheckResourceExists(), // deleting projects is not supported.
+		CheckDestroy:      rc.CheckResourceDestroy(),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccIdentityV3Project_basic(projectName),
+				Config: testAccIdentityProject_basic(projectName),
 				Check: resource.ComposeTestCheckFunc(
 					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttrPtr(resourceName, "name", &project.Name),
+					resource.TestCheckResourceAttr(resourceName, "status", "normal"),
 					resource.TestCheckResourceAttr(resourceName, "description", "A project"),
 					resource.TestCheckResourceAttr(resourceName, "enabled", "true"),
 					resource.TestCheckResourceAttrSet(resourceName, "parent_id"),
@@ -58,10 +58,11 @@ func TestAccIdentityV3Project_basic(t *testing.T) {
 				ImportStateVerify: true,
 			},
 			{
-				Config: testAccIdentityV3Project_update(projectName),
+				Config: testAccIdentityProject_update(projectName),
 				Check: resource.ComposeTestCheckFunc(
 					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttrPtr(resourceName, "name", &project.Name),
+					resource.TestCheckResourceAttr(resourceName, "status", "suspended"),
 					resource.TestCheckResourceAttr(resourceName, "description", "An updated project"),
 					resource.TestCheckResourceAttr(resourceName, "enabled", "true"),
 					resource.TestCheckResourceAttrSet(resourceName, "parent_id"),
@@ -71,7 +72,7 @@ func TestAccIdentityV3Project_basic(t *testing.T) {
 	})
 }
 
-func testAccIdentityV3Project_basic(projectName string) string {
+func testAccIdentityProject_basic(projectName string) string {
 	return fmt.Sprintf(`
 resource "sbercloud_identity_project" "project_1" {
   name        = "%s_%s"
@@ -80,10 +81,11 @@ resource "sbercloud_identity_project" "project_1" {
 `, acceptance.SBC_REGION_NAME, projectName)
 }
 
-func testAccIdentityV3Project_update(projectName string) string {
+func testAccIdentityProject_update(projectName string) string {
 	return fmt.Sprintf(`
 resource "sbercloud_identity_project" "project_1" {
   name        = "%s_%s"
+  status      = "suspended"
   description = "An updated project"
 }
 `, acceptance.SBC_REGION_NAME, projectName)
