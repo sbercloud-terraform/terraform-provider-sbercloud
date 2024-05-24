@@ -6,12 +6,15 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+
 	"github.com/huaweicloud/huaweicloud-sdk-go-v3/services/kps/v3/model"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/hashcode"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DEW GET /v3/{project_id}/keypairs
 func DataSourceKeypairs() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: dataSourceKeypairsRead,
@@ -100,11 +103,10 @@ func dataSourceKeypairsRead(_ context.Context, d *schema.ResourceData, meta inte
 			}
 		}
 
-		if response.PageInfo.NextMarker != nil {
-			marker = *response.PageInfo.NextMarker
-		} else {
+		if response.PageInfo.NextMarker == nil {
 			break
 		}
+		marker = *response.PageInfo.NextMarker
 	}
 
 	filter := map[string]interface{}{

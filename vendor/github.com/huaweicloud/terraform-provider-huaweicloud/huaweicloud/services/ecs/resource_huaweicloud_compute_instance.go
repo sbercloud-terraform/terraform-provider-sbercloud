@@ -21,9 +21,9 @@ import (
 	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 	"github.com/chnsz/golangsdk/openstack/evs/v2/cloudvolumes"
 	"github.com/chnsz/golangsdk/openstack/ims/v2/cloudimages"
+	"github.com/chnsz/golangsdk/openstack/networking/v1/ports"
 	groups "github.com/chnsz/golangsdk/openstack/networking/v1/security/securitygroups"
 	"github.com/chnsz/golangsdk/openstack/networking/v1/subnets"
-	"github.com/chnsz/golangsdk/openstack/networking/v2/ports"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -313,9 +313,10 @@ func ResourceComputeInstance() *schema.Resource {
 			"user_data": {
 				Type:     schema.TypeString,
 				Optional: true,
-				ForceNew: true,
 				// just stash the hash for state & diff comparisons
 				StateFunc: utils.HashAndHexEncode,
+				// Suppress changes if we get a base64 format or plaint text user_data
+				DiffSuppressFunc: utils.SuppressUserData,
 			},
 			"metadata": {
 				Type:     schema.TypeMap,
@@ -458,7 +459,10 @@ func ResourceComputeInstance() *schema.Resource {
 					"ON", "OFF", "REBOOT", "FORCE-OFF", "FORCE-REBOOT",
 				}, false),
 			},
-
+			"auto_terminate_time": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
 			// computed attributes
 			"volume_attached": {
 				Type:     schema.TypeList,
@@ -552,7 +556,7 @@ func resourceComputeInstanceCreate(ctx context.Context, d *schema.ResourceData, 
 	if err != nil {
 		return diag.Errorf("error creating networking v1 client: %s", err)
 	}
-	nicClient, err := cfg.NetworkingV2Client(region)
+	nicClient, err := cfg.NetworkingV1Client(region)
 	if err != nil {
 		return diag.Errorf("error creating networking v2 client: %s", err)
 	}
@@ -586,19 +590,20 @@ func resourceComputeInstanceCreate(ctx context.Context, d *schema.ResourceData, 
 	}
 
 	createOpts := &cloudservers.CreateOpts{
-		Name:             d.Get("name").(string),
-		Description:      d.Get("description").(string),
-		ImageRef:         imageId,
-		FlavorRef:        flavorId,
-		KeyName:          d.Get("key_pair").(string),
-		VpcId:            vpcId,
-		SecurityGroups:   secGroupIDs,
-		AvailabilityZone: d.Get("availability_zone").(string),
-		RootVolume:       buildInstanceRootVolume(d),
-		DataVolumes:      buildInstanceDataVolumes(d),
-		Nics:             buildInstanceNicsRequest(d),
-		PublicIp:         buildInstancePublicIPRequest(d),
-		UserData:         []byte(d.Get("user_data").(string)),
+		Name:              d.Get("name").(string),
+		Description:       d.Get("description").(string),
+		ImageRef:          imageId,
+		FlavorRef:         flavorId,
+		KeyName:           d.Get("key_pair").(string),
+		VpcId:             vpcId,
+		SecurityGroups:    secGroupIDs,
+		AvailabilityZone:  d.Get("availability_zone").(string),
+		RootVolume:        buildInstanceRootVolume(d),
+		DataVolumes:       buildInstanceDataVolumes(d),
+		Nics:              buildInstanceNicsRequest(d),
+		PublicIp:          buildInstancePublicIPRequest(d),
+		UserData:          []byte(d.Get("user_data").(string)),
+		AutoTerminateTime: d.Get("auto_terminate_time").(string),
 	}
 
 	if tags, ok := d.GetOk("tags"); ok {
@@ -811,6 +816,7 @@ func resourceComputeInstanceRead(_ context.Context, d *schema.ResourceData, meta
 	d.Set("charging_mode", normalizeChargingMode(server.Metadata.ChargingMode))
 	d.Set("created_at", server.Created.Format(time.RFC3339))
 	d.Set("updated_at", server.Updated.Format(time.RFC3339))
+	d.Set("auto_terminate_time", server.AutoTerminateTime)
 
 	flavorInfo := server.Flavor
 	d.Set("flavor_id", flavorInfo.ID)
@@ -966,9 +972,10 @@ func resourceComputeInstanceUpdate(ctx context.Context, d *schema.ResourceData, 
 	}
 
 	serverID := d.Id()
-	if d.HasChanges("name", "description") {
+	if d.HasChanges("name", "description", "user_data") {
 		var updateOpts cloudservers.UpdateOpts
 		updateOpts.Name = d.Get("name").(string)
+		updateOpts.UserData = []byte(d.Get("user_data").(string))
 		description := d.Get("description").(string)
 		updateOpts.Description = &description
 
@@ -1069,7 +1076,7 @@ func resourceComputeInstanceUpdate(ctx context.Context, d *schema.ResourceData, 
 
 	if d.HasChange("network") {
 		var err error
-		nicClient, err := cfg.NetworkingV2Client(region)
+		nicClient, err := cfg.NetworkingV1Client(region)
 		if err != nil {
 			return diag.Errorf("error creating networking client: %s", err)
 		}
@@ -1194,6 +1201,13 @@ func resourceComputeInstanceUpdate(ctx context.Context, d *schema.ResourceData, 
 		}
 	}
 
+	if d.HasChange("auto_terminate_time") {
+		terminateTime := d.Get("auto_terminate_time").(string)
+		err := cloudservers.UpdateAutoTerminateTime(ecsClient, serverID, terminateTime).ExtractErr()
+		if err != nil {
+			return diag.Errorf("error updating auto-terminate-time of server (%s): %s", serverID, err)
+		}
+	}
 	var diags diag.Diagnostics
 	if d.HasChanges("hostname") {
 		hostname := d.Get("hostname").(string)
@@ -1706,27 +1720,25 @@ func doPowerAction(client *golangsdk.ServiceClient, d *schema.ResourceData, acti
 func disableSourceDestCheck(networkClient *golangsdk.ServiceClient, portID string) error {
 	// Update the allowed-address-pairs of the port to 1.1.1.1/0
 	// to disable the source/destination check
-	portpairs := []ports.AddressPair{
-		{
-			IPAddress: "1.1.1.1/0",
+	portpairs := ports.UpdateOpts{
+		AllowedAddressPairs: []ports.AddressPair{
+			{
+				IpAddress: "1.1.1.1/0",
+			},
 		},
 	}
-	portUpdateOpts := ports.UpdateOpts{
-		AllowedAddressPairs: &portpairs,
-	}
 
-	_, err := ports.Update(networkClient, portID, portUpdateOpts).Extract()
+	_, err := ports.Update(networkClient, portID, portpairs)
 	return err
 }
 
 func enableSourceDestCheck(networkClient *golangsdk.ServiceClient, portID string) error {
 	// cancle all allowed-address-pairs to enable the source/destination check
-	portpairs := make([]ports.AddressPair, 0)
-	portUpdateOpts := ports.UpdateOpts{
-		AllowedAddressPairs: &portpairs,
+	portpairs := ports.UpdateOpts{
+		AllowedAddressPairs: make([]ports.AddressPair, 0),
 	}
 
-	_, err := ports.Update(networkClient, portID, portUpdateOpts).Extract()
+	_, err := ports.Update(networkClient, portID, portpairs)
 	return err
 }
 

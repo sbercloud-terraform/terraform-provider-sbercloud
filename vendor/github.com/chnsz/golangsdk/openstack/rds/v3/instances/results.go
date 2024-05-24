@@ -30,6 +30,22 @@ type ModifyAliasResult struct {
 	commonResult
 }
 
+type ModifyMaintainWindowResult struct {
+	commonResult
+}
+
+type ModifyReplicationModeResult struct {
+	commonResult
+}
+
+type ModifyCollationResult struct {
+	commonResult
+}
+
+type ModifySwitchStrategyResult struct {
+	commonResult
+}
+
 type SingleToHaResult struct {
 	commonResult
 }
@@ -133,7 +149,8 @@ func (r ResizeFlavorResult) Extract() (*ResizeFlavor, error) {
 }
 
 type EnlargeVolumeResp struct {
-	JobId string `json:"job_id"`
+	JobId   string `json:"job_id"`
+	OrderId string `json:"order_id"`
 }
 
 func (r EnlargeVolumeResult) Extract() (*EnlargeVolumeResp, error) {
@@ -185,6 +202,28 @@ func (r GetConfigurationResult) Extract() (*GetConfigurationResp, error) {
 	return &response, err
 }
 
+type ReplicationMode struct {
+	WorkflowId      string `json:"workflowId"`
+	InstanceId      string `json:"instanceId"`
+	ReplicationMode string `json:"replicationMode"`
+}
+
+func (r ModifyReplicationModeResult) Extract() (*ReplicationMode, error) {
+	var response ReplicationMode
+	err := r.ExtractInto(&response)
+	return &response, err
+}
+
+type Collation struct {
+	JobId string `json:"job_id"`
+}
+
+func (r ModifyCollationResult) Extract() (*Collation, error) {
+	var response Collation
+	err := r.ExtractInto(&response)
+	return &response, err
+}
+
 type ListRdsResult struct {
 	commonResult
 }
@@ -217,6 +256,7 @@ type RdsInstanceResponse struct {
 	BackupStrategy      BackupStrategy     `json:"backup_strategy"`
 	ChargeInfo          ChargeResponse     `json:"charge_info"`
 	MaintenanceWindow   string             `json:"maintenance_window"`
+	Collation           string             `json:"collation"`
 	Nodes               []Nodes            `json:"nodes"`
 	RelatedInstance     []RelatedInstance  `json:"related_instance"`
 	DiskEncryptionId    string             `json:"disk_encryption_id"`

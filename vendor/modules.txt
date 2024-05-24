@@ -1,19 +1,39 @@
-# github.com/GehirnInc/crypt v0.0.0-20200316065508-bb7000b8a962
-## explicit
+# github.com/GehirnInc/crypt v0.0.0-20230320061759-8cc1b52080c5
+## explicit; go 1.19
 github.com/GehirnInc/crypt
 github.com/GehirnInc/crypt/common
 github.com/GehirnInc/crypt/internal
 github.com/GehirnInc/crypt/sha512_crypt
-# github.com/agext/levenshtein v1.2.2
+# github.com/ProtonMail/go-crypto v1.0.0
+## explicit; go 1.13
+github.com/ProtonMail/go-crypto/bitcurves
+github.com/ProtonMail/go-crypto/brainpool
+github.com/ProtonMail/go-crypto/eax
+github.com/ProtonMail/go-crypto/internal/byteutil
+github.com/ProtonMail/go-crypto/ocb
+github.com/ProtonMail/go-crypto/openpgp
+github.com/ProtonMail/go-crypto/openpgp/aes/keywrap
+github.com/ProtonMail/go-crypto/openpgp/armor
+github.com/ProtonMail/go-crypto/openpgp/ecdh
+github.com/ProtonMail/go-crypto/openpgp/ecdsa
+github.com/ProtonMail/go-crypto/openpgp/eddsa
+github.com/ProtonMail/go-crypto/openpgp/elgamal
+github.com/ProtonMail/go-crypto/openpgp/errors
+github.com/ProtonMail/go-crypto/openpgp/internal/algorithm
+github.com/ProtonMail/go-crypto/openpgp/internal/ecc
+github.com/ProtonMail/go-crypto/openpgp/internal/encoding
+github.com/ProtonMail/go-crypto/openpgp/packet
+github.com/ProtonMail/go-crypto/openpgp/s2k
+# github.com/agext/levenshtein v1.2.3
 ## explicit
 github.com/agext/levenshtein
 # github.com/apparentlymart/go-cidr v1.1.0
 ## explicit
 github.com/apparentlymart/go-cidr/cidr
-# github.com/apparentlymart/go-textseg/v13 v13.0.0
+# github.com/apparentlymart/go-textseg/v15 v15.0.0
 ## explicit; go 1.16
-github.com/apparentlymart/go-textseg/v13/textseg
-# github.com/chnsz/golangsdk v0.0.0-20231027080141-c5721e2542e4
+github.com/apparentlymart/go-textseg/v15/textseg
+# github.com/chnsz/golangsdk v0.0.0-20240206034529-5489fc02d550
 ## explicit; go 1.14
 github.com/chnsz/golangsdk
 github.com/chnsz/golangsdk/auth
@@ -22,6 +42,7 @@ github.com/chnsz/golangsdk/internal
 github.com/chnsz/golangsdk/openstack
 github.com/chnsz/golangsdk/openstack/aad/v1/rules
 github.com/chnsz/golangsdk/openstack/antiddos/v1/antiddos
+github.com/chnsz/golangsdk/openstack/antiddos/v2/alarmreminding
 github.com/chnsz/golangsdk/openstack/aom/v1/icagents
 github.com/chnsz/golangsdk/openstack/apigw/dedicated/v2/acls
 github.com/chnsz/golangsdk/openstack/apigw/dedicated/v2/apigroups
@@ -31,6 +52,7 @@ github.com/chnsz/golangsdk/openstack/apigw/dedicated/v2/applications
 github.com/chnsz/golangsdk/openstack/apigw/dedicated/v2/authorizers
 github.com/chnsz/golangsdk/openstack/apigw/dedicated/v2/certificates
 github.com/chnsz/golangsdk/openstack/apigw/dedicated/v2/channels
+github.com/chnsz/golangsdk/openstack/apigw/dedicated/v2/endpoints
 github.com/chnsz/golangsdk/openstack/apigw/dedicated/v2/environments
 github.com/chnsz/golangsdk/openstack/apigw/dedicated/v2/instances
 github.com/chnsz/golangsdk/openstack/apigw/dedicated/v2/plugins
@@ -41,11 +63,13 @@ github.com/chnsz/golangsdk/openstack/apigw/deprecated/dedicated/v2/channels
 github.com/chnsz/golangsdk/openstack/apigw/shared/v1/apis
 github.com/chnsz/golangsdk/openstack/apigw/shared/v1/environments
 github.com/chnsz/golangsdk/openstack/apigw/shared/v1/groups
+github.com/chnsz/golangsdk/openstack/autoscaling/v1/activitylogs
 github.com/chnsz/golangsdk/openstack/autoscaling/v1/configurations
 github.com/chnsz/golangsdk/openstack/autoscaling/v1/groups
 github.com/chnsz/golangsdk/openstack/autoscaling/v1/instances
 github.com/chnsz/golangsdk/openstack/autoscaling/v1/lifecyclehooks
 github.com/chnsz/golangsdk/openstack/autoscaling/v1/policies
+github.com/chnsz/golangsdk/openstack/autoscaling/v1/scheduledtasks
 github.com/chnsz/golangsdk/openstack/autoscaling/v1/tags
 github.com/chnsz/golangsdk/openstack/bcs/v2/blockchains
 github.com/chnsz/golangsdk/openstack/blockstorage/extensions/volumeactions
@@ -56,6 +80,7 @@ github.com/chnsz/golangsdk/openstack/bss/v2/orders
 github.com/chnsz/golangsdk/openstack/bss/v2/resources
 github.com/chnsz/golangsdk/openstack/cbr/v3/backups
 github.com/chnsz/golangsdk/openstack/cbr/v3/checkpoints
+github.com/chnsz/golangsdk/openstack/cbr/v3/members
 github.com/chnsz/golangsdk/openstack/cbr/v3/policies
 github.com/chnsz/golangsdk/openstack/cbr/v3/vaults
 github.com/chnsz/golangsdk/openstack/cce/v1/namespaces
@@ -101,6 +126,7 @@ github.com/chnsz/golangsdk/openstack/css/v1/cluster
 github.com/chnsz/golangsdk/openstack/css/v1/snapshots
 github.com/chnsz/golangsdk/openstack/css/v1/thesaurus
 github.com/chnsz/golangsdk/openstack/cts/v1/tracker
+github.com/chnsz/golangsdk/openstack/dayu/v1/connections
 github.com/chnsz/golangsdk/openstack/dayu/v1/instances
 github.com/chnsz/golangsdk/openstack/dc/v3/gateways
 github.com/chnsz/golangsdk/openstack/dc/v3/interfaces
@@ -136,9 +162,13 @@ github.com/chnsz/golangsdk/openstack/dms/v2/kafka/topics
 github.com/chnsz/golangsdk/openstack/dms/v2/maintainwindows
 github.com/chnsz/golangsdk/openstack/dms/v2/products
 github.com/chnsz/golangsdk/openstack/dms/v2/rabbitmq/instances
+github.com/chnsz/golangsdk/openstack/dns/v2/associate
+github.com/chnsz/golangsdk/openstack/dns/v2/endpoints
+github.com/chnsz/golangsdk/openstack/dns/v2/ipaddress
 github.com/chnsz/golangsdk/openstack/dns/v2/nameservers
 github.com/chnsz/golangsdk/openstack/dns/v2/ptrrecords
 github.com/chnsz/golangsdk/openstack/dns/v2/recordsets
+github.com/chnsz/golangsdk/openstack/dns/v2/resolverrule
 github.com/chnsz/golangsdk/openstack/dns/v2/zones
 github.com/chnsz/golangsdk/openstack/drs/v3/jobs
 github.com/chnsz/golangsdk/openstack/ecs/v1/auto_recovery
@@ -179,6 +209,7 @@ github.com/chnsz/golangsdk/openstack/evs/v1/jobs
 github.com/chnsz/golangsdk/openstack/evs/v2/cloudvolumes
 github.com/chnsz/golangsdk/openstack/evs/v2/snapshots
 github.com/chnsz/golangsdk/openstack/evs/v3/volumes
+github.com/chnsz/golangsdk/openstack/evs/v5/cloudvolumes
 github.com/chnsz/golangsdk/openstack/fgs/v2/aliases
 github.com/chnsz/golangsdk/openstack/fgs/v2/dependencies
 github.com/chnsz/golangsdk/openstack/fgs/v2/function
@@ -344,6 +375,9 @@ github.com/chnsz/golangsdk/openstack/vbs/v2/policies
 github.com/chnsz/golangsdk/openstack/vbs/v2/tags
 github.com/chnsz/golangsdk/openstack/vpcep/v1/endpoints
 github.com/chnsz/golangsdk/openstack/vpcep/v1/services
+github.com/chnsz/golangsdk/openstack/vpn/v5/connection_monitors
+github.com/chnsz/golangsdk/openstack/vpn/v5/connections
+github.com/chnsz/golangsdk/openstack/vpn/v5/customer_gateways
 github.com/chnsz/golangsdk/openstack/waf/v1/certificates
 github.com/chnsz/golangsdk/openstack/waf/v1/clouds
 github.com/chnsz/golangsdk/openstack/waf_hw/v1/datamasking_rules
@@ -355,16 +389,34 @@ github.com/chnsz/golangsdk/openstack/waf_hw/v1/premium_instances
 github.com/chnsz/golangsdk/openstack/waf_hw/v1/valuelists
 github.com/chnsz/golangsdk/openstack/waf_hw/v1/webtamperprotection_rules
 github.com/chnsz/golangsdk/openstack/waf_hw/v1/whiteblackip_rules
+github.com/chnsz/golangsdk/openstack/workspace/v2/accesspolicies
 github.com/chnsz/golangsdk/openstack/workspace/v2/desktops
+github.com/chnsz/golangsdk/openstack/workspace/v2/groups
 github.com/chnsz/golangsdk/openstack/workspace/v2/jobs
+github.com/chnsz/golangsdk/openstack/workspace/v2/policygroups
 github.com/chnsz/golangsdk/openstack/workspace/v2/services
+github.com/chnsz/golangsdk/openstack/workspace/v2/terminals
 github.com/chnsz/golangsdk/openstack/workspace/v2/users
 github.com/chnsz/golangsdk/pagination
+# github.com/cloudflare/circl v1.3.7
+## explicit; go 1.19
+github.com/cloudflare/circl/dh/x25519
+github.com/cloudflare/circl/dh/x448
+github.com/cloudflare/circl/ecc/goldilocks
+github.com/cloudflare/circl/internal/conv
+github.com/cloudflare/circl/internal/sha3
+github.com/cloudflare/circl/math
+github.com/cloudflare/circl/math/fp25519
+github.com/cloudflare/circl/math/fp448
+github.com/cloudflare/circl/math/mlsbset
+github.com/cloudflare/circl/sign
+github.com/cloudflare/circl/sign/ed25519
+github.com/cloudflare/circl/sign/ed448
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/fatih/color v1.13.0
-## explicit; go 1.13
+# github.com/fatih/color v1.16.0
+## explicit; go 1.17
 github.com/fatih/color
 # github.com/golang/protobuf v1.5.3
 ## explicit; go 1.9
@@ -375,7 +427,7 @@ github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/empty
 github.com/golang/protobuf/ptypes/timestamp
-# github.com/google/go-cmp v0.5.9
+# github.com/google/go-cmp v0.6.0
 ## explicit; go 1.13
 github.com/google/go-cmp/cmp
 github.com/google/go-cmp/cmp/internal/diff
@@ -399,24 +451,27 @@ github.com/hashicorp/go-cty/cty/gocty
 github.com/hashicorp/go-cty/cty/json
 github.com/hashicorp/go-cty/cty/msgpack
 github.com/hashicorp/go-cty/cty/set
-# github.com/hashicorp/go-hclog v1.2.1
+# github.com/hashicorp/go-hclog v1.6.2
 ## explicit; go 1.13
 github.com/hashicorp/go-hclog
 # github.com/hashicorp/go-multierror v1.1.1
 ## explicit; go 1.13
 github.com/hashicorp/go-multierror
-# github.com/hashicorp/go-plugin v1.4.4
+# github.com/hashicorp/go-plugin v1.6.0
 ## explicit; go 1.17
 github.com/hashicorp/go-plugin
+github.com/hashicorp/go-plugin/internal/cmdrunner
+github.com/hashicorp/go-plugin/internal/grpcmux
 github.com/hashicorp/go-plugin/internal/plugin
+github.com/hashicorp/go-plugin/runner
 # github.com/hashicorp/go-uuid v1.0.3
 ## explicit
 github.com/hashicorp/go-uuid
 # github.com/hashicorp/go-version v1.6.0
 ## explicit
 github.com/hashicorp/go-version
-# github.com/hashicorp/hc-install v0.4.0
-## explicit; go 1.16
+# github.com/hashicorp/hc-install v0.6.2
+## explicit; go 1.18
 github.com/hashicorp/hc-install
 github.com/hashicorp/hc-install/checkpoint
 github.com/hashicorp/hc-install/errors
@@ -427,11 +482,11 @@ github.com/hashicorp/hc-install/internal/pubkey
 github.com/hashicorp/hc-install/internal/releasesjson
 github.com/hashicorp/hc-install/internal/src
 github.com/hashicorp/hc-install/internal/validators
-github.com/hashicorp/hc-install/internal/version
 github.com/hashicorp/hc-install/product
 github.com/hashicorp/hc-install/releases
 github.com/hashicorp/hc-install/src
-# github.com/hashicorp/hcl/v2 v2.14.1
+github.com/hashicorp/hc-install/version
+# github.com/hashicorp/hcl/v2 v2.19.1
 ## explicit; go 1.18
 github.com/hashicorp/hcl/v2
 github.com/hashicorp/hcl/v2/ext/customdecode
@@ -439,12 +494,12 @@ github.com/hashicorp/hcl/v2/hclsyntax
 # github.com/hashicorp/logutils v1.0.0
 ## explicit
 github.com/hashicorp/logutils
-# github.com/hashicorp/terraform-exec v0.17.3
+# github.com/hashicorp/terraform-exec v0.20.0
 ## explicit; go 1.18
 github.com/hashicorp/terraform-exec/internal/version
 github.com/hashicorp/terraform-exec/tfexec
-# github.com/hashicorp/terraform-json v0.14.0
-## explicit; go 1.13
+# github.com/hashicorp/terraform-json v0.21.0
+## explicit; go 1.18
 github.com/hashicorp/terraform-json
 # github.com/hashicorp/terraform-plugin-go v0.14.0
 ## explicit; go 1.18
@@ -464,8 +519,8 @@ github.com/hashicorp/terraform-plugin-go/tfprotov6/internal/tfplugin6
 github.com/hashicorp/terraform-plugin-go/tfprotov6/internal/toproto
 github.com/hashicorp/terraform-plugin-go/tfprotov6/tf6server
 github.com/hashicorp/terraform-plugin-go/tftypes
-# github.com/hashicorp/terraform-plugin-log v0.7.0
-## explicit; go 1.17
+# github.com/hashicorp/terraform-plugin-log v0.9.0
+## explicit; go 1.19
 github.com/hashicorp/terraform-plugin-log/internal/fieldutils
 github.com/hashicorp/terraform-plugin-log/internal/hclogutils
 github.com/hashicorp/terraform-plugin-log/internal/logging
@@ -492,16 +547,16 @@ github.com/hashicorp/terraform-plugin-sdk/v2/internal/tfdiags
 github.com/hashicorp/terraform-plugin-sdk/v2/meta
 github.com/hashicorp/terraform-plugin-sdk/v2/plugin
 github.com/hashicorp/terraform-plugin-sdk/v2/terraform
-# github.com/hashicorp/terraform-registry-address v0.0.0-20220623143253-7d51757b572c
-## explicit; go 1.14
+# github.com/hashicorp/terraform-registry-address v0.2.3
+## explicit; go 1.19
 github.com/hashicorp/terraform-registry-address
-# github.com/hashicorp/terraform-svchost v0.0.0-20200729002733-f050f53b9734
-## explicit; go 1.12
+# github.com/hashicorp/terraform-svchost v0.1.1
+## explicit; go 1.19
 github.com/hashicorp/terraform-svchost
-# github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d
-## explicit
+# github.com/hashicorp/yamux v0.1.1
+## explicit; go 1.15
 github.com/hashicorp/yamux
-# github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.62
+# github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.72
 ## explicit; go 1.14
 github.com/huaweicloud/huaweicloud-sdk-go-v3/core
 github.com/huaweicloud/huaweicloud-sdk-go-v3/core/auth
@@ -529,6 +584,8 @@ github.com/huaweicloud/huaweicloud-sdk-go-v3/core/sdktime
 github.com/huaweicloud/huaweicloud-sdk-go-v3/core/utils
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/aom/v2
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/aom/v2/model
+github.com/huaweicloud/huaweicloud-sdk-go-v3/services/cce/v3
+github.com/huaweicloud/huaweicloud-sdk-go-v3/services/cce/v3/model
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/cdn/v1
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/cdn/v1/model
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/cpts/v1
@@ -563,7 +620,7 @@ github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vod/v1
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vod/v1/model
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vpc/v3
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vpc/v3/model
-# github.com/huaweicloud/terraform-provider-huaweicloud v1.57.0
+# github.com/huaweicloud/terraform-provider-huaweicloud v1.61.0
 ## explicit; go 1.18
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common
@@ -581,12 +638,14 @@ github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/apig
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/apigateway
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/apm
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/as
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/bcs
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/bms
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cbh
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cbr
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cc
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cce
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cci
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ccm
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cdm
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cdn
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ces
@@ -594,6 +653,7 @@ github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cfw
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cloudtable
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cmdb
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cnad
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/coc
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/codearts
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cph
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cpts
@@ -629,6 +689,7 @@ github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ges
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/hss
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/iam
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/identitycenter
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/iec
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ims
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/internal/entity
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/internal/httpclient_go
@@ -649,7 +710,6 @@ github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ram
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/rds
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/rfs
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/rms
-github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/scm
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/sdrs
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/secmaster
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/servicestage
@@ -692,11 +752,11 @@ github.com/keybase/go-crypto/openpgp/errors
 github.com/keybase/go-crypto/openpgp/packet
 github.com/keybase/go-crypto/openpgp/s2k
 github.com/keybase/go-crypto/rsa
-# github.com/mattn/go-colorable v0.1.12
-## explicit; go 1.13
+# github.com/mattn/go-colorable v0.1.13
+## explicit; go 1.15
 github.com/mattn/go-colorable
-# github.com/mattn/go-isatty v0.0.14
-## explicit; go 1.12
+# github.com/mattn/go-isatty v0.0.20
+## explicit; go 1.15
 github.com/mattn/go-isatty
 # github.com/mitchellh/copystructure v1.2.0
 ## explicit; go 1.15
@@ -707,8 +767,8 @@ github.com/mitchellh/go-homedir
 # github.com/mitchellh/go-testing-interface v1.14.1
 ## explicit; go 1.14
 github.com/mitchellh/go-testing-interface
-# github.com/mitchellh/go-wordwrap v1.0.0
-## explicit
+# github.com/mitchellh/go-wordwrap v1.0.1
+## explicit; go 1.14
 github.com/mitchellh/go-wordwrap
 # github.com/mitchellh/mapstructure v1.5.0
 ## explicit; go 1.14
@@ -716,14 +776,14 @@ github.com/mitchellh/mapstructure
 # github.com/mitchellh/reflectwalk v1.0.2
 ## explicit
 github.com/mitchellh/reflectwalk
-# github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421
+# github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
 ## explicit
 github.com/modern-go/concurrent
 # github.com/modern-go/reflect2 v1.0.2
 ## explicit; go 1.12
 github.com/modern-go/reflect2
-# github.com/oklog/run v1.0.0
-## explicit
+# github.com/oklog/run v1.1.0
+## explicit; go 1.13
 github.com/oklog/run
 # github.com/tjfoc/gmsm v1.4.1
 ## explicit; go 1.14
@@ -742,16 +802,17 @@ github.com/vmihailenco/msgpack/v4/codes
 github.com/vmihailenco/tagparser
 github.com/vmihailenco/tagparser/internal
 github.com/vmihailenco/tagparser/internal/parser
-# github.com/zclconf/go-cty v1.11.0
+# github.com/zclconf/go-cty v1.14.2
 ## explicit; go 1.18
 github.com/zclconf/go-cty/cty
 github.com/zclconf/go-cty/cty/convert
+github.com/zclconf/go-cty/cty/ctystrings
 github.com/zclconf/go-cty/cty/function
 github.com/zclconf/go-cty/cty/function/stdlib
 github.com/zclconf/go-cty/cty/gocty
 github.com/zclconf/go-cty/cty/json
 github.com/zclconf/go-cty/cty/set
-# go.mongodb.org/mongo-driver v1.12.0
+# go.mongodb.org/mongo-driver v1.13.1
 ## explicit; go 1.13
 go.mongodb.org/mongo-driver/bson
 go.mongodb.org/mongo-driver/bson/bsoncodec
@@ -760,8 +821,10 @@ go.mongodb.org/mongo-driver/bson/bsonrw
 go.mongodb.org/mongo-driver/bson/bsontype
 go.mongodb.org/mongo-driver/bson/primitive
 go.mongodb.org/mongo-driver/x/bsonx/bsoncore
-# golang.org/x/crypto v0.14.0
-## explicit; go 1.17
+# golang.org/x/crypto v0.18.0
+## explicit; go 1.18
+golang.org/x/crypto/argon2
+golang.org/x/crypto/blake2b
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/cast5
 golang.org/x/crypto/chacha20
@@ -770,17 +833,17 @@ golang.org/x/crypto/curve25519/internal/field
 golang.org/x/crypto/hkdf
 golang.org/x/crypto/internal/alias
 golang.org/x/crypto/internal/poly1305
-golang.org/x/crypto/openpgp
-golang.org/x/crypto/openpgp/armor
-golang.org/x/crypto/openpgp/elgamal
-golang.org/x/crypto/openpgp/errors
-golang.org/x/crypto/openpgp/packet
-golang.org/x/crypto/openpgp/s2k
+golang.org/x/crypto/sha3
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
-# golang.org/x/net v0.17.0
-## explicit; go 1.17
-golang.org/x/net/context
+# golang.org/x/mod v0.14.0
+## explicit; go 1.18
+golang.org/x/mod/internal/lazyregexp
+golang.org/x/mod/modfile
+golang.org/x/mod/module
+golang.org/x/mod/semver
+# golang.org/x/net v0.20.0
+## explicit; go 1.18
 golang.org/x/net/http/httpguts
 golang.org/x/net/http/httpproxy
 golang.org/x/net/http2
@@ -788,17 +851,18 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/sys v0.13.0
-## explicit; go 1.17
+# golang.org/x/sys v0.16.0
+## explicit; go 1.18
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
-# golang.org/x/text v0.13.0
-## explicit; go 1.17
+golang.org/x/sys/windows
+# golang.org/x/text v0.14.0
+## explicit; go 1.18
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# google.golang.org/appengine v1.6.7
+# google.golang.org/appengine v1.6.8
 ## explicit; go 1.11
 google.golang.org/appengine
 google.golang.org/appengine/datastore
@@ -811,11 +875,11 @@ google.golang.org/appengine/internal/datastore
 google.golang.org/appengine/internal/log
 google.golang.org/appengine/internal/modules
 google.golang.org/appengine/internal/remote_api
-# google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1
+# google.golang.org/genproto/googleapis/rpc v0.0.0-20240205150955-31a09d347014
 ## explicit; go 1.19
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.56.3
-## explicit; go 1.17
+# google.golang.org/grpc v1.61.0
+## explicit; go 1.19
 google.golang.org/grpc
 google.golang.org/grpc/attributes
 google.golang.org/grpc/backoff
@@ -847,10 +911,12 @@ google.golang.org/grpc/internal/grpclog
 google.golang.org/grpc/internal/grpcrand
 google.golang.org/grpc/internal/grpcsync
 google.golang.org/grpc/internal/grpcutil
+google.golang.org/grpc/internal/idle
 google.golang.org/grpc/internal/metadata
 google.golang.org/grpc/internal/pretty
 google.golang.org/grpc/internal/resolver
 google.golang.org/grpc/internal/resolver/dns
+google.golang.org/grpc/internal/resolver/dns/internal
 google.golang.org/grpc/internal/resolver/passthrough
 google.golang.org/grpc/internal/resolver/unix
 google.golang.org/grpc/internal/serviceconfig
@@ -862,14 +928,16 @@ google.golang.org/grpc/keepalive
 google.golang.org/grpc/metadata
 google.golang.org/grpc/peer
 google.golang.org/grpc/reflection
+google.golang.org/grpc/reflection/grpc_reflection_v1
 google.golang.org/grpc/reflection/grpc_reflection_v1alpha
 google.golang.org/grpc/resolver
+google.golang.org/grpc/resolver/dns
 google.golang.org/grpc/serviceconfig
 google.golang.org/grpc/stats
 google.golang.org/grpc/status
 google.golang.org/grpc/tap
-# google.golang.org/protobuf v1.30.0
-## explicit; go 1.11
+# google.golang.org/protobuf v1.32.0
+## explicit; go 1.17
 google.golang.org/protobuf/encoding/protojson
 google.golang.org/protobuf/encoding/prototext
 google.golang.org/protobuf/encoding/protowire

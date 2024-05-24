@@ -45,6 +45,11 @@ func DataSourceAttachments() *schema.Resource {
 				Optional:    true,
 				Description: `The name used to filter the attachments.`,
 			},
+			"resource_id": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: `The associated resource ID.`,
+			},
 			"status": {
 				Type:        schema.TypeString,
 				Optional:    true,
@@ -81,6 +86,16 @@ func DataSourceAttachments() *schema.Resource {
 							Type:        schema.TypeString,
 							Computed:    true,
 							Description: `The current status of the attachment.`,
+						},
+						"associated": {
+							Type:        schema.TypeBool,
+							Computed:    true,
+							Description: `Whether this attachment has been associated.`,
+						},
+						"resource_id": {
+							Type:        schema.TypeString,
+							Computed:    true,
+							Description: `The associated resource ID.`,
 						},
 						"created_at": {
 							Type:        schema.TypeString,
@@ -169,6 +184,8 @@ func flattenAttachments(all []attachments.Attachment) []map[string]interface{} {
 			"name":           attachment.Name,
 			"description":    attachment.Description,
 			"status":         attachment.Status,
+			"associated":     attachment.Associated,
+			"resource_id":    attachment.ResourceId,
 			"created_at":     attachment.CreatedAt,
 			"updated_at":     attachment.UpdatedAt,
 			"tags":           utils.TagsToMap(attachment.Tags),
@@ -183,6 +200,7 @@ func buildAttachmentListOpts(d *schema.ResourceData) attachments.ListOpts {
 	return attachments.ListOpts{
 		Statuses:      buildSliceIgnoreEmptyElement(d.Get("status").(string)),
 		ResourceTypes: buildSliceIgnoreEmptyElement(d.Get("type").(string)),
+		ResourceIds:   buildSliceIgnoreEmptyElement(d.Get("resource_id").(string)),
 		SortKey:       []string{"name"},
 	}
 }

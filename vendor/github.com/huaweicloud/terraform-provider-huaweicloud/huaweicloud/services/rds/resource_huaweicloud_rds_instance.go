@@ -18,6 +18,7 @@ import (
 	"github.com/chnsz/golangsdk/openstack/rds/v3/backups"
 	"github.com/chnsz/golangsdk/openstack/rds/v3/instances"
 	"github.com/chnsz/golangsdk/openstack/rds/v3/securities"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/hashcode"
@@ -229,7 +230,6 @@ func ResourceRdsInstance() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
-				ForceNew: true,
 			},
 
 			"param_group_id": {
@@ -241,7 +241,13 @@ func ResourceRdsInstance() *schema.Resource {
 			"collation": {
 				Type:     schema.TypeString,
 				Optional: true,
-				ForceNew: true,
+				Computed: true,
+			},
+
+			"switch_strategy": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
 			},
 
 			"ssl_enable": {
@@ -285,6 +291,18 @@ func ResourceRdsInstance() *schema.Resource {
 				Set:      parameterToHash,
 				Optional: true,
 				Computed: true,
+			},
+
+			"maintain_begin": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+			},
+			"maintain_end": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				Computed:     true,
+				RequiredWith: []string{"maintain_begin"},
 			},
 
 			"nodes": {
@@ -473,6 +491,16 @@ func resourceRdsInstanceCreate(ctx context.Context, d *schema.ResourceData, meta
 		return diag.FromErr(err)
 	}
 
+	if err = updateRdsInstanceMaintainWindow(d, client, instanceID); err != nil {
+		return diag.FromErr(err)
+	}
+
+	if v, ok := d.GetOk("switch_strategy"); ok && v.(string) != "reliability" {
+		if err = updateRdsInstanceSwitchStrategy(ctx, d, client, instanceID); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
 	tagRaw := d.Get("tags").(map[string]interface{})
 	if len(tagRaw) > 0 {
 		taglist := utils.ExpandResourceTags(tagRaw)
@@ -530,7 +558,9 @@ func resourceRdsInstanceRead(ctx context.Context, d *schema.ResourceData, meta i
 	d.Set("security_group_id", instance.SecurityGroupId)
 	d.Set("flavor", instance.FlavorRef)
 	d.Set("time_zone", instance.TimeZone)
+	d.Set("collation", instance.Collation)
 	d.Set("enterprise_project_id", instance.EnterpriseProjectId)
+	d.Set("switch_strategy", instance.SwitchStrategy)
 	d.Set("charging_mode", instance.ChargeInfo.ChargeMode)
 	d.Set("tags", utils.TagsToMap(instance.Tags))
 
@@ -548,6 +578,12 @@ func resourceRdsInstanceRead(ctx context.Context, d *schema.ResourceData, meta i
 	// If the creation of the RDS instance is failed, the length of the private IP list will be zero.
 	if len(privateIps) > 0 {
 		d.Set("fixed_ip", privateIps[0])
+	}
+
+	maintainWindow := strings.Split(instance.MaintenanceWindow, "-")
+	if len(maintainWindow) == 2 {
+		d.Set("maintain_begin", maintainWindow[0])
+		d.Set("maintain_end", maintainWindow[1])
 	}
 
 	volume := map[string]interface{}{
@@ -686,6 +722,22 @@ func resourceRdsInstanceUpdate(ctx context.Context, d *schema.ResourceData, meta
 	}
 
 	if err := updateRdsInstanceBackupStrategy(d, client, instanceID); err != nil {
+		return diag.FromErr(err)
+	}
+
+	if err = updateRdsInstanceMaintainWindow(d, client, instanceID); err != nil {
+		return diag.FromErr(err)
+	}
+
+	if err = updateRdsInstanceReplicationMode(ctx, d, client, instanceID); err != nil {
+		return diag.FromErr(err)
+	}
+
+	if err = updateRdsInstanceSwitchStrategy(ctx, d, client, instanceID); err != nil {
+		return diag.FromErr(err)
+	}
+
+	if err = updateRdsInstanceCollation(ctx, d, client, instanceID); err != nil {
 		return diag.FromErr(err)
 	}
 
@@ -1515,6 +1567,127 @@ func updateRdsRootPassword(ctx context.Context, d *schema.ResourceData, client *
 	})
 	if err != nil {
 		return fmt.Errorf("error resetting the root password: %s", err)
+	}
+	return nil
+}
+
+func updateRdsInstanceMaintainWindow(d *schema.ResourceData, client *golangsdk.ServiceClient, instanceID string) error {
+	if !d.HasChanges("maintain_begin", "maintain_end") {
+		return nil
+	}
+
+	modifyMaintainWindowOpts := instances.ModifyMaintainWindowOpts{
+		StartTime: d.Get("maintain_begin").(string),
+		EndTime:   d.Get("maintain_end").(string),
+	}
+
+	log.Printf("[DEBUG] Modify RDS instance maintain window opts: %+v", modifyMaintainWindowOpts)
+	r := instances.ModifyMaintainWindow(client, modifyMaintainWindowOpts, instanceID)
+	if r.Err != nil {
+		return fmt.Errorf("error modify RDS instance (%s) maintain window: %s", instanceID, r.Err)
+	}
+	return nil
+}
+
+func updateRdsInstanceReplicationMode(ctx context.Context, d *schema.ResourceData, client *golangsdk.ServiceClient,
+	instanceID string) error {
+	if !d.HasChanges("ha_replication_mode") {
+		return nil
+	}
+
+	modifyReplicationModeOpts := instances.ModifyReplicationModeOpts{
+		Mode: d.Get("ha_replication_mode").(string),
+	}
+
+	log.Printf("[DEBUG] Modify RDS instance replication mode opts: %+v", modifyReplicationModeOpts)
+	retryFunc := func() (interface{}, bool, error) {
+		res, err := instances.ModifyReplicationMode(client, modifyReplicationModeOpts, instanceID).Extract()
+		retry, err := handleMultiOperationsError(err)
+		return res, retry, err
+	}
+	res, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     rdsInstanceStateRefreshFunc(client, instanceID),
+		WaitTarget:   []string{"ACTIVE"},
+		Timeout:      d.Timeout(schema.TimeoutUpdate),
+		DelayTimeout: 1 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("error modify RDS instance (%s) replication mode: %s", instanceID, err)
+	}
+	job := res.(*instances.ReplicationMode)
+
+	if err = checkRDSInstanceJobFinish(client, job.WorkflowId, d.Timeout(schema.TimeoutUpdate)); err != nil {
+		return fmt.Errorf("error waiting for RDS instance (%s) update replication mode completed: %s", instanceID, err)
+	}
+	return nil
+}
+
+func updateRdsInstanceSwitchStrategy(ctx context.Context, d *schema.ResourceData, client *golangsdk.ServiceClient,
+	instanceID string) error {
+	if !d.HasChanges("switch_strategy") {
+		return nil
+	}
+
+	modifySwitchStrategyOpts := instances.ModifySwitchStrategyOpts{
+		RepairStrategy: d.Get("switch_strategy").(string),
+	}
+
+	log.Printf("[DEBUG] Modify RDS instance switch strategy opts: %+v", modifySwitchStrategyOpts)
+	retryFunc := func() (interface{}, bool, error) {
+		res := instances.ModifySwitchStrategy(client, modifySwitchStrategyOpts, instanceID)
+		retry, err := handleMultiOperationsError(res.Err)
+		return res, retry, err
+	}
+	_, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     rdsInstanceStateRefreshFunc(client, instanceID),
+		WaitTarget:   []string{"ACTIVE"},
+		Timeout:      d.Timeout(schema.TimeoutUpdate),
+		DelayTimeout: 1 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("error modify RDS instance (%s) switch strategy: %s", instanceID, err)
+	}
+	return nil
+}
+
+func updateRdsInstanceCollation(ctx context.Context, d *schema.ResourceData, client *golangsdk.ServiceClient,
+	instanceID string) error {
+	if !d.HasChanges("collation") {
+		return nil
+	}
+
+	modifyCollationOpts := instances.ModifyCollationOpts{
+		Collation: d.Get("collation").(string),
+	}
+
+	log.Printf("[DEBUG] Modify RDS instance collation opts: %+v", modifyCollationOpts)
+	retryFunc := func() (interface{}, bool, error) {
+		res, err := instances.ModifyCollation(client, modifyCollationOpts, instanceID).Extract()
+		retry, err := handleMultiOperationsError(err)
+		return res, retry, err
+	}
+	res, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     rdsInstanceStateRefreshFunc(client, instanceID),
+		WaitTarget:   []string{"ACTIVE"},
+		Timeout:      d.Timeout(schema.TimeoutUpdate),
+		DelayTimeout: 1 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("error modify RDS instance (%s) collation: %s", instanceID, err)
+	}
+	job := res.(*instances.Collation)
+
+	if err = checkRDSInstanceJobFinish(client, job.JobId, d.Timeout(schema.TimeoutUpdate)); err != nil {
+		return fmt.Errorf("error waiting for RDS instance (%s) update collation completed: %s", instanceID, err)
 	}
 	return nil
 }

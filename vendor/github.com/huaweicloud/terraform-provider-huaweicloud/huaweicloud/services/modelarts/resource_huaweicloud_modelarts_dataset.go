@@ -523,6 +523,7 @@ func buildLabelsParamter(v interface{}) (labels []dataset.Label) {
 	}
 	return
 }
+
 func buildSchemaParamter(v interface{}, dataType int) (schemas []dataset.Field, err error) {
 	if v != nil && dataType == 400 {
 		configRaw := v.([]interface{})
@@ -560,7 +561,7 @@ func setDataSourcesToState(d *schema.ResourceData, ds dataset.DataSource) error 
 		"path":               ds.DataPath,
 		"with_column_header": ds.WithColumnHeader,
 	}
-	// API lost some info: queue_name,database_name,table_name,user_name,password,cluster_id,input
+	// the API lost some info: queue_name,database_name,table_name,user_name,password,cluster_id,input
 	if ds.DataType == 4 {
 		item["path"] = ds.SourceInfo.Input
 	}

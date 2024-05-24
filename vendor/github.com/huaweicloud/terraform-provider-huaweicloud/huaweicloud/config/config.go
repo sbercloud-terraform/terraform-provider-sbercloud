@@ -10,13 +10,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/go-uuid"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/identity/v3/domains"
 	"github.com/chnsz/golangsdk/openstack/identity/v3/projects"
 	"github.com/chnsz/golangsdk/openstack/identity/v3/users"
 	"github.com/chnsz/golangsdk/openstack/obs"
-	"github.com/hashicorp/go-uuid"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/mutexkv"
 )
 
@@ -610,6 +612,10 @@ func (c *Config) BlockStorageV21Client(region string) (*golangsdk.ServiceClient,
 	return c.NewServiceClient("evsv21", region)
 }
 
+func (c *Config) BlockStorageV5Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("evsv5", region)
+}
+
 func (c *Config) BlockStorageV2Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("evs", region)
 }
@@ -695,6 +701,10 @@ func (c *Config) DnsWithRegionClient(region string) (*golangsdk.ServiceClient, e
 	return c.NewServiceClient("dns_region", region)
 }
 
+func (c *Config) DNSV21Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("dnsv21", region)
+}
+
 func (c *Config) ErV3Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("er", region)
 }
@@ -735,6 +745,10 @@ func (c *Config) RmsV1Client(region string) (*golangsdk.ServiceClient, error) {
 // ********** client for Security **********
 func (c *Config) AntiDDosV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("anti-ddos", region)
+}
+
+func (c *Config) AntiDDosV2Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("anti-ddosv2", region)
 }
 
 func (c *Config) AadV1Client(region string) (*golangsdk.ServiceClient, error) {
@@ -952,4 +966,8 @@ func (c *Config) NatV2Client(region string) (*golangsdk.ServiceClient, error) {
 // KooGalleryV1Client has the endpoint: https://mkt.{{cloud}}/v1/
 func (c *Config) KooGalleryV1Client(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("mkt", region)
+}
+
+func (c *Config) VpnV5Client(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("vpn", region)
 }

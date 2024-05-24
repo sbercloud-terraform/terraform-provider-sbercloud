@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -61,7 +62,6 @@ func ResourceSFSTurbo() *schema.Resource {
 			"name": {
 				Type:         schema.TypeString,
 				Required:     true,
-				ForceNew:     true,
 				ValidateFunc: validation.StringLenBetween(4, 64),
 			},
 			"size": {
@@ -102,7 +102,6 @@ func ResourceSFSTurbo() *schema.Resource {
 			"security_group_id": {
 				Type:     schema.TypeString,
 				Required: true,
-				ForceNew: true,
 			},
 			"crypt_key_id": {
 				Type:     schema.TypeString,
@@ -314,9 +313,9 @@ func resourceSFSTurboCreate(ctx context.Context, d *schema.ResourceData, meta in
 		Timeout:      d.Timeout(schema.TimeoutCreate),
 		PollInterval: 3 * time.Second,
 	}
-	_, StateErr := stateConf.WaitForState()
-	if StateErr != nil {
-		return diag.Errorf("error waiting for SFS Turbo (%s) to become ready: %s ", d.Id(), StateErr)
+	_, stateErr := stateConf.WaitForStateContext(ctx)
+	if stateErr != nil {
+		return diag.Errorf("error waiting for SFS Turbo (%s) to become ready: %s ", d.Id(), stateErr)
 	}
 
 	// add tags
@@ -325,6 +324,23 @@ func resourceSFSTurboCreate(ctx context.Context, d *schema.ResourceData, meta in
 	}
 
 	return resourceSFSTurboRead(ctx, d, meta)
+}
+
+func flattenSize(n *shares.Turbo) interface{} {
+	// n.Size is a string of float64, should convert it to int
+	if fsize, err := strconv.ParseFloat(n.Size, 64); err == nil {
+		return int(fsize)
+	}
+
+	return nil
+}
+
+func flattenStatus(n *shares.Turbo) interface{} {
+	if n.SubStatus != "" {
+		return n.SubStatus
+	}
+
+	return n.Status
 }
 
 func resourceSFSTurboRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -340,58 +356,55 @@ func resourceSFSTurboRead(_ context.Context, d *schema.ResourceData, meta interf
 		return common.CheckDeletedDiag(d, err, "SFS Turbo")
 	}
 
-	d.Set("name", n.Name)
-	d.Set("share_proto", n.ShareProto)
-	d.Set("vpc_id", n.VpcID)
-	d.Set("subnet_id", n.SubnetID)
-	d.Set("security_group_id", n.SecurityGroupID)
-	d.Set("version", n.Version)
-	d.Set("region", region)
-	d.Set("availability_zone", n.AvailabilityZone)
-	d.Set("available_capacity", n.AvailCapacity)
-	d.Set("export_location", n.ExportLocation)
-	d.Set("crypt_key_id", n.CryptKeyID)
-	d.Set("enterprise_project_id", n.EnterpriseProjectId)
-	// Cannot obtain the billing parameters for pre-paid.
+	mErr := multierror.Append(
+		nil,
+		d.Set("name", n.Name),
+		d.Set("share_proto", n.ShareProto),
+		d.Set("vpc_id", n.VpcID),
+		d.Set("subnet_id", n.SubnetID),
+		d.Set("security_group_id", n.SecurityGroupID),
+		d.Set("version", n.Version),
+		d.Set("region", region),
+		d.Set("availability_zone", n.AvailabilityZone),
+		d.Set("available_capacity", n.AvailCapacity),
+		d.Set("export_location", n.ExportLocation),
+		d.Set("crypt_key_id", n.CryptKeyID),
+		d.Set("enterprise_project_id", n.EnterpriseProjectId),
+		d.Set("size", flattenSize(n)),
+		d.Set("status", flattenStatus(n)),
+	)
 
-	// n.Size is a string of float64, should convert it to int
-	if fsize, err := strconv.ParseFloat(n.Size, 64); err == nil {
-		if err = d.Set("size", int(fsize)); err != nil {
-			return diag.Errorf("error reading size of SFS Turbo: %s", err)
-		}
-	}
+	// Cannot obtain the billing parameters for pre-paid.
 
 	// `HPC` and `HPC_CACHE` are custom types. `STANDARD` and `PERFORMANCE` are system types.
 	switch n.ExpandType {
 	case "hpc":
-		d.Set("share_type", shareTypeHpc)
-		d.Set("hpc_bandwidth", n.HpcBw)
+		mErr = multierror.Append(
+			mErr,
+			d.Set("share_type", shareTypeHpc),
+			d.Set("hpc_bandwidth", n.HpcBw),
+		)
 	case "hpc_cache":
-		d.Set("share_type", shareTypeHpcCache)
-		d.Set("hpc_cache_bandwidth", n.HpcBw)
+		mErr = multierror.Append(
+			mErr,
+			d.Set("share_type", shareTypeHpcCache),
+			d.Set("hpc_cache_bandwidth", n.HpcBw),
+		)
 	default:
-		d.Set("share_type", n.ShareType)
+		mErr = multierror.Append(mErr, d.Set("share_type", n.ShareType))
 		if n.ExpandType == "bandwidth" {
-			d.Set("enhanced", true)
+			mErr = multierror.Append(mErr, d.Set("enhanced", true))
 		} else {
-			d.Set("enhanced", false)
+			mErr = multierror.Append(mErr, d.Set("enhanced", false))
 		}
 	}
-
-	var status string
-	if n.SubStatus != "" {
-		status = n.SubStatus
-	} else {
-		status = n.Status
-	}
-	d.Set("status", status)
 
 	// set tags
 	err = utils.SetResourceTagsToState(d, sfsClient, "sfs-turbo", d.Id())
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	return nil
+	return diag.FromErr(mErr.ErrorOrNil())
 }
 
 func buildTurboUpdateOpts(newSize, hpcCacheBandwidth int, isPrePaid bool) shares.ExpandOpts {
@@ -503,6 +516,37 @@ func resourceSFSTurboUpdate(ctx context.Context, d *schema.ResourceData, meta in
 		}
 		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), resourceId); err != nil {
 			return diag.Errorf("error updating the auto-renew of the SFS Turbo (%s): %s", resourceId, err)
+		}
+	}
+
+	if d.HasChange("name") {
+		updateNameOpts := shares.UpdateNameOpts{
+			Name: d.Get("name").(string),
+		}
+		err = shares.UpdateName(sfsClient, d.Id(), updateNameOpts).Err
+		if err != nil {
+			return diag.Errorf("error updating name of SFS Turbo: %s", err)
+		}
+	}
+
+	if d.HasChange("security_group_id") {
+		updateSecurityGroupIdOpts := shares.UpdateSecurityGroupIdOpts{
+			SecurityGroupId: d.Get("security_group_id").(string),
+		}
+		err = shares.UpdateSecurityGroupId(sfsClient, d.Id(), updateSecurityGroupIdOpts).Err
+		if err != nil {
+			return diag.Errorf("error updating security group ID of SFS Turbo: %s", err)
+		}
+		stateConf := &resource.StateChangeConf{
+			Pending:      []string{"132"},
+			Target:       []string{"232", "200"},
+			Refresh:      waitForSFSTurboSubStatus(sfsClient, resourceId),
+			Timeout:      d.Timeout(schema.TimeoutUpdate),
+			PollInterval: 5 * time.Second,
+		}
+		_, err = stateConf.WaitForStateContext(ctx)
+		if err != nil {
+			return diag.Errorf("error updating SFS Turbo: %s", err)
 		}
 	}
 

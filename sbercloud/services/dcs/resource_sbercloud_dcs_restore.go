@@ -128,7 +128,7 @@ func resourceDcsRestoreCreate(ctx context.Context, d *schema.ResourceData, meta 
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return diag.Errorf("Failed to create DCS restore. Status code: %d. Error: %d", resp.StatusCode, resp.Status)
+		return diag.Errorf("Failed to create DCS restore. Status code: %d. Error: %s", resp.StatusCode, resp.Status)
 	}
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -166,7 +166,7 @@ func resourceDcsRestoreRead(ctx context.Context, d *schema.ResourceData, meta in
 		return diag.FromErr(err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return diag.Errorf("Failed to get DCS restores list. Status code: %d. Error: %d", resp.StatusCode, resp.Status)
+		return diag.Errorf("Failed to get DCS restores list. Status code: %d. Error: %s", resp.StatusCode, resp.Status)
 	}
 	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {

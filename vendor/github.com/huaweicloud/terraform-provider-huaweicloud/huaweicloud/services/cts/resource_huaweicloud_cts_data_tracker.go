@@ -7,12 +7,14 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
 	client "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/cts/v3"
 	cts "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/cts/v3/model"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
@@ -26,7 +28,7 @@ func ResourceCTSDataTracker() *schema.Resource {
 		UpdateContext: resourceCTSDataTrackerUpdate,
 		DeleteContext: resourceCTSDataTrackerDelete,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			StateContext: resourceCTSDataTrackerImportState,
 		},
 
 		Timeouts: &schema.ResourceTimeout{
@@ -96,7 +98,7 @@ func ResourceCTSDataTracker() *schema.Resource {
 				Optional: true,
 				Default:  true,
 			},
-
+			"tags": common.TagsSchema(),
 			"type": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -111,7 +113,6 @@ func ResourceCTSDataTracker() *schema.Resource {
 			},
 		},
 	}
-
 }
 
 func buildCreateRequestBody(d *schema.ResourceData) *cts.CreateTrackerRequestBody {
@@ -127,6 +128,45 @@ func buildCreateRequestBody(d *schema.ResourceData) *cts.CreateTrackerRequestBod
 
 	log.Printf("[DEBUG] creating data CTS tracker options: %#v", reqBody)
 	return &reqBody
+}
+
+func expandResourceTags(tagmap map[string]interface{}) *[]cts.Tags {
+	taglist := make([]cts.Tags, 0, len(tagmap))
+
+	for k, v := range tagmap {
+		taglist = append(taglist, cts.Tags{
+			Key:   utils.String(k),
+			Value: utils.String(v.(string)),
+		})
+	}
+
+	return &taglist
+}
+
+func buildCreateTagOpt(taglist *[]cts.Tags, id string) *cts.BatchCreateResourceTagsRequest {
+	reqBody := cts.BatchCreateResourceTagsRequestBody{
+		Tags: taglist,
+	}
+	tagOpt := cts.BatchCreateResourceTagsRequest{
+		ResourceId:   id,
+		ResourceType: cts.GetBatchCreateResourceTagsRequestResourceTypeEnum().CTS_TRACKER,
+		Body:         &reqBody,
+	}
+
+	return &tagOpt
+}
+
+func buildDeleteTagOpt(taglist *[]cts.Tags, id string) *cts.BatchDeleteResourceTagsRequest {
+	reqBody := cts.BatchDeleteResourceTagsRequestBody{
+		Tags: taglist,
+	}
+	tagOpt := cts.BatchDeleteResourceTagsRequest{
+		ResourceId:   id,
+		ResourceType: cts.GetBatchDeleteResourceTagsRequestResourceTypeEnum().CTS_TRACKER,
+		Body:         &reqBody,
+	}
+
+	return &tagOpt
 }
 
 func buildDataBucketOpts(d *schema.ResourceData) *cts.DataBucket {
@@ -170,6 +210,29 @@ func buildTransferBucketOpts(d *schema.ResourceData) *cts.TrackerObsInfo {
 	return &transferCfg
 }
 
+func updateResourceTags(ctsClient *client.CtsClient, d *schema.ResourceData) error {
+	oldRaw, newRaw := d.GetChange("tags")
+	id := d.Id()
+
+	if oldTags := oldRaw.(map[string]interface{}); len(oldTags) > 0 {
+		oldTagList := expandResourceTags(oldTags)
+		_, err := ctsClient.BatchDeleteResourceTags(buildDeleteTagOpt(oldTagList, id))
+		if err != nil {
+			return err
+		}
+	}
+
+	if newTags := newRaw.(map[string]interface{}); len(newTags) > 0 {
+		newTagsList := expandResourceTags(newTags)
+		_, err := ctsClient.BatchCreateResourceTags(buildCreateTagOpt(newTagsList, id))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func resourceCTSDataTrackerCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	ctsClient, err := cfg.HcCtsV3Client(cfg.GetRegion(d))
@@ -181,13 +244,25 @@ func resourceCTSDataTrackerCreate(ctx context.Context, d *schema.ResourceData, m
 		Body: buildCreateRequestBody(d),
 	}
 
-	if _, err := ctsClient.CreateTracker(&createOpts); err != nil {
-		return diag.Errorf("error creating data CTS tracker: %s", err)
+	resp, err := ctsClient.CreateTracker(&createOpts)
+	if err != nil {
+		return diag.Errorf("error creating CTS data tracker: %s", err)
+	}
+
+	if resp.Id == nil {
+		return diag.Errorf("error creating CTS data tracker: ID is not found in API response")
+	}
+	d.SetId(*resp.Id)
+
+	if rawTag := d.Get("tags").(map[string]interface{}); len(rawTag) > 0 {
+		tagList := expandResourceTags(rawTag)
+		_, err = ctsClient.BatchCreateResourceTags(buildCreateTagOpt(tagList, *resp.Id))
+		if err != nil {
+			return diag.Errorf("error creating CTS tracker tags: %s", err)
+		}
 	}
 
 	trackerName := d.Get("name").(string)
-	d.SetId(trackerName)
-
 	// disable status if necessary
 	if enabled := d.Get("enabled").(bool); !enabled {
 		err = updateDataTrackerStatus(ctsClient, trackerName, "disabled")
@@ -206,7 +281,7 @@ func resourceCTSDataTrackerUpdate(ctx context.Context, d *schema.ResourceData, m
 		return diag.Errorf("error creating CTS client: %s", err)
 	}
 
-	trackerName := d.Id()
+	trackerName := d.Get("name").(string)
 	// update status firstly
 	if d.HasChange("enabled") {
 		status := "enabled"
@@ -244,6 +319,13 @@ func resourceCTSDataTrackerUpdate(ctx context.Context, d *schema.ResourceData, m
 		if err != nil {
 			return diag.Errorf("error updating CTS tracker: %s", err)
 		}
+
+		if d.HasChange("tags") {
+			err = updateResourceTags(ctsClient, d)
+			if err != nil {
+				return diag.Errorf("error updating CTS tracker tags: %s", err)
+			}
+		}
 	}
 
 	return resourceCTSDataTrackerRead(ctx, d, meta)
@@ -257,7 +339,7 @@ func resourceCTSDataTrackerRead(_ context.Context, d *schema.ResourceData, meta 
 		return diag.Errorf("error creating CTS client: %s", err)
 	}
 
-	trackerName := d.Id()
+	trackerName := d.Get("name").(string)
 	trackerType := cts.GetListTrackersRequestTrackerTypeEnum().DATA
 	listOpts := &cts.ListTrackersRequest{
 		TrackerName: &trackerName,
@@ -283,46 +365,64 @@ func resourceCTSDataTrackerRead(_ context.Context, d *schema.ResourceData, meta 
 	allTrackers := *response.Trackers
 	ctsTracker := allTrackers[0]
 
-	d.Set("region", region)
-	d.Set("name", ctsTracker.TrackerName)
-	d.Set("lts_enabled", ctsTracker.Lts.IsLtsEnabled)
-	d.Set("validate_file", ctsTracker.IsSupportValidate)
+	if ctsTracker.Id == nil {
+		return diag.Errorf("error retrieve CTS data tracker: ID is not found in API response")
+	}
+
+	d.SetId(*ctsTracker.Id)
+
+	mErr := multierror.Append(
+		nil,
+		d.Set("region", region),
+		d.Set("name", ctsTracker.TrackerName),
+		d.Set("lts_enabled", ctsTracker.Lts.IsLtsEnabled),
+		d.Set("validate_file", ctsTracker.IsSupportValidate),
+	)
 
 	if ctsTracker.DataBucket != nil {
-		d.Set("data_bucket", ctsTracker.DataBucket.DataBucketName)
+		mErr = multierror.Append(mErr, d.Set("data_bucket", ctsTracker.DataBucket.DataBucketName))
 
 		if ctsTracker.DataBucket.DataEvent != nil {
 			operations := make([]string, len(*ctsTracker.DataBucket.DataEvent))
 			for i, event := range *ctsTracker.DataBucket.DataEvent {
 				operations[i] = formatValue(event)
 			}
-			d.Set("data_operation", operations)
+			mErr = multierror.Append(mErr, d.Set("data_operation", operations))
 		}
 	}
 
 	if ctsTracker.ObsInfo != nil {
 		bucketName := ctsTracker.ObsInfo.BucketName
-		d.Set("bucket_name", bucketName)
-		d.Set("file_prefix", ctsTracker.ObsInfo.FilePrefixName)
+		mErr = multierror.Append(
+			mErr,
+			d.Set("bucket_name", bucketName),
+			d.Set("file_prefix", ctsTracker.ObsInfo.FilePrefixName),
+		)
 
 		if *bucketName != "" {
-			d.Set("transfer_enabled", true)
-			d.Set("obs_retention_period", ctsTracker.ObsInfo.BucketLifecycle)
+			mErr = multierror.Append(
+				mErr,
+				d.Set("transfer_enabled", true),
+				d.Set("obs_retention_period", ctsTracker.ObsInfo.BucketLifecycle),
+			)
 		} else {
-			d.Set("transfer_enabled", false)
+			mErr = multierror.Append(mErr, d.Set("transfer_enabled", false))
 		}
 	}
 
 	if ctsTracker.TrackerType != nil {
-		d.Set("type", formatValue(ctsTracker.TrackerType))
+		mErr = multierror.Append(mErr, d.Set("type", formatValue(ctsTracker.TrackerType)))
 	}
 	if ctsTracker.Status != nil {
 		status := formatValue(ctsTracker.Status)
-		d.Set("status", status)
-		d.Set("enabled", status == "enabled")
+		mErr = multierror.Append(
+			mErr,
+			d.Set("status", status),
+			d.Set("enabled", status == "enabled"),
+		)
 	}
 
-	return nil
+	return diag.FromErr(mErr.ErrorOrNil())
 }
 
 func resourceCTSDataTrackerDelete(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -332,7 +432,7 @@ func resourceCTSDataTrackerDelete(_ context.Context, d *schema.ResourceData, met
 		return diag.Errorf("error creating CTS client: %s", err)
 	}
 
-	trackerName := d.Id()
+	trackerName := d.Get("name").(string)
 	trackerType := cts.GetDeleteTrackerRequestTrackerTypeEnum().DATA
 	deleteOpts := cts.DeleteTrackerRequest{
 		TrackerName: &trackerName,
@@ -365,4 +465,11 @@ func updateDataTrackerStatus(c *client.CtsClient, name, status string) error {
 
 	_, err := c.UpdateTracker(&statusReq)
 	return err
+}
+
+func resourceCTSDataTrackerImportState(_ context.Context, d *schema.ResourceData, _ interface{}) ([]*schema.ResourceData, error) {
+	trackerName := d.Id()
+	d.Set("name", trackerName)
+
+	return []*schema.ResourceData{d}, nil
 }

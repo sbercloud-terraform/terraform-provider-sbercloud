@@ -103,9 +103,12 @@ func resourceResourceTagsCreate(ctx context.Context, d *schema.ResourceData, met
 		Resources: buildResourcesInfo(d.Get("resources").([]interface{})),
 		Tags:      expandResourceTags(d.Get("tags").(map[string]interface{})),
 	}
-	_, err = tags.Create(client, opts)
+	failResp, err := tags.Create(client, opts)
 	if err != nil {
 		return diag.Errorf("error creating resource tags: %s", err)
+	}
+	if len(failResp) > 0 {
+		return diag.Errorf("error creating resource tags: %#v", failResp)
 	}
 
 	randUUID, err := uuid.GenerateUUID()
@@ -180,6 +183,9 @@ func resourceResourceTagsRead(_ context.Context, d *schema.ResourceData, meta in
 		}
 		resp, err := tags.Get(client, opts)
 		if err != nil {
+			if _, ok := err.(golangsdk.ErrDefault404); ok {
+				continue
+			}
 			return diag.Errorf("error query resource (%s) tags: %s", resourceId, err)
 		}
 		actualTags := FlattenTagsToMap(resp)

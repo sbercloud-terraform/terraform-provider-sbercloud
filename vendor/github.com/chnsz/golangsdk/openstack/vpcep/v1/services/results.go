@@ -3,6 +3,7 @@ package services
 import (
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/common/tags"
+	"github.com/chnsz/golangsdk/pagination"
 )
 
 // Service contains the response of the VPC endpoint service
@@ -45,6 +46,10 @@ type Service struct {
 	Created string `json:"created_at"`
 	// the update time of the VPC endpoint service
 	Updated string `json:"updated_at"`
+	// the VPC endpoint service that matches the edge attribute in the filtering result.
+	PublicBorderGroup string `json:"public_border_group"`
+	// the number of VPC endpoints that are in the Creating or Accepted status.
+	ConnectionCount int `json:"connection_count"`
 }
 
 // PortMapping contains the port mappings opened to the VPC endpoint service
@@ -196,6 +201,8 @@ type Permission struct {
 	ID string `json:"id"`
 	// the whitelist records.
 	Permission string `json:"permission"`
+	// the type of the whitelist.
+	PermissionType string `json:"permission_type"`
 	// the time of adding the whitelist record
 	Created string `json:"created_at"`
 }
@@ -221,4 +228,47 @@ func (r ListPermResult) ExtractPermissions() ([]Permission, error) {
 		return nil, err
 	}
 	return s.Permissions, nil
+}
+
+// PublicServicePage is a single page maximum result representing a query by offset page.
+type PublicServicePage struct {
+	pagination.OffsetPageBase
+}
+
+// extractPublicService is a method to extract the list of tags supported PublicService.
+func extractPublicService(r pagination.Page) ([]PublicService, error) {
+	var s []PublicService
+	err := r.(PublicServicePage).Result.ExtractIntoSlicePtr(&s, "endpoint_services")
+	return s, err
+}
+
+// extractService is a method to extract the list of tags supported Services.
+func extractService(r pagination.Page) ([]Service, error) {
+	var s []Service
+	err := r.(PublicServicePage).Result.ExtractIntoSlicePtr(&s, "endpoint_services")
+	return s, err
+}
+
+// ConnectionPage is a single page maximum result representing a query by offset page.
+type ConnectionPage struct {
+	pagination.OffsetPageBase
+}
+
+// extractConnection is a method to extract the list of tags supported connection.
+func extractConnection(r pagination.Page) ([]Connection, error) {
+	var s []Connection
+	err := r.(ConnectionPage).Result.ExtractIntoSlicePtr(&s, "connections")
+	return s, err
+}
+
+// PermissionPage is a single page maximum result representing a query by offset page.
+type PermissionPage struct {
+	pagination.OffsetPageBase
+}
+
+// extractPermission is a method to extract the list of tags supported permission.
+func extractPermission(r pagination.Page) ([]Permission, error) {
+	var s []Permission
+	err := r.(PermissionPage).Result.ExtractIntoSlicePtr(&s, "permissions")
+	return s, err
 }

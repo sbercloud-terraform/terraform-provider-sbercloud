@@ -28,7 +28,8 @@ terraform-provider-sbercloud
 
 sbercloud/services/rds_new
 #sbercloud/acceptance/dcs
-sbercloud/acceptance/rds
 
 *.pem
 test.txt
+.DS_Store
+credentials.csv

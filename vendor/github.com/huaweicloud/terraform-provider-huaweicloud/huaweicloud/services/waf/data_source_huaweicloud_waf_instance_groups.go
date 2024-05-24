@@ -3,21 +3,22 @@ package waf
 import (
 	"context"
 
-	"github.com/chnsz/golangsdk/openstack/waf_hw/v1/pools"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
+	"github.com/chnsz/golangsdk/openstack/waf_hw/v1/pools"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/hashcode"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
 )
 
 func DataSourceWafInstanceGroups() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: DataSourceWafInstanceGroupsRead,
 
+		Description: "schema: Internal",
 		Schema: map[string]*schema.Schema{
 			"region": {
 				Type:     schema.TypeString,
@@ -123,7 +124,7 @@ func DataSourceWafInstanceGroupsRead(_ context.Context, d *schema.ResourceData, 
 	conf := meta.(*config.Config)
 	client, err := conf.WafDedicatedV1Client(conf.GetRegion(d))
 	if err != nil {
-		return fmtp.DiagErrorf("error creating HuaweiCloud WAF dedicated client : %s", err)
+		return diag.Errorf("error creating WAF dedicated client : %s", err)
 	}
 
 	opts := pools.ListPoolOpts{
@@ -138,15 +139,15 @@ func DataSourceWafInstanceGroupsRead(_ context.Context, d *schema.ResourceData, 
 
 	p, err := page.AllPages()
 	if err != nil {
-		return fmtp.DiagErrorf("error querying WAF instance group: %s", err)
+		return diag.Errorf("error querying WAF instance group: %s", err)
 	}
 	groups, err := pools.ExtractGroups(p)
 	if err != nil {
-		return fmtp.DiagErrorf("error querying WAF instance group: %s", err)
+		return diag.Errorf("error querying WAF instance group: %s", err)
 	}
 
 	if len(groups) == 0 {
-		return fmtp.DiagErrorf("Your query returned no results.  " +
+		return diag.Errorf("Your query returned no results.  " +
 			"Please change your search criteria and try again.")
 	}
 
@@ -191,7 +192,7 @@ func DataSourceWafInstanceGroupsRead(_ context.Context, d *schema.ResourceData, 
 	)
 
 	if err = mErr.ErrorOrNil(); err != nil {
-		return fmtp.DiagErrorf("error setting WAF instance group attributes: %s", err)
+		return diag.Errorf("error setting WAF instance group attributes: %s", err)
 	}
 
 	return nil

@@ -36,3 +36,13 @@ func extend(client *golangsdk.ServiceClient, id string) string {
 func crossVpcURL(client *golangsdk.ServiceClient, id string) string {
 	return client.ServiceURL(client.ProjectID, resourcePath, id, "crossvpc/modify")
 }
+
+// autoTopicURL will build the url of UpdateAutoTopic
+func autoTopicURL(c *golangsdk.ServiceClient, id string) string {
+	return c.ServiceURL(c.ProjectID, resourcePath, id, "autotopic")
+}
+
+// resetPasswordURL will build the url of resetting password
+func resetPasswordURL(c *golangsdk.ServiceClient, id string) string {
+	return c.ServiceURL(c.ProjectID, resourcePath, id, "password")
+}

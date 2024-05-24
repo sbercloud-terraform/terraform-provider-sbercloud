@@ -37,5 +37,10 @@ func listURL(client *golangsdk.ServiceClient) string {
 }
 
 func extend(client *golangsdk.ServiceClient, id string) string {
-	return client.ServiceURL(client.ProjectID, resourcePath, id, "extend")
+	return client.ServiceURL(rabbitMqEngine, client.ProjectID, resourcePath, id, "extend")
+}
+
+// resetPasswordURL will build the url of resetting password
+func resetPasswordURL(c *golangsdk.ServiceClient, id string) string {
+	return c.ServiceURL(c.ProjectID, resourcePath, id, "password")
 }

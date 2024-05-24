@@ -18,16 +18,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/bss/v2/orders"
 	"github.com/chnsz/golangsdk/openstack/bss/v2/resources"
 	"github.com/chnsz/golangsdk/openstack/networking/v1/eips"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-
 	"github.com/huaweicloud/huaweicloud-sdk-go-v3/core/sdkerr"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
 )
@@ -154,8 +155,8 @@ func CheckForRetryableError(err error) *resource.RetryError {
 func WaitOrderComplete(ctx context.Context, client *golangsdk.ServiceClient, orderId string,
 	timeout time.Duration) error {
 	stateConf := &resource.StateChangeConf{
-		Pending:      []string{"3", "6"}, // 3: Processing; 6: Pending payment.
-		Target:       []string{"5"},      // 5: Completed.
+		Pending:      []string{"2", "3", "6"}, // 2: Pending refund 3: Processing; 6: Pending payment.
+		Target:       []string{"5"},           // 5: Completed.
 		Refresh:      refreshOrderStatusFunc(client, orderId),
 		Timeout:      timeout,
 		Delay:        5 * time.Second,

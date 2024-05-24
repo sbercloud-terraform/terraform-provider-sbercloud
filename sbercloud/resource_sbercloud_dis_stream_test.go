@@ -2,6 +2,7 @@ package sbercloud
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance/nat"
 	"testing"
 
 	"github.com/chnsz/golangsdk"
@@ -39,7 +40,7 @@ func testAccCheckDisStreamV2Destroy(s *terraform.State) error {
 			continue
 		}
 
-		url, err := replaceVarsForTest(rs, "streams/{id}")
+		url, err := sbercloud.replaceVarsForTest(rs, "streams/{id}")
 		if err != nil {
 			return err
 		}
@@ -68,7 +69,7 @@ func testAccCheckDisStreamV2Exists() resource.TestCheckFunc {
 			return fmt.Errorf("Error checking sbercloud_dis_stream.stream exist, err=not found this resource")
 		}
 
-		url, err := replaceVarsForTest(rs, "streams/{id}")
+		url, err := sbercloud.replaceVarsForTest(rs, "streams/{id}")
 		if err != nil {
 			return fmt.Errorf("Error checking sbercloud_dis_stream.stream exist, err=building url failed: %s", err)
 		}

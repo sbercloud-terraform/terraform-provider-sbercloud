@@ -75,8 +75,11 @@ const (
 	EffectiveModeAll EffectiveMode = "ALL"
 	EffectiveModeAny EffectiveMode = "ANY"
 
-	ConditionSourceParam  ConditionSource = "param"
-	ConditionSourceSource ConditionSource = "source"
+	ConditionSourceParam              ConditionSource = "param"
+	ConditionSourceSource             ConditionSource = "source"
+	ConditionSourceSystem             ConditionSource = "system"
+	ConditionSourceCookie             ConditionSource = "cookie"
+	ConditionSourceFrontendAuthorizer ConditionSource = "frontend_authorizer"
 
 	ConditionTypeEqual      ConditionType = "Equal"
 	ConditionTypeEnumerated ConditionType = "Enumerated"
@@ -158,14 +161,8 @@ func ResourceApigAPIV2() *schema.Resource {
 				Description: "The API type.",
 			},
 			"name": {
-				Type:     schema.TypeString,
-				Required: true,
-				ValidateFunc: validation.All(
-					validation.StringMatch(regexp.MustCompile("^[\u4e00-\u9fa5A-Za-z][\u4e00-\u9fa5\\w]*$"),
-						"Only English letters, digits, underscores (_) and Chinese characters are allowed, and the "+
-							"name must start with a letter or chinese character."),
-					validation.StringLenBetween(3, 64),
-				),
+				Type:        schema.TypeString,
+				Required:    true,
 				Description: "The API name.",
 			},
 			"request_method": {
@@ -810,6 +807,21 @@ func policyConditionSchemaResource() *schema.Resource {
 				Optional:    true,
 				Description: "The request parameter name.",
 			},
+			"sys_name": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "The gateway built-in parameter name.",
+			},
+			"cookie_name": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "The cookie parameter name.",
+			},
+			"frontend_authorizer_name": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "The frontend authentication parameter name.",
+			},
 			"source": {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -817,6 +829,9 @@ func policyConditionSchemaResource() *schema.Resource {
 				ValidateFunc: validation.StringInSlice([]string{
 					string(ConditionSourceParam),
 					string(ConditionSourceSource),
+					string(ConditionSourceSystem),
+					string(ConditionSourceCookie),
+					string(ConditionSourceFrontendAuthorizer),
 				}, false),
 				Description: "The type of the backend policy.",
 			},
@@ -1063,9 +1078,12 @@ func buildPolicyConditions(conditions *schema.Set) []apis.APIConditionBase {
 	for i, v := range conditions.List() {
 		cm := v.(map[string]interface{})
 		condition := apis.APIConditionBase{
-			ReqParamName:    cm["param_name"].(string),
-			ConditionOrigin: cm["source"].(string),
-			ConditionValue:  cm["value"].(string),
+			ReqParamName:                cm["param_name"].(string),
+			SysParamName:                cm["sys_name"].(string),
+			CookieParamName:             cm["cookie_name"].(string),
+			FrontendAuthorizerParamName: cm["frontend_authorizer_name"].(string),
+			ConditionOrigin:             cm["source"].(string),
+			ConditionValue:              cm["value"].(string),
 		}
 		conType := cm["type"].(string)
 		// If the input of the condition type is invalid, keep the condition parameter omitted and the API will throw an
@@ -1472,10 +1490,13 @@ func flattenPolicyConditions(conditions []apis.APIConditionBase) []map[string]in
 	result := make([]map[string]interface{}, len(conditions))
 	for i, v := range conditions {
 		result[i] = map[string]interface{}{
-			"source":     v.ConditionOrigin,
-			"param_name": v.ReqParamName,
-			"type":       analyseConditionType(v.ConditionType),
-			"value":      v.ConditionValue,
+			"source":                   v.ConditionOrigin,
+			"param_name":               v.ReqParamName,
+			"sys_name":                 v.SysParamName,
+			"cookie_name":              v.CookieParamName,
+			"frontend_authorizer_name": v.FrontendAuthorizerParamName,
+			"type":                     analyseConditionType(v.ConditionType),
+			"value":                    v.ConditionValue,
 		}
 	}
 	return result

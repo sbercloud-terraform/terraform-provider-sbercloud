@@ -12,8 +12,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	v5 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/iotda/v5"
+
+	iotdav5 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/iotda/v5"
 	"github.com/huaweicloud/huaweicloud-sdk-go-v3/services/iotda/v5/model"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/hashcode"
@@ -324,8 +326,8 @@ func ResourceDataForwardingRuleCreate(ctx context.Context, d *schema.ResourceDat
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	for _, v := range targets {
-		_, err := client.CreateRuleAction(&v)
+	for i := range targets {
+		_, err := client.CreateRuleAction(&targets[i])
 		if err != nil {
 			return diag.Errorf("error add targets to IoTDA data forwarding rule: %s", err)
 		}
@@ -431,7 +433,6 @@ func ResourceDataForwardingRuleUpdate(ctx context.Context, d *schema.ResourceDat
 					return diag.Errorf("error updating targets of IoTDA data forwarding rule: %s", err)
 				}
 			}
-
 		}
 	}
 
@@ -464,7 +465,7 @@ func ResourceDataForwardingRuleDelete(_ context.Context, d *schema.ResourceData,
 		return diag.Errorf("error creating IoTDA v5 client: %s", err)
 	}
 
-	//delete targets
+	// delete targets
 	targets := d.Get("targets").(*schema.Set)
 	for _, v := range targets.List() {
 		ruleAction := v.(map[string]interface{})
@@ -590,7 +591,7 @@ func buildChannelDetail(target map[string]interface{}, channel, projectId string
 		}
 		return &d, nil
 
-	case "kafka_forwarding":
+	case "DMS_KAFKA_FORWARDING":
 		forward := target["kafka_forwarding"].([]interface{})
 		if len(forward) == 0 {
 			return nil, fmt.Errorf("kafka_forwarding is Required when the target type is DMS_KAFKA_FORWARDING")
@@ -628,7 +629,7 @@ func buildChannelDetail(target map[string]interface{}, channel, projectId string
 	}
 }
 
-func setTargetsToState(d *schema.ResourceData, client *v5.IoTDAClient, id string) error {
+func setTargetsToState(d *schema.ResourceData, client *iotdav5.IoTDAClient, id string) error {
 	var rst []model.RoutingRuleAction
 	var marker *string
 	for {
