@@ -3,14 +3,18 @@ module github.com/sbercloud-terraform/terraform-provider-sbercloud
 go 1.18
 
 require (
-	github.com/chnsz/golangsdk v0.0.0-20240206034529-5489fc02d550
+	github.com/chnsz/golangsdk v0.0.0-20240531093804-71e344f541e8
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.24.0
-	github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.72
-	github.com/huaweicloud/terraform-provider-huaweicloud v1.61.0
+	github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.98
+	github.com/huaweicloud/terraform-provider-huaweicloud v1.65.0
 )
 
 require (
+	github.com/thedevsaddam/gojsonq v2.3.0+incompatible // indirect
+	github.com/tidwall/gjson v1.17.1 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/vmihailenco/msgpack/v4 v4.3.12 // indirect
 	github.com/vmihailenco/tagparser v0.1.1 // indirect
 )
@@ -32,7 +36,7 @@ require (
 	github.com/hashicorp/go-cty v1.4.1-0.20200414143053-d3edf31b6320 // indirect
 	github.com/hashicorp/go-hclog v1.6.2 // indirect
 	github.com/hashicorp/go-plugin v1.6.0 // indirect
-	github.com/hashicorp/go-uuid v1.0.3 // indirect
+	github.com/hashicorp/go-uuid v1.0.3
 	github.com/hashicorp/go-version v1.6.0 // indirect
 	github.com/hashicorp/hc-install v0.6.2 // indirect
 	github.com/hashicorp/hcl/v2 v2.19.1 // indirect
@@ -63,15 +67,15 @@ require (
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	github.com/zclconf/go-cty v1.14.2 // indirect
 	go.mongodb.org/mongo-driver v1.13.1 // indirect
-	golang.org/x/crypto v0.18.0 // indirect
+	golang.org/x/crypto v0.21.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect
-	golang.org/x/net v0.20.0 // indirect
-	golang.org/x/sys v0.16.0 // indirect
+	golang.org/x/net v0.23.0 // indirect
+	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240205150955-31a09d347014 // indirect
 	google.golang.org/grpc v1.61.0 // indirect
-	google.golang.org/protobuf v1.32.0 // indirect
+	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

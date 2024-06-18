@@ -28,6 +28,10 @@ const (
 	IndicatorNotExistsCode = "SecMaster.20030005"
 )
 
+// @API SecMaster DELETE /v1/{project_id}/workspaces/{workspace_id}/soc/indicators
+// @API SecMaster POST /v1/{project_id}/workspaces/{workspace_id}/soc/indicators
+// @API SecMaster GET /v1/{project_id}/workspaces/{workspace_id}/soc/indicators/{id}
+// @API SecMaster PUT /v1/{project_id}/workspaces/{workspace_id}/soc/indicators/{id}
 func ResourceIndicator() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceIndicatorCreate,
@@ -144,6 +148,11 @@ func indicatorIndicatorTypeSchema() *schema.Resource {
 				Required:    true,
 				Description: `Specifies the indicator type.`,
 			},
+			"id": {
+				Type:        schema.TypeString,
+				Required:    true,
+				Description: `Specifies the indicator type ID.`,
+			},
 		},
 	}
 	return &sc
@@ -231,7 +240,7 @@ func buildCreateIndicatorBodyParams(d *schema.ResourceData, cfg *config.Config) 
 		"name":             d.Get("name"),
 		"indicator_type":   buildIndicatorTypeOpts(d.Get("type")),
 		"verdict":          d.Get("threat_degree"),
-		"data_source":      buildIndicatorDataSourceOpts(d.Get("data_source")),
+		"data_source":      buildIndicatorDataSourceOpts(d, cfg),
 		"status":           d.Get("status"),
 		"confidence":       d.Get("confidence"),
 		"labels":           utils.ValueIngoreEmpty(d.Get("labels")),
@@ -274,30 +283,35 @@ func buildIndicatorTypeOpts(rawParams interface{}) map[string]interface{} {
 		params := map[string]interface{}{
 			"category":       utils.ValueIngoreEmpty(raw["category"]),
 			"indicator_type": utils.ValueIngoreEmpty(raw["indicator_type"]),
+			"id":             utils.ValueIngoreEmpty(raw["id"]),
 		}
 		return params
 	}
 	return nil
 }
 
-func buildIndicatorDataSourceOpts(rawParams interface{}) map[string]interface{} {
-	if rawArray, ok := rawParams.([]interface{}); ok {
-		if len(rawArray) == 0 {
-			return nil
-		}
-		raw, ok := rawArray[0].(map[string]interface{})
-		if !ok {
-			return nil
-		}
-
-		params := map[string]interface{}{
-			"source_type":     utils.ValueIngoreEmpty(raw["source_type"]),
-			"product_name":    utils.ValueIngoreEmpty(raw["product_name"]),
-			"product_feature": utils.ValueIngoreEmpty(raw["product_feature"]),
-		}
-		return params
+func buildIndicatorDataSourceOpts(d *schema.ResourceData, cfg *config.Config) map[string]interface{} {
+	rawArray := d.Get("data_source").([]interface{})
+	if len(rawArray) == 0 {
+		return nil
 	}
-	return nil
+
+	region := cfg.GetRegion(d)
+
+	raw, ok := rawArray[0].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+
+	params := map[string]interface{}{
+		"domain_id":       cfg.DomainID,
+		"project_id":      cfg.GetProjectID(region),
+		"region_id":       region,
+		"product_feature": utils.ValueIngoreEmpty(raw["product_feature"]),
+		"product_name":    utils.ValueIngoreEmpty(raw["product_name"]),
+		"source_type":     utils.ValueIngoreEmpty(raw["source_type"]),
+	}
+	return params
 }
 
 func resourceIndicatorRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -400,6 +414,7 @@ func flattenGetIndicatorResponseBodyIndicatorType(resp interface{}) []interface{
 		map[string]interface{}{
 			"category":       utils.PathSearch("category", curJson, nil),
 			"indicator_type": utils.PathSearch("indicator_type", curJson, nil),
+			"id":             utils.PathSearch("id", curJson, nil),
 		},
 	}
 	return rst

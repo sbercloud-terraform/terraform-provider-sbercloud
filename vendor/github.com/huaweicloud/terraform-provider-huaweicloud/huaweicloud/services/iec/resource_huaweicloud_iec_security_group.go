@@ -18,6 +18,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
+// @API IEC POST /v1/security-groups
+// @API IEC DELETE /v1/security-groups/{security_group_id}
+// @API IEC GET /v1/security-groups/{security_group_id}
 func ResourceSecurityGroup() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceSecurityGroupCreate,

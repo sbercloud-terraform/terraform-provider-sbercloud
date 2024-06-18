@@ -23,6 +23,12 @@ import (
 )
 
 // ResourceMigrateTask is the impl of huaweicloud_sms_task
+// @API SMS GET /v3/sources/{id}
+// @API SMS POST /v3/tasks
+// @API SMS POST /v3/tasks/{id}/action
+// @API SMS GET /v3/tasks/{id}
+// @API SMS DELETE /v3/tasks/{id}
+// @API ECS GET /v1/{project_id}/cloudservers/{server_id}
 func ResourceMigrateTask() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceMigrateTaskCreate,

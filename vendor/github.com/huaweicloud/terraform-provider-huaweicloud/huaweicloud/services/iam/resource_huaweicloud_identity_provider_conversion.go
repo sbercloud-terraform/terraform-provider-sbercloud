@@ -19,6 +19,11 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API IAM PUT /v3/OS-FEDERATION/mappings/{id}
+// @API IAM PATCH /v3/OS-FEDERATION/mappings/{id}
+// @API IAM GET /v3/OS-FEDERATION/mappings
+// @API IAM GET /v3/OS-FEDERATION/mappings/{id}
+// @API IAM GET /v3/OS-FEDERATION/identity_providers/{id}
 func ResourceIAMProviderConversion() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceIAMProviderConversionCreate,

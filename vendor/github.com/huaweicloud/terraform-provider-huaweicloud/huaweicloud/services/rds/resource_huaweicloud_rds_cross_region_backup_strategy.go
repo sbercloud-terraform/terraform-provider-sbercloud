@@ -23,6 +23,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API RDS GET /v3/{project_id}/instances/{instance_id}/backups/offsite-policy
+// @API RDS PUT /v3/{project_id}/instances/{instance_id}/backups/offsite-policy
+// @API RDS GET /v3/{project_id}/instances
 func ResourceBackupStrategy() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceBackupStrategyCreate,
@@ -168,7 +171,7 @@ func resourceBackupStrategyRead(_ context.Context, d *schema.ResourceData, meta 
 	}
 
 	backupStrategies := policyPara.([]interface{})
-	if len(backupStrategies) == 0 || utils.PathSearch("keep_days", backupStrategies[0], 0).(float64) == 0 {
+	if len(backupStrategies) == 0 || utils.PathSearch("keep_days", backupStrategies[0], float64(0)).(float64) == 0 {
 		return common.CheckDeletedDiag(d, golangsdk.ErrDefault404{}, "")
 	}
 

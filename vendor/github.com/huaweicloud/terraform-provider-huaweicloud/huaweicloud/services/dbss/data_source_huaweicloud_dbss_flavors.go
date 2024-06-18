@@ -22,6 +22,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DBSS GET /v1/{project_id}/dbss/audit/specification
 func DataSourceDbssFlavors() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: resourceDbssFlavorsRead,
@@ -169,7 +170,7 @@ func flattenGetFlavorsResponseBodyFlavor(resp interface{}) []interface{} {
 	curArray := curJson.([]interface{})
 	rst := make([]interface{}, 0, len(curArray))
 	for _, v := range curArray {
-		memory := utils.PathSearch("ram", v, 0).(float64) / 1024
+		memory := utils.PathSearch("ram", v, float64(0)).(float64) / 1024
 		rst = append(rst, map[string]interface{}{
 			"id":                 utils.PathSearch("id", v, nil),
 			"level":              utils.PathSearch("level", v, nil),

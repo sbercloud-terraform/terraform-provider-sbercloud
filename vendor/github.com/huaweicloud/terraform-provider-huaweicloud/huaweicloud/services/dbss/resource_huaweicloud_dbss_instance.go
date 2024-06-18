@@ -19,17 +19,27 @@ import (
 	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
+	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DBSS GET /v1/{project_id}/dbss/audit/instances
+// @API DBSS GET /v1/{project_id}/dbss/audit/jobs/{resource_id}
+// @API DBSS POST /v2/{project_id}/dbss/audit/charge/period/order
+// @API BSS POST /v2/bills/ratings/period-resources/subscribe-rate
+// @API BSS POST /v3/orders/customer-orders/pay
+// @API BSS POST /v2/orders/subscriptions/resources/unsubscribe
+// @API BSS POST /v2/orders/suscriptions/resources/query
+// @API BSS GET /v2/orders/customer-orders/details/{order_id}
 func ResourceInstance() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceInstanceCreate,
 		ReadContext:   resourceInstanceRead,
 		DeleteContext: resourceInstanceDelete,
+		UpdateContext: resourceInstanceUpdate,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
@@ -91,7 +101,6 @@ func ResourceInstance() *schema.Resource {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Default:     "0",
-				ForceNew:    true,
 				Description: `Enterprise project ID.`,
 			},
 			"charging_mode": {
@@ -565,6 +574,26 @@ func FilterInstances(instances []interface{}, id string) (interface{}, error) {
 	}
 
 	return nil, golangsdk.ErrDefault404{}
+}
+
+func resourceInstanceUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+	instanceId := d.Id()
+
+	if d.HasChange("enterprise_project_id") {
+		migrateOpts := enterpriseprojects.MigrateResourceOpts{
+			ResourceId:   instanceId,
+			ResourceType: "auditInstance",
+			RegionId:     region,
+			ProjectId:    cfg.GetProjectID(region),
+		}
+		if err := common.MigrateEnterpriseProject(ctx, cfg, d, migrateOpts); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	return resourceInstanceRead(ctx, d, meta)
 }
 
 func resourceInstanceDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

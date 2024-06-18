@@ -33,6 +33,12 @@ const (
 	PublicSpecTypeExtraLarge PublicSpecType = "4"
 )
 
+// @API NAT POST /v2/{project_id}/nat_gateways
+// @API NAT GET /v2/{project_id}/nat_gateways/{nat_gateway_id}
+// @API NAT PUT /v2/{project_id}/nat_gateways/{nat_gateway_id}
+// @API NAT DELETE /v2/{project_id}/nat_gateways/{nat_gateway_id}
+// @API NAT POST /v2.0/{project_id}/nat_gateways/{nat_gateway_id}/tags/action
+// @API NAT GET /v2.0/{project_id}/nat_gateways/{nat_gateway_id}/tags
 func ResourcePublicGateway() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourcePublicGatewayCreate,
@@ -97,6 +103,13 @@ func ResourcePublicGateway() *schema.Resource {
 				Optional:    true,
 				Description: "The description of the NAT gateway.",
 			},
+			"ngport_ip_address": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
+				ForceNew:    true,
+				Description: "The private IP address of the NAT gateway.",
+			},
 			"enterprise_project_id": {
 				Type:        schema.TypeString,
 				Optional:    true,
@@ -149,6 +162,7 @@ func resourcePublicGatewayCreate(ctx context.Context, d *schema.ResourceData, me
 		InternalNetworkId:   d.Get("subnet_id").(string),
 		Spec:                d.Get("spec").(string),
 		Description:         d.Get("description").(string),
+		NgportIpAddress:     d.Get("ngport_ip_address").(string),
 		EnterpriseProjectId: cfg.GetEnterpriseProjectID(d),
 	}
 	resp, err := gateways.Create(client, opts)
@@ -208,6 +222,7 @@ func resourcePublicGatewayRead(_ context.Context, d *schema.ResourceData, meta i
 		d.Set("vpc_id", resp.RouterId),
 		d.Set("subnet_id", resp.InternalNetworkId),
 		d.Set("description", resp.Description),
+		d.Set("ngport_ip_address", resp.NgportIpAddress),
 		d.Set("enterprise_project_id", resp.EnterpriseProjectId),
 		d.Set("status", resp.Status),
 	)

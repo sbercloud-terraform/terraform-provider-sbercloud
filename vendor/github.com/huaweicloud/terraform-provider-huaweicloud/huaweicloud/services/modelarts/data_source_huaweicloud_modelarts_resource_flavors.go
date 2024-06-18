@@ -23,6 +23,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API ModelArts GET /v1/{project_id}/resourceflavors
 func DataSourceResourceFlavors() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: resourceResourceFlavorsRead,
@@ -256,7 +257,7 @@ func flattenListResourceFlavorsFlavors(curArray []interface{}) []interface{} {
 			"tags":          utils.PathSearch("metadata.labels", v, nil),
 			"type":          utils.PathSearch("spec.type", v, nil),
 			"arch":          utils.PathSearch("spec.cpuArch", v, nil),
-			"cpu":           utils.PathSearch("spec.cpuArch", v, nil),
+			"cpu":           utils.PathSearch("spec.cpu", v, nil),
 			"memory":        utils.PathSearch("spec.memory", v, nil),
 			"gpu":           flattenResourceFlavorsGpu(v),
 			"npu":           flattenResourceFlavorsNpu(v),

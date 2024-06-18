@@ -19,6 +19,9 @@ import (
 )
 
 // ResourcePluginAssociate defines the provider resource of the APIG plugin binding.
+// @API APIG PUT /v2/{project_id}/apigw/instances/{instance_id}/plugins/{plugin_id}/detach
+// @API APIG GET /v2/{project_id}/apigw/instances/{instance_id}/plugins/{plugin_id}/attached-apis
+// @API APIG POST /v2/{project_id}/apigw/instances/{instance_id}/plugins/{plugin_id}/attach
 func ResourcePluginAssociate() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourcePluginAssociateCreate,

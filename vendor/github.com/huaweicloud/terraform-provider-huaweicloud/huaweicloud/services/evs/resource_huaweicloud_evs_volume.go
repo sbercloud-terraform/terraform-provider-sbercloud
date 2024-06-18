@@ -28,6 +28,21 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API EVS GET /v1/{project_id}/jobs/{job_id}
+// @API EVS POST /v2.1/{project_id}/cloudvolumes/{volume_id}/action
+// @API EVS POST /v2/{project_id}/cloudvolumes/{volume_id}/tags/action
+// @API EVS GET /v2/{project_id}/cloudvolumes/{volume_id}
+// @API EVS PUT /v2/{project_id}/cloudvolumes/{volume_id}
+// @API EVS DELETE /v2/{project_id}/cloudvolumes/{id}
+// @API EVS POST /v2.1/{project_id}/cloudvolumes
+// @API EVS PUT /v5/{project_id}/cloudvolumes/{volume_id}/qos
+// @API ECS DELETE /v1/{project_id}/cloudservers/{serverId}/detachvolume/{volumeId}
+// @API ECS GET /v1/{project_id}/jobs/{jobId}
+// @API BSS GET /v2/orders/customer-orders/details/{order_id}
+// @API BSS POST /v2/orders/suscriptions/resources/query
+// @API BSS POST /v2/orders/subscriptions/resources/autorenew/{resource_id}
+// @API BSS DELETE /v2/orders/subscriptions/resources/autorenew/{resource_id}
+// @API BSS POST /v2/orders/subscriptions/resources/unsubscribe
 func ResourceEvsVolume() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceEvsVolumeCreate,
@@ -288,9 +303,9 @@ func resourceEvsVolumeCreate(ctx context.Context, d *schema.ResourceData, meta i
 		}
 		err = common.WaitOrderComplete(ctx, bssClient, job.OrderID, d.Timeout(schema.TimeoutCreate))
 		if err != nil {
-			return diag.Errorf("the order is not completed while creating EVS volume (%s): %#v", d.Id(), err)
+			return diag.Errorf("the order is not completed while creating EVS volume (%s): %v", d.Id(), err)
 		}
-		_, err = common.WaitOrderResourceComplete(ctx, bssClient, job.OrderID, d.Timeout(schema.TimeoutCreate))
+		_, err = common.WaitOrderAllResourceComplete(ctx, bssClient, job.OrderID, d.Timeout(schema.TimeoutCreate))
 		if err != nil {
 			return diag.FromErr(err)
 		}
@@ -551,7 +566,7 @@ func resourceEvsVolumeUpdate(ctx context.Context, d *schema.ResourceData, meta i
 			}
 			err = common.WaitOrderComplete(ctx, bssClient, resp.OrderID, d.Timeout(schema.TimeoutUpdate))
 			if err != nil {
-				return diag.Errorf("the order (%s) is not completed while extending EVS volume (%s) size: %#v",
+				return diag.Errorf("the order (%s) is not completed while extending EVS volume (%s) size: %v",
 					resp.OrderID, d.Id(), err)
 			}
 		}

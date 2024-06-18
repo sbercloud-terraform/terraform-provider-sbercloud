@@ -21,6 +21,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DWS PUT /v2/{project_id}/clusters/{cluster_id}/snapshot-policies
+// @API DWS GET /v2/{project_id}/clusters/{cluster_id}/snapshot-policies
+// @API DWS DELETE /v1.0/{project_id}/clusters/{cluster_id}/snapshot-policies/{id}
 func ResourceDwsSnapshotPolicy() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDwsSnapshotPolicyCreate,
@@ -84,10 +87,8 @@ func resourceDwsSnapshotPolicyCreate(ctx context.Context, d *schema.ResourceData
 	createDwsSnapshotPolicyPath = strings.ReplaceAll(createDwsSnapshotPolicyPath, "{cluster_id}", fmt.Sprintf("%v", d.Get("cluster_id")))
 
 	createDwsSnapshotPolicyOpt := golangsdk.RequestOpts{
+		MoreHeaders:      requestOpts.MoreHeaders,
 		KeepResponseBody: true,
-		OkCodes: []int{
-			200,
-		},
 	}
 	createDwsSnapshotPolicyOpt.JSONBody = utils.RemoveNil(buildCreateDwsSnapshotPolicyBodyParams(d))
 	createDwsSnapshotPolicyResp, err := createDwsSnapshotPolicyClient.Request("PUT", createDwsSnapshotPolicyPath, &createDwsSnapshotPolicyOpt)
@@ -116,12 +117,7 @@ func resourceDwsSnapshotPolicyCreate(ctx context.Context, d *schema.ResourceData
 
 	getDwsSnapshotPolicyOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		MoreHeaders: map[string]string{
-			"Content-Type": "application/json;charset=UTF-8",
-		},
-		OkCodes: []int{
-			200,
-		},
+		MoreHeaders:      requestOpts.MoreHeaders,
 	}
 	getDwsSnapshotPolicyResp, err := getDwsSnapshotPolicyClient.Request("GET", getDwsSnapshotPolicyPath, &getDwsSnapshotPolicyOpt)
 	if err != nil {
@@ -180,12 +176,7 @@ func resourceDwsSnapshotPolicyRead(_ context.Context, d *schema.ResourceData, me
 
 	getDwsSnapshotPolicyOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		MoreHeaders: map[string]string{
-			"Content-Type": "application/json;charset=UTF-8",
-		},
-		OkCodes: []int{
-			200,
-		},
+		MoreHeaders:      requestOpts.MoreHeaders,
 	}
 	getDwsSnapshotPolicyResp, err := getDwsSnapshotPolicyClient.Request("GET", getDwsSnapshotPolicyPath, &getDwsSnapshotPolicyOpt)
 
@@ -236,12 +227,7 @@ func resourceDwsSnapshotPolicyDelete(_ context.Context, d *schema.ResourceData, 
 
 	deleteDwsSnapshotPolicyOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		MoreHeaders: map[string]string{
-			"Content-Type": "application/json;charset=UTF-8",
-		},
-		OkCodes: []int{
-			200,
-		},
+		MoreHeaders:      requestOpts.MoreHeaders,
 	}
 	_, err = deleteDwsSnapshotPolicyClient.Request("DELETE", deleteDwsSnapshotPolicyPath, &deleteDwsSnapshotPolicyOpt)
 	if err != nil {

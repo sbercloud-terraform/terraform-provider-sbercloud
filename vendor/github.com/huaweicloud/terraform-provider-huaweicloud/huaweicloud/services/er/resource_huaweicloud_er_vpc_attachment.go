@@ -22,6 +22,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API ER POST /v3/{project_id}/enterprise-router/{er_id}/vpc-attachments
+// @API ER PUT /v3/{project_id}/enterprise-router/{er_id}/vpc-attachments/{vpc_attachment_id}
+// @API ER DELETE /v3/{project_id}/enterprise-router/{er_id}/vpc-attachments/{vpc_attachment_id}
+// @API ER GET /v3/{project_id}/enterprise-router/{er_id}/vpc-attachments/{vpc_attachment_id}
 func ResourceVpcAttachment() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceVpcAttachmentCreate,

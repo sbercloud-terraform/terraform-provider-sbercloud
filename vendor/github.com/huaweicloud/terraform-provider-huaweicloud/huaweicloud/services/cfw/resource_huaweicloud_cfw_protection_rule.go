@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/go-multierror"
@@ -25,6 +26,13 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API CFW POST /v1/{project_id}/acl-rule
+// @API CFW DELETE /v1/{project_id}/acl-rule/{id}
+// @API CFW PUT /v1/{project_id}/acl-rule/{id}
+// @API CFW GET /v1/{project_id}/acl-rules
+// @API CFW PUT /v1/{project_id}/acl-rule/order/{id}
+// @API CFW POST /v1/{project_id}/acl-rule/count
+// @API CFW DELETE /v1/{project_id}/acl-rule/count
 func ResourceProtectionRule() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceProtectionRuleCreate,
@@ -143,6 +151,25 @@ func ResourceProtectionRule() *schema.Resource {
 				Description:  `The direction.`,
 				ValidateFunc: validation.IntInSlice([]int{0, 1}),
 			},
+			"rule_hit_count": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.StringInSlice([]string{"0"}, true),
+				Description:  `The number of times the protection rule is hit.`,
+			},
+			"tags": {
+				Type:     schema.TypeMap,
+				Elem:     &schema.Schema{Type: schema.TypeString},
+				Optional: true,
+				ValidateFunc: func(v interface{}, _ string) ([]string, []error) {
+					if keys, ok := v.(map[string]interface{}); ok && len(keys) > 1 {
+						return nil, []error{fmt.Errorf("tags can take at most one key-value pair")}
+					}
+					return nil, nil
+				},
+				Description: `The key/value pairs to associate with the protection rule.`,
+			},
 		},
 	}
 }
@@ -178,19 +205,16 @@ func ProtectionRuleRuleServiceDtoSchema() *schema.Resource {
 			"dest_port": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Computed:    true,
 				Description: `The destination port.`,
 			},
 			"protocol": {
 				Type:        schema.TypeInt,
 				Optional:    true,
-				Computed:    true,
 				Description: `The protocol type.`,
 			},
 			"service_set_id": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Computed:    true,
 				Description: `The service group ID.`,
 				ValidateFunc: validation.StringMatch(regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`),
 					"the input is invalid"),
@@ -198,14 +222,24 @@ func ProtectionRuleRuleServiceDtoSchema() *schema.Resource {
 			"service_set_name": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Computed:    true,
 				Description: `The service group name.`,
 			},
 			"source_port": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Computed:    true,
 				Description: `The source port.`,
+			},
+			"service_group": {
+				Type:        schema.TypeList,
+				Optional:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Description: `The service group list.`,
+			},
+			"custom_service": {
+				Type:        schema.TypeList,
+				Optional:    true,
+				Elem:        ProtectionRuleRuleServiceItemSchema(),
+				Description: `The custom service.`,
 			},
 		},
 	}
@@ -223,32 +257,106 @@ func ProtectionRuleRuleAddressDtoSchema() *schema.Resource {
 			"address": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Computed:    true,
 				Description: `The IP address.`,
 			},
 			"address_set_id": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Computed:    true,
 				Description: `The ID of the associated IP address group.`,
 			},
 			"address_set_name": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Computed:    true,
 				Description: `The IP address group name.`,
 			},
 			"address_type": {
 				Type:        schema.TypeInt,
 				Optional:    true,
-				Computed:    true,
 				Description: `The address type.`,
 			},
 			"domain_address_name": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Computed:    true,
 				Description: `The name of the domain name address.`,
+			},
+			"region_list": {
+				Type:        schema.TypeList,
+				Optional:    true,
+				Elem:        ProtectionRuleIpRegionDtoSchema(),
+				Description: `The region list.`,
+			},
+			"ip_address": {
+				Type:        schema.TypeList,
+				Optional:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Description: `The IP address list.`,
+			},
+			"domain_set_id": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: `The ID of the domain group.`,
+			},
+			"domain_set_name": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: `The name of domain group.`,
+			},
+			"address_group": {
+				Type:        schema.TypeList,
+				Optional:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Description: `The address group list.`,
+			},
+		},
+	}
+	return &sc
+}
+
+func ProtectionRuleIpRegionDtoSchema() *schema.Resource {
+	sc := schema.Resource{
+		Schema: map[string]*schema.Schema{
+			"region_id": {
+				Type:        schema.TypeString,
+				Required:    true,
+				Description: `The region ID.`,
+			},
+			"region_type": {
+				Type:        schema.TypeInt,
+				Required:    true,
+				Description: "The region type.",
+			},
+			"description_cn": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "The Chinese description of the region.",
+			},
+			"description_en": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "The English description of the region.",
+			},
+		},
+	}
+	return &sc
+}
+
+func ProtectionRuleRuleServiceItemSchema() *schema.Resource {
+	sc := schema.Resource{
+		Schema: map[string]*schema.Schema{
+			"protocol": {
+				Type:        schema.TypeInt,
+				Required:    true,
+				Description: `The protocol type.`,
+			},
+			"source_port": {
+				Type:        schema.TypeString,
+				Required:    true,
+				Description: `The source port.`,
+			},
+			"dest_port": {
+				Type:        schema.TypeString,
+				Required:    true,
+				Description: `The destination port.`,
 			},
 		},
 	}
@@ -278,6 +386,7 @@ func resourceProtectionRuleCreate(ctx context.Context, d *schema.ResourceData, m
 			200,
 		},
 	}
+
 	createProtectionRuleOpt.JSONBody = utils.RemoveNil(buildCreateProtectionRuleBodyParams(d))
 	createProtectionRuleResp, err := createProtectionRuleClient.Request("POST", createProtectionRulePath, &createProtectionRuleOpt)
 	if err != nil {
@@ -323,6 +432,7 @@ func buildCreateProtectionRulesOpts(d *schema.ResourceData) []map[string]interfa
 		"source":                   buildCreateProtectionRuleRequestBodyRuleAddressDto(d.Get("source")),
 		"destination":              buildCreateProtectionRuleRequestBodyRuleAddressDto(d.Get("destination")),
 		"status":                   d.Get("status"),
+		"tag":                      buildProtectionRuleRequestBodyTagsVO(d.Get("tags").(map[string]interface{})),
 	}
 
 	return []map[string]interface{}{params}
@@ -355,7 +465,26 @@ func buildCreateProtectionRuleRequestBodyRuleServiceDto(rawParams interface{}) m
 			"service_set_id":   utils.ValueIngoreEmpty(raw["service_set_id"]),
 			"service_set_name": utils.ValueIngoreEmpty(raw["service_set_name"]),
 			"source_port":      utils.ValueIngoreEmpty(raw["source_port"]),
+			"service_group":    utils.ValueIngoreEmpty(utils.ExpandToStringList(raw["service_group"].([]interface{}))),
+			"custom_service":   buildProtectionRuleRequestBodyRuleCustomService(raw["custom_service"]),
 			"type":             raw["type"],
+		}
+		return params
+	}
+	return nil
+}
+
+func buildProtectionRuleRequestBodyRuleCustomService(rawParams interface{}) []map[string]interface{} {
+	if rawArray, ok := rawParams.([]interface{}); ok {
+		params := make([]map[string]interface{}, 0, len(rawArray))
+		for _, rawService := range rawArray {
+			service := rawService.(map[string]interface{})
+			param := map[string]interface{}{
+				"protocol":    service["protocol"],
+				"source_port": service["source_port"],
+				"dest_port":   service["dest_port"],
+			}
+			params = append(params, param)
 		}
 		return params
 	}
@@ -375,10 +504,42 @@ func buildCreateProtectionRuleRequestBodyRuleAddressDto(rawParams interface{}) m
 			"address_type":        utils.ValueIngoreEmpty(raw["address_type"]),
 			"domain_address_name": utils.ValueIngoreEmpty(raw["domain_address_name"]),
 			"type":                raw["type"],
+			"region_list":         buildCreateProtectionRuleRequestBodyIpRegionDto(raw["region_list"]),
+			"domain_set_id":       utils.ValueIngoreEmpty(raw["domain_set_id"]),
+			"domain_set_name":     utils.ValueIngoreEmpty(raw["domain_set_name"]),
+			"ip_address":          utils.ValueIngoreEmpty(utils.ExpandToStringList(raw["ip_address"].([]interface{}))),
+			"address_group":       utils.ValueIngoreEmpty(utils.ExpandToStringList(raw["address_group"].([]interface{}))),
 		}
 		return params
 	}
 	return nil
+}
+
+func buildCreateProtectionRuleRequestBodyIpRegionDto(rawParams interface{}) []map[string]interface{} {
+	if rawArray, ok := rawParams.([]interface{}); ok {
+		params := make([]map[string]interface{}, 0, len(rawArray))
+		for _, rawRegion := range rawArray {
+			region := rawRegion.(map[string]interface{})
+			param := map[string]interface{}{
+				"region_id":      region["region_id"],
+				"region_type":    region["region_type"],
+				"description_cn": utils.ValueIngoreEmpty(region["description_cn"]),
+				"description_en": utils.ValueIngoreEmpty(region["description_en"]),
+			}
+			params = append(params, param)
+		}
+		return params
+	}
+	return nil
+}
+
+func buildProtectionRuleRequestBodyTagsVO(tagmap map[string]interface{}) map[string]interface{} {
+	tags := make(map[string]interface{})
+	for k, v := range tagmap {
+		tags["tag_key"] = k
+		tags["tag_value"] = v
+	}
+	return tags
 }
 
 func resourceProtectionRuleRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -430,6 +591,18 @@ func resourceProtectionRuleRead(_ context.Context, d *schema.ResourceData, meta 
 		return common.CheckDeletedDiag(d, err, "error retrieving protection rule")
 	}
 
+	count, err := getRuleHitCount(getProtectionRuleClient, d.Id())
+	if err != nil {
+		return diag.Errorf("error retrieving protection rule hit count: %s", err)
+	}
+
+	ruleHitCount := ""
+	if count != nil {
+		if v, ok := count.(float64); ok {
+			ruleHitCount = strconv.FormatFloat(v, 'f', -1, 64)
+		}
+	}
+
 	// the params 'sequence' and 'type 'not not returned
 	mErr = multierror.Append(
 		mErr,
@@ -447,6 +620,8 @@ func resourceProtectionRuleRead(_ context.Context, d *schema.ResourceData, meta 
 		d.Set("source", flattenGetProtectionRuleResponseBodyRuleSourceAddressDto(rule)),
 		d.Set("destination", flattenGetProtectionRuleResponseBodyRuleDestinationAddressDto(rule)),
 		d.Set("status", utils.PathSearch("status", rule, nil)),
+		d.Set("tags", flattenGetProtectionRuleResponseBodyRuleTagsVO(rule)),
+		d.Set("rule_hit_count", ruleHitCount),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())
@@ -465,6 +640,38 @@ func FilterRules(rules []interface{}, id string) (interface{}, error) {
 	return nil, golangsdk.ErrDefault404{}
 }
 
+func getRuleHitCount(client *golangsdk.ServiceClient, id string) (interface{}, error) {
+	getProtectionRuleHitCountHttpUrl := "v1/{project_id}/acl-rule/count"
+	getProtectionRuleHitCountPath := client.Endpoint + getProtectionRuleHitCountHttpUrl
+	getProtectionRuleHitCountPath = strings.ReplaceAll(getProtectionRuleHitCountPath, "{project_id}", client.ProjectID)
+
+	getProtectionRuleHitCountOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		JSONBody:         buildRuleHitCountBodyParams(id),
+		OkCodes: []int{
+			200,
+		},
+	}
+
+	getProtectionRuleHitCountResp, err := client.Request("POST", getProtectionRuleHitCountPath, &getProtectionRuleHitCountOpt)
+	if err != nil {
+		return nil, err
+	}
+
+	getProtectionRuleHitCountRespBody, err := utils.FlattenResponse(getProtectionRuleHitCountResp)
+	if err != nil {
+		return nil, err
+	}
+
+	return jmespath.Search("data.records[0].rule_hit_count", getProtectionRuleHitCountRespBody)
+}
+
+func buildRuleHitCountBodyParams(id string) map[string]interface{} {
+	return map[string]interface{}{
+		"rule_ids": []string{id},
+	}
+}
+
 func flattenGetProtectionRuleResponseBodyRuleServiceDto(resp interface{}) []interface{} {
 	var rst []interface{}
 	curJson, err := jmespath.Search("service", resp)
@@ -481,6 +688,8 @@ func flattenGetProtectionRuleResponseBodyRuleServiceDto(resp interface{}) []inte
 			"service_set_name": utils.PathSearch("service_set_name", curJson, nil),
 			"source_port":      utils.PathSearch("source_port", curJson, nil),
 			"type":             utils.PathSearch("type", curJson, nil),
+			"service_group":    utils.PathSearch("service_group_names[*].set_id", curJson, nil),
+			"custom_service":   flattenGetProtectionRuleResponseBodyRuleServiceItem(curJson),
 		},
 	}
 	return rst
@@ -502,6 +711,11 @@ func flattenGetProtectionRuleResponseBodyRuleSourceAddressDto(resp interface{}) 
 			"address_type":        utils.PathSearch("address_type", curJson, nil),
 			"domain_address_name": utils.PathSearch("domain_address_name", curJson, nil),
 			"type":                utils.PathSearch("type", curJson, nil),
+			"region_list":         flattenGetProtectionRuleResponseBodyRuleIpRegionDto(curJson),
+			"domain_set_id":       utils.PathSearch("domain_set_id", curJson, nil),
+			"domain_set_name":     utils.PathSearch("domain_set_name", curJson, nil),
+			"ip_address":          utils.PathSearch("ip_address", curJson, nil),
+			"address_group":       utils.PathSearch("address_group_names[*].set_id", curJson, nil),
 		},
 	}
 	return rst
@@ -523,7 +737,72 @@ func flattenGetProtectionRuleResponseBodyRuleDestinationAddressDto(resp interfac
 			"address_type":        utils.PathSearch("address_type", curJson, nil),
 			"domain_address_name": utils.PathSearch("domain_address_name", curJson, nil),
 			"type":                utils.PathSearch("type", curJson, nil),
+			"region_list":         flattenGetProtectionRuleResponseBodyRuleIpRegionDto(curJson),
+			"domain_set_id":       utils.PathSearch("domain_set_id", curJson, nil),
+			"domain_set_name":     utils.PathSearch("domain_set_name", curJson, nil),
+			"ip_address":          utils.PathSearch("ip_address", curJson, nil),
+			"address_group":       utils.PathSearch("address_group_names[*].set_id", curJson, nil),
 		},
+	}
+	return rst
+}
+
+func flattenGetProtectionRuleResponseBodyRuleIpRegionDto(resp interface{}) []interface{} {
+	var rst []interface{}
+	curJson := utils.PathSearch("region_list", resp, nil)
+
+	if curJson == nil {
+		return rst
+	}
+	curArray := curJson.([]interface{})
+	for _, v := range curArray {
+		rst = append(rst, map[string]interface{}{
+			"region_id":      utils.PathSearch("region_id", v, nil),
+			"description_cn": utils.PathSearch("description_cn", v, nil),
+			"description_en": utils.PathSearch("description_en", v, nil),
+			"region_type":    utils.PathSearch("region_type", v, nil),
+		})
+	}
+	return rst
+}
+
+func flattenGetProtectionRuleResponseBodyRuleTagsVO(resp interface{}) map[string]interface{} {
+	curJson := utils.PathSearch("tag", resp, nil)
+
+	if curJson == nil {
+		return nil
+	}
+
+	if tagMap, ok := curJson.(map[string]interface{}); ok {
+		key, value := "", ""
+		for k, v := range tagMap {
+			switch k {
+			case "tag_key":
+				key = v.(string)
+			case "tag_value":
+				value = v.(string)
+			}
+		}
+		return map[string]interface{}{key: value}
+	}
+	return nil
+}
+
+func flattenGetProtectionRuleResponseBodyRuleServiceItem(resp interface{}) []interface{} {
+	curJson := utils.PathSearch("custom_service", resp, nil)
+
+	if curJson == nil {
+		return nil
+	}
+
+	curArray := curJson.([]interface{})
+	rst := make([]interface{}, 0, len(curArray))
+	for _, v := range curArray {
+		rst = append(rst, map[string]interface{}{
+			"protocol":    utils.PathSearch("protocol", v, nil),
+			"source_port": utils.PathSearch("source_port", v, nil),
+			"dest_port":   utils.PathSearch("dest_port", v, nil),
+		})
 	}
 	return rst
 }
@@ -554,12 +833,14 @@ func resourceProtectionRuleUpdate(ctx context.Context, d *schema.ResourceData, m
 		"source",
 		"status",
 		"type",
+		"tags",
 	}
 
 	var (
-		updateProtectionRuleHttpUrl      = "v1/{project_id}/acl-rule/{id}"
-		updateProtectionRuleOrderHttpUrl = "v1/{project_id}/acl-rule/order/{id}"
-		updateProtectionRuleProduct      = "cfw"
+		updateProtectionRuleHttpUrl         = "v1/{project_id}/acl-rule/{id}"
+		updateProtectionRuleOrderHttpUrl    = "v1/{project_id}/acl-rule/order/{id}"
+		updateProtectionRuleHitCountHttpUrl = "v1/{project_id}/acl-rule/count"
+		updateProtectionRuleProduct         = "cfw"
 	)
 	updateProtectionRuleClient, err := conf.NewServiceClient(updateProtectionRuleProduct, region)
 	if err != nil {
@@ -604,6 +885,19 @@ func resourceProtectionRuleUpdate(ctx context.Context, d *schema.ResourceData, m
 		}
 	}
 
+	if d.HasChange("rule_hit_count") {
+		updateRuleHitCountPath := updateProtectionRuleClient.Endpoint + updateProtectionRuleHitCountHttpUrl
+		updateRuleHitCountPath = strings.ReplaceAll(updateRuleHitCountPath, "{project_id}", updateProtectionRuleClient.ProjectID)
+		updateRuleHitCountOpt := golangsdk.RequestOpts{
+			KeepResponseBody: true,
+			JSONBody:         buildRuleHitCountBodyParams(d.Id()),
+		}
+		_, err := updateProtectionRuleClient.Request("DELETE", updateRuleHitCountPath, &updateRuleHitCountOpt)
+		if err != nil {
+			return diag.Errorf("error updating protection rule hit count: %s", err)
+		}
+	}
+
 	return resourceProtectionRuleRead(ctx, d, meta)
 }
 
@@ -623,6 +917,7 @@ func buildUpdateProtectionRuleBodyParams(d *schema.ResourceData) map[string]inte
 		"destination":              buildUpdateProtectionRuleRequestBodyRuleAddressDto(d.Get("destination")),
 		"status":                   d.Get("status"),
 		"type":                     d.Get("type"),
+		"tag":                      buildProtectionRuleRequestBodyTagsVO(d.Get("tags").(map[string]interface{})),
 	}
 	return bodyParams
 }
@@ -654,6 +949,8 @@ func buildUpdateProtectionRuleRequestBodyRuleServiceDto(rawParams interface{}) m
 			"service_set_id":   utils.ValueIngoreEmpty(raw["service_set_id"]),
 			"service_set_name": utils.ValueIngoreEmpty(raw["service_set_name"]),
 			"source_port":      utils.ValueIngoreEmpty(raw["source_port"]),
+			"service_group":    utils.ValueIngoreEmpty(utils.ExpandToStringList(raw["service_group"].([]interface{}))),
+			"custom_service":   buildProtectionRuleRequestBodyRuleCustomService(raw["custom_service"]),
 			"type":             raw["type"],
 		}
 		return params
@@ -674,6 +971,29 @@ func buildUpdateProtectionRuleRequestBodyRuleAddressDto(rawParams interface{}) m
 			"address_type":        utils.ValueIngoreEmpty(raw["address_type"]),
 			"domain_address_name": utils.ValueIngoreEmpty(raw["domain_address_name"]),
 			"type":                raw["type"],
+			"region_list":         buildUpdateProtectionRuleRequestBodyIpRegionDto(raw["region_list"]),
+			"domain_set_id":       utils.ValueIngoreEmpty(raw["domain_set_id"]),
+			"domain_set_name":     utils.ValueIngoreEmpty(raw["domain_set_name"]),
+			"ip_address":          utils.ValueIngoreEmpty(utils.ExpandToStringList(raw["ip_address"].([]interface{}))),
+			"address_group":       utils.ValueIngoreEmpty(utils.ExpandToStringList(raw["address_group"].([]interface{}))),
+		}
+		return params
+	}
+	return nil
+}
+
+func buildUpdateProtectionRuleRequestBodyIpRegionDto(rawParams interface{}) []map[string]interface{} {
+	if rawArray, ok := rawParams.([]interface{}); ok {
+		params := make([]map[string]interface{}, 0, len(rawArray))
+		for _, rawRegion := range rawArray {
+			region := rawRegion.(map[string]interface{})
+			param := map[string]interface{}{
+				"region_id":      region["region_id"],
+				"region_type":    region["region_type"],
+				"description_cn": utils.ValueIngoreEmpty(region["description_cn"]),
+				"description_en": utils.ValueIngoreEmpty(region["description_en"]),
+			}
+			params = append(params, param)
 		}
 		return params
 	}

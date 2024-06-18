@@ -27,6 +27,15 @@ var (
 	userStatusDisable UserStatus = 1
 )
 
+// @API Meeting POST /v1/usg/dcs/corp/admin/delete
+// @API Meeting POST /v1/usg/dcs/corp/admin
+// @API Meeting POST /v1/usg/dcs/corp/member/delete
+// @API Meeting GET /v1/usg/dcs/corp/member/{account}
+// @API Meeting PUT /v1/usg/dcs/corp/member/{account}
+// @API Meeting POST /v1/usg/dcs/corp/member
+// @API Meeting POST /v1/usg/acs/token/validate
+// @API Meeting POST /v1/usg/acs/auth/account
+// @API Meeting POST /v2/usg/acs/auth/appauth
 func ResourceUser() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceUserCreate,

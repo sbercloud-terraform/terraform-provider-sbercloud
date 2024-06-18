@@ -14,6 +14,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
+// @API APIG POST /v2/{project_id}/apigw/certificates
+// @API APIG DELETE /v2/{project_id}/apigw/certificates/{certificate_id}
+// @API APIG GET /v2/{project_id}/apigw/certificates/{certificate_id}
+// @API APIG PUT /v2/{project_id}/apigw/certificates/{certificate_id}
 func ResourceCertificate() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceCertificateCreate,

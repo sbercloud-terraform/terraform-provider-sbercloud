@@ -19,6 +19,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DLI POST /v1.0/{project_id}/jobs/submit-job
+// @API DLI GET /v1.0/{project_id}/jobs/{job_id}/status
+// @API DLI GET /v1.0/{project_id}/jobs
+// @API DLI DELETE /v1.0/{project_id}/jobs/{job_id}
 func ResourceSqlJob() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceSQLJobCreate,
@@ -175,7 +179,7 @@ func resourceSQLJobCreate(ctx context.Context, d *schema.ResourceData, meta inte
 	}
 
 	if rst == nil || !rst.IsSuccess {
-		return diag.Errorf("error creating DLI sql job")
+		return diag.Errorf("error creating DLI sql job: %s", rst.Message)
 	}
 
 	d.SetId(rst.JobId)
@@ -207,7 +211,7 @@ func resourceSQLJobRead(_ context.Context, d *schema.ResourceData, meta interfac
 	}
 
 	if listResp == nil || !listResp.IsSuccess {
-		return diag.Errorf("error query DLI sql job")
+		return diag.Errorf("error query DLI sql job: %s", listResp.Message)
 	}
 
 	if listResp.JobCount == 0 {
@@ -246,7 +250,7 @@ func resourceSQLJobDelete(ctx context.Context, d *schema.ResourceData, meta inte
 	}
 
 	if detail == nil || !detail.IsSuccess {
-		return diag.Errorf("error query DLI sql job")
+		return diag.Errorf("error query DLI sql job: %s", detail.Message)
 	}
 
 	if detail.Status != sqljob.JobStatusFinished &&
@@ -257,7 +261,7 @@ func resourceSQLJobDelete(ctx context.Context, d *schema.ResourceData, meta inte
 			return diag.Errorf("cancel DLI sql job failed. %q:%s", jobId, err)
 		}
 		if cancelRst == nil || !cancelRst.IsSuccess {
-			return diag.Errorf("cancel DLI sql job failed. %q", jobId)
+			return diag.Errorf("cancel DLI sql job (%s) failed: %s", jobId, cancelRst.Message)
 		}
 	}
 

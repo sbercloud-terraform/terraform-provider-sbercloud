@@ -10,9 +10,12 @@ import (
 	"github.com/chnsz/golangsdk/openstack/taurusdb/v3/instances"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
 )
 
+// @API GaussDBforMySQL POST /v3/{project_id}/instances/{instance_id}/proxy
+// @API GaussDBforMySQL GET /v3/{project_id}/jobs
+// @API GaussDBforMySQL POST /v3/{project_id}/instances/{instance_id}/proxy/enlarge
+// @API GaussDBforMySQL DELETE /v3/{project_id}/instances/{instance_id}/proxy
 func ResourceGaussDBProxy() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceGaussDBProxyCreate,
@@ -29,7 +32,7 @@ func ResourceGaussDBProxy() *schema.Resource {
 			Delete: schema.DefaultTimeout(10 * time.Minute),
 		},
 
-		Schema: map[string]*schema.Schema{ //request and response parameters
+		Schema: map[string]*schema.Schema{ // request and response parameters
 			"region": {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -63,10 +66,10 @@ func ResourceGaussDBProxy() *schema.Resource {
 }
 
 func resourceGaussDBProxyCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	client, err := config.GaussdbV3Client(config.GetRegion(d))
+	cfg := meta.(*config.Config)
+	client, err := cfg.GaussdbV3Client(cfg.GetRegion(d))
 	if err != nil {
-		return fmtp.DiagErrorf("Error creating HuaweiCloud GaussDB client: %s ", err)
+		return diag.Errorf("error creating GaussDB client: %s ", err)
 	}
 
 	createOpts := instances.ProxyOpts{
@@ -74,71 +77,70 @@ func resourceGaussDBProxyCreate(ctx context.Context, d *schema.ResourceData, met
 		NodeNum: d.Get("node_num").(int),
 	}
 
-	instance_id := d.Get("instance_id").(string)
-	n, err := instances.EnableProxy(client, instance_id, createOpts).ExtractJobResponse()
+	instanceId := d.Get("instance_id").(string)
+	n, err := instances.EnableProxy(client, instanceId, createOpts).ExtractJobResponse()
 	if err != nil {
-		return fmtp.DiagErrorf("Error creating gaussdb_mysql_proxy: %s", err)
+		return diag.Errorf("error creating gaussdb_mysql_proxy: %s", err)
 	}
-	d.SetId(instance_id)
+	d.SetId(instanceId)
 
 	if err := instances.WaitForJobSuccess(client, int(d.Timeout(schema.TimeoutCreate)/time.Second), n.JobID); err != nil {
-		return fmtp.DiagErrorf("Error waiting for gaussdb_mysql_proxy job: %s", err)
+		return diag.Errorf("error waiting for gaussdb_mysql_proxy job: %s", err)
 	}
 
 	return resourceGaussDBProxyRead(ctx, d, meta)
 }
 
-func resourceGaussDBProxyRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceGaussDBProxyRead(_ context.Context, _ *schema.ResourceData, _ interface{}) diag.Diagnostics {
 	return nil
 }
 
 func resourceGaussDBProxyUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	client, err := config.GaussdbV3Client(config.GetRegion(d))
+	cfg := meta.(*config.Config)
+	client, err := cfg.GaussdbV3Client(cfg.GetRegion(d))
 	if err != nil {
-		return fmtp.DiagErrorf("Error creating HuaweiCloud GaussDB client: %s ", err)
+		return diag.Errorf("error creating GaussDB client: %s ", err)
 	}
 
 	if d.HasChange("node_num") {
 		oldnum, newnum := d.GetChange("node_num")
 		if newnum.(int) < oldnum.(int) {
-			return fmtp.DiagErrorf("Error updating gaussdb_mysql_proxy %s: new node num should be greater than old num", d.Id())
+			return diag.Errorf("error updating gaussdb_mysql_proxy %s: new node num should be greater than old num", d.Id())
 		}
 
-		enlarge_size := newnum.(int) - oldnum.(int)
+		enlargeSize := newnum.(int) - oldnum.(int)
 		enlargeProxyOpts := instances.EnlargeProxyOpts{
-			NodeNum: enlarge_size,
+			NodeNum: enlargeSize,
 		}
 
 		lp, err := instances.EnlargeProxy(client, d.Id(), enlargeProxyOpts).ExtractJobResponse()
 		if err != nil {
-			return fmtp.DiagErrorf("Error enlarging gaussdb_mysql_proxy: %s", err)
+			return diag.Errorf("error enlarging gaussdb_mysql_proxy: %s", err)
 		}
 
 		if err = instances.WaitForJobSuccess(client, int(d.Timeout(schema.TimeoutUpdate)/time.Second), lp.JobID); err != nil {
-			return fmtp.DiagErrorf("Error waiting for gaussdb_mysql_proxy job: %s", err)
+			return diag.Errorf("error waiting for gaussdb_mysql_proxy job: %s", err)
 		}
 	}
 
 	return resourceGaussDBProxyRead(ctx, d, meta)
 }
 
-func resourceGaussDBProxyDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	client, err := config.GaussdbV3Client(config.GetRegion(d))
+func resourceGaussDBProxyDelete(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cfg := meta.(*config.Config)
+	client, err := cfg.GaussdbV3Client(cfg.GetRegion(d))
 	if err != nil {
-		return fmtp.DiagErrorf("Error creating HuaweiCloud GaussDB client: %s ", err)
+		return diag.Errorf("error creating GaussDB client: %s ", err)
 	}
 
 	dp, err := instances.DeleteProxy(client, d.Id()).ExtractJobResponse()
 	if err != nil {
-		return fmtp.DiagErrorf("Error deleting gaussdb_mysql_proxy: %s", err)
+		return diag.Errorf("error deleting gaussdb_mysql_proxy: %s", err)
 	}
 
 	if err = instances.WaitForJobSuccess(client, int(d.Timeout(schema.TimeoutDelete)/time.Second), dp.JobID); err != nil {
-		return fmtp.DiagErrorf("Error waiting for gaussdb_mysql_proxy job: %s", err)
+		return diag.Errorf("error waiting for gaussdb_mysql_proxy job: %s", err)
 	}
 
-	d.SetId("")
 	return nil
 }

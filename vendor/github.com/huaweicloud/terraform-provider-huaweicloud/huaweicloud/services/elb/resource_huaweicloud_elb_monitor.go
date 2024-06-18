@@ -14,6 +14,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
+// @API ELB POST /v3/{project_id}/elb/healthmonitors
+// @API ELB GET /v3/{project_id}/elb/healthmonitors/{healthmonitor_id}
+// @API ELB PUT /v3/{project_id}/elb/healthmonitors/{healthmonitor_id}
+// @API ELB DELETE /v3/{project_id}/elb/healthmonitors/{healthmonitor_id}
 func ResourceMonitorV3() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceMonitorV3Create,
@@ -52,6 +56,15 @@ func ResourceMonitorV3() *schema.Resource {
 				Type:     schema.TypeInt,
 				Required: true,
 			},
+			"max_retries_down": {
+				Type:     schema.TypeInt,
+				Optional: true,
+				Computed: true,
+			},
+			"name": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
 			"domain_name": {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -72,6 +85,24 @@ func ResourceMonitorV3() *schema.Resource {
 				Optional: true,
 				Computed: true,
 			},
+			"enabled": {
+				Type:     schema.TypeBool,
+				Default:  true,
+				Optional: true,
+			},
+			"http_method": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+			},
+			"updated_at": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"created_at": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
 		},
 	}
 }
@@ -83,16 +114,21 @@ func resourceMonitorV3Create(ctx context.Context, d *schema.ResourceData, meta i
 		return diag.Errorf("error creating ELB client: %s", err)
 	}
 
+	enabled := d.Get("enabled").(bool)
 	createOpts := monitors.CreateOpts{
-		PoolID:        d.Get("pool_id").(string),
-		Type:          d.Get("protocol").(string),
-		Delay:         d.Get("interval").(int),
-		Timeout:       d.Get("timeout").(int),
-		MaxRetries:    d.Get("max_retries").(int),
-		URLPath:       d.Get("url_path").(string),
-		DomainName:    d.Get("domain_name").(string),
-		MonitorPort:   d.Get("port").(int),
-		ExpectedCodes: d.Get("status_code").(string),
+		PoolID:         d.Get("pool_id").(string),
+		Type:           d.Get("protocol").(string),
+		Delay:          d.Get("interval").(int),
+		Timeout:        d.Get("timeout").(int),
+		MaxRetries:     d.Get("max_retries").(int),
+		MaxRetriesDown: d.Get("max_retries_down").(int),
+		Name:           d.Get("name").(string),
+		URLPath:        d.Get("url_path").(string),
+		DomainName:     d.Get("domain_name").(string),
+		MonitorPort:    d.Get("port").(int),
+		ExpectedCodes:  d.Get("status_code").(string),
+		HTTPMethod:     d.Get("http_method").(string),
+		AdminStateUp:   &enabled,
 	}
 
 	log.Printf("[DEBUG] Create Options: %#v", createOpts)
@@ -129,6 +165,12 @@ func resourceMonitorV3Read(_ context.Context, d *schema.ResourceData, meta inter
 		d.Set("url_path", monitor.URLPath),
 		d.Set("domain_name", monitor.DomainName),
 		d.Set("status_code", monitor.ExpectedCodes),
+		d.Set("name", monitor.Name),
+		d.Set("max_retries_down", monitor.MaxRetriesDown),
+		d.Set("enabled", monitor.AdminStateUp),
+		d.Set("http_method", monitor.HTTPMethod),
+		d.Set("created_at", monitor.CreatedAt),
+		d.Set("updated_at", monitor.UpdatedAt),
 	)
 
 	if len(monitor.Pools) != 0 {
@@ -177,6 +219,19 @@ func resourceMonitorV3Update(ctx context.Context, d *schema.ResourceData, meta i
 	}
 	if d.HasChange("protocol") {
 		updateOpts.Type = d.Get("protocol").(string)
+	}
+	if d.HasChange("name") {
+		updateOpts.Name = d.Get("name").(string)
+	}
+	if d.HasChange("max_retries_down") {
+		updateOpts.MaxRetriesDown = d.Get("max_retries_down").(int)
+	}
+	if d.HasChange("http_method") {
+		updateOpts.HTTPMethod = d.Get("http_method").(string)
+	}
+	if d.HasChange("enabled") {
+		enabled := d.Get("enabled").(bool)
+		updateOpts.AdminStateUp = &enabled
 	}
 
 	log.Printf("[DEBUG] Updating monitor %s with options: %#v", d.Id(), updateOpts)

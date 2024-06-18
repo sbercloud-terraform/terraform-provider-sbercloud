@@ -23,6 +23,12 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API SecMaster DELETE /v1/{project_id}/workspaces/{workspace_id}/siem/alert-rules
+// @API SecMaster POST /v1/{project_id}/workspaces/{workspace_id}/siem/alert-rules
+// @API SecMaster GET /v1/{project_id}/workspaces/{workspace_id}/siem/alert-rules/{id}
+// @API SecMaster PUT /v1/{project_id}/workspaces/{workspace_id}/siem/alert-rules/{id}
+// @API SecMaster POST /v1/{project_id}/workspaces/{workspace_id}/siem/alert-rules/enable
+// @API SecMaster POST /v1/{project_id}/workspaces/{workspace_id}/siem/alert-rules/disable
 func ResourceAlertRule() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceAlertRuleCreate,
@@ -383,9 +389,9 @@ func resourceAlertRuleRead(_ context.Context, d *schema.ResourceData, meta inter
 		d.Set("triggers", flattenGetAlertRuleResponseBodyAlertRuleTrigger(getAlertRuleRespBody)),
 		d.Set("suppression", utils.PathSearch("suppression", getAlertRuleRespBody, nil)),
 		d.Set("created_at", utils.FormatTimeStampRFC3339(
-			int64(utils.PathSearch("create_time", getAlertRuleRespBody, 0).(float64))/1000, false)),
+			int64(utils.PathSearch("create_time", getAlertRuleRespBody, float64(0)).(float64))/1000, false)),
 		d.Set("updated_at", utils.FormatTimeStampRFC3339(
-			int64(utils.PathSearch("update_time", getAlertRuleRespBody, 0).(float64))/1000, false)),
+			int64(utils.PathSearch("update_time", getAlertRuleRespBody, float64(0)).(float64))/1000, false)),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())

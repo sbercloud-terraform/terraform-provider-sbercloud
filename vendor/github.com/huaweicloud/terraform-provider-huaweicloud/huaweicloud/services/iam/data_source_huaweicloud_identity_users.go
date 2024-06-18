@@ -18,6 +18,8 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API IAM GET /v3/users
+// @API IAM GET /v3/users/{user_id}/groups
 // DataSourceIdentityUsers is the impl of data/huaweicloud_identity_users
 func DataSourceIdentityUsers() *schema.Resource {
 	return &schema.Resource{

@@ -17,6 +17,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API IoTDA POST /v5/iot/{project_id}/certificates/{certificate_id}/action
+// @API IoTDA DELETE /v5/iot/{project_id}/certificates/{certificate_id}
+// @API IoTDA POST /v5/iot/{project_id}/certificates
+// @API IoTDA GET /v5/iot/{project_id}/certificates
 func ResourceDeviceCertificate() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDeviceCertificateCreate,
@@ -88,7 +92,8 @@ func ResourceDeviceCertificate() *schema.Resource {
 func resourceDeviceCertificateCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*config.Config)
 	region := c.GetRegion(d)
-	client, err := c.HcIoTdaV5Client(region)
+	isDerived := WithDerivedAuth(c, region)
+	client, err := c.HcIoTdaV5Client(region, isDerived)
 	if err != nil {
 		return diag.Errorf("error creating IoTDA v5 client: %s", err)
 	}
@@ -116,7 +121,8 @@ func resourceDeviceCertificateCreate(ctx context.Context, d *schema.ResourceData
 func resourceDeviceCertificateRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*config.Config)
 	region := c.GetRegion(d)
-	client, err := c.HcIoTdaV5Client(region)
+	isDerived := WithDerivedAuth(c, region)
+	client, err := c.HcIoTdaV5Client(region, isDerived)
 	if err != nil {
 		return diag.Errorf("error creating IoTDA v5 client: %s", err)
 	}
@@ -147,7 +153,8 @@ func resourceDeviceCertificateRead(_ context.Context, d *schema.ResourceData, me
 func resourceDeviceCertificateUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*config.Config)
 	region := c.GetRegion(d)
-	client, err := c.HcIoTdaV5Client(region)
+	isDerived := WithDerivedAuth(c, region)
+	client, err := c.HcIoTdaV5Client(region, isDerived)
 	if err != nil {
 		return diag.Errorf("error creating IoTDA v5 client: %s", err)
 	}
@@ -171,7 +178,8 @@ func resourceDeviceCertificateUpdate(ctx context.Context, d *schema.ResourceData
 func resourceDeviceCertificateDelete(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*config.Config)
 	region := c.GetRegion(d)
-	client, err := c.HcIoTdaV5Client(region)
+	isDerived := WithDerivedAuth(c, region)
+	client, err := c.HcIoTdaV5Client(region, isDerived)
 	if err != nil {
 		return diag.Errorf("error creating IoTDA v5 client: %s", err)
 	}

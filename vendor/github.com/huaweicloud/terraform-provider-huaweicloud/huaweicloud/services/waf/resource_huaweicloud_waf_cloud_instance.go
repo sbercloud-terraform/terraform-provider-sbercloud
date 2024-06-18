@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
 	"github.com/chnsz/golangsdk"
+	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 	"github.com/chnsz/golangsdk/openstack/waf/v1/clouds"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
@@ -57,6 +58,16 @@ func expackProductSchema() *schema.Resource {
 	}
 }
 
+// @API WAF DELETE /v1/{project_id}/waf/postpaid
+// @API WAF POST /v1/{project_id}/waf/postpaid
+// @API WAF POST /v1/{project_id}/waf/subscription/batchalter/prepaid-cloud-waf
+// @API WAF POST /v1/{project_id}/waf/subscription/purchase/prepaid-cloud-waf
+// @API WAF GET /v1/{project_id}/waf/subscription
+// @API BSS GET /v2/orders/customer-orders/details/{order_id}
+// @API BSS POST /v2/orders/suscriptions/resources/query
+// @API BSS POST /v2/orders/subscriptions/resources/autorenew/{instance_id}
+// @API BSS DELETE /v2/orders/subscriptions/resources/autorenew/{instance_id}
+// @API BSS POST /v2/orders/subscriptions/resources/unsubscribe
 func ResourceCloudInstance() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceCloudInstanceCreate,
@@ -139,7 +150,6 @@ func ResourceCloudInstance() *schema.Resource {
 			"enterprise_project_id": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				ForceNew:    true,
 				Description: "Specifies the ID of the enterprise project to which the cloud WAF belongs.",
 			},
 			// Attributes
@@ -441,7 +451,7 @@ func updateExtendedPackages(ctx context.Context, wafClient *golangsdk.ServiceCli
 
 		err = common.WaitOrderComplete(ctx, bssClient, *orderId, d.Timeout(schema.TimeoutUpdate))
 		if err != nil {
-			return fmt.Errorf("the order is not completed while creating extended packages: %#v", err)
+			return fmt.Errorf("the order is not completed while creating extended packages: %v", err)
 		}
 	}
 
@@ -453,7 +463,7 @@ func updateExtendedPackages(ctx context.Context, wafClient *golangsdk.ServiceCli
 
 		err = common.WaitOrderComplete(ctx, bssClient, *orderId, d.Timeout(schema.TimeoutUpdate))
 		if err != nil {
-			return fmt.Errorf("the order is not completed while updating extended packages: %#v", err)
+			return fmt.Errorf("the order is not completed while updating extended packages: %v", err)
 		}
 	}
 
@@ -498,7 +508,7 @@ func resourceCloudInstanceUpdate(ctx context.Context, d *schema.ResourceData, me
 		}
 		err = common.WaitOrderComplete(ctx, bssClient, *orderId, d.Timeout(schema.TimeoutCreate))
 		if err != nil {
-			return diag.Errorf("the order is not completed while updating specification code: %#v", err)
+			return diag.Errorf("the order is not completed while updating specification code: %v", err)
 		}
 	}
 
@@ -516,6 +526,18 @@ func resourceCloudInstanceUpdate(ctx context.Context, d *schema.ResourceData, me
 		}
 		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), instanceId); err != nil {
 			return diag.Errorf("error updating the auto-renew of the cloud WAF (%s): %s", instanceId, err)
+		}
+	}
+
+	if d.HasChange("enterprise_project_id") {
+		migrateOpts := enterpriseprojects.MigrateResourceOpts{
+			ResourceId:   instanceId,
+			ResourceType: "waf",
+			RegionId:     region,
+			ProjectId:    wafClient.ProjectID,
+		}
+		if err := common.MigrateEnterpriseProject(ctx, cfg, d, migrateOpts); err != nil {
+			return diag.FromErr(err)
 		}
 	}
 

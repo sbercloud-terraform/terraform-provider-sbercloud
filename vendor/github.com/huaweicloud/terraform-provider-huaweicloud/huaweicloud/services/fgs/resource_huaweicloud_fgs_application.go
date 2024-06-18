@@ -217,7 +217,7 @@ func resourceApplicationCreate(ctx context.Context, d *schema.ResourceData, meta
 
 	err = waitForApplicationStatusCompleted(ctx, client, d)
 	if err != nil {
-		diag.Errorf("error waiting for the application (%s) status to become success: %s", resourceId, err)
+		return diag.Errorf("error waiting for the application (%s) status to become success: %s", resourceId, err)
 	}
 
 	return resourceApplicationRead(ctx, d, meta)
@@ -259,12 +259,13 @@ func applicationStatusRefreshFunc(client *golangsdk.ServiceClient, d *schema.Res
 		if err != nil {
 			if _, ok := err.(golangsdk.ErrDefault404); ok && len(targets) < 1 {
 				log.Printf("[DEBUG] The FunctionGraph application (%s) has been deleted", applicationId)
-				return respBody, "COMPLETED", nil
+				// When the error code is 404, the value of respBody is nil, and a non-null value is returned to avoid continuing the loop check.
+				return "Resource Not Found", "COMPLETED", nil
 			}
 			return respBody, "ERROR", err
 		}
 
-		status := utils.PathSearch("name", respBody, "").(string)
+		status := utils.PathSearch("status", respBody, "").(string)
 		unexpectedStatuses := []string{
 			"CreateFail", "InitingFailed", "RegisterFailed", "InstallFailed",
 			"UpdateFailed", "RollbackFailed", "UnRegisterFailed", "DeleteFailed",

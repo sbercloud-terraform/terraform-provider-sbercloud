@@ -6,7 +6,6 @@
 package rds
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -24,10 +23,13 @@ import (
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/hashcode"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API RDS DELETE /v3/{project_id}/instances/{instance_id}/db_privilege
+// @API RDS POST /v3/{project_id}/instances/{instance_id}/db_privilege
+// @API RDS GET /v3/{project_id}/instances
+// @API RDS GET /v3/{project_id}/instances/{instance_id}/database/db_user
 func ResourceMysqlDatabasePrivilege() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceMysqlDatabasePrivilegeCreate,
@@ -68,7 +70,6 @@ func ResourceMysqlDatabasePrivilege() *schema.Resource {
 				Required:    true,
 				Description: `Specifies the account that associated with the database.`,
 				Elem:        mysqlDatabasePrivilegeUserSchema(),
-				Set:         resourceRdsMysqlDbPrivilegeHash,
 			},
 		},
 	}
@@ -400,15 +401,4 @@ func buildDeleteMysqlDatabasePrivilegeRequestBodyDeleteUser(rawParams interface{
 		return rst
 	}
 	return nil
-}
-
-func resourceRdsMysqlDbPrivilegeHash(v interface{}) int {
-	var buf bytes.Buffer
-	m := v.(map[string]interface{})
-
-	if m["name"] != nil {
-		buf.WriteString(fmt.Sprintf("%s-", m["name"].(string)))
-	}
-
-	return hashcode.String(buf.String())
 }

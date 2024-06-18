@@ -2,7 +2,7 @@ package rds
 
 import (
 	"fmt"
-	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
+
 	"strings"
 	"testing"
 
@@ -13,6 +13,7 @@ import (
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 )
 
 func getBackupResourceFunc(config *config.Config, state *terraform.ResourceState) (interface{}, error) {
@@ -262,7 +263,7 @@ resource "sbercloud_rds_instance" "test" {
   db {
     password = "Huangwei!120521"
     type     = "SQLServer"
-    version  = "2017_SE"
+    version  = "2019_SE"
     port     = 8631
   }
   volume {
@@ -350,20 +351,4 @@ func testAccBackupImportStateFunc(name string) resource.ImportStateIdFunc {
 		}
 		return fmt.Sprintf("%s/%s", rs.Primary.Attributes["instance_id"], rs.Primary.ID), nil
 	}
-}
-
-func testAccRdsInstance_base(name string) string {
-	return fmt.Sprintf(`
-%s
-
-data "sbercloud_availability_zones" "test" {}
-
-data "sbercloud_vpc" "test" {
-  name = "vpc-default"
-}
-
-data "sbercloud_vpc_subnet" "test" {
-  name = "subnet-default"
-}
-`, acceptance.TestSecGroup(name))
 }

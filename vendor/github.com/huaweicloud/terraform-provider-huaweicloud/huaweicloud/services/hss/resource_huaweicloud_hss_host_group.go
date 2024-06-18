@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -30,6 +31,11 @@ const (
 	ProtectStatusOpened ProtectStatus = "opened"
 )
 
+// @API HSS DELETE /v5/{project_id}/host-management/groups
+// @API HSS GET /v5/{project_id}/host-management/groups
+// @API HSS POST /v5/{project_id}/host-management/groups
+// @API HSS PUT /v5/{project_id}/host-management/groups
+// @API HSS GET /v5/{project_id}/host-management/hosts
 func ResourceHostGroup() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceHostGroupCreate,
@@ -43,7 +49,7 @@ func ResourceHostGroup() *schema.Resource {
 		},
 
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			StateContext: resourceHostGroupImportState,
 		},
 
 		Schema: map[string]*schema.Schema{
@@ -103,15 +109,15 @@ func ResourceHostGroup() *schema.Resource {
 	}
 }
 
-func checkAllHostsAvailable(ctx context.Context, client *hssv5.HssClient, hostIds []string,
+func checkAllHostsAvailable(ctx context.Context, client *hssv5.HssClient, epsId string, hostIDs []string,
 	timeout time.Duration) ([]string, error) {
 	unprotected := make([]string, 0)
-	for _, hostId := range hostIds {
+	for _, hostId := range hostIDs {
 		log.Printf("[DEBUG] Waiting for the host (%s) status to become available.", hostId)
 		stateConf := &resource.StateChangeConf{
 			Pending:      []string{"PENDING"},
 			Target:       []string{"COMPLETED"},
-			Refresh:      hostStatusRefreshFunc(client, hostId),
+			Refresh:      hostStatusRefreshFunc(client, epsId, hostId),
 			Timeout:      timeout,
 			Delay:        30 * time.Second,
 			PollInterval: 30 * time.Second,
@@ -127,12 +133,17 @@ func checkAllHostsAvailable(ctx context.Context, client *hssv5.HssClient, hostId
 	return unprotected, nil
 }
 
-func hostStatusRefreshFunc(client *hssv5.HssClient, hostId string) resource.StateRefreshFunc {
+func hostStatusRefreshFunc(client *hssv5.HssClient, epsId, hostId string) resource.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		var unprotectedHostId string
+		if epsId == "" {
+			epsId = "all_granted_eps"
+		}
+
 		request := hssv5model.ListHostStatusRequest{
-			Refresh: utils.Bool(true),
-			HostId:  utils.String(hostId),
+			EnterpriseProjectId: utils.String(epsId),
+			Refresh:             utils.Bool(true),
+			HostId:              utils.String(hostId),
 		}
 		resp, err := client.ListHostStatus(&request)
 		if err != nil {
@@ -173,7 +184,7 @@ func resourceHostGroupCreate(ctx context.Context, d *schema.ResourceData, meta i
 		}
 	)
 
-	unprotected, err := checkAllHostsAvailable(ctx, client, hostIds, d.Timeout(schema.TimeoutCreate))
+	unprotected, err := checkAllHostsAvailable(ctx, client, epsId, hostIds, d.Timeout(schema.TimeoutCreate))
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -316,7 +327,7 @@ func resourceHostGroupUpdate(ctx context.Context, d *schema.ResourceData, meta i
 		}
 	)
 
-	unprotected, err := checkAllHostsAvailable(ctx, client, hostIds, d.Timeout(schema.TimeoutUpdate))
+	unprotected, err := checkAllHostsAvailable(ctx, client, epsId, hostIds, d.Timeout(schema.TimeoutUpdate))
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -356,4 +367,16 @@ func resourceHostGroupDelete(_ context.Context, d *schema.ResourceData, meta int
 	}
 
 	return nil
+}
+
+func resourceHostGroupImportState(_ context.Context, d *schema.ResourceData, _ interface{}) (
+	[]*schema.ResourceData, error) {
+	parts := strings.Split(d.Id(), "/")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid format of import ID, must be <enterprise_project_id>/<id>")
+	}
+
+	d.SetId(parts[1])
+
+	return []*schema.ResourceData{d}, d.Set("enterprise_project_id", parts[0])
 }

@@ -16,6 +16,11 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
+// @API ELB POST /v3/{project_id}/elb/logtanks
+// @API ELB GET /v3/{project_id}/elb/logtanks/{logtank_id}
+// @API ELB PUT /v3/{project_id}/elb/logtanks/{logtank_id}
+// @API ELB DELETE /v3/{project_id}/elb/logtanks/{logtank_id}
+// @API LTS GET /v2/{project_id}/groups/{log_group_id}/streams
 func ResourceLogTank() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceLogTankCreate,

@@ -39,6 +39,11 @@ const (
 )
 
 // ResourceWafDedicatedInstance the resource of managing a dedicated mode instance within HuaweiCloud.
+// @API WAF DELETE /v1/{project_id}/premium-waf/instance/{instance_id}
+// @API WAF GET /v1/{project_id}/premium-waf/instance/{instance_id}
+// @API WAF PUT /v1/{project_id}/premium-waf/instance/{instance_id}
+// @API WAF POST /v1/{project_id}/premium-waf/instance
+// @API EPS POST /v1.0/enterprise-projects/{enterprise_project_id}/resources-migrate
 func ResourceWafDedicatedInstance() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDedicatedInstanceCreate,
@@ -218,7 +223,7 @@ func resourceDedicatedInstanceCreate(ctx context.Context, d *schema.ResourceData
 		err = updateInstanceName(client, r.Instances[0].Id, d.Get("name").(string), epsId)
 	}
 	if err != nil {
-		logp.Printf("[DEBUG] Error while waiting to create  Waf dedicated instance. %s : %#v", d.Id(), err)
+		logp.Printf("[DEBUG] Error while waiting to create  Waf dedicated instance. %s : %v", d.Id(), err)
 		return diag.FromErr(err)
 	}
 
@@ -360,7 +365,7 @@ func resourceDedicatedInstanceDelete(ctx context.Context, d *schema.ResourceData
 	}
 	_, err = stateConf.WaitForStateContext(ctx)
 	if err != nil {
-		logp.Printf("[DEBUG] Error while waiting to delete Waf dedicated instance. \n%s : %#v", d.Id(), err)
+		logp.Printf("[DEBUG] Error while waiting to delete Waf dedicated instance. \n%s : %v", d.Id(), err)
 		return diag.FromErr(err)
 	}
 	d.SetId("")

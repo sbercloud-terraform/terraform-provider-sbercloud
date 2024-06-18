@@ -25,6 +25,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API ModelArts POST /v1/{project_id}/workspaces
+// @API ModelArts DELETE /v1/{project_id}/workspaces/{id}
+// @API ModelArts GET /v1/{project_id}/workspaces/{id}
+// @API ModelArts PUT /v1/{project_id}/workspaces/{id}
 func ResourceModelartsWorkspace() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceModelartsWorkspaceCreate,
@@ -390,12 +394,14 @@ func deleteWorkspaceWaitingForStateCompleted(ctx context.Context, d *schema.Reso
 			deleteWorkspaceWaitingResp, err := deleteWorkspaceWaitingClient.Request("GET", deleteWorkspaceWaitingPath, &deleteWorkspaceWaitingOpt)
 			if err != nil {
 				if _, ok := err.(golangsdk.ErrDefault404); ok {
-					return deleteWorkspaceWaitingResp, "COMPLETED", nil
+					// When the error code is 404, the value of respBody is nil, and a non-null value is returned to avoid continuing the loop check.
+					return "Resource Not Found", "COMPLETED", nil
 				}
 
 				err = parseWorkspaceNotFoundError(err)
 				if _, ok := err.(golangsdk.ErrDefault404); ok {
-					return deleteWorkspaceWaitingResp, "COMPLETED", nil
+					// When the error code is 404, the value of respBody is nil, and a non-null value is returned to avoid continuing the loop check.
+					return "Resource Not Found", "COMPLETED", nil
 				}
 				return nil, "ERROR", err
 			}

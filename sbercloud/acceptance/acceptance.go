@@ -38,8 +38,10 @@ var (
 
 	SBC_SWR_SHARING_ACCOUNT = os.Getenv("SBC_SWR_SHARING_ACCOUNT")
 
-	SBC_FGS_TRIGGER_LTS_AGENCY = os.Getenv("SBC_FGS_TRIGGER_LTS_AGENCY")
-	SBC_OBS_BUCKET_NAME        = os.Getenv("SBC_OBS_BUCKET_NAME")
+	SBC_FGS_TRIGGER_LTS_AGENCY             = os.Getenv("SBC_FGS_TRIGGER_LTS_AGENCY")
+	SBC_OBS_BUCKET_NAME                    = os.Getenv("SBC_OBS_BUCKET_NAME")
+	SBC_CHARGING_MODE                      = os.Getenv("SBC_CHARGING_MODE")
+	SBC_ENTERPRISE_MIGRATE_PROJECT_ID_TEST = os.Getenv("SBC_ENTERPRISE_MIGRATE_PROJECT_ID_TEST")
 )
 
 // TestAccProviderFactories is a static map containing only the main provider instance
@@ -323,6 +325,19 @@ func TestAccPreCheckProjectID(t *testing.T) {
 		t.Skip("SBC_PROJECT_ID must be set for acceptance tests")
 	}
 }
+
+func TestAccPreCheckChargingMode(t *testing.T) {
+	if SBC_CHARGING_MODE != "prePaid" {
+		t.Skip("This environment does not support prepaid tests")
+	}
+}
+
+func TestAccPreCheckMigrateEpsID(t *testing.T) {
+	if SBC_ENTERPRISE_PROJECT_ID_TEST == "" || SBC_ENTERPRISE_MIGRATE_PROJECT_ID_TEST == "" {
+		t.Skip("The environment variables does not support Migrate Enterprise Project ID for acc tests")
+	}
+}
+
 func RandomAccResourceName() string {
 	return fmt.Sprintf("tf_acc_test_%s", acctest.RandString(5))
 }

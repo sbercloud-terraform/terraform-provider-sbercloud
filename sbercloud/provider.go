@@ -404,6 +404,7 @@ func Provider() *schema.Provider {
 			"sbercloud_vpcep_endpoint":                  vpcep.ResourceVPCEndpoint(),
 			"sbercloud_vpcep_service":                   vpcep.ResourceVPCEndpointService(),
 			// Legacy
+
 			"sbercloud_identity_role_assignment_v3":  iam.ResourceIdentityGroupRoleAssignment(),
 			"sbercloud_identity_user_v3":             iam.ResourceIdentityUser(),
 			"sbercloud_identity_group_v3":            iam.ResourceIdentityGroup(),

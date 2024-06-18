@@ -2,6 +2,7 @@ package bms
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/bms/v1/baremetalservers"
+	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 	"github.com/chnsz/golangsdk/openstack/networking/v2/ports"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
@@ -20,6 +22,21 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API BMS GET /v1/{project_id}/baremetalservers/{server_id}
+// @API BMS PUT /v1/{project_id}/baremetalservers/{server_id}
+// @API BMS POST /v1/{project_id}/baremetalservers
+// @API BMS POST /v1/{project_id}/baremetalservers/{server_id}/nics
+// @API BMS POST /v1/{project_id}/baremetalservers/{server_id}/nics/delete
+// @API BMS POST /v1/{project_id}/baremetalservers/{server_id}/tags/action
+// @API BMS POST /v1/{project_id}/baremetalservers/{server_id}/metadata
+// @API BMS GET /v1/{project_id}/baremetalservers/{server_id}/tags
+// @API BMS GET /v1/{project_id}/jobs/{job_id}
+// @API VPC GET /v2.0/ports/{port_id}
+// @API BSS GET /V2/orders/customer-orders/details/{order_id}
+// @API BSS POST /v2/orders/suscriptions/resources/query
+// @API BSS POST /v2/orders/subscriptions/resources/autorenew/{instance_id}
+// @API BSS DELETE /v2/orders/subscriptions/resources/autorenew/{instance_id}
+// @API BSS POST /v2/orders/subscriptions/resources/unsubscribe
 func ResourceBmsInstance() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceBmsInstanceCreate,
@@ -62,19 +79,16 @@ func ResourceBmsInstance() *schema.Resource {
 			"nics": {
 				Type:     schema.TypeList,
 				Required: true,
-				ForceNew: true,
 				MaxItems: 2,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"subnet_id": {
 							Type:     schema.TypeString,
 							Required: true,
-							ForceNew: true,
 						},
 						"ip_address": {
 							Type:     schema.TypeString,
 							Optional: true,
-							ForceNew: true,
 							Computed: true,
 						},
 						"mac_address": {
@@ -101,26 +115,22 @@ func ResourceBmsInstance() *schema.Resource {
 			"user_data": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Computed: true,
 				ForceNew: true,
 				// just stash the hash for state & diff comparisons
-				StateFunc: utils.HashAndHexEncode,
+				StateFunc:        utils.HashAndHexEncode,
+				DiffSuppressFunc: utils.SuppressUserData,
 			},
 			"admin_pass": {
 				Type:      schema.TypeString,
 				Optional:  true,
 				ForceNew:  true,
 				Sensitive: true,
-				ExactlyOneOf: []string{
-					"admin_pass", "key_pair",
-				},
 			},
 			"key_pair": {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
-				ExactlyOneOf: []string{
-					"admin_pass", "key_pair",
-				},
 			},
 			"security_groups": {
 				Type:     schema.TypeSet,
@@ -234,13 +244,18 @@ func ResourceBmsInstance() *schema.Resource {
 			"enterprise_project_id": {
 				Type:     schema.TypeString,
 				Optional: true,
-				ForceNew: true,
 				Computed: true,
 			},
 			"agency_name": {
 				Type:     schema.TypeString,
 				Optional: true,
-				ForceNew: true,
+				Computed: true,
+			},
+			// To avoid triggering changes metadata is not backfilled during read.
+			"metadata": {
+				Type:     schema.TypeMap,
+				Optional: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
 			"host_id": {
 				Type:     schema.TypeString,
@@ -360,6 +375,17 @@ func resourceBmsInstanceCreate(ctx context.Context, d *schema.ResourceData, meta
 	}
 
 	d.SetId(resourceId)
+
+	// update the user-defined metadata if necessary
+	if v, ok := d.GetOk("metadata"); ok {
+		metadataOpts := v.(map[string]interface{})
+		log.Printf("[DEBUG] BMS metadata options: %v", metadataOpts)
+
+		_, err := baremetalservers.UpdateMetadata(bmsClient, d.Id(), metadataOpts).Extract()
+		if err != nil {
+			return diag.Errorf("error updating the BMS metadata: %s", err)
+		}
+	}
 	return resourceBmsInstanceRead(ctx, d, meta)
 }
 
@@ -408,6 +434,7 @@ func resourceBmsInstanceRead(_ context.Context, d *schema.ResourceData, meta int
 		d.Set("user_id", server.Metadata.OpSvcUserId),
 		d.Set("image_name", server.Metadata.ImageName),
 		d.Set("vpc_id", server.Metadata.VpcID),
+		d.Set("agency_name", server.Metadata.AgencyName),
 		d.Set("availability_zone", server.AvailabilityZone),
 		d.Set("description", server.Description),
 		d.Set("user_data", server.UserData),
@@ -425,39 +452,213 @@ func resourceBmsInstanceRead(_ context.Context, d *schema.ResourceData, meta int
 
 func resourceBmsInstanceUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
-	bmsClient, err := cfg.BmsV1Client(cfg.GetRegion(d))
+	region := cfg.GetRegion(d)
+	bmsClient, err := cfg.BmsV1Client(region)
 	if err != nil {
 		return diag.Errorf("error creating compute client: %s", err)
 	}
+
+	instanceId := d.Id()
 
 	if d.HasChange("name") {
 		var updateOpts baremetalservers.UpdateOpts
 		updateOpts.Name = d.Get("name").(string)
 
-		_, err = baremetalservers.Update(bmsClient, d.Id(), updateOpts).Extract()
+		_, err = baremetalservers.Update(bmsClient, instanceId, updateOpts).Extract()
 		if err != nil {
 			return diag.Errorf("error updating bms server: %s", err)
 		}
 	}
 
+	if d.HasChange("agency_name") {
+		metadataOpts := map[string]interface{}{
+			"agency_name": d.Get("agency_name").(string),
+		}
+		_, err := baremetalservers.UpdateMetadata(bmsClient, instanceId, metadataOpts).Extract()
+		if err != nil {
+			return diag.Errorf("error updating the BMS metadata agency_name: %s", err)
+		}
+	}
+
+	if d.HasChanges("metadata") {
+		_, err := baremetalservers.UpdateMetadata(bmsClient, instanceId, d.Get("metadata").(map[string]interface{})).Extract()
+		if err != nil {
+			return diag.Errorf("error updating the BMS metadata: %s", err)
+		}
+	}
+
 	if d.HasChange("auto_renew") {
-		bssClient, err := cfg.BssV2Client(cfg.GetRegion(d))
+		bssClient, err := cfg.BssV2Client(region)
 		if err != nil {
 			return diag.Errorf("error creating BSS V2 client: %s", err)
 		}
-		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), d.Id()); err != nil {
-			return diag.Errorf("error updating the auto-renew of the instance (%s): %s", d.Id(), err)
+		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), instanceId); err != nil {
+			return diag.Errorf("error updating the auto-renew of the instance (%s): %s", instanceId, err)
 		}
 	}
 
 	if d.HasChange("tags") {
-		err = utils.UpdateResourceTags(bmsClient, d, "baremetalservers", d.Id())
+		err = utils.UpdateResourceTags(bmsClient, d, "baremetalservers", instanceId)
 		if err != nil {
 			return diag.Errorf("error updating tags of bms server: %s", err)
 		}
 	}
 
+	// Security group parammeters are missing in the network card, this is a legacy feature.
+	// The first network card can not be deleted, api error message:{"error": {"message": "primary port can not be deleted.", "code":"BMS.0222"}}
+	if d.HasChange("nics") {
+		addNics, deleteNics := getDiffNics(d)
+		if len(deleteNics) > 0 {
+			deleteNicsOps := baremetalservers.DeleteNicsOpts{
+				Nics: buildDeleteNicsParam(deleteNics),
+			}
+
+			job, err := baremetalservers.DeleteNics(bmsClient, instanceId, deleteNicsOps).ExtractJobStatus()
+			if err != nil {
+				return diag.Errorf("error deleting BMS nics: %s", err)
+			}
+			jobId := job.JobID
+			if err = waitBMSJobSuccess(ctx, bmsClient, jobId, d); err != nil {
+				return diag.Errorf("the job (%s) is not SUCCESS while deleting BMS (%s) nics: %s", jobId,
+					instanceId, err)
+			}
+		}
+
+		if len(addNics) > 0 {
+			addNicsOps := baremetalservers.AddNicsOpts{
+				Nics: buildAddNicsParam(addNics),
+			}
+
+			job, err := baremetalservers.AddNics(bmsClient, instanceId, addNicsOps).ExtractJobStatus()
+			if err != nil {
+				return diag.Errorf("error adding BMS nics: %s", err)
+			}
+
+			jobId := job.JobID
+			if err = waitBMSJobSuccess(ctx, bmsClient, jobId, d); err != nil {
+				return diag.Errorf("the job (%s) is not SUCCESS while adding BMS (%s) nics: %s", jobId,
+					instanceId, err)
+			}
+		}
+	}
+
+	if d.HasChange("enterprise_project_id") {
+		migrateOpts := enterpriseprojects.MigrateResourceOpts{
+			ResourceId:   instanceId,
+			ResourceType: "bms_server",
+			RegionId:     region,
+			ProjectId:    cfg.GetProjectID(region),
+		}
+		if err := common.MigrateEnterpriseProject(ctx, cfg, d, migrateOpts); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
 	return resourceBmsInstanceRead(ctx, d, meta)
+}
+
+// Get the list of new and to-be-deleted network cards.
+func getDiffNics(d *schema.ResourceData) (addList []interface{}, removeList []interface{}) {
+	oldNics, newNics := d.GetChange("nics")
+	oldList := oldNics.([]interface{})
+	newList := newNics.([]interface{})
+	for _, ov := range oldList {
+		om := ov.(map[string]interface{})
+		oSubnetId := om["subnet_id"].(string)
+		oIpAddress := om["ip_address"].(string)
+		needRemove := true
+		for _, nv := range newList {
+			nm := nv.(map[string]interface{})
+			nSubnetId := nm["subnet_id"].(string)
+			nIpAddress := nm["ip_address"].(string)
+
+			if oSubnetId == nSubnetId && oIpAddress == nIpAddress {
+				needRemove = false
+				break
+			}
+		}
+		if needRemove {
+			removeList = append(removeList, ov)
+		}
+	}
+
+	for _, nv := range newList {
+		nm := nv.(map[string]interface{})
+		nSubnetId := nm["subnet_id"].(string)
+		nIpAddress := nm["ip_address"].(string)
+		needAdd := true
+		for _, ov := range oldList {
+			om := ov.(map[string]interface{})
+			oSubnetId := om["subnet_id"].(string)
+			oIpAddress := om["ip_address"].(string)
+			if nSubnetId == oSubnetId && nIpAddress == oIpAddress {
+				needAdd = false
+				break
+			}
+		}
+		if needAdd {
+			addList = append(addList, nv)
+		}
+	}
+	return
+}
+
+func waitBMSJobSuccess(ctx context.Context, client *golangsdk.ServiceClient, jobId string, d *schema.ResourceData) error {
+	stateConf := &resource.StateChangeConf{
+		Pending:      []string{"RUNNING"},
+		Target:       []string{"SUCCESS"},
+		Refresh:      JobRefreshFunc(client, jobId),
+		Timeout:      d.Timeout(schema.TimeoutUpdate),
+		Delay:        10 * time.Second,
+		PollInterval: 10 * time.Second,
+	}
+	_, err := stateConf.WaitForStateContext(ctx)
+	if err != nil {
+		return nil
+	}
+
+	return err
+}
+
+func JobRefreshFunc(c *golangsdk.ServiceClient, jobId string) resource.StateRefreshFunc {
+	return func() (interface{}, string, error) {
+		job, err := baremetalservers.GetJobDetail(c, jobId).ExtractJobStatus()
+		if err != nil {
+			return job, "ERROR", err
+		}
+		status := job.Status
+		if status == "SUCCESS" {
+			return job, status, nil
+		}
+		if status == "FAIL" {
+			return job, status, fmt.Errorf("the BMS job (%s) status is FAIL, the fail reason is: %s",
+				jobId, job.FailReason)
+		}
+		return job, "RUNNING", nil
+	}
+}
+
+func buildDeleteNicsParam(nics []interface{}) []baremetalservers.DeleteNic {
+	rst := make([]baremetalservers.DeleteNic, len(nics))
+	for i, nic := range nics {
+		variable := nic.(map[string]interface{})
+		rst[i] = baremetalservers.DeleteNic{
+			ID: variable["port_id"].(string),
+		}
+	}
+	return rst
+}
+
+func buildAddNicsParam(nics []interface{}) []baremetalservers.Nic {
+	rst := make([]baremetalservers.Nic, len(nics))
+	for i, nic := range nics {
+		variable := nic.(map[string]interface{})
+		rst[i] = baremetalservers.Nic{
+			SubnetId:  variable["subnet_id"].(string),
+			IpAddress: variable["ip_address"].(string),
+		}
+	}
+	return rst
 }
 
 func resourceBmsInstanceDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
