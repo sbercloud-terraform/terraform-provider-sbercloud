@@ -18,6 +18,8 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API EIP GET /v2.0/{project_id}/publicips/{id}/tags
+// @API EIP GET /v1/{project_id}/publicips
 func DataSourceVpcEips() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: dataSourceVpcEipsRead,
@@ -34,6 +36,11 @@ func DataSourceVpcEips() *schema.Resource {
 				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
 			"public_ips": {
+				Type:     schema.TypeList,
+				Optional: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
+			},
+			"private_ips": {
 				Type:     schema.TypeList,
 				Optional: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
@@ -124,6 +131,10 @@ func DataSourceVpcEips() *schema.Resource {
 							Computed: true,
 							Elem:     &schema.Schema{Type: schema.TypeString},
 						},
+						"created_at": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
 					},
 				},
 			},
@@ -147,6 +158,7 @@ func dataSourceVpcEipsRead(_ context.Context, d *schema.ResourceData, meta inter
 	listOpts := &eips.ListOpts{
 		Id:                  utils.ExpandToStringList(d.Get("ids").([]interface{})),
 		PublicIp:            utils.ExpandToStringList(d.Get("public_ips").([]interface{})),
+		PrivateIp:           utils.ExpandToStringList(d.Get("private_ips").([]interface{})),
 		PortId:              utils.ExpandToStringList(d.Get("port_ids").([]interface{})),
 		IPVersion:           d.Get("ip_version").(int),
 		EnterpriseProjectId: cfg.DataGetEnterpriseProjectID(d),
@@ -202,6 +214,7 @@ func dataSourceVpcEipsRead(_ context.Context, d *schema.ResourceData, meta inter
 			"bandwidth_name":        item.BandwidthName,
 			"bandwidth_share_type":  item.BandwidthShareType,
 			"tags":                  tagRst,
+			"created_at":            item.CreateTime,
 		}
 
 		eipList = append(eipList, eip)

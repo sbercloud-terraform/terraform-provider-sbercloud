@@ -24,6 +24,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DLI POST /v1.0/{project_id}/variables
+// @API DLI GET /v1.0/{project_id}/variables
+// @API DLI PUT /v1.0/{project_id}/variables/{var_name}
+// @API DLI DELETE /v1.0/{project_id}/variables/{var_name}
 func ResourceGlobalVariable() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceGlobalVariableCreate,
@@ -88,9 +92,17 @@ func resourceGlobalVariableCreate(ctx context.Context, d *schema.ResourceData, m
 		},
 	}
 	createGlobalVariableOpt.JSONBody = utils.RemoveNil(buildCreateGlobalVariableBodyParams(d))
-	_, err = createGlobalVariableClient.Request("POST", createGlobalVariablePath, &createGlobalVariableOpt)
+	requestResp, err := createGlobalVariableClient.Request("POST", createGlobalVariablePath, &createGlobalVariableOpt)
 	if err != nil {
 		return diag.Errorf("error creating DLI global variable: %s", err)
+	}
+	respBody, err := utils.FlattenResponse(requestResp)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	if !utils.PathSearch("is_success", respBody, true).(bool) {
+		return diag.Errorf("unable to create the global variable: %s",
+			utils.PathSearch("message", respBody, "Message Not Found"))
 	}
 
 	d.SetId(d.Get("name").(string))
@@ -146,6 +158,10 @@ func resourceGlobalVariableRead(_ context.Context, d *schema.ResourceData, meta 
 		return diag.FromErr(err)
 	}
 
+	if !utils.PathSearch("is_success", getGlobalVariableRespBody, true).(bool) {
+		return diag.Errorf("unable to query the global variables: %s",
+			utils.PathSearch("message", getGlobalVariableRespBody, "Message Not Found"))
+	}
 	jsonPath := fmt.Sprintf("global_vars[?var_name=='%s']|[0]", d.Id())
 	globalVariable := utils.PathSearch(jsonPath, getGlobalVariableRespBody, nil)
 	if globalVariable == nil {
@@ -174,7 +190,7 @@ func resourceGlobalVariableUpdate(ctx context.Context, d *schema.ResourceData, m
 	if d.HasChanges(updateGlobalVariableChanges...) {
 		// updateGlobalVariable: update Global variable
 		var (
-			updateGlobalVariableHttpUrl = "v1.0/{project_id}/variables/{id}"
+			updateGlobalVariableHttpUrl = "v1.0/{project_id}/variables/{var_name}"
 			updateGlobalVariableProduct = "dli"
 		)
 		updateGlobalVariableClient, err := cfg.NewServiceClient(updateGlobalVariableProduct, region)
@@ -184,7 +200,7 @@ func resourceGlobalVariableUpdate(ctx context.Context, d *schema.ResourceData, m
 
 		updateGlobalVariablePath := updateGlobalVariableClient.Endpoint + updateGlobalVariableHttpUrl
 		updateGlobalVariablePath = strings.ReplaceAll(updateGlobalVariablePath, "{project_id}", updateGlobalVariableClient.ProjectID)
-		updateGlobalVariablePath = strings.ReplaceAll(updateGlobalVariablePath, "{id}", d.Id())
+		updateGlobalVariablePath = strings.ReplaceAll(updateGlobalVariablePath, "{var_name}", d.Id())
 
 		updateGlobalVariableOpt := golangsdk.RequestOpts{
 			KeepResponseBody: true,
@@ -193,9 +209,17 @@ func resourceGlobalVariableUpdate(ctx context.Context, d *schema.ResourceData, m
 			},
 		}
 		updateGlobalVariableOpt.JSONBody = utils.RemoveNil(buildUpdateGlobalVariableBodyParams(d))
-		_, err = updateGlobalVariableClient.Request("PUT", updateGlobalVariablePath, &updateGlobalVariableOpt)
+		requestResp, err := updateGlobalVariableClient.Request("PUT", updateGlobalVariablePath, &updateGlobalVariableOpt)
 		if err != nil {
 			return diag.Errorf("error updating DLI global variable: %s", err)
+		}
+		respBody, err := utils.FlattenResponse(requestResp)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		if !utils.PathSearch("is_success", respBody, true).(bool) {
+			return diag.Errorf("unable to update the global variable: %s",
+				utils.PathSearch("message", respBody, "Message Not Found"))
 		}
 	}
 	return resourceGlobalVariableRead(ctx, d, meta)
@@ -214,7 +238,7 @@ func resourceGlobalVariableDelete(_ context.Context, d *schema.ResourceData, met
 
 	// deleteGlobalVariable: delete Global variable
 	var (
-		deleteGlobalVariableHttpUrl = "v1.0/{project_id}/variables/{id}"
+		deleteGlobalVariableHttpUrl = "v1.0/{project_id}/variables/{var_name}"
 		deleteGlobalVariableProduct = "dli"
 	)
 	deleteGlobalVariableClient, err := cfg.NewServiceClient(deleteGlobalVariableProduct, region)
@@ -224,7 +248,7 @@ func resourceGlobalVariableDelete(_ context.Context, d *schema.ResourceData, met
 
 	deleteGlobalVariablePath := deleteGlobalVariableClient.Endpoint + deleteGlobalVariableHttpUrl
 	deleteGlobalVariablePath = strings.ReplaceAll(deleteGlobalVariablePath, "{project_id}", deleteGlobalVariableClient.ProjectID)
-	deleteGlobalVariablePath = strings.ReplaceAll(deleteGlobalVariablePath, "{id}", d.Id())
+	deleteGlobalVariablePath = strings.ReplaceAll(deleteGlobalVariablePath, "{var_name}", d.Id())
 
 	deleteGlobalVariableOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
@@ -232,9 +256,17 @@ func resourceGlobalVariableDelete(_ context.Context, d *schema.ResourceData, met
 			200,
 		},
 	}
-	_, err = deleteGlobalVariableClient.Request("DELETE", deleteGlobalVariablePath, &deleteGlobalVariableOpt)
+	requestResp, err := deleteGlobalVariableClient.Request("DELETE", deleteGlobalVariablePath, &deleteGlobalVariableOpt)
 	if err != nil {
 		return diag.Errorf("error deleting DLI global variable: %s", err)
+	}
+	respBody, err := utils.FlattenResponse(requestResp)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	if !utils.PathSearch("is_success", respBody, true).(bool) {
+		return diag.Errorf("unable to delete the global variable: %s",
+			utils.PathSearch("message", respBody, "Message Not Found"))
 	}
 
 	return nil

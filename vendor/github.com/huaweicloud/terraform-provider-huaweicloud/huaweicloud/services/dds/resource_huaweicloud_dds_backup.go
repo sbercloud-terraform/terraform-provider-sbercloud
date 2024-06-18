@@ -34,6 +34,11 @@ type backupError struct {
 	ErrorMsg  string `json:"error_msg"`
 }
 
+// @API DDS GET /v3/{project_id}/backups
+// @API DDS POST /v3/{project_id}/backups
+// @API DDS DELETE /v3/{project_id}/backups/{backup_id}
+// @API DDS GET /v3/{project_id}/instances
+// @API DDS GET /v3/{project_id}/jobs
 func ResourceDdsBackup() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDdsBackupCreate,
@@ -410,7 +415,7 @@ func resourceDdsBackupRead(_ context.Context, d *schema.ResourceData, meta inter
 		d.Set("begin_time", utils.PathSearch("begin_time", backups[0], nil)),
 		d.Set("end_time", utils.PathSearch("end_time", backups[0], nil)),
 		d.Set("status", utils.PathSearch("status", backups[0], nil)),
-		d.Set("size", utils.PathSearch("size", backups[0], nil)),
+		d.Set("size", utils.PathSearch("size", backups[0], 0)),
 		d.Set("description", utils.PathSearch("description", backups[0], nil)),
 	)
 

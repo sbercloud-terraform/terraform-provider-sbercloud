@@ -20,12 +20,29 @@ import (
 	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
+	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DDM POST /v1/{project_id}/instances
+// @API DDM GET /v1/{project_id}/instances/{instance_id}
+// @API DDM PUT /v1/{project_id}/instances/{instance_id}/modify-name
+// @API DDM PUT /v1/{project_id}/instances/{instance_id}/modify-security-group
+// @API DDM GET /v2/{project_id}/flavors
+// @API DDM PUT /v3/{project_id}/instances/{instance_id}/flavor
+// @API DDM POST /v2/{project_id}/instances/{instance_id}/action/enlarge
+// @API DDM POST /v2/{project_id}/instances/{instance_id}/action/reduce
+// @API DDM PUT /v3/{project_id}/instances/{instance_id}/admin-user
+// @API DDM DELETE /v1/{project_id}/instances/{instance_id}
+// @API EPS POST /v1.0/enterprise-projects/{enterprise_project_id}/resources-migrate
+// @API BSS GET /v2/orders/customer-orders/details/{order_id}
+// @API BSS POST /v2/orders/suscriptions/resources/query
+// @API BSS POST /v2/orders/subscriptions/resources/autorenew/{instance_id}
+// @API BSS DELETE /v2/orders/subscriptions/resources/autorenew/{instance_id}
+// @API BSS POST /v2/orders/subscriptions/resources/unsubscribe
 func ResourceDdmInstance() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDdmInstanceCreate,
@@ -77,7 +94,7 @@ func ResourceDdmInstance() *schema.Resource {
 				Description: `Specifies the ID of an Engine.`,
 			},
 			"availability_zones": {
-				Type:        schema.TypeList,
+				Type:        schema.TypeSet,
 				Elem:        &schema.Schema{Type: schema.TypeString},
 				Required:    true,
 				ForceNew:    true,
@@ -104,7 +121,6 @@ func ResourceDdmInstance() *schema.Resource {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Computed:    true,
-				ForceNew:    true,
 				Description: `Specifies the enterprise project id.`,
 			},
 			"param_group_id": {
@@ -307,7 +323,7 @@ func buildCreateInstanceInstanceChildBody(d *schema.ResourceData, cfg *config.Co
 		"node_num":              utils.ValueIngoreEmpty(d.Get("node_num")),
 		"engine_id":             utils.ValueIngoreEmpty(d.Get("engine_id")),
 		"enterprise_project_id": utils.ValueIngoreEmpty(common.GetEnterpriseProjectID(d, cfg)),
-		"available_zones":       utils.ValueIngoreEmpty(d.Get("availability_zones")),
+		"available_zones":       d.Get("availability_zones").(*schema.Set).List(), // The ordering of the AZ list returned by the API is unknown.
 		"vpc_id":                utils.ValueIngoreEmpty(d.Get("vpc_id")),
 		"security_group_id":     utils.ValueIngoreEmpty(d.Get("security_group_id")),
 		"subnet_id":             utils.ValueIngoreEmpty(d.Get("subnet_id")),
@@ -335,6 +351,7 @@ func buildCreateInstanceExtendParamChildBody(d *schema.ResourceData) map[string]
 func resourceDdmInstanceUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	region := cfg.GetRegion(d)
+	instanceId := d.Id()
 
 	if d.HasChange("name") {
 		err := updateInstanceName(ctx, d, cfg, region)
@@ -376,10 +393,23 @@ func resourceDdmInstanceUpdate(ctx context.Context, d *schema.ResourceData, meta
 		if err != nil {
 			return diag.Errorf("error creating BSS V2 client: %s", err)
 		}
-		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), d.Id()); err != nil {
-			return diag.Errorf("error updating the auto-renew of the DDM instance (%s): %s", d.Id(), err)
+		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), instanceId); err != nil {
+			return diag.Errorf("error updating the auto-renew of the DDM instance (%s): %s", instanceId, err)
 		}
 	}
+
+	if d.HasChange("enterprise_project_id") {
+		migrateOpts := enterpriseprojects.MigrateResourceOpts{
+			ResourceId:   instanceId,
+			ResourceType: "ddm",
+			RegionId:     region,
+			ProjectId:    cfg.GetProjectID(region),
+		}
+		if err := common.MigrateEnterpriseProject(ctx, cfg, d, migrateOpts); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
 	return resourceDdmInstanceRead(ctx, d, meta)
 }
 
@@ -616,13 +646,13 @@ func flattenGetFlavorsResponseBody(resp interface{}, flavorId string) (string, *
 		if specCode != "" {
 			return specCode, &queryRes{}
 		}
-		offset = utils.PathSearch("offset", v, 0).(float64)
-		limit = utils.PathSearch("limit", v, 0).(float64)
+		offset = utils.PathSearch("offset", v, float64(0)).(float64)
+		limit = utils.PathSearch("limit", v, float64(0)).(float64)
 		flavorCPUArch := utils.PathSearch("groupType", v, nil)
 		if flavorCPUArch == "X86" {
-			x86Total = utils.PathSearch("total", v, 0).(float64)
+			x86Total = utils.PathSearch("total", v, float64(0)).(float64)
 		} else {
-			armTotal = utils.PathSearch("total", v, 0).(float64)
+			armTotal = utils.PathSearch("total", v, float64(0)).(float64)
 		}
 	}
 	return "", &queryRes{

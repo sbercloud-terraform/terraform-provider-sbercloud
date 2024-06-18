@@ -21,6 +21,12 @@ import (
 
 const updateAction = "update"
 
+// @API DLI PUT /v1.0/{project_id}/queues/user-authorization
+// @API DLI PUT /v1.0/{project_id}/user-authorization
+// @API DLI GET /v1.0/{project_id}/authorization/privileges
+// @API DLI GET /v1.0/{project_id}/databases/{database_name}/users
+// @API DLI GET /v1.0/{project_id}/databases/{database_name}/tables/{table_name}/users
+// @API DLI GET /v1.0/{project_id}/queues/{queue_name}/users
 func ResourceDliPermission() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDliPermissionCreate,
@@ -165,7 +171,7 @@ func queryDatabaseRelatePermission(client *golangsdk.ServiceClient, obj, userNam
 			return nil, parseDliErrorToError404(err)
 		}
 		if rst != nil && !rst.IsSuccess {
-			return nil, fmt.Errorf("error query DLI permission of database: %s", err)
+			return nil, fmt.Errorf("error query DLI permission of database: %s", rst.Message)
 		}
 
 		for _, v := range rst.Privileges {
@@ -179,7 +185,7 @@ func queryDatabaseRelatePermission(client *golangsdk.ServiceClient, obj, userNam
 			return nil, parseDliErrorToError404(err)
 		}
 		if rst != nil && !rst.IsSuccess {
-			return nil, fmt.Errorf("error query DLI permission of table: %s", err)
+			return nil, fmt.Errorf("error query DLI permission of table: %s", rst.Message)
 		}
 		for _, v := range rst.Privileges {
 			if v.Object == obj && v.UserName == userName {

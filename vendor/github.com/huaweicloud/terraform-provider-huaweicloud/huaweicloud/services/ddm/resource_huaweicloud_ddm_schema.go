@@ -32,6 +32,9 @@ type ddmError struct {
 	ErrorMsg  string `json:"externalMessage"`
 }
 
+// @API DDM POST /v1/{project_id}/instances/{instance_id}/databases
+// @API DDM GET /v1/{project_id}/instances/{instance_id}/databases/{ddm_dbname}
+// @API DDM DELETE /v1/{project_id}/instances/{instance_id}/databases/{ddm_dbname}
 func ResourceDdmSchema() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDdmSchemaCreate,
@@ -123,16 +126,19 @@ func SchemaDataNodeSchema() *schema.Resource {
 			"id": {
 				Type:        schema.TypeString,
 				Required:    true,
+				ForceNew:    true,
 				Description: `Specifies the ID of the RDS instance associated with the schema.`,
 			},
 			"admin_user": {
 				Type:        schema.TypeString,
 				Required:    true,
+				ForceNew:    true,
 				Description: `Specifies the username for logging in to the associated RDS instance.`,
 			},
 			"admin_password": {
 				Type:        schema.TypeString,
 				Required:    true,
+				ForceNew:    true,
 				Sensitive:   true,
 				Description: `Specifies the password for logging in to the associated RDS instance.`,
 			},

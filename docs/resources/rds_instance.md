@@ -318,7 +318,7 @@ The `db` block supports:
   **SQLServer** and **MariaDB**. Changing this parameter will create a new resource.
 
 * `version` - (Required, String, ForceNew) Specifies the database version. Changing this parameter will create a new
-  resource.
+  resource. 
 
 * `password` - (Optional, String) Specifies the database password. The value should contain 8 to 32 characters,
   including uppercase and lowercase letters, digits, and the following special characters: ~!@#%^*-_=+? You are advised
@@ -346,7 +346,7 @@ The `volume` block supports:
     instances.
   + **ESSD**: extreme SSD storage.
 
-  Changing this parameter will create a new resource.
+  Changing this parameter will create a new resource. For details about volume types.
 
 * `disk_encryption_id` - (Optional, String, ForceNew) Specifies the key ID for disk encryption.
   Changing this parameter will create a new resource.

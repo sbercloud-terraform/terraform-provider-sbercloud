@@ -27,6 +27,21 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API IAM POST /v3.0/OS-AGENCY/agencies
+// @API IAM GET /v3.0/OS-AGENCY/agencies/{agency_id}
+// @API IAM PUT /v3.0/OS-AGENCY/agencies/{agency_id}
+// @API IAM DELETE /v3.0/OS-AGENCY/agencies/{agency_id}
+// @API IAM GET /v3.0/OS-AGENCY/domains/{domain_id}/agencies/{agency_id}/roles
+// @API IAM PUT /v3.0/OS-AGENCY/domains/{domain_id}/agencies/{agency_id}/roles/{role_id}
+// @API IAM DELETE /v3.0/OS-AGENCY/domains/{domain_id}/agencies/{agency_id}/roles/{role_id}
+// @API IAM GET /v3.0/OS-INHERIT/domains/{domain_id}/agencies/{agency_id}/roles/inherited_to_projects
+// @API IAM PUT /v3.0/OS-INHERIT/domains/{domain_id}/agencies/{agency_id}/roles/{role_id}/inherited_to_projects
+// @API IAM DELETE /v3.0/OS-INHERIT/domains/{domain_id}/agencies/{agency_id}/roles/{role_id}/inherited_to_projects
+// @API IAM GET /v3.0/OS-AGENCY/projects/{projectID}/agencies/{agency_id}/roles
+// @API IAM PUT /v3.0/OS-AGENCY/projects/{projectID}/agencies/{agency_id}/roles/{role_id}
+// @API IAM DELETE /v3.0/OS-AGENCY/projects/{projectID}/agencies/{agency_id}/roles/{role_id}
+// @API IAM GET /v3/projects
+// @API IAM GET /v3/roles
 func ResourceIAMAgencyV3() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceIAMAgencyV3Create,

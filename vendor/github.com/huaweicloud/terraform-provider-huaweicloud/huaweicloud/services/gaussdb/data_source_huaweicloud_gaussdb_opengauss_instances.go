@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
@@ -13,9 +14,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/hashcode"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
 )
 
+// @API GaussDB GET /v3/{project_id}/instances
 func DataSourceOpenGaussInstances() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: dataSourceOpenGaussInstancesRead,
@@ -228,12 +229,12 @@ func DataSourceOpenGaussInstances() *schema.Resource {
 	}
 }
 
-func dataSourceOpenGaussInstancesRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	region := config.GetRegion(d)
-	client, err := config.OpenGaussV3Client(region)
+func dataSourceOpenGaussInstancesRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+	client, err := cfg.OpenGaussV3Client(region)
 	if err != nil {
-		return fmtp.DiagErrorf("Error creating HuaweiCloud GaussDB client: %s", err)
+		return diag.Errorf("error creating GaussDB client: %s", err)
 	}
 
 	listOpts := instances.ListGaussDBInstanceOpts{
@@ -244,12 +245,12 @@ func dataSourceOpenGaussInstancesRead(ctx context.Context, d *schema.ResourceDat
 
 	pages, err := instances.List(client, listOpts).AllPages()
 	if err != nil {
-		return fmtp.DiagErrorf("Unable to list instances: %s", err)
+		return diag.Errorf("unable to list instances: %s", err)
 	}
 
 	allInstances, err := instances.ExtractGaussDBInstances(pages)
 	if err != nil {
-		return fmtp.DiagErrorf("Unable to retrieve instances: %s", err)
+		return diag.Errorf("unable to retrieve instances: %s", err)
 	}
 
 	var instancesToSet []map[string]interface{}
@@ -279,12 +280,12 @@ func dataSourceOpenGaussInstancesRead(ctx context.Context, d *schema.ResourceDat
 		instancesIds = append(instancesIds, instanceID)
 
 		if len(instanceInAll.PrivateIps) > 0 {
-			private_ips := instanceInAll.PrivateIps[0]
-			ip_list := strings.Split(private_ips, "/")
-			for i := 0; i < len(ip_list); i++ {
-				ip_list[i] = strings.Trim(ip_list[i], " ")
+			privateIps := instanceInAll.PrivateIps[0]
+			ipList := strings.Split(privateIps, "/")
+			for i := 0; i < len(ipList); i++ {
+				ipList[i] = strings.Trim(ipList[i], " ")
 			}
-			instanceToSet["private_ips"] = ip_list
+			instanceToSet["private_ips"] = ipList
 		}
 
 		// set data store
@@ -320,7 +321,7 @@ func dataSourceOpenGaussInstancesRead(ctx context.Context, d *schema.ResourceDat
 		}
 
 		if shardingNum > 0 && coordinatorNum > 0 {
-			dnNum = shardingNum / 3
+			dnNum = shardingNum / instanceInAll.ReplicaNum
 			instanceToSet["nodes"] = nodesList
 			instanceToSet["coordinator_num"] = coordinatorNum
 			instanceToSet["sharding_num"] = dnNum
@@ -331,7 +332,7 @@ func dataSourceOpenGaussInstancesRead(ctx context.Context, d *schema.ResourceDat
 			instanceToSet["replica_num"] = instanceInAll.ReplicaNum
 		}
 
-		//remove duplicate az
+		// remove duplicate az
 		azList = utils.RemoveDuplicateElem(azList)
 		sort.Strings(azList)
 		instanceToSet["availability_zone"] = strings.Join(azList, ",")
@@ -366,7 +367,10 @@ func dataSourceOpenGaussInstancesRead(ctx context.Context, d *schema.ResourceDat
 	}
 
 	d.SetId(hashcode.Strings(instancesIds))
-	err = d.Set("instances", instancesToSet)
+	var mErr *multierror.Error
+	mErr = multierror.Append(mErr,
+		d.Set("instances", instancesToSet),
+	)
 
-	return diag.FromErr(err)
+	return diag.FromErr(mErr.ErrorOrNil())
 }

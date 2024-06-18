@@ -41,6 +41,25 @@ var (
 	SystemDiskType = "GPSSD"
 )
 
+// @API ECS POST /v1.1/{project_id}/cloudservers
+// @API ECS POST /v1/{project_id}/cloudservers/delete
+// @API ECS PUT /v1/{project_id}/cloudservers/{server_id}
+// @API ECS POST /v1/{project_id}/cloudservers/action
+// @API ECS POST /v1/{project_id}/cloudservers/{server_id}/metadata
+// @API ECS DELETE /v1/{project_id}/cloudservers/{server_id}/metadata/{key}
+// @API ECS POST /v1.1/{project_id}/cloudservers/{server_id}/resize
+// @API ECS PUT /v1/{project_id}/cloudservers/{server_id}/os-reset-password
+// @API ECS POST /v1/{project_id}/cloudservers/{server_id}/tags/action
+// @API ECS POST /v2.1/{project_id}/servers/{server_id}/action
+// @API ECS GET /v1/{project_id}/cloudservers/{server_id}
+// @API ECS GET /v1/{project_id}/cloudservers/{server_id}/block_device/{volume_id}
+// @API ECS GET /v1/{project_id}/jobs/{job_id}
+// @API IMS GET /v2/cloudimages
+// @API EVS POST /v2.1/{project_id}/cloudvolumes/{volume_id}/action
+// @API EVS GET /v2/{project_id}/cloudvolumes/{volume_id}
+// @API VPC PUT /v1/{project_id}/ports/{port_id}
+// @API VPC GET /v1/{project_id}/security-groups
+// @API VPC GET /v1/{project_id}/subnets/{subnet_id}
 func ResourceComputeInstance() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceComputeInstanceCreate,
@@ -390,6 +409,12 @@ func ResourceComputeInstance() *schema.Resource {
 							Optional:     true,
 							ForceNew:     true,
 							RequiredWith: []string{"bandwidth.0.size"},
+						},
+						"extend_param": {
+							Type:     schema.TypeMap,
+							Optional: true,
+							ForceNew: true,
+							Elem:     &schema.Schema{Type: schema.TypeString},
 						},
 					},
 				},
@@ -1141,7 +1166,7 @@ func resourceComputeInstanceUpdate(ctx context.Context, d *schema.ResourceData, 
 			}
 			err = common.WaitOrderComplete(ctx, bssClient, resp.OrderID, d.Timeout(schema.TimeoutUpdate))
 			if err != nil {
-				return diag.Errorf("The order (%s) is not completed while extending system disk (%s) size: %#v",
+				return diag.Errorf("The order (%s) is not completed while extending system disk (%s) size: %v",
 					resp.OrderID, serverID, err)
 			}
 		}
@@ -1505,10 +1530,19 @@ func buildInstancePublicIPRequest(d *schema.ResourceData) *cloudservers.PublicIp
 		Size:       bandWidth["size"].(int),
 	}
 
+	var eipExtendOpts *cloudservers.EipExtendParam
+	extendParam := bandWidth["extend_param"].(map[string]interface{})
+	if v, ok := extendParam["charging_mode"]; ok {
+		eipExtendOpts = &cloudservers.EipExtendParam{
+			ChargingMode: v.(string),
+		}
+	}
+
 	return &cloudservers.PublicIp{
 		Eip: &cloudservers.Eip{
-			IpType:    d.Get("eip_type").(string),
-			BandWidth: &bwOpts,
+			IpType:      d.Get("eip_type").(string),
+			BandWidth:   &bwOpts,
+			ExtendParam: eipExtendOpts,
 		},
 		DeleteOnTermination: d.Get("delete_eip_on_termination").(bool),
 	}

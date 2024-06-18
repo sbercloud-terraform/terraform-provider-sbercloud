@@ -2,6 +2,7 @@ package domains
 
 import (
 	"github.com/chnsz/golangsdk"
+	"github.com/chnsz/golangsdk/openstack/common/tags"
 )
 
 // ExtensionOpts allows extensions to add parameters to some requests
@@ -102,6 +103,7 @@ func UpdatePrivateBucketAccess(client *golangsdk.ServiceClient, domainId string,
 	return
 }
 
+// Deprecated: Use GetByName instead.
 // Get retrieves a particular CDN domain based on its unique ID.
 func Get(client *golangsdk.ServiceClient, id string, opts *ExtensionOpts) (r GetResult) {
 	url := getURL(client, id)
@@ -115,6 +117,28 @@ func Get(client *golangsdk.ServiceClient, id string, opts *ExtensionOpts) (r Get
 	}
 	_, r.Err = client.Get(url, &r.Body, &golangsdk.RequestOpts{OkCodes: []int{200}})
 	return
+}
+
+func GetByName(client *golangsdk.ServiceClient, domainName string, opts *ExtensionOpts) (r GetDetailResult) {
+	url := getDetailURL(client, domainName)
+	if opts != nil {
+		query, err := opts.ToExtensionQuery()
+		if err != nil {
+			r.Err = err
+			return
+		}
+		url += query
+	}
+	_, r.Err = client.Get(url, &r.Body, nil)
+	return
+}
+
+func GetTags(client *golangsdk.ServiceClient, domainId string) ([]tags.ResourceTag, error) {
+	var r struct {
+		Tags []tags.ResourceTag `json:"tags"`
+	}
+	_, err := client.Get(getTagsURL(client, domainId), &r, nil)
+	return r.Tags, err
 }
 
 // Delete requests a CDN domain to be deleted to the user in the current tenant.

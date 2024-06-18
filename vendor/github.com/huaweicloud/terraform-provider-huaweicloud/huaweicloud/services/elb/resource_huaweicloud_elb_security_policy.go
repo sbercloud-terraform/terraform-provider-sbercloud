@@ -18,6 +18,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API ELB POST /v3/{project_id}/elb/security-policies
+// @API ELB GET /v3/{project_id}/elb/security-policies/{security_policy_id}
+// @API ELB PUT /v3/{project_id}/elb/security-policies/{security_policy_id}
+// @API ELB DELETE /v3/{project_id}/elb/security-policies/{security_policy_id}
 func ResourceSecurityPolicy() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceSecurityPoliciesV3Create,
@@ -81,6 +85,14 @@ func ResourceSecurityPolicy() *schema.Resource {
 				Elem:        SecurityPoliciesV3ListenerRefSchema(),
 				Computed:    true,
 				Description: `The listener which the security policy associated with.`,
+			},
+			"created_at": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"updated_at": {
+				Type:     schema.TypeString,
+				Computed: true,
 			},
 		},
 	}
@@ -233,6 +245,8 @@ func resourceSecurityPoliciesV3Read(_ context.Context, d *schema.ResourceData, m
 		d.Set("protocols", utils.PathSearch("security_policy.protocols", getSecurityPolicyRespBody, nil)),
 		d.Set("ciphers", utils.PathSearch("security_policy.ciphers", getSecurityPolicyRespBody, nil)),
 		d.Set("listeners", flattenGetSecurityPolicyResponseBodyListenerRef(getSecurityPolicyRespBody)),
+		d.Set("created_at", utils.PathSearch("security_policy.created_at", getSecurityPolicyRespBody, nil)),
+		d.Set("updated_at", utils.PathSearch("security_policy.updated_at", getSecurityPolicyRespBody, nil)),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())

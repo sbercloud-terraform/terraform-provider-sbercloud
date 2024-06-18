@@ -25,6 +25,12 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API VPN POST /v5/{project_id}/vpn-connection
+// @API VPN DELETE /v5/{project_id}/vpn-connection/{id}
+// @API VPN GET /v5/{project_id}/vpn-connection/{id}
+// @API VPN PUT /v5/{project_id}/vpn-connection/{id}
+// @API VPN POST /v5/{project_id}/{resource_type}/{resource_id}/tags/create
+// @API VPN DELETE /v5/{project_id}/{resource_type}/{resource_id}/tags/delete
 func ResourceConnection() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceConnectionCreate,
@@ -79,7 +85,8 @@ func ResourceConnection() *schema.Resource {
 			"peer_subnets": {
 				Type:        schema.TypeList,
 				Elem:        &schema.Schema{Type: schema.TypeString},
-				Required:    true,
+				Optional:    true,
+				Computed:    true,
 				Description: `The customer subnets.`,
 			},
 			"psk": {
@@ -125,6 +132,13 @@ func ResourceConnection() *schema.Resource {
 				Optional:    true,
 				Computed:    true,
 				Description: `The policy rules. Only works when vpn_type is set to **policy**`,
+			},
+			"tags": common.TagsSchema(),
+			"ha_role": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
 			},
 			"status": {
 				Type:        schema.TypeString,
@@ -347,17 +361,17 @@ func ConnectionPolicyRuleSchema() *schema.Resource {
 }
 
 func resourceConnectionCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	region := config.GetRegion(d)
+	conf := meta.(*config.Config)
+	region := conf.GetRegion(d)
 
 	// createConnection: Create a VPN Connection.
 	var (
 		createConnectionHttpUrl = "v5/{project_id}/vpn-connection"
 		createConnectionProduct = "vpn"
 	)
-	createConnectionClient, err := config.NewServiceClient(createConnectionProduct, region)
+	createConnectionClient, err := conf.NewServiceClient(createConnectionProduct, region)
 	if err != nil {
-		return diag.Errorf("error creating Connection Client: %s", err)
+		return diag.Errorf("error creating VPN client: %s", err)
 	}
 
 	createConnectionPath := createConnectionClient.Endpoint + createConnectionHttpUrl
@@ -369,10 +383,10 @@ func resourceConnectionCreate(ctx context.Context, d *schema.ResourceData, meta 
 			201,
 		},
 	}
-	createConnectionOpt.JSONBody = utils.RemoveNil(buildCreateConnectionBodyParams(d, config))
+	createConnectionOpt.JSONBody = utils.RemoveNil(buildCreateConnectionBodyParams(d))
 	createConnectionResp, err := createConnectionClient.Request("POST", createConnectionPath, &createConnectionOpt)
 	if err != nil {
-		return diag.Errorf("error creating Connection: %s", err)
+		return diag.Errorf("error creating VPN connection: %s", err)
 	}
 
 	createConnectionRespBody, err := utils.FlattenResponse(createConnectionResp)
@@ -382,25 +396,25 @@ func resourceConnectionCreate(ctx context.Context, d *schema.ResourceData, meta 
 
 	id, err := jmespath.Search("vpn_connection.id", createConnectionRespBody)
 	if err != nil {
-		return diag.Errorf("error creating Connection: ID is not found in API response")
+		return diag.Errorf("error creating VPN connection: ID is not found in API response")
 	}
 	d.SetId(id.(string))
 
 	err = createConnectionWaitingForStateCompleted(ctx, d, meta, d.Timeout(schema.TimeoutCreate))
 	if err != nil {
-		return diag.Errorf("error waiting for the Create of Connection (%s) to complete: %s", d.Id(), err)
+		return diag.Errorf("error waiting for creating VPN connection (%s) to complete: %s", d.Id(), err)
 	}
 	return resourceConnectionRead(ctx, d, meta)
 }
 
-func buildCreateConnectionBodyParams(d *schema.ResourceData, config *config.Config) map[string]interface{} {
+func buildCreateConnectionBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"vpn_connection": buildCreateConnectionVpnConnectionChildBody(d, config),
+		"vpn_connection": buildCreateConnectionVpnConnectionChildBody(d),
 	}
 	return bodyParams
 }
 
-func buildCreateConnectionVpnConnectionChildBody(d *schema.ResourceData, config *config.Config) map[string]interface{} {
+func buildCreateConnectionVpnConnectionChildBody(d *schema.ResourceData) map[string]interface{} {
 	params := map[string]interface{}{
 		"name":                 utils.ValueIngoreEmpty(d.Get("name")),
 		"vgw_id":               utils.ValueIngoreEmpty(d.Get("gateway_id")),
@@ -414,6 +428,8 @@ func buildCreateConnectionVpnConnectionChildBody(d *schema.ResourceData, config 
 		"ikepolicy":            buildCreateConnectionIkepolicyChildBody(d),
 		"ipsecpolicy":          buildCreateConnectionIpsecpolicyChildBody(d),
 		"policy_rules":         buildCreateConnectionPolicyRulesChildBody(d),
+		"tags":                 utils.ValueIngoreEmpty(utils.ExpandResourceTags(d.Get("tags").(map[string]interface{}))),
+		"ha_role":              utils.ValueIngoreEmpty(d.Get("ha_role")),
 	}
 
 	if enableNqa, ok := d.GetOk("enable_nqa"); ok {
@@ -526,7 +542,7 @@ func createConnectionWaitingForStateCompleted(ctx context.Context, d *schema.Res
 			)
 			createConnectionWaitingClient, err := config.NewServiceClient(createConnectionWaitingProduct, region)
 			if err != nil {
-				return nil, "ERROR", fmt.Errorf("error creating Connection Client: %s", err)
+				return nil, "ERROR", fmt.Errorf("error creating VPN client: %s", err)
 			}
 
 			createConnectionWaitingPath := createConnectionWaitingClient.Endpoint + createConnectionWaitingHttpUrl
@@ -571,7 +587,6 @@ func createConnectionWaitingForStateCompleted(ctx context.Context, d *schema.Res
 			}
 
 			return createConnectionWaitingRespBody, "PENDING", nil
-
 		},
 		Timeout:      t,
 		Delay:        10 * time.Second,
@@ -581,9 +596,9 @@ func createConnectionWaitingForStateCompleted(ctx context.Context, d *schema.Res
 	return err
 }
 
-func resourceConnectionRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	region := config.GetRegion(d)
+func resourceConnectionRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	conf := meta.(*config.Config)
+	region := conf.GetRegion(d)
 
 	var mErr *multierror.Error
 
@@ -592,9 +607,9 @@ func resourceConnectionRead(ctx context.Context, d *schema.ResourceData, meta in
 		getConnectionHttpUrl = "v5/{project_id}/vpn-connection/{id}"
 		getConnectionProduct = "vpn"
 	)
-	getConnectionClient, err := config.NewServiceClient(getConnectionProduct, region)
+	getConnectionClient, err := conf.NewServiceClient(getConnectionProduct, region)
 	if err != nil {
-		return diag.Errorf("error creating Connection Client: %s", err)
+		return diag.Errorf("error creating VPN client: %s", err)
 	}
 
 	getConnectionPath := getConnectionClient.Endpoint + getConnectionHttpUrl
@@ -610,7 +625,7 @@ func resourceConnectionRead(ctx context.Context, d *schema.ResourceData, meta in
 	getConnectionResp, err := getConnectionClient.Request("GET", getConnectionPath, &getConnectionOpt)
 
 	if err != nil {
-		return common.CheckDeletedDiag(d, err, "error retrieving Connection")
+		return common.CheckDeletedDiag(d, err, "error retrieving VPN connection")
 	}
 
 	getConnectionRespBody, err := utils.FlattenResponse(getConnectionResp)
@@ -637,6 +652,8 @@ func resourceConnectionRead(ctx context.Context, d *schema.ResourceData, meta in
 		d.Set("status", utils.PathSearch("vpn_connection.status", getConnectionRespBody, nil)),
 		d.Set("created_at", utils.PathSearch("vpn_connection.created_at", getConnectionRespBody, nil)),
 		d.Set("updated_at", utils.PathSearch("vpn_connection.updated_at", getConnectionRespBody, nil)),
+		d.Set("tags", utils.FlattenTagsToMap(utils.PathSearch("vpn_connection.tags", getConnectionRespBody, nil))),
+		d.Set("ha_role", utils.PathSearch("vpn_connection.ha_role", getConnectionRespBody, nil)),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())
@@ -727,8 +744,12 @@ func flattenGetConnectionResponseBodyPolicyRule(resp interface{}) []interface{} 
 }
 
 func resourceConnectionUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	region := config.GetRegion(d)
+	conf := meta.(*config.Config)
+	region := conf.GetRegion(d)
+	updateConnectionClient, err := conf.NewServiceClient("vpn", region)
+	if err != nil {
+		return diag.Errorf("error creating VPN client: %s", err)
+	}
 
 	updateConnectionhasChanges := []string{
 		"customer_gateway_id",
@@ -745,14 +766,7 @@ func resourceConnectionUpdate(ctx context.Context, d *schema.ResourceData, meta 
 
 	if d.HasChanges(updateConnectionhasChanges...) {
 		// updateConnection: Update the configuration of VPN Connection
-		var (
-			updateConnectionHttpUrl = "v5/{project_id}/vpn-connection/{id}"
-			updateConnectionProduct = "vpn"
-		)
-		updateConnectionClient, err := config.NewServiceClient(updateConnectionProduct, region)
-		if err != nil {
-			return diag.Errorf("error creating Connection Client: %s", err)
-		}
+		updateConnectionHttpUrl := "v5/{project_id}/vpn-connection/{id}"
 
 		updateConnectionPath := updateConnectionClient.Endpoint + updateConnectionHttpUrl
 		updateConnectionPath = strings.ReplaceAll(updateConnectionPath, "{project_id}", updateConnectionClient.ProjectID)
@@ -764,20 +778,28 @@ func resourceConnectionUpdate(ctx context.Context, d *schema.ResourceData, meta 
 				200,
 			},
 		}
-		updateConnectionOpt.JSONBody = utils.RemoveNil(buildUpdateConnectionBodyParams(d, config))
+		updateConnectionOpt.JSONBody = utils.RemoveNil(buildUpdateConnectionBodyParams(d))
 		_, err = updateConnectionClient.Request("PUT", updateConnectionPath, &updateConnectionOpt)
 		if err != nil {
-			return diag.Errorf("error updating Connection: %s", err)
+			return diag.Errorf("error updating VPN connection: %s", err)
 		}
 		err = updateConnectionWaitingForStateCompleted(ctx, d, meta, d.Timeout(schema.TimeoutUpdate))
 		if err != nil {
-			return diag.Errorf("error waiting for the Update of Connection (%s) to complete: %s", d.Id(), err)
+			return diag.Errorf("error waiting for updating VPN connection (%s) to complete: %s", d.Id(), err)
+		}
+	}
+
+	// update tags
+	if d.HasChange("tags") {
+		tagErr := updateTags(updateConnectionClient, d, "vpn-connection", d.Id())
+		if tagErr != nil {
+			return diag.Errorf("error updating tags of VPN connection (%s): %s", d.Id(), tagErr)
 		}
 	}
 	return resourceConnectionRead(ctx, d, meta)
 }
 
-func buildUpdateConnectionBodyParams(d *schema.ResourceData, config *config.Config) map[string]interface{} {
+func buildUpdateConnectionBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
 		"vpn_connection": buildUpdateConnectionVpnConnectionChildBody(d),
 	}
@@ -869,7 +891,7 @@ func updateConnectionWaitingForStateCompleted(ctx context.Context, d *schema.Res
 			)
 			updateConnectionWaitingClient, err := config.NewServiceClient(updateConnectionWaitingProduct, region)
 			if err != nil {
-				return nil, "ERROR", fmt.Errorf("error creating Connection Client: %s", err)
+				return nil, "ERROR", fmt.Errorf("error creating VPN client: %s", err)
 			}
 
 			updateConnectionWaitingPath := updateConnectionWaitingClient.Endpoint + updateConnectionWaitingHttpUrl
@@ -914,7 +936,6 @@ func updateConnectionWaitingForStateCompleted(ctx context.Context, d *schema.Res
 			}
 
 			return updateConnectionWaitingRespBody, "PENDING", nil
-
 		},
 		Timeout:      t,
 		Delay:        10 * time.Second,
@@ -925,17 +946,17 @@ func updateConnectionWaitingForStateCompleted(ctx context.Context, d *schema.Res
 }
 
 func resourceConnectionDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	region := config.GetRegion(d)
+	conf := meta.(*config.Config)
+	region := conf.GetRegion(d)
 
 	// deleteConnection: Delete an existing VPN Connection
 	var (
 		deleteConnectionHttpUrl = "v5/{project_id}/vpn-connection/{id}"
 		deleteConnectionProduct = "vpn"
 	)
-	deleteConnectionClient, err := config.NewServiceClient(deleteConnectionProduct, region)
+	deleteConnectionClient, err := conf.NewServiceClient(deleteConnectionProduct, region)
 	if err != nil {
-		return diag.Errorf("error creating Connection Client: %s", err)
+		return diag.Errorf("error creating VPN client: %s", err)
 	}
 
 	deleteConnectionPath := deleteConnectionClient.Endpoint + deleteConnectionHttpUrl
@@ -950,12 +971,12 @@ func resourceConnectionDelete(ctx context.Context, d *schema.ResourceData, meta 
 	}
 	_, err = deleteConnectionClient.Request("DELETE", deleteConnectionPath, &deleteConnectionOpt)
 	if err != nil {
-		return diag.Errorf("error deleting Connection: %s", err)
+		return diag.Errorf("error deleting VPN connection: %s", err)
 	}
 
 	err = deleteConnectionWaitingForStateCompleted(ctx, d, meta, d.Timeout(schema.TimeoutDelete))
 	if err != nil {
-		return diag.Errorf("error waiting for the Delete of Connection (%s) to complete: %s", d.Id(), err)
+		return diag.Errorf("error waiting for deleting VPN connection (%s) to complete: %s", d.Id(), err)
 	}
 	return nil
 }
@@ -974,7 +995,7 @@ func deleteConnectionWaitingForStateCompleted(ctx context.Context, d *schema.Res
 			)
 			deleteConnectionWaitingClient, err := config.NewServiceClient(deleteConnectionWaitingProduct, region)
 			if err != nil {
-				return nil, "ERROR", fmt.Errorf("error creating Connection Client: %s", err)
+				return nil, "ERROR", fmt.Errorf("error creating VPN client: %s", err)
 			}
 
 			deleteConnectionWaitingPath := deleteConnectionWaitingClient.Endpoint + deleteConnectionWaitingHttpUrl
@@ -990,7 +1011,8 @@ func deleteConnectionWaitingForStateCompleted(ctx context.Context, d *schema.Res
 			deleteConnectionWaitingResp, err := deleteConnectionWaitingClient.Request("GET", deleteConnectionWaitingPath, &deleteConnectionWaitingOpt)
 			if err != nil {
 				if _, ok := err.(golangsdk.ErrDefault404); ok {
-					return deleteConnectionWaitingResp, "COMPLETED", nil
+					// When the error code is 404, the value of respBody is nil, and a non-null value is returned to avoid continuing the loop check.
+					return "Resource Not Found", "COMPLETED", nil
 				}
 
 				return nil, "ERROR", err
@@ -1015,7 +1037,6 @@ func deleteConnectionWaitingForStateCompleted(ctx context.Context, d *schema.Res
 			}
 
 			return deleteConnectionWaitingRespBody, "PENDING", nil
-
 		},
 		Timeout:      t,
 		Delay:        10 * time.Second,

@@ -27,6 +27,10 @@ const (
 	AlertNotExistsCode = "SecMaster.20030005"
 )
 
+// @API SecMaster DELETE /v1/{project_id}/workspaces/{workspace_id}/soc/alerts
+// @API SecMaster POST /v1/{project_id}/workspaces/{workspace_id}/soc/alerts
+// @API SecMaster GET /v1/{project_id}/workspaces/{workspace_id}/soc/alerts/{id}
+// @API SecMaster PUT /v1/{project_id}/workspaces/{workspace_id}/soc/alerts/{id}
 func ResourceAlert() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceAlertCreate,
@@ -248,7 +252,7 @@ func buildCreateAlertBodyParams(d *schema.ResourceData, cfg *config.Config) (map
 		"title":              d.Get("name"),
 		"description":        d.Get("description"),
 		"alert_type":         buildAlertTypeOpts(d.Get("type")),
-		"data_source":        buildAlertDataSourceOpts(d.Get("data_source")),
+		"data_source":        buildAlertDataSourceOpts(d, cfg),
 		"severity":           d.Get("severity"),
 		"handle_status":      d.Get("status"),
 		"ipdrr_phase":        d.Get("stage"),
@@ -306,24 +310,28 @@ func buildAlertTypeOpts(rawParams interface{}) map[string]interface{} {
 	return nil
 }
 
-func buildAlertDataSourceOpts(rawParams interface{}) map[string]interface{} {
-	if rawArray, ok := rawParams.([]interface{}); ok {
-		if len(rawArray) == 0 {
-			return nil
-		}
-		raw, ok := rawArray[0].(map[string]interface{})
-		if !ok {
-			return nil
-		}
-
-		params := map[string]interface{}{
-			"product_feature": utils.ValueIngoreEmpty(raw["product_feature"]),
-			"product_name":    utils.ValueIngoreEmpty(raw["product_name"]),
-			"source_type":     utils.ValueIngoreEmpty(raw["source_type"]),
-		}
-		return params
+func buildAlertDataSourceOpts(d *schema.ResourceData, cfg *config.Config) map[string]interface{} {
+	rawArray := d.Get("data_source").([]interface{})
+	if len(rawArray) == 0 {
+		return nil
 	}
-	return nil
+
+	region := cfg.GetRegion(d)
+
+	raw, ok := rawArray[0].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+
+	params := map[string]interface{}{
+		"domain_id":       cfg.DomainID,
+		"project_id":      cfg.GetProjectID(region),
+		"region_id":       region,
+		"product_feature": utils.ValueIngoreEmpty(raw["product_feature"]),
+		"product_name":    utils.ValueIngoreEmpty(raw["product_name"]),
+		"source_type":     utils.ValueIngoreEmpty(raw["source_type"]),
+	}
+	return params
 }
 
 func resourceAlertRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

@@ -7,7 +7,9 @@ package dws
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -21,6 +23,7 @@ import (
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/common/tags"
+	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -34,11 +37,11 @@ const (
 )
 
 // @API DWS POST /v1.0/{project_id}/clusters
-// @API DWS GET /v1.0/{project_id}/clusters/{id}
-// @API DWS POST /v1.0/{project_id}/clusters/{id}/expand-instance-storage
-// @API DWS POST /v1.0/{project_id}/clusters/{id}/reset-password
-// @API DWS POST /v1.0/{project_id}/clusters/{id}/resize
-// @API DWS DELETE /v1.0/{project_id}/clusters/{id}
+// @API DWS GET /v1.0/{project_id}/clusters/{cluster_id}
+// @API DWS POST /v1.0/{project_id}/clusters/{cluster_id}/expand-instance-storage
+// @API DWS POST /v1.0/{project_id}/clusters/{cluster_id}/reset-password
+// @API DWS POST /v1.0/{project_id}/clusters/{cluster_id}/resize
+// @API DWS DELETE /v1.0/{project_id}/clusters/{cluster_id}
 // @API DWS POST /v1.0/{project_id}/clusters/{cluster_id}/tags/batch-create
 // @API DWS POST /v1.0/{project_id}/clusters/{cluster_id}/tags/batch-delete
 // @API DWS GET /v1.0/{project_id}/job/{job_id}
@@ -46,6 +49,8 @@ const (
 // @API DWS PUT /v2/{project_id}/clusters/{cluster_id}/logical-clusters/enable
 // @API DWS POST /v2/{project_id}/clusters/{cluster_id}/elbs/{elb_id}
 // @API DWS DELETE /v2/{project_id}/clusters/{cluster_id}/elbs/{elb_id}
+// @API DWS POST /v1/{project_id}/clusters/{cluster_id}/lts-logs/enable
+// @API DWS POST /v1/{project_id}/clusters/{cluster_id}/lts-logs/disable
 func ResourceDwsCluster() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDwsClusterCreate,
@@ -153,7 +158,6 @@ func ResourceDwsCluster() *schema.Resource {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Computed:    true,
-				ForceNew:    true,
 				Description: `The enterprise project ID.`,
 			},
 			"kms_key_id": {
@@ -201,6 +205,11 @@ func ResourceDwsCluster() *schema.Resource {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: `The ID of the ELB load balancer.`,
+			},
+			"lts_enable": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Description: `Specified whether to enable LTS.`,
 			},
 			"status": {
 				Type:        schema.TypeString,
@@ -421,6 +430,7 @@ func updateDwsLogicalClusterEnable(client *golangsdk.ServiceClient, d *schema.Re
 	switchDwsClusterPath = strings.ReplaceAll(switchDwsClusterPath, "{cluster_id}", d.Id())
 
 	switchDwsClusterOpt := golangsdk.RequestOpts{
+		MoreHeaders:      requestOpts.MoreHeaders,
 		KeepResponseBody: true,
 		JSONBody: map[string]interface{}{
 			"enable": d.Get("logical_cluster_enable"),
@@ -452,12 +462,7 @@ func resourceDwsClusterCreateV2(ctx context.Context, d *schema.ResourceData, met
 
 	createDwsClusterOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		OkCodes: []int{
-			200,
-		},
-		MoreHeaders: map[string]string{
-			"Content-Type": "application/json;charset=UTF-8",
-		},
+		MoreHeaders:      requestOpts.MoreHeaders,
 	}
 
 	createDwsClusterOpt.JSONBody = utils.RemoveNil(buildCreateDwsClusterBodyParams(d, cfg))
@@ -497,6 +502,14 @@ func resourceDwsClusterCreateV2(ctx context.Context, d *schema.ResourceData, met
 		}
 	}
 
+	// If lts_enable is true, enable LTS.
+	if d.Get("lts_enable").(bool) {
+		err = enableOrDisableLts(d, createDwsClusterClient)
+		if err != nil {
+			return diag.Errorf("error enable LTS for DWS cluster: %s", err)
+		}
+	}
+
 	return resourceDwsClusterRead(ctx, d, meta)
 }
 
@@ -519,12 +532,7 @@ func resourceDwsClusterCreateV1(ctx context.Context, d *schema.ResourceData, met
 
 	createDwsClusterOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		OkCodes: []int{
-			200,
-		},
-		MoreHeaders: map[string]string{
-			"Content-Type": "application/json;charset=UTF-8",
-		},
+		MoreHeaders:      requestOpts.MoreHeaders,
 	}
 
 	createDwsClusterOpt.JSONBody = utils.RemoveNil(buildCreateDwsClusterBodyParamsV1(d, cfg))
@@ -567,6 +575,7 @@ func resourceDwsClusterCreateV1(ctx context.Context, d *schema.ResourceData, met
 }
 
 func buildCreateDwsClusterBodyParams(d *schema.ResourceData, cfg *config.Config) map[string]interface{} {
+	availabilityZones := strings.Split(d.Get("availability_zone").(string), ",")
 	bodyParams := map[string]interface{}{
 		"cluster": map[string]interface{}{
 			"name":                  utils.ValueIngoreEmpty(d.Get("name")),
@@ -576,7 +585,7 @@ func buildCreateDwsClusterBodyParams(d *schema.ResourceData, cfg *config.Config)
 			"db_name":               utils.ValueIngoreEmpty(d.Get("user_name")),
 			"db_password":           utils.ValueIngoreEmpty(d.Get("user_pwd")),
 			"db_port":               utils.ValueIngoreEmpty(d.Get("port")),
-			"availability_zones":    []string{d.Get("availability_zone").(string)},
+			"availability_zones":    availabilityZones,
 			"vpc_id":                utils.ValueIngoreEmpty(d.Get("vpc_id")),
 			"subnet_id":             utils.ValueIngoreEmpty(d.Get("network_id")),
 			"security_group_id":     utils.ValueIngoreEmpty(d.Get("security_group_id")),
@@ -653,7 +662,7 @@ func clusterWaitingForAvailable(ctx context.Context, d *schema.ResourceData, met
 			region := cfg.GetRegion(d)
 			// createDwsClusterWaiting: waiting cluster is available
 			var (
-				createDwsClusterWaitingHttpUrl = "v1.0/{project_id}/clusters/{id}"
+				createDwsClusterWaitingHttpUrl = "v1.0/{project_id}/clusters/{cluster_id}"
 				createDwsClusterWaitingProduct = "dws"
 			)
 			clusterWaitingClient, err := cfg.NewServiceClient(createDwsClusterWaitingProduct, region)
@@ -663,16 +672,11 @@ func clusterWaitingForAvailable(ctx context.Context, d *schema.ResourceData, met
 
 			clusterWaitingPath := clusterWaitingClient.Endpoint + createDwsClusterWaitingHttpUrl
 			clusterWaitingPath = strings.ReplaceAll(clusterWaitingPath, "{project_id}", clusterWaitingClient.ProjectID)
-			clusterWaitingPath = strings.ReplaceAll(clusterWaitingPath, "{id}", d.Id())
+			clusterWaitingPath = strings.ReplaceAll(clusterWaitingPath, "{cluster_id}", d.Id())
 
 			clusterWaitingOpt := golangsdk.RequestOpts{
 				KeepResponseBody: true,
-				OkCodes: []int{
-					200,
-				},
-				MoreHeaders: map[string]string{
-					"Content-Type": "application/json;charset=UTF-8",
-				},
+				MoreHeaders:      requestOpts.MoreHeaders,
 			}
 
 			clusterWaitingResp, err := clusterWaitingClient.Request("GET", clusterWaitingPath,
@@ -709,6 +713,7 @@ func clusterWaitingForAvailable(ctx context.Context, d *schema.ResourceData, met
 			unexpectedStatus := []string{
 				"FAILED",
 				"CREATE_FAILED",
+				"CREATION FAILED",
 			}
 			if utils.StrSliceContains(unexpectedStatus, status) {
 				return clusterWaitingRespBody, status, nil
@@ -732,7 +737,7 @@ func resourceDwsClusterRead(_ context.Context, d *schema.ResourceData, meta inte
 
 	// getDwsCluster: Query the DWS cluster.
 	var (
-		getDwsClusterHttpUrl = "v1.0/{project_id}/clusters/{id}"
+		getDwsClusterHttpUrl = "v1.0/{project_id}/clusters/{cluster_id}"
 		getDwsClusterProduct = "dws"
 	)
 	getDwsClusterClient, err := cfg.NewServiceClient(getDwsClusterProduct, region)
@@ -742,16 +747,11 @@ func resourceDwsClusterRead(_ context.Context, d *schema.ResourceData, meta inte
 
 	getDwsClusterPath := getDwsClusterClient.Endpoint + getDwsClusterHttpUrl
 	getDwsClusterPath = strings.ReplaceAll(getDwsClusterPath, "{project_id}", getDwsClusterClient.ProjectID)
-	getDwsClusterPath = strings.ReplaceAll(getDwsClusterPath, "{id}", d.Id())
+	getDwsClusterPath = strings.ReplaceAll(getDwsClusterPath, "{cluster_id}", d.Id())
 
 	getDwsClusterOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		OkCodes: []int{
-			200,
-		},
-		MoreHeaders: map[string]string{
-			"Content-Type": "application/json;charset=UTF-8",
-		},
+		MoreHeaders:      requestOpts.MoreHeaders,
 	}
 
 	getDwsClusterResp, err := getDwsClusterClient.Request("GET", getDwsClusterPath, &getDwsClusterOpt)
@@ -868,7 +868,7 @@ func flattenGetDwsClusterRespBodyElb(resp interface{}) []interface{} {
 	var rst []interface{}
 	curJson, err := jmespath.Search("cluster.elb", resp)
 	if err != nil {
-		log.Printf("[WARN] error parsing elb object from response: %#v", err)
+		log.Printf("[WARN] error parsing elb object from response: %v", err)
 		return rst
 	}
 
@@ -890,6 +890,7 @@ func flattenGetDwsClusterRespBodyElb(resp interface{}) []interface{} {
 func resourceDwsClusterUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	region := cfg.GetRegion(d)
+	clusterId := d.Id()
 	clusterClient, clientErr := cfg.NewServiceClient("dws", region)
 	if clientErr != nil {
 		return diag.Errorf("error creating DWS client: %s", clientErr)
@@ -897,7 +898,7 @@ func resourceDwsClusterUpdate(ctx context.Context, d *schema.ResourceData, meta 
 
 	err := clusterWaitingForAvailable(ctx, d, meta, d.Timeout(schema.TimeoutUpdate))
 	if err != nil {
-		return diag.Errorf("cluster (%s) state is not available to update: %s", d.Id(), err)
+		return diag.Errorf("cluster (%s) state is not available to update: %s", clusterId, err)
 	}
 
 	expandInstanceStorageChanges := []string{
@@ -907,21 +908,16 @@ func resourceDwsClusterUpdate(ctx context.Context, d *schema.ResourceData, meta 
 	if d.HasChanges(expandInstanceStorageChanges...) {
 		// expandInstanceStorage: expand instance storage
 		var (
-			expandInstanceStorageHttpUrl = "v1.0/{project_id}/clusters/{id}/expand-instance-storage"
+			expandInstanceStorageHttpUrl = "v1.0/{project_id}/clusters/{cluster_id}/expand-instance-storage"
 		)
 
 		expandInstanceStoragePath := clusterClient.Endpoint + expandInstanceStorageHttpUrl
 		expandInstanceStoragePath = strings.ReplaceAll(expandInstanceStoragePath, "{project_id}", clusterClient.ProjectID)
-		expandInstanceStoragePath = strings.ReplaceAll(expandInstanceStoragePath, "{id}", d.Id())
+		expandInstanceStoragePath = strings.ReplaceAll(expandInstanceStoragePath, "{cluster_id}", d.Id())
 
 		expandInstanceStorageOpt := golangsdk.RequestOpts{
 			KeepResponseBody: true,
-			OkCodes: []int{
-				200,
-			},
-			MoreHeaders: map[string]string{
-				"Content-Type": "application/json;charset=UTF-8",
-			},
+			MoreHeaders:      requestOpts.MoreHeaders,
 		}
 
 		expandInstanceStorageOpt.JSONBody = utils.RemoveNil(buildExpandInstanceStorageBodyParams(d))
@@ -931,7 +927,7 @@ func resourceDwsClusterUpdate(ctx context.Context, d *schema.ResourceData, meta 
 		}
 		err = clusterWaitingForAvailable(ctx, d, meta, d.Timeout(schema.TimeoutUpdate))
 		if err != nil {
-			return diag.Errorf("error waiting for the DWS cluster (%s) update to complete: %s", d.Id(), err)
+			return diag.Errorf("error waiting for the DWS cluster (%s) update to complete: %s", clusterId, err)
 		}
 	}
 	resetPasswordOfClusterChanges := []string{
@@ -941,21 +937,16 @@ func resourceDwsClusterUpdate(ctx context.Context, d *schema.ResourceData, meta 
 	if d.HasChanges(resetPasswordOfClusterChanges...) {
 		// resetPasswordOfCluster: reset password of DWS cluster
 		var (
-			resetPasswordOfClusterHttpUrl = "v1.0/{project_id}/clusters/{id}/reset-password"
+			resetPasswordOfClusterHttpUrl = "v1.0/{project_id}/clusters/{cluster_id}/reset-password"
 		)
 
 		resetPasswordOfClusterPath := clusterClient.Endpoint + resetPasswordOfClusterHttpUrl
 		resetPasswordOfClusterPath = strings.ReplaceAll(resetPasswordOfClusterPath, "{project_id}", clusterClient.ProjectID)
-		resetPasswordOfClusterPath = strings.ReplaceAll(resetPasswordOfClusterPath, "{id}", d.Id())
+		resetPasswordOfClusterPath = strings.ReplaceAll(resetPasswordOfClusterPath, "{cluster_id}", d.Id())
 
 		resetPasswordOfClusterOpt := golangsdk.RequestOpts{
 			KeepResponseBody: true,
-			OkCodes: []int{
-				200,
-			},
-			MoreHeaders: map[string]string{
-				"Content-Type": "application/json;charset=UTF-8",
-			},
+			MoreHeaders:      requestOpts.MoreHeaders,
 		}
 
 		resetPasswordOfClusterOpt.JSONBody = utils.RemoveNil(buildResetPasswordOfClusterBodyParams(d))
@@ -966,7 +957,7 @@ func resourceDwsClusterUpdate(ctx context.Context, d *schema.ResourceData, meta 
 
 		err = clusterWaitingForAvailable(ctx, d, meta, d.Timeout(schema.TimeoutUpdate))
 		if err != nil {
-			return diag.Errorf("error waiting for the DWS cluster (%s) update to complete: %s", d.Id(), err)
+			return diag.Errorf("error waiting for the DWS cluster (%s) update to complete: %s", clusterId, err)
 		}
 	}
 	scaleOutClusterChanges := []string{
@@ -976,21 +967,16 @@ func resourceDwsClusterUpdate(ctx context.Context, d *schema.ResourceData, meta 
 	if d.HasChanges(scaleOutClusterChanges...) {
 		// scaleOutCluster: Scale out DWS cluster
 		var (
-			scaleOutClusterHttpUrl = "v1.0/{project_id}/clusters/{id}/resize"
+			scaleOutClusterHttpUrl = "v1.0/{project_id}/clusters/{cluster_id}/resize"
 		)
 
 		scaleOutClusterPath := clusterClient.Endpoint + scaleOutClusterHttpUrl
 		scaleOutClusterPath = strings.ReplaceAll(scaleOutClusterPath, "{project_id}", clusterClient.ProjectID)
-		scaleOutClusterPath = strings.ReplaceAll(scaleOutClusterPath, "{id}", d.Id())
+		scaleOutClusterPath = strings.ReplaceAll(scaleOutClusterPath, "{cluster_id}", d.Id())
 
 		scaleOutClusterOpt := golangsdk.RequestOpts{
 			KeepResponseBody: true,
-			OkCodes: []int{
-				200,
-			},
-			MoreHeaders: map[string]string{
-				"Content-Type": "application/json;charset=UTF-8",
-			},
+			MoreHeaders:      requestOpts.MoreHeaders,
 		}
 
 		scaleOutClusterOpt.JSONBody = utils.RemoveNil(buildScaleOutClusterBodyParams(d))
@@ -1001,15 +987,15 @@ func resourceDwsClusterUpdate(ctx context.Context, d *schema.ResourceData, meta 
 
 		err = clusterWaitingForAvailable(ctx, d, meta, d.Timeout(schema.TimeoutUpdate))
 		if err != nil {
-			return diag.Errorf("error waiting for the DWS cluster (%s) update to complete: %s", d.Id(), err)
+			return diag.Errorf("error waiting for the DWS cluster (%s) update to complete: %s", clusterId, err)
 		}
 	}
 
 	// change tags
 	if d.HasChange("tags") {
-		err = updateClusterTags(clusterClient, d, d.Id())
+		err = updateClusterTags(clusterClient, d, clusterId)
 		if err != nil {
-			return diag.Errorf("error updating tags of DWS cluster:%s, err:%s", d.Id(), err)
+			return diag.Errorf("error updating tags of DWS cluster:%s, err:%s", clusterId, err)
 		}
 	}
 
@@ -1037,6 +1023,29 @@ func resourceDwsClusterUpdate(ctx context.Context, d *schema.ResourceData, meta 
 		err = bindElb(ctx, d, clusterClient, newElbId)
 		if err != nil {
 			return diag.FromErr(err)
+		}
+	}
+
+	if d.HasChange("enterprise_project_id") {
+		migrateOpts := enterpriseprojects.MigrateResourceOpts{
+			ResourceId:   clusterId,
+			ResourceType: "dws_clusters",
+			RegionId:     region,
+			ProjectId:    clusterClient.ProjectID,
+		}
+		if err := common.MigrateEnterpriseProject(ctx, cfg, d, migrateOpts); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	if d.HasChange("lts_enable") {
+		err = enableOrDisableLts(d, clusterClient)
+		if err != nil {
+			err = parseLtsError(err)
+			if err != nil {
+				return common.CheckDeletedDiag(d, err,
+					fmt.Sprintf("error modifying LTS for DWS cluster, the expected LTS enable status is: %v", d.Get("lts_enable").(bool)))
+			}
 		}
 	}
 
@@ -1075,7 +1084,7 @@ func resourceDwsClusterDelete(ctx context.Context, d *schema.ResourceData, meta 
 
 	// deleteDwsCluster: delete DWS cluster
 	var (
-		deleteDwsClusterHttpUrl = "v1.0/{project_id}/clusters/{id}"
+		deleteDwsClusterHttpUrl = "v1.0/{project_id}/clusters/{cluster_id}"
 		deleteDwsClusterProduct = "dws"
 	)
 	deleteDwsClusterClient, err := cfg.NewServiceClient(deleteDwsClusterProduct, region)
@@ -1085,16 +1094,11 @@ func resourceDwsClusterDelete(ctx context.Context, d *schema.ResourceData, meta 
 
 	deleteDwsClusterPath := deleteDwsClusterClient.Endpoint + deleteDwsClusterHttpUrl
 	deleteDwsClusterPath = strings.ReplaceAll(deleteDwsClusterPath, "{project_id}", deleteDwsClusterClient.ProjectID)
-	deleteDwsClusterPath = strings.ReplaceAll(deleteDwsClusterPath, "{id}", d.Id())
+	deleteDwsClusterPath = strings.ReplaceAll(deleteDwsClusterPath, "{cluster_id}", d.Id())
 
 	deleteDwsClusterOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		OkCodes: []int{
-			200, 202,
-		},
-		MoreHeaders: map[string]string{
-			"Content-Type": "application/json;charset=UTF-8",
-		},
+		MoreHeaders:      requestOpts.MoreHeaders,
 	}
 
 	deleteDwsClusterOpt.JSONBody = utils.RemoveNil(buildDeleteDwsClusterBodyParams(d))
@@ -1126,7 +1130,7 @@ func deleteClusterWaitingForCompleted(ctx context.Context, d *schema.ResourceDat
 			region := cfg.GetRegion(d)
 			// deleteDwsClusterWaiting: missing operation notes
 			var (
-				deleteDwsClusterWaitingHttpUrl = "v1.0/{project_id}/clusters/{id}"
+				deleteDwsClusterWaitingHttpUrl = "v1.0/{project_id}/clusters/{cluster_id}"
 				deleteDwsClusterWaitingProduct = "dws"
 			)
 			deleteDwsClusterWaitingClient, err := cfg.NewServiceClient(deleteDwsClusterWaitingProduct, region)
@@ -1136,27 +1140,24 @@ func deleteClusterWaitingForCompleted(ctx context.Context, d *schema.ResourceDat
 
 			deleteDwsClusterWaitingPath := deleteDwsClusterWaitingClient.Endpoint + deleteDwsClusterWaitingHttpUrl
 			deleteDwsClusterWaitingPath = strings.ReplaceAll(deleteDwsClusterWaitingPath, "{project_id}", deleteDwsClusterWaitingClient.ProjectID)
-			deleteDwsClusterWaitingPath = strings.ReplaceAll(deleteDwsClusterWaitingPath, "{id}", d.Id())
+			deleteDwsClusterWaitingPath = strings.ReplaceAll(deleteDwsClusterWaitingPath, "{cluster_id}", d.Id())
 
 			deleteDwsClusterWaitingOpt := golangsdk.RequestOpts{
 				KeepResponseBody: true,
-				OkCodes: []int{
-					200,
-				},
-				MoreHeaders: map[string]string{
-					"Content-Type": "application/json;charset=UTF-8",
-				},
+				MoreHeaders:      requestOpts.MoreHeaders,
 			}
 
 			deleteDwsClusterWaitingResp, err := deleteDwsClusterWaitingClient.Request("GET", deleteDwsClusterWaitingPath, &deleteDwsClusterWaitingOpt)
 			if err != nil {
 				if _, ok := err.(golangsdk.ErrDefault404); ok {
-					return deleteDwsClusterWaitingResp, "COMPLETED", nil
+					// When the error code is 404, the value of respBody is nil, and a non-null value is returned to avoid continuing the loop check.
+					return "Resource Not Found", "COMPLETED", nil
 				}
 
 				err = parseClusterNotFoundError(err)
 				if _, ok := err.(golangsdk.ErrDefault404); ok {
-					return deleteDwsClusterWaitingResp, "COMPLETED", nil
+					// When the error code is 404, the value of respBody is nil, and a non-null value is returned to avoid continuing the loop check.
+					return "Resource Not Found", "COMPLETED", nil
 				}
 				return nil, "ERROR", err
 			}
@@ -1232,12 +1233,7 @@ func addClusterTags(client *golangsdk.ServiceClient, clusterId string, rawTags [
 
 	addTagsOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		OkCodes: []int{
-			200,
-		},
-		MoreHeaders: map[string]string{
-			"Content-Type": "application/json;charset=UTF-8",
-		},
+		MoreHeaders:      requestOpts.MoreHeaders,
 	}
 	addTagsOpt.JSONBody = map[string]interface{}{
 		"tags": rawTags,
@@ -1261,12 +1257,7 @@ func deleteClusterTags(client *golangsdk.ServiceClient, clusterId string, rawTag
 
 	deleteTagsOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		OkCodes: []int{
-			200,
-		},
-		MoreHeaders: map[string]string{
-			"Content-Type": "application/json;charset=UTF-8",
-		},
+		MoreHeaders:      requestOpts.MoreHeaders,
 	}
 
 	deleteTagsOpt.JSONBody = map[string]interface{}{
@@ -1320,9 +1311,7 @@ func bindElb(ctx context.Context, d *schema.ResourceData, client *golangsdk.Serv
 
 	bindElbOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		MoreHeaders: map[string]string{
-			"Content-Type": "application/json;charset=UTF-8",
-		},
+		MoreHeaders:      requestOpts.MoreHeaders,
 	}
 
 	bindElbResp, err := client.Request("POST", bindElbPath, &bindElbOpt)
@@ -1370,9 +1359,7 @@ func unbindElb(ctx context.Context, d *schema.ResourceData, client *golangsdk.Se
 
 	bindElbOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		MoreHeaders: map[string]string{
-			"Content-Type": "application/json;charset=UTF-8",
-		},
+		MoreHeaders:      requestOpts.MoreHeaders,
 	}
 
 	unbindElbResp, err := client.Request("DELETE", unbindElbPath, &bindElbOpt)
@@ -1416,9 +1403,7 @@ func jobStatusRefreshFunc(client *golangsdk.ServiceClient, jobId string) resourc
 
 		getJobStatusOpt := golangsdk.RequestOpts{
 			KeepResponseBody: true,
-			MoreHeaders: map[string]string{
-				"Content-Type": "application/json;charset=UTF-8",
-			},
+			MoreHeaders:      requestOpts.MoreHeaders,
 		}
 		getJobStatusResp, err := client.Request("GET", getJobStatusPath, &getJobStatusOpt)
 		if err != nil {
@@ -1439,4 +1424,56 @@ func jobStatusRefreshFunc(client *golangsdk.ServiceClient, jobId string) resourc
 		}
 		return getJobStatusRespBody, status.(string), nil
 	}
+}
+
+func enableOrDisableLts(d *schema.ResourceData, client *golangsdk.ServiceClient) error {
+	ltsHttpUrl := "v1/{project_id}/clusters/{cluster_id}/lts-logs/{action}"
+
+	ltsPath := client.Endpoint + ltsHttpUrl
+	ltsPath = strings.ReplaceAll(ltsPath, "{project_id}", client.ProjectID)
+	ltsPath = strings.ReplaceAll(ltsPath, "{cluster_id}", d.Id())
+	operate := d.Get("lts_enable").(bool)
+	if operate {
+		ltsPath = strings.ReplaceAll(ltsPath, "{action}", "enable")
+	} else {
+		ltsPath = strings.ReplaceAll(ltsPath, "{action}", "disable")
+	}
+	ltsOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		MoreHeaders:      requestOpts.MoreHeaders,
+		JSONBody:         map[string]interface{}{},
+	}
+
+	_, err := client.Request("POST", ltsPath, &ltsOpt)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func parseLtsError(err error) error {
+	var errCode400 golangsdk.ErrDefault400
+	if errors.As(err, &errCode400) {
+		var apiError interface{}
+		if jsonErr := json.Unmarshal(errCode400.Body, &apiError); jsonErr != nil {
+			if decodeRes, decodeErr := base64.URLEncoding.DecodeString(string(errCode400.Body)); decodeErr == nil {
+				if jsonErr = json.Unmarshal(decodeRes, &apiError); jsonErr != nil {
+					return err
+				}
+			}
+		}
+		errorCode, errorCodeErr := jmespath.Search("error_code", apiError)
+		if errorCodeErr != nil {
+			return err
+		}
+		// error code DWS.7107 means the cluster LTS is disable; DWS.0015 means the cluster not exists.
+		if errorCode == "DWS.7107" {
+			return nil
+		}
+		if errorCode == "DWS.0015" {
+			return golangsdk.ErrDefault404(errCode400)
+		}
+	}
+	return err
 }

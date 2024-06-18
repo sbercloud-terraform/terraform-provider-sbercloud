@@ -19,6 +19,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
 )
 
+// @API ELB POST /v2/{project_id}/elb/certificates
+// @API ELB GET /v2/{project_id}/elb/certificates/{certificate_id}
+// @API ELB PUT /v2/{project_id}/elb/certificates/{certificate_id}
+// @API ELB DELETE /v2/{project_id}/elb/certificates/{certificate_id}
 func ResourceCertificateV2() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceCertificateV2Create,
@@ -98,6 +102,11 @@ func ResourceCertificateV2() *schema.Resource {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
+
+			"expire_time": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
 		},
 	}
 }
@@ -157,6 +166,7 @@ func resourceCertificateV2Read(_ context.Context, d *schema.ResourceData, meta i
 		d.Set("private_key", c.PrivateKey),
 		d.Set("create_time", c.CreateTime),
 		d.Set("update_time", c.UpdateTime),
+		d.Set("expire_time", c.ExpireTime),
 	)
 	if err = mErr.ErrorOrNil(); err != nil {
 		return fmtp.DiagErrorf("Error setting certificate fields: %s", err)

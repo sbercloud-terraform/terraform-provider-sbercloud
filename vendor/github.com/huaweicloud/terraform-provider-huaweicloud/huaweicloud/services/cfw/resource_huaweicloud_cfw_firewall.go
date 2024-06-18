@@ -15,6 +15,7 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/customdiff"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/jmespath/go-jmespath"
@@ -37,6 +38,12 @@ const (
 // @API CFW GET /v1/{project_id}/firewall/exist
 // @API CFW POST /v1/{project_id}/firewall/east-west/protect
 // @API CFW DELETE /v2/{project_id}/firewall/{id}
+// @API CFW POST /v1/{project_id}/ips/switch
+// @API CFW GET /v1/{project_id}/ips/switch
+// @API CFW POST /v1/{project_id}/ips/protect
+// @API CFW GET /v1/{project_id}/ips/protect
+// @API CFW POST /v2/{project_id}/cfw-cfw/{fw_instance_id}/tags/create
+// @API CFW DELETE /v2/{project_id}/cfw-cfw/{fw_instance_id}/tags/delete
 
 func ResourceFirewall() *schema.Resource {
 	return &schema.Resource{
@@ -51,6 +58,30 @@ func ResourceFirewall() *schema.Resource {
 			Create: schema.DefaultTimeout(20 * time.Minute),
 			Delete: schema.DefaultTimeout(20 * time.Minute),
 		},
+
+		CustomizeDiff: customdiff.All(
+			customdiff.ValidateChange("east_west_firewall_inspection_cidr", func(_ context.Context, old, new, _ any) error {
+				// can only update from empty
+				if old.(string) != new.(string) && old.(string) != "" {
+					return fmt.Errorf("east_west_firewall_inspection_cidr can't be updated")
+				}
+				return nil
+			}),
+			customdiff.ValidateChange("east_west_firewall_er_id", func(_ context.Context, old, new, _ any) error {
+				// can only update from empty
+				if old.(string) != new.(string) && old.(string) != "" {
+					return fmt.Errorf("east_west_firewall_er_id can't be updated")
+				}
+				return nil
+			}),
+			customdiff.ValidateChange("east_west_firewall_mode", func(_ context.Context, old, new, _ any) error {
+				// can only update from empty
+				if old.(string) != new.(string) && old.(string) != "" {
+					return fmt.Errorf("east_west_firewall_mode can't be updated")
+				}
+				return nil
+			}),
+		),
 
 		Schema: map[string]*schema.Schema{
 			"region": {
@@ -77,29 +108,28 @@ func ResourceFirewall() *schema.Resource {
 				Type:        schema.TypeMap,
 				Elem:        &schema.Schema{Type: schema.TypeString},
 				Optional:    true,
-				ForceNew:    true,
 				Description: `Specifies the key/value pairs to associate with the firewall.`,
 			},
 			"east_west_firewall_inspection_cidr": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Computed:    true,
-				ForceNew:    true,
-				Description: `Specifies the inspection cidr of the east-west firewall.`,
+				Type:         schema.TypeString,
+				Optional:     true,
+				Computed:     true,
+				RequiredWith: []string{"east_west_firewall_er_id", "east_west_firewall_mode"},
+				Description:  `Specifies the inspection cidr of the east-west firewall.`,
 			},
 			"east_west_firewall_er_id": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Computed:    true,
-				ForceNew:    true,
-				Description: `Specifies the ER ID of the east-west firewall.`,
+				Type:         schema.TypeString,
+				Optional:     true,
+				Computed:     true,
+				RequiredWith: []string{"east_west_firewall_inspection_cidr", "east_west_firewall_mode"},
+				Description:  `Specifies the ER ID of the east-west firewall.`,
 			},
 			"east_west_firewall_mode": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Computed:    true,
-				ForceNew:    true,
-				Description: `Specifies the mode of the east-west firewall.`,
+				Type:         schema.TypeString,
+				Optional:     true,
+				Computed:     true,
+				RequiredWith: []string{"east_west_firewall_inspection_cidr", "east_west_firewall_er_id"},
+				Description:  `Specifies the mode of the east-west firewall.`,
 			},
 			"east_west_firewall_status": {
 				Type:        schema.TypeInt,
@@ -123,6 +153,16 @@ func ResourceFirewall() *schema.Resource {
 			"period_unit": common.SchemaPeriodUnit(nil),
 			"period":      common.SchemaPeriod(nil),
 			"auto_renew":  common.SchemaAutoRenew(nil),
+			"ips_switch_status": {
+				Type:        schema.TypeInt,
+				Optional:    true,
+				Description: `Specifies the IPS patch switch status of the firewall.`,
+			},
+			"ips_protection_mode": {
+				Type:        schema.TypeInt,
+				Optional:    true,
+				Description: `Specifies the IPS protection mode of the firewall.`,
+			},
 			"engine_type": {
 				Type:        schema.TypeInt,
 				Computed:    true,
@@ -159,6 +199,11 @@ func ResourceFirewall() *schema.Resource {
 				Computed:    true,
 				Description: `The east-west firewall inspection VPC ID.`,
 			},
+			"east_west_firewall_er_attachment_id": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `Enterprise Router and Firewall Connection ID`,
+			},
 		},
 	}
 }
@@ -189,6 +234,61 @@ func firewallFlavorSchema() *schema.Resource {
 				Optional:    true,
 				ForceNew:    true,
 				Description: `Specifies the extend VPC number of the firewall.`,
+			},
+			"eip_count": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: `Specifies the EIP number of the firewall.`,
+			},
+			"vpc_count": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: `Specifies the VPC number of the firewall.`,
+			},
+			"bandwidth": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: `Specifies the bandwidth of the firewall.`,
+			},
+			"log_storage": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: `Specifies the log storage of the firewall.`,
+			},
+			"default_eip_count": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: `Specifies the default EIP number of the firewall.`,
+			},
+			"default_vpc_count": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: `Specifies the default VPC number of the firewall.`,
+			},
+			"default_bandwidth": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: `Specifies the default bandwidth of the firewall.`,
+			},
+			"default_log_storage": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: `Specifies the default log storage of the firewall.`,
+			},
+			"vpc_bandwidth": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: `Specifies the VPC bandwidth of the firewall.`,
+			},
+			"used_rule_count": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: `Specifies the used rule count of the firewall.`,
+			},
+			"total_rule_count": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: `Specifies the total rule count of the firewall.`,
 			},
 		},
 	}
@@ -255,32 +355,6 @@ func resourceFirewallCreate(ctx context.Context, d *schema.ResourceData, meta in
 		}
 	}
 
-	if _, ok := d.GetOk("east_west_firewall_inspection_cidr"); ok {
-		// create east west firewall
-		var (
-			createEastWestFirewallHttpUrl = "v1/{project_id}/firewall/east-west"
-		)
-
-		createEastWestFirewallPath := createFirewallClient.Endpoint + createEastWestFirewallHttpUrl
-		createEastWestFirewallPath = strings.ReplaceAll(createEastWestFirewallPath, "{project_id}", createFirewallClient.ProjectID)
-		createEastWestFirewallPath += fmt.Sprintf("?fw_instance_id=%s", d.Id())
-
-		createEastWestFirewallOpt := golangsdk.RequestOpts{
-			KeepResponseBody: true,
-		}
-
-		createEastWestFirewallOpt.JSONBody = utils.RemoveNil(buildCreateEastWestFirewallBodyParams(d))
-		_, err := createFirewallClient.Request("POST", createEastWestFirewallPath, &createEastWestFirewallOpt)
-		if err != nil {
-			return diag.Errorf("error creating east-west firewall: %s", err)
-		}
-
-		err = createEastWestFirewallWaitingForStateCompleted(ctx, d, meta, d.Timeout(schema.TimeoutCreate))
-		if err != nil {
-			return diag.Errorf("error waiting for the east-west firewall (%s) creation to complete: %s", d.Id(), err)
-		}
-	}
-
 	return resourceFirewallUpdate(ctx, d, meta)
 }
 
@@ -324,6 +398,40 @@ func buildCreateFirewallRequestBodyFlavor(rawParams interface{}) map[string]inte
 		}
 		return params
 	}
+	return nil
+}
+
+func createEastWestFirewall(ctx context.Context, d *schema.ResourceData, meta interface{}) error {
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+	var (
+		createEastWestFirewallHttpUrl = "v1/{project_id}/firewall/east-west"
+		createEastWestFirewallProduct = "cfw"
+	)
+	createEastWestFirewallClient, err := cfg.NewServiceClient(createEastWestFirewallProduct, region)
+	if err != nil {
+		return fmt.Errorf("error creating CFW client: %s", err)
+	}
+
+	createEastWestFirewallPath := createEastWestFirewallClient.Endpoint + createEastWestFirewallHttpUrl
+	createEastWestFirewallPath = strings.ReplaceAll(createEastWestFirewallPath, "{project_id}", createEastWestFirewallClient.ProjectID)
+	createEastWestFirewallPath += fmt.Sprintf("?fw_instance_id=%s", d.Id())
+
+	createEastWestFirewallOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+	}
+
+	createEastWestFirewallOpt.JSONBody = utils.RemoveNil(buildCreateEastWestFirewallBodyParams(d))
+	_, err = createEastWestFirewallClient.Request("POST", createEastWestFirewallPath, &createEastWestFirewallOpt)
+	if err != nil {
+		return fmt.Errorf("error creating east-west firewall: %s", err)
+	}
+
+	err = createEastWestFirewallWaitingForStateCompleted(ctx, d, meta, d.Timeout(schema.TimeoutCreate))
+	if err != nil {
+		return fmt.Errorf("error waiting for the east-west firewall (%s) creation to complete: %s", d.Id(), err)
+	}
+
 	return nil
 }
 
@@ -524,18 +632,34 @@ func resourceFirewallRead(_ context.Context, d *schema.ResourceData, meta interf
 		chargingMode = "postPaid"
 	}
 
+	internetBorderObjectID := utils.PathSearch("protect_objects[?type==`0`]|[0].object_id", getFirewallRespBody, "").(string)
+	mode, err := getIpsProtectMode(getFirewallClient, internetBorderObjectID)
+	if err != nil {
+		return diag.Errorf("error retrieving IPS protect mode: %s", err)
+	}
+	status, err := getIpsSwitchStatus(getFirewallClient, internetBorderObjectID)
+	if err != nil {
+		return diag.Errorf("error retrieving IPS patch switch status: %s", err)
+	}
+
+	tags := utils.PathSearch("tags", getFirewallRespBody, "")
+
 	mErr = multierror.Append(
 		mErr,
 		d.Set("region", region),
 		d.Set("name", utils.PathSearch("fw_instance_name", getFirewallRespBody, nil)),
 		d.Set("charging_mode", chargingMode),
 		d.Set("enterprise_project_id", utils.PathSearch("enterprise_project_id", getFirewallRespBody, nil)),
+		d.Set("flavor", flattenGetFirewallResponseBodyFlavor(getFirewallRespBody, chargingMode)),
+		setTagsToState(d, tags.(string)),
 		d.Set("engine_type", utils.PathSearch("engine_type", getFirewallRespBody, nil)),
 		d.Set("ha_type", utils.PathSearch("ha_type", getFirewallRespBody, nil)),
 		d.Set("protect_objects", flattenGetFirewallResponseBodyProtectObject(getFirewallRespBody)),
 		d.Set("service_type", utils.PathSearch("service_type", getFirewallRespBody, nil)),
 		d.Set("status", utils.PathSearch("status", getFirewallRespBody, nil)),
 		d.Set("support_ipv6", utils.PathSearch("support_ipv6", getFirewallRespBody, nil)),
+		d.Set("ips_protection_mode", mode),
+		d.Set("ips_switch_status", status),
 	)
 
 	// get east-west firewall
@@ -567,6 +691,7 @@ func resourceFirewallRead(_ context.Context, d *schema.ResourceData, meta interf
 		d.Set("east_west_firewall_mode", utils.PathSearch("data.mode", getEastWestFirewallRespBody, nil)),
 		d.Set("east_west_firewall_status", utils.PathSearch("data.status", getEastWestFirewallRespBody, nil)),
 		d.Set("east_west_firewall_inspection_vpc_id", utils.PathSearch("data.inspection_vpc.id", getEastWestFirewallRespBody, nil)),
+		d.Set("east_west_firewall_er_attachment_id", utils.PathSearch("data.er.attachment_id", getEastWestFirewallRespBody, nil)),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())
@@ -590,6 +715,69 @@ func hasErrorCode(err error, expectCode string) bool {
 	return false
 }
 
+func flattenGetFirewallResponseBodyFlavor(resp interface{}, chargingMode string) []interface{} {
+	curJson := utils.PathSearch("flavor", resp, nil)
+	if curJson == nil {
+		return nil
+	}
+
+	v := int(utils.PathSearch("version", curJson, float64(-1)).(float64))
+	version := ""
+	if v == 0 {
+		version = "Standard"
+	} else if v == 1 {
+		version = "Professional"
+	}
+
+	eipCount := utils.PathSearch("eip_count", curJson, float64(0)).(float64)
+	vpcCount := utils.PathSearch("vpc_count", curJson, float64(0)).(float64)
+	bandwidth := utils.PathSearch("bandwidth", curJson, float64(0)).(float64)
+	defaultEipCount := utils.PathSearch("default_eip_count", curJson, float64(0)).(float64)
+	defaultVpcCount := utils.PathSearch("default_vpc_count", curJson, float64(0)).(float64)
+	defaultBandwidth := utils.PathSearch("default_bandwidth", curJson, float64(0)).(float64)
+	extendEipCount, extendVpcCount, extendBandwidth := 0, 0, 0
+
+	if chargingMode == "prePaid" {
+		extendEipCount = int(eipCount) - int(defaultEipCount)
+		extendVpcCount = int(vpcCount) - int(defaultVpcCount)
+		extendBandwidth = int(bandwidth) - int(defaultBandwidth)
+	}
+
+	rst := make([]interface{}, 0, 1)
+	rst = append(rst, map[string]interface{}{
+		"version":             version,
+		"extend_eip_count":    extendEipCount,
+		"extend_bandwidth":    extendBandwidth,
+		"extend_vpc_count":    extendVpcCount,
+		"eip_count":           eipCount,
+		"vpc_count":           vpcCount,
+		"bandwidth":           bandwidth,
+		"log_storage":         utils.PathSearch("log_storage", curJson, 0),
+		"default_eip_count":   defaultEipCount,
+		"default_vpc_count":   defaultVpcCount,
+		"default_bandwidth":   defaultBandwidth,
+		"default_log_storage": utils.PathSearch("default_log_storage", curJson, 0),
+		"vpc_bandwidth":       utils.PathSearch("vpc_bandwidth", curJson, 0),
+		"used_rule_count":     utils.PathSearch("used_rule_count", curJson, 0),
+		"total_rule_count":    utils.PathSearch("total_rule_count", curJson, 0),
+	})
+	return rst
+}
+
+func setTagsToState(d *schema.ResourceData, tags string) error {
+	if tags == "" {
+		return nil
+	}
+
+	var rst map[string]string
+	err := json.Unmarshal([]byte(tags), &rst)
+	if err != nil {
+		return fmt.Errorf("error parsing tags from API response: %s", err)
+	}
+
+	return d.Set("tags", rst)
+}
+
 func flattenGetFirewallResponseBodyProtectObject(resp interface{}) []interface{} {
 	if resp == nil {
 		return nil
@@ -607,12 +795,66 @@ func flattenGetFirewallResponseBodyProtectObject(resp interface{}) []interface{}
 	return rst
 }
 
+func getIpsProtectMode(client *golangsdk.ServiceClient, objectID string) (interface{}, error) {
+	getIpsProtectModeHttpUrl := "v1/{project_id}/ips/protect"
+	getIpsProtectModePath := client.Endpoint + getIpsProtectModeHttpUrl
+	getIpsProtectModePath = strings.ReplaceAll(getIpsProtectModePath, "{project_id}", client.ProjectID)
+	getIpsProtectModePath += fmt.Sprintf("?object_id=%s", objectID)
+
+	getIpsProtectModeOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+	}
+
+	getIpsProtectModeResp, err := client.Request("GET", getIpsProtectModePath, &getIpsProtectModeOpt)
+	if err != nil {
+		return nil, err
+	}
+
+	getIpsProtectModeRespBody, err := utils.FlattenResponse(getIpsProtectModeResp)
+	if err != nil {
+		return nil, err
+	}
+
+	return jmespath.Search("data.mode", getIpsProtectModeRespBody)
+}
+
+func getIpsSwitchStatus(client *golangsdk.ServiceClient, objectID string) (interface{}, error) {
+	getIpsSwitchStatusHttpUrl := "v1/{project_id}/ips/switch"
+	getIpsSwitchStatusPath := client.Endpoint + getIpsSwitchStatusHttpUrl
+	getIpsSwitchStatusPath = strings.ReplaceAll(getIpsSwitchStatusPath, "{project_id}", client.ProjectID)
+	getIpsSwitchStatusPath += fmt.Sprintf("?object_id=%s", objectID)
+
+	getIpsSwitchStatusOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+	}
+
+	getIpsSwitchStatusResp, err := client.Request("GET", getIpsSwitchStatusPath, &getIpsSwitchStatusOpt)
+	if err != nil {
+		return nil, err
+	}
+
+	getIpsSwitchStatusRespBody, err := utils.FlattenResponse(getIpsSwitchStatusResp)
+	if err != nil {
+		return nil, err
+	}
+
+	return jmespath.Search("data.virtual_patches_status", getIpsSwitchStatusRespBody)
+}
+
 func resourceFirewallUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	region := cfg.GetRegion(d)
 
-	var objectID string
-	if d.IsNewResource() {
+	if d.HasChanges("east_west_firewall_inspection_cidr", "east_west_firewall_er_id", "east_west_firewall_mode") {
+		// create east west firewall
+		err := createEastWestFirewall(ctx, d, meta)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	var vpcBoderObjectID, internetBorderObjectID string
+	if d.IsNewResource() || d.HasChanges("east_west_firewall_inspection_cidr", "east_west_firewall_er_id", "east_west_firewall_mode") {
 		// getFirewall: Query the List of CFW firewalls
 		var (
 			getFirewallHttpUrl = "v1/{project_id}/firewall/exist"
@@ -649,49 +891,232 @@ func resourceFirewallUpdate(ctx context.Context, d *schema.ResourceData, meta in
 			return common.CheckDeletedDiag(d, golangsdk.ErrDefault404{}, "no data found")
 		}
 
-		objectID = utils.PathSearch("protect_objects[?type==`1`]|[0].object_id", getFirewallRespBody, "").(string)
+		vpcBoderObjectID = utils.PathSearch("protect_objects[?type==`1`]|[0].object_id", getFirewallRespBody, "").(string)
+		internetBorderObjectID = utils.PathSearch("protect_objects[?type==`0`]|[0].object_id", getFirewallRespBody, "").(string)
 	} else {
 		protectObjects := d.Get("protect_objects").([]interface{})
 		for _, protectObject := range protectObjects {
 			p := protectObject.(map[string]interface{})
 			if p["type"].(int) == 1 {
-				objectID = p["object_id"].(string)
+				vpcBoderObjectID = p["object_id"].(string)
+			}
+			if p["type"].(int) == 0 {
+				internetBorderObjectID = p["object_id"].(string)
 			}
 		}
 	}
 
-	if objectID != "" {
-		var (
-			updateEastWestFirewallHttpUrl = "v1/{project_id}/firewall/east-west/protect"
-			updateEastWestFirewallProduct = "cfw"
-		)
-
-		updateEastWestFirewallClient, err := cfg.NewServiceClient(updateEastWestFirewallProduct, region)
-		if err != nil {
-			return diag.Errorf("error creating CFW client: %s", err)
+	if d.IsNewResource() || d.HasChanges("east_west_firewall_status", "east_west_firewall_inspection_cidr",
+		"east_west_firewall_er_id", "east_west_firewall_mode") {
+		if vpcBoderObjectID != "" {
+			err := updateEastWestFirewallStatus(d, meta, vpcBoderObjectID)
+			if err != nil {
+				return diag.Errorf("error updating east-west firewall status: %s", err)
+			}
 		}
+	}
 
-		updateEastWestFirewallPath := updateEastWestFirewallClient.Endpoint + updateEastWestFirewallHttpUrl
-		updateEastWestFirewallPath = strings.ReplaceAll(updateEastWestFirewallPath, "{project_id}", updateEastWestFirewallClient.ProjectID)
-		updateEastWestFirewallPath += fmt.Sprintf("?fw_instance_id=%s", d.Id())
-
-		updateEastWestFirewallOpt := golangsdk.RequestOpts{
-			KeepResponseBody: true,
-		}
-
-		updateEastWestFirewallOpt.JSONBody = utils.RemoveNil(buildUpdateEastWestFirewallStatusBodyParams(d, objectID))
-		updateEastWestFirewallResp, err := updateEastWestFirewallClient.Request("POST", updateEastWestFirewallPath, &updateEastWestFirewallOpt)
+	if d.HasChanges("ips_switch_status") {
+		err := updateIpsSwitchStatus(d, meta, internetBorderObjectID)
 		if err != nil {
-			return diag.Errorf("error updating east-west Firewall status: %s", err)
+			return diag.Errorf("error updating IPS patch switch status: %s", err)
 		}
+	}
 
-		_, err = utils.FlattenResponse(updateEastWestFirewallResp)
+	if d.HasChange("ips_protection_mode") {
+		err := updateIpsProtectMode(d, meta, internetBorderObjectID)
 		if err != nil {
-			return diag.FromErr(err)
+			return diag.Errorf("error updating IPS protection mode: %s", err)
+		}
+	}
+
+	if !d.IsNewResource() && d.HasChange("tags") {
+		err := updateTags(d, meta)
+		if err != nil {
+			return diag.Errorf("error updating tags: %s", err)
 		}
 	}
 
 	return resourceFirewallRead(ctx, d, meta)
+}
+
+func updateEastWestFirewallStatus(d *schema.ResourceData, meta interface{}, objectID string) error {
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+
+	var (
+		updateEastWestFirewallHttpUrl = "v1/{project_id}/firewall/east-west/protect"
+		updateEastWestFirewallProduct = "cfw"
+	)
+
+	updateEastWestFirewallClient, err := cfg.NewServiceClient(updateEastWestFirewallProduct, region)
+	if err != nil {
+		return fmt.Errorf("error creating CFW client: %s", err)
+	}
+
+	updateEastWestFirewallPath := updateEastWestFirewallClient.Endpoint + updateEastWestFirewallHttpUrl
+	updateEastWestFirewallPath = strings.ReplaceAll(updateEastWestFirewallPath, "{project_id}", updateEastWestFirewallClient.ProjectID)
+	updateEastWestFirewallPath += fmt.Sprintf("?fw_instance_id=%s", d.Id())
+
+	updateEastWestFirewallOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+	}
+
+	updateEastWestFirewallOpt.JSONBody = utils.RemoveNil(buildUpdateEastWestFirewallStatusBodyParams(d, objectID))
+	updateEastWestFirewallResp, err := updateEastWestFirewallClient.Request("POST", updateEastWestFirewallPath, &updateEastWestFirewallOpt)
+	if err != nil {
+		return fmt.Errorf("error updating east-west firewall status: %s", err)
+	}
+
+	_, err = utils.FlattenResponse(updateEastWestFirewallResp)
+
+	return err
+}
+
+func updateIpsSwitchStatus(d *schema.ResourceData, meta interface{}, objectID string) error {
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+
+	var (
+		updateSwitchStatusHttpUrl = "v1/{project_id}/ips/switch"
+		updateSwitchStatusProduct = "cfw"
+	)
+	updateSwitchStatusClient, err := cfg.NewServiceClient(updateSwitchStatusProduct, region)
+	if err != nil {
+		return fmt.Errorf("error creating CFW client: %s", err)
+	}
+
+	updateSwitchStatusPath := updateSwitchStatusClient.Endpoint + updateSwitchStatusHttpUrl
+	updateSwitchStatusPath = strings.ReplaceAll(updateSwitchStatusPath, "{project_id}", updateSwitchStatusClient.ProjectID)
+	updateSwitchStatusPath += fmt.Sprintf("?fw_instance_id=%s", d.Id())
+
+	status := d.Get("ips_switch_status").(int)
+	updateSwitchStatusOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		JSONBody:         utils.RemoveNil(buildUpdateIpsSwitchStatusBodyParams(status, objectID)),
+	}
+	_, err = updateSwitchStatusClient.Request("POST", updateSwitchStatusPath, &updateSwitchStatusOpt)
+
+	return err
+}
+
+func buildUpdateIpsSwitchStatusBodyParams(status int, objectID string) map[string]interface{} {
+	// ips_type is the patch type, only supports virtual patch, the value is 2.
+	return map[string]interface{}{
+		"object_id": objectID,
+		"ips_type":  2,
+		"status":    status,
+	}
+}
+
+func updateIpsProtectMode(d *schema.ResourceData, meta interface{}, objectID string) error {
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+
+	var (
+		updateProtectModeHttpUrl = "v1/{project_id}/ips/protect"
+		updateProtectModeProduct = "cfw"
+	)
+	updateProtectModeClient, err := cfg.NewServiceClient(updateProtectModeProduct, region)
+	if err != nil {
+		return fmt.Errorf("error creating CFW client: %s", err)
+	}
+
+	updateProtectModePath := updateProtectModeClient.Endpoint + updateProtectModeHttpUrl
+	updateProtectModePath = strings.ReplaceAll(updateProtectModePath, "{project_id}", updateProtectModeClient.ProjectID)
+
+	mode := d.Get("ips_protection_mode").(int)
+	updateProtectModeOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		JSONBody:         utils.RemoveNil(buildUpdateIpsProtectModeBodyParams(mode, objectID)),
+	}
+	_, err = updateProtectModeClient.Request("POST", updateProtectModePath, &updateProtectModeOpt)
+
+	return err
+}
+
+func buildUpdateIpsProtectModeBodyParams(mode int, objectID string) map[string]interface{} {
+	return map[string]interface{}{
+		"object_id": objectID,
+		"mode":      mode,
+	}
+}
+
+func updateTags(d *schema.ResourceData, meta interface{}) error {
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+
+	client, err := cfg.NewServiceClient("cfw", region)
+	if err != nil {
+		return fmt.Errorf("error creating CFW client: %s", err)
+	}
+
+	oRaw, nRaw := d.GetChange("tags")
+	oMap := oRaw.(map[string]interface{})
+	nMap := nRaw.(map[string]interface{})
+
+	// Remove old tags.
+	if len(oMap) > 0 {
+		if err := deleteTags(client, oMap, d.Id()); err != nil {
+			return err
+		}
+	}
+
+	// Set new tags.
+	if len(nMap) > 0 {
+		if err := createTags(client, nMap, d.Id()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func createTags(createTagsClient *golangsdk.ServiceClient, tags map[string]interface{}, id string) error {
+	if len(tags) == 0 {
+		return nil
+	}
+
+	createTagsHttpUrl := "v2/{project_id}/cfw-cfw/{fw_instance_id}/tags/create"
+	createTagsPath := createTagsClient.Endpoint + createTagsHttpUrl
+	createTagsPath = strings.ReplaceAll(createTagsPath, "{project_id}", createTagsClient.ProjectID)
+	createTagsPath = strings.ReplaceAll(createTagsPath, "{fw_instance_id}", id)
+	createTagsOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		JSONBody: map[string]interface{}{
+			"tags": utils.ExpandResourceTags(tags),
+		},
+	}
+
+	_, err := createTagsClient.Request("POST", createTagsPath, &createTagsOpt)
+	if err != nil {
+		return fmt.Errorf("error creating tags: %s", err)
+	}
+
+	return nil
+}
+
+func deleteTags(deleteTagsClient *golangsdk.ServiceClient, tags map[string]interface{}, id string) error {
+	if len(tags) == 0 {
+		return nil
+	}
+
+	deleteTagsHttpUrl := "v2/{project_id}/cfw-cfw/{fw_instance_id}/tags/delete"
+	deleteTagsPath := deleteTagsClient.Endpoint + deleteTagsHttpUrl
+	deleteTagsPath = strings.ReplaceAll(deleteTagsPath, "{project_id}", deleteTagsClient.ProjectID)
+	deleteTagsPath = strings.ReplaceAll(deleteTagsPath, "{fw_instance_id}", id)
+	deleteTagsOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+	}
+	deleteTagsOpt.JSONBody = map[string]interface{}{
+		"tags": utils.ExpandResourceTags(tags),
+	}
+
+	_, err := deleteTagsClient.Request("DELETE", deleteTagsPath, &deleteTagsOpt)
+	if err != nil {
+		return fmt.Errorf("error deleting tags: %s", err)
+	}
+
+	return nil
 }
 
 func resourceFirewallDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -780,7 +1205,7 @@ func deleteFirewallWaitingForStateCompleted(ctx context.Context, d *schema.Resou
 
 			statusRaw, err := jmespath.Search(`status`, deleteFirewallWaitingRespBody)
 			if err != nil {
-				return nil, "ERROR", fmt.Errorf("error parse %s from response body", `data.status`)
+				return nil, "ERROR", fmt.Errorf("error parsing %s from response body", `data.status`)
 			}
 
 			status := fmt.Sprintf("%v", statusRaw)

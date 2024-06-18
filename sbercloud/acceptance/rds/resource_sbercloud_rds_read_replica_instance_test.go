@@ -2,48 +2,79 @@ package rds
 
 import (
 	"fmt"
-	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 
 	"github.com/chnsz/golangsdk/openstack/rds/v3/instances"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 )
 
-func TestAccRdsReadReplicaInstance_basic(t *testing.T) {
+func TestAccReadReplicaInstance_basic(t *testing.T) {
 	var replica instances.RdsInstanceResponse
-	name := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
+	name := acceptance.RandomAccResourceName()
+	updateName := acceptance.RandomAccResourceName()
 	resourceType := "sbercloud_rds_read_replica_instance"
 	resourceName := "sbercloud_rds_read_replica_instance.test"
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
 		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy:      testAccCheckRdsInstanceV3Destroy(resourceType),
+		CheckDestroy:      testAccCheckRdsInstanceDestroy(resourceType),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccReadRdsReplicaInstance_basic(name),
+				Config: testAccReadReplicaInstance_basic(name),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckRdsInstanceV3Exists(resourceName, &replica),
+					testAccCheckRdsInstanceExists(resourceName, &replica),
 					resource.TestCheckResourceAttr(resourceName, "name", name),
-					resource.TestCheckResourceAttr(resourceName, "flavor", "rds.pg.c6.large.4.rr"),
+					resource.TestCheckResourceAttr(resourceName, "description", "test_description"),
+					resource.TestCheckResourceAttrPair(resourceName, "primary_instance_id",
+						"sbercloud_rds_instance.test", "id"),
 					resource.TestCheckResourceAttr(resourceName, "type", "Replica"),
-					resource.TestCheckResourceAttr(resourceName, "volume.0.type", "HIGH"),
+					resource.TestCheckResourceAttrPair(resourceName, "flavor",
+						"data.sbercloud_rds_flavors.replica", "flavors.0.name"),
+					resource.TestCheckResourceAttr(resourceName, "type", "Replica"),
+					resource.TestCheckResourceAttrPair(resourceName, "security_group_id",
+						"sbercloud_networking_secgroup.test", "id"),
+					resource.TestCheckResourceAttr(resourceName, "ssl_enable", "true"),
+					resource.TestCheckResourceAttr(resourceName, "db.0.port", "8888"),
+					resource.TestCheckResourceAttr(resourceName, "volume.0.type", "CLOUDSSD"),
 					resource.TestCheckResourceAttr(resourceName, "volume.0.size", "50"),
+					resource.TestCheckResourceAttr(resourceName, "volume.0.limit_size", "400"),
+					resource.TestCheckResourceAttr(resourceName, "volume.0.trigger_threshold", "10"),
+					resource.TestCheckResourceAttr(resourceName, "parameters.0.name", "connect_timeout"),
+					resource.TestCheckResourceAttr(resourceName, "parameters.0.value", "14"),
+					resource.TestCheckResourceAttr(resourceName, "maintain_begin", "06:00"),
+					resource.TestCheckResourceAttr(resourceName, "maintain_end", "09:00"),
 					resource.TestCheckResourceAttr(resourceName, "tags.key", "value"),
 					resource.TestCheckResourceAttr(resourceName, "tags.foo", "bar"),
 				),
 			},
 			{
-				Config: testAccReadRdsReplicaInstance_update(name),
+				Config: testAccReadReplicaInstance_update(name, updateName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckRdsInstanceV3Exists(resourceName, &replica),
-					resource.TestCheckResourceAttr(resourceName, "flavor", "rds.pg.c6.xlarge.4.rr"),
-					resource.TestCheckResourceAttr(resourceName, "volume.0.type", "HIGH"),
-					resource.TestCheckResourceAttr(resourceName, "volume.0.size", "50"),
-					resource.TestCheckResourceAttr(resourceName, "tags.key1", "value"),
-					resource.TestCheckResourceAttr(resourceName, "tags.foo", "bar2"),
+					testAccCheckRdsInstanceExists(resourceName, &replica),
+					resource.TestCheckResourceAttr(resourceName, "name", updateName),
+					resource.TestCheckResourceAttr(resourceName, "description", "test_description_update"),
+					resource.TestCheckResourceAttrPair(resourceName, "primary_instance_id",
+						"sbercloud_rds_instance.test", "id"),
+					resource.TestCheckResourceAttrPair(resourceName, "flavor",
+						"data.sbercloud_rds_flavors.replica", "flavors.0.name"),
+					resource.TestCheckResourceAttr(resourceName, "type", "Replica"),
+					resource.TestCheckResourceAttrPair(resourceName, "security_group_id",
+						"sbercloud_networking_secgroup.test", "id"),
+					resource.TestCheckResourceAttr(resourceName, "ssl_enable", "false"),
+					resource.TestCheckResourceAttr(resourceName, "db.0.port", "8889"),
+					resource.TestCheckResourceAttr(resourceName, "volume.0.type", "CLOUDSSD"),
+					resource.TestCheckResourceAttr(resourceName, "volume.0.size", "60"),
+					resource.TestCheckResourceAttr(resourceName, "volume.0.limit_size", "500"),
+					resource.TestCheckResourceAttr(resourceName, "volume.0.trigger_threshold", "15"),
+					resource.TestCheckResourceAttr(resourceName, "parameters.0.name", "div_precision_increment"),
+					resource.TestCheckResourceAttr(resourceName, "parameters.0.value", "12"),
+					resource.TestCheckResourceAttr(resourceName, "maintain_begin", "15:00"),
+					resource.TestCheckResourceAttr(resourceName, "maintain_end", "17:00"),
+					resource.TestCheckResourceAttr(resourceName, "tags.key_update", "value_update"),
+					resource.TestCheckResourceAttr(resourceName, "tags.foo_update", "bar_update"),
 				),
 			},
 			{
@@ -51,73 +82,85 @@ func TestAccRdsReadReplicaInstance_basic(t *testing.T) {
 				ImportState:       true,
 				ImportStateVerify: true,
 				ImportStateVerifyIgnore: []string{
-					"db",
+					"parameters",
 				},
 			},
 		},
 	})
 }
 
-func TestAccRdsReadReplicaInstance_withEpsId(t *testing.T) {
+func TestAccReadReplicaInstance_withEpsId(t *testing.T) {
 	var replica instances.RdsInstanceResponse
-	name := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
+	name := acceptance.RandomAccResourceName()
 	resourceType := "sbercloud_rds_read_replica_instance"
 	resourceName := "sbercloud_rds_read_replica_instance.test"
+	srcEPS := acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST
+	destEPS := acceptance.SBC_ENTERPRISE_MIGRATE_PROJECT_ID_TEST
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { acceptance.TestAccPreCheckEpsID(t) },
+		PreCheck: func() {
+			acceptance.TestAccPreCheck(t)
+			acceptance.TestAccPreCheckMigrateEpsID(t)
+		},
 		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy:      testAccCheckRdsInstanceV3Destroy(resourceType),
+		CheckDestroy:      testAccCheckRdsInstanceDestroy(resourceType),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccReadRdsReplicaInstance_withEpsId(name),
+				Config: testAccReadReplicaInstance_withEpsId(name, srcEPS),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckRdsInstanceV3Exists(resourceName, &replica),
-					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST),
+					testAccCheckRdsInstanceExists(resourceName, &replica),
+					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", srcEPS),
+				),
+			},
+			{
+				Config: testAccReadReplicaInstance_withEpsId(name, destEPS),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckRdsInstanceExists(resourceName, &replica),
+					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", destEPS),
 				),
 			},
 		},
 	})
 }
 
-func testAccReadRdsReplicaInstanceV3_base(name string) string {
+func testAccReadReplicaInstance_basic(name string) string {
 	return fmt.Sprintf(`
 %s
 
-resource "sbercloud_rds_instance" "test" {
-  name              = "%s"
-  flavor            = "rds.pg.c6.large.4"
-  availability_zone = [data.sbercloud_availability_zones.test.names[0]]
-  security_group_id = sbercloud_networking_secgroup.test.id
-  vpc_id            = sbercloud_vpc.test.id
-  subnet_id         = sbercloud_vpc_subnet.test.id
-
-  db {
-    password = "Huangwei!120521"
-    type     = "PostgreSQL"
-    version  = "12"
-    port     = 8635
-  }
-  volume {
-    type = "HIGH"
-    size = 50
-  }
+data "sbercloud_rds_flavors" "replica" {
+  db_type       = "MySQL"
+  db_version    = "8.0"
+  instance_mode = "replica"
+  group_type    = "dedicated"
+  memory        = 4
+  vcpus         = 2
 }
-`, testAccRdsInstanceV3_base(name), name)
-}
-
-func testAccReadRdsReplicaInstance_basic(name string) string {
-	return fmt.Sprintf(`
-%s
 
 resource "sbercloud_rds_read_replica_instance" "test" {
   name                = "%s"
-  flavor              = "rds.pg.c6.large.4.rr"
+  description         = "test_description"
+  flavor              = data.sbercloud_rds_flavors.replica.flavors[0].name
   primary_instance_id = sbercloud_rds_instance.test.id
   availability_zone   = data.sbercloud_availability_zones.test.names[0]
+  security_group_id   = sbercloud_networking_secgroup.test.id
+  ssl_enable          = true
+  maintain_begin      = "06:00"
+  maintain_end        = "09:00"
+
+  db {
+    port = 8888
+  }
 
   volume {
-    type = "HIGH"
+    type              = "CLOUDSSD"
+    size              = 50
+    limit_size        = 400
+    trigger_threshold = 10
+  }
+
+  parameters {
+    name  = "connect_timeout"
+    value = "14"
   }
 
   tags = {
@@ -125,45 +168,83 @@ resource "sbercloud_rds_read_replica_instance" "test" {
     foo = "bar"
   }
 }
-`, testAccReadRdsReplicaInstanceV3_base(name), name)
+`, testAccRdsInstance_mysql_step1(name), name)
 }
 
-func testAccReadRdsReplicaInstance_update(name string) string {
+func testAccReadReplicaInstance_update(name, updateName string) string {
 	return fmt.Sprintf(`
 %s
+
+data "sbercloud_rds_flavors" "replica" {
+  db_type       = "MySQL"
+  db_version    = "8.0"
+  instance_mode = "replica"
+  group_type    = "dedicated"
+  memory        = 8
+  vcpus         = 2
+}
 
 resource "sbercloud_rds_read_replica_instance" "test" {
   name                = "%s"
-  flavor              = "rds.pg.c6.xlarge.4.rr"
+  description         = "test_description_update"
+  flavor              = data.sbercloud_rds_flavors.replica.flavors[0].name
   primary_instance_id = sbercloud_rds_instance.test.id
   availability_zone   = data.sbercloud_availability_zones.test.names[0]
+  security_group_id   = sbercloud_networking_secgroup.test.id
+  ssl_enable          = false
+  maintain_begin      = "15:00"
+  maintain_end        = "17:00"
+
+  db {
+    port = 8889
+  }
 
   volume {
-	type = "HIGH"
+    type              = "CLOUDSSD"
+    size              = 60
+    limit_size        = 500
+    trigger_threshold = 15
+  }
+
+  parameters {
+    name  = "div_precision_increment"
+    value = "12"
   }
 
   tags = {
-    key1 = "value"
-    foo = "bar2"
+    key_update = "value_update"
+    foo_update = "bar_update"
   }
 }
-`, testAccReadRdsReplicaInstanceV3_base(name), name)
+`, testAccRdsInstance_mysql_step1(name), updateName)
 }
 
-func testAccReadRdsReplicaInstance_withEpsId(name string) string {
+func testAccReadReplicaInstance_withEpsId(name, epsId string) string {
 	return fmt.Sprintf(`
 %s
 
+data "sbercloud_rds_flavors" "replica" {
+  db_type       = "MySQL"
+  db_version    = "8.0"
+  instance_mode = "replica"
+  group_type    = "dedicated"
+  memory        = 4
+  vcpus         = 2
+}
+
 resource "sbercloud_rds_read_replica_instance" "test" {
   name                  = "%s"
-  flavor                = "rds.pg.c6.large.4.rr"
+  flavor                = data.sbercloud_rds_flavors.replica.flavors[0].name
   primary_instance_id   = sbercloud_rds_instance.test.id
   availability_zone     = data.sbercloud_availability_zones.test.names[0]
   enterprise_project_id = "%s"
 
   volume {
-    type = "HIGH"
+    type              = "CLOUDSSD"
+    size              = 40
+    limit_size        = 300
+    trigger_threshold = 10
   }
 }
-`, testAccReadRdsReplicaInstanceV3_base(name), name, acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST)
+`, testAccRdsInstance_mysql_step1(name), name, epsId)
 }

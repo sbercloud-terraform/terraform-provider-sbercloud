@@ -18,6 +18,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
+// @API ELB POST /v3/{project_id}/elb/l7policies
+// @API ELB GET /v3/{project_id}/elb/l7policies/{l7policy_id}
+// @API ELB PUT /v3/{project_id}/elb/l7policies/{l7policy_id}
+// @API ELB DELETE /v3/{project_id}/elb/l7policies/{l7policy_id}
 func ResourceL7PolicyV3() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceL7PolicyV3Create,
@@ -97,6 +101,18 @@ func ResourceL7PolicyV3() *schema.Resource {
 				Elem:     fixedResponseConfigSchema(),
 				MaxItems: 1,
 				Optional: true,
+				Computed: true,
+			},
+			"provisioning_status": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"created_at": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"updated_at": {
+				Type:     schema.TypeString,
 				Computed: true,
 			},
 		},
@@ -342,6 +358,9 @@ func resourceL7PolicyV3Read(_ context.Context, d *schema.ResourceData, meta inte
 		d.Set("redirect_url_config", flattenRedirectUrlConfig(l7Policy)),
 		d.Set("fixed_response_config", flattenFixedResponseConfig(l7Policy)),
 		d.Set("region", cfg.GetRegion(d)),
+		d.Set("created_at", l7Policy.CreatedAt),
+		d.Set("updated_at", l7Policy.UpdatedAt),
+		d.Set("provisioning_status", l7Policy.ProvisioningStatus),
 	)
 	if err := mErr.ErrorOrNil(); err != nil {
 		return diag.Errorf("error setting Dedicated ELB l7policy fields: %s", err)

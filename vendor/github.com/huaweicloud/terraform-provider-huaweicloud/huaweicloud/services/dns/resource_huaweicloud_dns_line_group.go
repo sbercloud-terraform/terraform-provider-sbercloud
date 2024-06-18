@@ -20,7 +20,6 @@ import (
 )
 
 // @API DNS POST /v2.1/linegroups
-// @API DNS POST /v2.1/linegroups/{linegroup_id}
 // @API DNS GET /v2.1/linegroups/{linegroup_id}
 // @API DNS PUT /v2.1/linegroups/{linegroup_id}
 // @API DNS DELETE /v2.1/linegroups/{linegroup_id}
@@ -326,7 +325,8 @@ func dnsLineGroupStatusRefreshFunc(d *schema.ResourceData, client *golangsdk.Ser
 		getDNSLineGroupResp, err := client.Request("GET", getDNSLineGroupPath, &getDNSLineGroupOpt)
 		if err != nil {
 			if _, ok := err.(golangsdk.ErrDefault404); ok {
-				return getDNSLineGroupResp, "DELETED", nil
+				// When the error code is 404, the value of respBody is nil, and a non-null value is returned to avoid continuing the loop check.
+				return "Resource Not Found", "DELETED", nil
 			}
 			return nil, "", err
 		}

@@ -24,6 +24,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DataArtsStudio POST /v1/{project_id}/jobs
+// @API DataArtsStudio GET /v1/{project_id}/jobs/{job_name}
+// @API DataArtsStudio PUT /v1/{project_id}/jobs/{job_name}
+// @API DataArtsStudio DELETE /v1/{project_id}/jobs/{job_name}
 func ResourceFactoryJob() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceFactoryJobCreate,
@@ -907,7 +911,7 @@ func resourceFactoryJobRead(_ context.Context, d *schema.ResourceData, meta inte
 	var mErr *multierror.Error
 
 	var (
-		getJobHttpUrl = "v1/{project_id}/jobs/{id}"
+		getJobHttpUrl = "v1/{project_id}/jobs/{job_name}"
 		getJobProduct = "dataarts-dlf"
 	)
 	getJobClient, err := cfg.NewServiceClient(getJobProduct, region)
@@ -917,7 +921,7 @@ func resourceFactoryJobRead(_ context.Context, d *schema.ResourceData, meta inte
 
 	getJobPath := getJobClient.Endpoint + getJobHttpUrl
 	getJobPath = strings.ReplaceAll(getJobPath, "{project_id}", getJobClient.ProjectID)
-	getJobPath = strings.ReplaceAll(getJobPath, "{id}", d.Id())
+	getJobPath = strings.ReplaceAll(getJobPath, "{job_name}", d.Id())
 
 	getJobOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
@@ -1226,7 +1230,7 @@ func resourceFactoryJobUpdate(ctx context.Context, d *schema.ResourceData, meta 
 
 	if d.HasChanges(updateJobChanges...) {
 		var (
-			updateJobHttpUrl = "v1/{project_id}/jobs/{id}"
+			updateJobHttpUrl = "v1/{project_id}/jobs/{job_name}"
 			updateJobProduct = "dataarts-dlf"
 		)
 		updateJobClient, err := cfg.NewServiceClient(updateJobProduct, region)
@@ -1236,7 +1240,7 @@ func resourceFactoryJobUpdate(ctx context.Context, d *schema.ResourceData, meta 
 
 		updateJobPath := updateJobClient.Endpoint + updateJobHttpUrl
 		updateJobPath = strings.ReplaceAll(updateJobPath, "{project_id}", updateJobClient.ProjectID)
-		updateJobPath = strings.ReplaceAll(updateJobPath, "{id}", d.Id())
+		updateJobPath = strings.ReplaceAll(updateJobPath, "{job_name}", d.Id())
 
 		updateJobOpt := golangsdk.RequestOpts{
 			KeepResponseBody: true,
@@ -1280,7 +1284,7 @@ func resourceFactoryJobDelete(_ context.Context, d *schema.ResourceData, meta in
 	region := cfg.GetRegion(d)
 
 	var (
-		deleteJobHttpUrl = "v1/{project_id}/jobs/{id}"
+		deleteJobHttpUrl = "v1/{project_id}/jobs/{job_name}"
 		deleteJobProduct = "dataarts-dlf"
 	)
 	deleteJobClient, err := cfg.NewServiceClient(deleteJobProduct, region)
@@ -1290,7 +1294,7 @@ func resourceFactoryJobDelete(_ context.Context, d *schema.ResourceData, meta in
 
 	deleteJobPath := deleteJobClient.Endpoint + deleteJobHttpUrl
 	deleteJobPath = strings.ReplaceAll(deleteJobPath, "{project_id}", deleteJobClient.ProjectID)
-	deleteJobPath = strings.ReplaceAll(deleteJobPath, "{id}", d.Id())
+	deleteJobPath = strings.ReplaceAll(deleteJobPath, "{job_name}", d.Id())
 
 	deleteJobOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,

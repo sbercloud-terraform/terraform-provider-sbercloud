@@ -25,6 +25,11 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API GES POST /v2/{project_id}/graphs/{id}/resize
+// @API GES POST /v2/{project_id}/graphs
+// @API GES GET /v2/{project_id}/graphs/{id}
+// @API GES DELETE /v2/{project_id}/graphs/{id}
+// @API GES POST /v2/{project_id}/graphs/{id}/expand
 func ResourceGesGraph() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceGesGraphCreate,
@@ -789,7 +794,8 @@ func deleteGraphWaitingForStateCompleted(ctx context.Context, d *schema.Resource
 			deleteGraphWaitingResp, err := deleteGraphWaitingClient.Request("GET", deleteGraphWaitingPath, &deleteGraphWaitingOpt)
 			if err != nil {
 				if _, ok := err.(golangsdk.ErrDefault404); ok {
-					return deleteGraphWaitingResp, "COMPLETED", nil
+					// When the error code is 404, the value of respBody is nil, and a non-null value is returned to avoid continuing the loop check.
+					return "Resource Not Found", "COMPLETED", nil
 				}
 
 				return nil, "ERROR", err

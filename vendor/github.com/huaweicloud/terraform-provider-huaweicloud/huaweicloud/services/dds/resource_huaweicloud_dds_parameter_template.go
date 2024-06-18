@@ -21,6 +21,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DDS POST /v3/{project_id}/configurations
+// @API DDS DELETE /v3/{project_id}/configurations/{config_id}
+// @API DDS GET /v3/{project_id}/configurations/{config_id}
+// @API DDS PUT /v3/{project_id}/configurations/{config_id}
 func ResourceDdsParameterTemplate() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDdsParameterTemplateCreate,
@@ -72,6 +76,14 @@ func ResourceDdsParameterTemplate() *schema.Resource {
 				Elem:        ParameterTemplateParameterSchema(),
 				Computed:    true,
 				Description: `Indicates the parameters defined by users based on the default parameter templates.`,
+			},
+			"created_at": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"updated_at": {
+				Type:     schema.TypeString,
+				Computed: true,
 			},
 		},
 	}
@@ -282,6 +294,8 @@ func resourceDdsParameterTemplateRead(_ context.Context, d *schema.ResourceData,
 		d.Set("description", utils.PathSearch("description",
 			getParameterTemplateRespBody, nil)),
 		d.Set("parameters", flattenGetParameterTemplateResponseBodyParameter(getParameterTemplateRespBody)),
+		d.Set("created_at", utils.PathSearch("created", getParameterTemplateRespBody, nil)),
+		d.Set("updated_at", utils.PathSearch("updated", getParameterTemplateRespBody, nil)),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())

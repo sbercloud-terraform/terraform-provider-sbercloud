@@ -15,6 +15,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
 )
 
+// @API MRS DELETE /v1.1/{project_id}/job-executions/{id}
+// @API MRS GET /v1.1/{project_id}/job-exes/{id}
+// @API MRS POST /v1.1/{project_id}/jobs/submit-job
 func ResourceMRSJobV1() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceMRSJobV1Create,
@@ -246,4 +249,20 @@ func resourceMRSJobV1Delete(d *schema.ResourceData, meta interface{}) error {
 		return fmtp.Errorf("Error deleting MRS Job %s: %s", rId, err)
 	}
 	return nil
+}
+
+func checkForRetryableError(err error) *resource.RetryError {
+	switch errCode := err.(type) {
+	case golangsdk.ErrDefault500:
+		return resource.RetryableError(err)
+	case golangsdk.ErrUnexpectedResponseCode:
+		switch errCode.Actual {
+		case 409, 503:
+			return resource.RetryableError(err)
+		default:
+			return resource.NonRetryableError(err)
+		}
+	default:
+		return resource.NonRetryableError(err)
+	}
 }

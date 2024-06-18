@@ -26,6 +26,11 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API GaussDBforMySQL POST /v3/{project_id}/instances/{instance_id}/databases
+// @API GaussDBforMySQL GET /v3/{project_id}/jobs
+// @API GaussDBforMySQL PUT /v3/{project_id}/instances/{instance_id}/databases/comment
+// @API GaussDBforMySQL GET /v3/{project_id}/instances/{instance_id}/databases
+// @API GaussDBforMySQL DELETE /v3/{project_id}/instances/{instance_id}/databases
 func ResourceGaussDBDatabase() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceGaussDBDatabaseCreate,
@@ -215,7 +220,7 @@ func resourceGaussDBDatabaseRead(_ context.Context, d *schema.ResourceData, meta
 			database = db
 			break
 		}
-		total := utils.PathSearch("total_count", getGaussDBDatabaseRespBody, 0).(float64)
+		total := utils.PathSearch("total_count", getGaussDBDatabaseRespBody, float64(0)).(float64)
 		currentTotal += pageNum
 		if currentTotal == int(total) {
 			break

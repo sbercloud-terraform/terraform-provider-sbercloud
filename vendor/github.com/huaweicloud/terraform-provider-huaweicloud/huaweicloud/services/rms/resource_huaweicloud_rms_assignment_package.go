@@ -24,6 +24,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API Config POST /v1/resource-manager/domains/{domain_id}/conformance-packs
+// @API Config DELETE /v1/resource-manager/domains/{domain_id}/conformance-packs/{id}
+// @API Config GET /v1/resource-manager/domains/{domain_id}/conformance-packs/{id}
 func ResourceAssignmentPackage() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceAssignmentPackageCreate,
@@ -75,7 +78,7 @@ func ResourceAssignmentPackage() *schema.Resource {
 				Description: `Specifies the URL address of the OBS bucket where an assignment package template was stored.`,
 			},
 			"vars_structure": {
-				Type:        schema.TypeList,
+				Type:        schema.TypeSet,
 				Elem:        assignmentPackageParameterSchema(),
 				Optional:    true,
 				Computed:    true,
@@ -195,23 +198,21 @@ func buildCreateAssignmentPackageBodyParams(d *schema.ResourceData) map[string]i
 }
 
 func buildCreateAssignmentPackageRequestBodyParameter(rawParams interface{}) []map[string]interface{} {
-	if rawArray, ok := rawParams.([]interface{}); ok {
-		if len(rawArray) == 0 {
-			return nil
-		}
+	rawArray := rawParams.(*schema.Set).List()
+	if len(rawArray) == 0 {
+		return nil
+	}
 
-		rst := make([]map[string]interface{}, len(rawArray))
-		for i, v := range rawArray {
-			if raw, ok := v.(map[string]interface{}); ok {
-				rst[i] = map[string]interface{}{
-					"var_key":   utils.ValueIngoreEmpty(raw["var_key"]),
-					"var_value": utils.ValueIngoreEmpty(raw["var_value"]),
-				}
+	rst := make([]map[string]interface{}, len(rawArray))
+	for i, v := range rawArray {
+		if raw, ok := v.(map[string]interface{}); ok {
+			rst[i] = map[string]interface{}{
+				"var_key":   utils.ValueIngoreEmpty(raw["var_key"]),
+				"var_value": utils.ValueIngoreEmpty(raw["var_value"]),
 			}
 		}
-		return rst
 	}
-	return nil
+	return rst
 }
 
 func resourceAssignmentPackageRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -312,7 +313,8 @@ func rmsAssignmentPackageStateRefreshFunc(client *golangsdk.ServiceClient, cfg *
 		getAssignmentPackageRespBody, err := getAssignmentPackage(client, cfg, id)
 		if err != nil {
 			if _, ok := err.(golangsdk.ErrDefault404); ok {
-				return getAssignmentPackageRespBody, "DELETED", nil
+				// When the error code is 404, the value of respBody is nil, and a non-null value is returned to avoid continuing the loop check.
+				return "Resource Not Found", "DELETED", nil
 			}
 			return nil, "", err
 		}

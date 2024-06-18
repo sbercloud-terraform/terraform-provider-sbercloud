@@ -41,11 +41,33 @@ type CreateOpts struct {
 	UserData            string            `json:"user_data,omitempty"`
 	Xrole               string            `json:"xrole,omitempty"`
 	LogConfig           *FuncLogConfig    `json:"log_config,omitempty"`
+	GPUMemory           int               `json:"gpu_memory,omitempty"`
+	GPUType             string            `json:"gpu_type,omitempty"`
+	// The pre-stop handler of the function.
+	// The value must contain a period (.) in the format of "xx.xx".
+	PreStopHandler string `json:"pre_stop_handler,omitempty"`
+	// Maximum duration the function can be initialized.
+	// Value range: 1s–90s.
+	PreStopTimeout    int                   `json:"pre_stop_timeout,omitempty"`
+	FuncVpc           *FuncVpc              `json:"func_vpc,omitempty"`
+	NetworkController *NetworkControlConfig `json:"network_controller,omitempty"`
 }
 
 type CustomImage struct {
 	Enabled bool   `json:"enabled" required:"true"`
 	Image   string `json:"image" required:"true"`
+	// The startup commands of the SWR image.
+	// Multiple commands are separated by commas (,). For example, "/bin/sh".
+	Command string `json:"command,omitempty"`
+	// The command line arguments used to start the SWR image.
+	// Multiple parameters are separated by commas (,).
+	Args string `json:"args,omitempty"`
+	// The working directory of the SWR image.
+	WorkingDir string `json:"working_dir,omitempty"`
+	// The user ID of the SWR image.
+	UserId string `json:"uid,omitempty"`
+	// The user group ID of the SWR image.
+	UserGroupId string `json:"gid,omitempty"`
 }
 
 func (opts CreateOpts) ToCreateFunctionMap() (map[string]interface{}, error) {
@@ -161,6 +183,9 @@ type UpdateMetadataOpts struct {
 	// GPU memory.
 	// Range: 1024 to 16,384, and the value is a multiple of 1024.
 	GPUMemory int `json:"gpu_memory,omitempty"`
+	// GPU type.
+	// Currently, only nvidia-t4 is supported.
+	GPUType string `json:"gpu_type,omitempty"`
 	// Function policy configuration.
 	StrategyConfig *StrategyConfig `json:"strategy_config,omitempty"`
 	// Extended configuration.
@@ -172,7 +197,7 @@ type UpdateMetadataOpts struct {
 	// Function log configuration.
 	LogConfig *FuncLogConfig `json:"log_config,omitempty"`
 	// Network configuration.
-	NetworkController NetworkControlConfig `json:"network_controller,omitempty"`
+	NetworkController *NetworkControlConfig `json:"network_controller,omitempty"`
 	// Whether stateful functions are supported.
 	IsStatefulFunction bool `json:"is_stateful_function,omitempty"`
 	// Whether to enable dynamic memory allocation.
@@ -187,6 +212,19 @@ type UpdateMetadataOpts struct {
 	// Restore Hook timeout of snapshot-based cold start.
 	// Range: 1s to 300s.
 	RestoreHookTimeout int `json:"restore_hook_timeout,omitempty"`
+	// The pre-stop handler of the function.\
+	// The value must contain a period (.) in the format of "xx.xx".
+	PreStopHandler string `json:"pre_stop_handler,omitempty"`
+	// Maximum duration the function can be initialized.
+	// Value range: 1s–90s.
+	PreStopTimeout int `json:"pre_stop_timeout,omitempty"`
+}
+
+type StrategyConfig struct {
+	Concurrency *int `json:"concurrency,omitempty"`
+	// The number of concurrent requests supported by single instance. The valid value range is 1 to 1000.
+	//  This parameter is only supported by the `v2` version of the function.
+	ConcurrencyNum *int `json:"concurrent_num,omitempty"`
 }
 
 type FuncLogConfig struct {
@@ -454,4 +492,93 @@ func DeleteResourceTags(c *golangsdk.ServiceClient, functionUrn string, opts Tag
 		MoreHeaders: requestOpts.MoreHeaders,
 	})
 	return err
+}
+
+// UpdateReservedInstanceObj is the structure that used to modify information of reserved instance.
+type UpdateReservedInstanceObj struct {
+	// Function URN.
+	FunctionUrn string `json:"-" required:"true"`
+	// The number of reserved instance.
+	Count *int `json:"count" required:"true"`
+	// Whether to enable the idle mode configuration.
+	IdleMode *bool `json:"idle_mode,omitempty"`
+	// The auto scaling policy configuration.
+	TacticsConfig *TacticsConfigObj `json:"tactics_config,omitempty"`
+}
+
+// TacticsConfigObj is the structure that represents the configuration details of the reserved instance policy.
+type TacticsConfigObj struct {
+	// The list of scheduled configurations.
+	CronConfigs []CronConfigObj `json:"cron_configs,omitempty"`
+	// The list of traffic configurations.
+	MetricConfigs []MetricConfigObj `json:"metric_configs,omitempty"`
+}
+
+// CronConfigsObj is the structure that represents the list of scheduled configurations.
+type CronConfigObj struct {
+	// The policy name of scheduled configuration.
+	Name string `json:"name,omitempty"`
+	// The function cron expression.
+	Cron string `json:"cron,omitempty"`
+	// The number of reserved instance to which the policy belongs.
+	Count int `json:"count,omitempty"`
+	// The start timestamp of policy.
+	StartTime int `json:"start_time,omitempty"`
+	// The expiration timestamp of policy.
+	ExpiredTime int `json:"expired_time,omitempty"`
+}
+
+// CronConfigsObj is the structure that represents the list of traffic configurations.
+type MetricConfigObj struct {
+	// The policy name of traffic configuration.
+	Name string `json:"name,omitempty"`
+	// The type of traffic configuration.
+	// + Concurrency: Reserved instance usage.
+	Type string `json:"type,omitempty"`
+	// The traffic threshold.
+	Threshold int `json:"threshold,omitempty"`
+	// The minimun of traffic.
+	Min int `json:"min,omitempty"`
+}
+
+// UpdateReservedInstanceConfig is the method that used to config reserved instance information.
+func UpdateReservedInstanceConfig(c *golangsdk.ServiceClient, opts UpdateReservedInstanceObj) (*UpdateReservedInstanceObj, error) {
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var r UpdateReservedInstanceObj
+	_, err = c.Put(reservedInstanceConfigUrl(c, opts.FunctionUrn), b, &r, nil)
+	return &r, err
+}
+
+// ListReservedInstanceConfigOpts is the structure that used to query of list reserved instance configurations.
+type ListReservedInstanceConfigOpts struct {
+	// Function URN.
+	FunctionUrn string `q:"function_urn,omitempty"`
+	// The current query index. Default 0.
+	Marker int `q:"marker,omitempty"`
+	// Maximum number of templates to obtain in a request. Default 100, maximum 500.
+	Limit int `q:"limit,omitempty"`
+}
+
+// ListReservedInstanceConfigs is the method that used to get of list reserved instance configurations.
+func ListReservedInstanceConfigs(c *golangsdk.ServiceClient, opts ListReservedInstanceConfigOpts) ([]ReservedInstancePolicy, error) {
+	query, err := golangsdk.BuildQueryString(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	url := getReservedInstanceConfigUrl(c) + query.String()
+	pages, err := pagination.NewPager(c, url, func(r pagination.PageResult) pagination.Page {
+		p := ReservedInstanceConfigPage{pagination.MarkerPageBase{PageResult: r}}
+		p.MarkerPageBase.Owner = p
+		return p
+	}).AllPages()
+
+	if err != nil {
+		return nil, err
+	}
+	return extractReservedInstanceConfigs(pages)
 }

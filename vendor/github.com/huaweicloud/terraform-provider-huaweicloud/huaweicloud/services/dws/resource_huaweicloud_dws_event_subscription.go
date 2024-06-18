@@ -24,6 +24,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DWS POST /v2/{project_id}/event-subs
+// @API DWS GET /v2/{project_id}/event-subs
+// @API AWS PUT /v2/{project_id}/event-subs/{event_sub_id}
+// @API DWS DELETE /v2/{project_id}/event-subs/{event_sub_id}
 func ResourceDwsEventSubs() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDwsEventSubsCreate,
@@ -119,10 +123,8 @@ func resourceDwsEventSubsCreate(ctx context.Context, d *schema.ResourceData, met
 	createDwsEventSubsPath = strings.ReplaceAll(createDwsEventSubsPath, "{project_id}", createDwsEventSubsClient.ProjectID)
 
 	createDwsEventSubsOpt := golangsdk.RequestOpts{
+		MoreHeaders:      requestOpts.MoreHeaders,
 		KeepResponseBody: true,
-		OkCodes: []int{
-			200,
-		},
 	}
 	createDwsEventSubsOpt.JSONBody = utils.RemoveNil(buildCreateDwsEventSubsBodyParams(d))
 	createDwsEventSubsResp, err := createDwsEventSubsClient.Request("POST", createDwsEventSubsPath, &createDwsEventSubsOpt)
@@ -242,7 +244,7 @@ func resourceDwsEventSubsUpdate(ctx context.Context, d *schema.ResourceData, met
 	if d.HasChanges(updateDwsEventSubsChanges...) {
 		// updateDwsEventSubs: update the DWS event subscription.
 		var (
-			updateDwsEventSubsHttpUrl = "v2/{project_id}/event-subs/{id}"
+			updateDwsEventSubsHttpUrl = "v2/{project_id}/event-subs/{event_sub_id}"
 			updateDwsEventSubsProduct = "dws"
 		)
 		updateDwsEventSubsClient, err := cfg.NewServiceClient(updateDwsEventSubsProduct, region)
@@ -252,13 +254,11 @@ func resourceDwsEventSubsUpdate(ctx context.Context, d *schema.ResourceData, met
 
 		updateDwsEventSubsPath := updateDwsEventSubsClient.Endpoint + updateDwsEventSubsHttpUrl
 		updateDwsEventSubsPath = strings.ReplaceAll(updateDwsEventSubsPath, "{project_id}", updateDwsEventSubsClient.ProjectID)
-		updateDwsEventSubsPath = strings.ReplaceAll(updateDwsEventSubsPath, "{id}", d.Id())
+		updateDwsEventSubsPath = strings.ReplaceAll(updateDwsEventSubsPath, "{event_sub_id}", d.Id())
 
 		updateDwsEventSubsOpt := golangsdk.RequestOpts{
+			MoreHeaders:      requestOpts.MoreHeaders,
 			KeepResponseBody: true,
-			OkCodes: []int{
-				200,
-			},
 		}
 		updateDwsEventSubsOpt.JSONBody = utils.RemoveNil(buildUpdateDwsEventSubsBodyParams(d))
 		_, err = updateDwsEventSubsClient.Request("PUT", updateDwsEventSubsPath, &updateDwsEventSubsOpt)
@@ -290,7 +290,7 @@ func resourceDwsEventSubsDelete(_ context.Context, d *schema.ResourceData, meta 
 
 	// deleteDwsEventSubs: delete DWS event subscription
 	var (
-		deleteDwsEventSubsHttpUrl = "v2/{project_id}/event-subs/{id}"
+		deleteDwsEventSubsHttpUrl = "v2/{project_id}/event-subs/{event_sub_id}"
 		deleteDwsEventSubsProduct = "dws"
 	)
 	deleteDwsEventSubsClient, err := cfg.NewServiceClient(deleteDwsEventSubsProduct, region)
@@ -300,13 +300,11 @@ func resourceDwsEventSubsDelete(_ context.Context, d *schema.ResourceData, meta 
 
 	deleteDwsEventSubsPath := deleteDwsEventSubsClient.Endpoint + deleteDwsEventSubsHttpUrl
 	deleteDwsEventSubsPath = strings.ReplaceAll(deleteDwsEventSubsPath, "{project_id}", deleteDwsEventSubsClient.ProjectID)
-	deleteDwsEventSubsPath = strings.ReplaceAll(deleteDwsEventSubsPath, "{id}", d.Id())
+	deleteDwsEventSubsPath = strings.ReplaceAll(deleteDwsEventSubsPath, "{event_sub_id}", d.Id())
 
 	deleteDwsEventSubsOpt := golangsdk.RequestOpts{
+		MoreHeaders:      requestOpts.MoreHeaders,
 		KeepResponseBody: true,
-		OkCodes: []int{
-			200,
-		},
 	}
 	_, err = deleteDwsEventSubsClient.Request("DELETE", deleteDwsEventSubsPath, &deleteDwsEventSubsOpt)
 	if err != nil {

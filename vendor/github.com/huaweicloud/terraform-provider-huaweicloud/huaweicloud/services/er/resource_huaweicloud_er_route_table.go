@@ -24,6 +24,14 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API ER POST /v3/{project_id}/enterprise-router/{er_id}/route-tables
+// @API ER GET /v3/{project_id}/enterprise-router/{er_id}/route-tables/{route_table_id}
+// @API ER PUT /v3/{project_id}/enterprise-router/{er_id}/route-tables/{route_table_id}
+// @API ER GET /v3/{project_id}/enterprise-router/{er_id}/route-tables/{route_table_id}/associations
+// @API ER POST /v3/{project_id}/enterprise-router/{er_id}/route-tables/{route_table_id}/disassociate
+// @API ER GET /v3/{project_id}/enterprise-router/{er_id}/route-tables/{route_table_id}/propagations
+// @API ER POST /v3/{project_id}/enterprise-router/{er_id}/route-tables/{route_table_id}/disable-propagations
+// @API ER DELETE /v3/{project_id}/enterprise-router/{er_id}/route-tables/{route_table_id}
 func ResourceRouteTable() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceRouteTableCreate,

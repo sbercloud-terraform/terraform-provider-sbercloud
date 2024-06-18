@@ -26,6 +26,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API GA POST /v1/endpoint-groups
+// @API GA GET /v1/endpoint-groups/{endpoint_group_id}
+// @API GA PUT /v1/endpoint-groups/{endpoint_group_id}
+// @API GA DELETE /v1/endpoint-groups/{endpoint_group_id}
 func ResourceEndpointGroup() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceEndpointGroupCreate,
@@ -212,7 +216,7 @@ func createEndpointGroupWaitingForStateCompleted(ctx context.Context, d *schema.
 			region := config.GetRegion(d)
 			// createEndpointGroupWaiting: missing operation notes
 			var (
-				createEndpointGroupWaitingHttpUrl = "v1/endpoint-groups/{id}"
+				createEndpointGroupWaitingHttpUrl = "v1/endpoint-groups/{endpoint_group_id}"
 				createEndpointGroupWaitingProduct = "ga"
 			)
 			createEndpointGroupWaitingClient, err := config.NewServiceClient(createEndpointGroupWaitingProduct, region)
@@ -221,7 +225,7 @@ func createEndpointGroupWaitingForStateCompleted(ctx context.Context, d *schema.
 			}
 
 			createEndpointGroupWaitingPath := createEndpointGroupWaitingClient.Endpoint + createEndpointGroupWaitingHttpUrl
-			createEndpointGroupWaitingPath = strings.ReplaceAll(createEndpointGroupWaitingPath, "{id}", d.Id())
+			createEndpointGroupWaitingPath = strings.ReplaceAll(createEndpointGroupWaitingPath, "{endpoint_group_id}", d.Id())
 
 			createEndpointGroupWaitingOpt := golangsdk.RequestOpts{
 				KeepResponseBody: true,
@@ -278,7 +282,7 @@ func resourceEndpointGroupRead(_ context.Context, d *schema.ResourceData, meta i
 
 	// getEndpointGroup: Query the GA Endpoint Group detail
 	var (
-		getEndpointGroupHttpUrl = "v1/endpoint-groups/{id}"
+		getEndpointGroupHttpUrl = "v1/endpoint-groups/{endpoint_group_id}"
 		getEndpointGroupProduct = "ga"
 	)
 	getEndpointGroupClient, err := conf.NewServiceClient(getEndpointGroupProduct, region)
@@ -287,7 +291,7 @@ func resourceEndpointGroupRead(_ context.Context, d *schema.ResourceData, meta i
 	}
 
 	getEndpointGroupPath := getEndpointGroupClient.Endpoint + getEndpointGroupHttpUrl
-	getEndpointGroupPath = strings.ReplaceAll(getEndpointGroupPath, "{id}", d.Id())
+	getEndpointGroupPath = strings.ReplaceAll(getEndpointGroupPath, "{endpoint_group_id}", d.Id())
 
 	getEndpointGroupOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
@@ -349,7 +353,7 @@ func resourceEndpointGroupUpdate(ctx context.Context, d *schema.ResourceData, me
 	if d.HasChanges(updateEndpointGrouphasChanges...) {
 		// updateEndpointGroup: Update the configuration of GA Endpoint Group
 		var (
-			updateEndpointGroupHttpUrl = "v1/endpoint-groups/{id}"
+			updateEndpointGroupHttpUrl = "v1/endpoint-groups/{endpoint_group_id}"
 			updateEndpointGroupProduct = "ga"
 		)
 		updateEndpointGroupClient, err := conf.NewServiceClient(updateEndpointGroupProduct, region)
@@ -358,7 +362,7 @@ func resourceEndpointGroupUpdate(ctx context.Context, d *schema.ResourceData, me
 		}
 
 		updateEndpointGroupPath := updateEndpointGroupClient.Endpoint + updateEndpointGroupHttpUrl
-		updateEndpointGroupPath = strings.ReplaceAll(updateEndpointGroupPath, "{id}", d.Id())
+		updateEndpointGroupPath = strings.ReplaceAll(updateEndpointGroupPath, "{endpoint_group_id}", d.Id())
 
 		updateEndpointGroupOpt := golangsdk.RequestOpts{
 			KeepResponseBody: true,
@@ -399,7 +403,7 @@ func updateEndpointGroupWaitingForStateCompleted(ctx context.Context, d *schema.
 			region := config.GetRegion(d)
 			// updateEndpointGroupWaiting: missing operation notes
 			var (
-				updateEndpointGroupWaitingHttpUrl = "v1/endpoint-groups/{id}"
+				updateEndpointGroupWaitingHttpUrl = "v1/endpoint-groups/{endpoint_group_id}"
 				updateEndpointGroupWaitingProduct = "ga"
 			)
 			updateEndpointGroupWaitingClient, err := config.NewServiceClient(updateEndpointGroupWaitingProduct, region)
@@ -408,7 +412,7 @@ func updateEndpointGroupWaitingForStateCompleted(ctx context.Context, d *schema.
 			}
 
 			updateEndpointGroupWaitingPath := updateEndpointGroupWaitingClient.Endpoint + updateEndpointGroupWaitingHttpUrl
-			updateEndpointGroupWaitingPath = strings.ReplaceAll(updateEndpointGroupWaitingPath, "{id}", d.Id())
+			updateEndpointGroupWaitingPath = strings.ReplaceAll(updateEndpointGroupWaitingPath, "{endpoint_group_id}", d.Id())
 
 			updateEndpointGroupWaitingOpt := golangsdk.RequestOpts{
 				KeepResponseBody: true,
@@ -463,7 +467,7 @@ func resourceEndpointGroupDelete(ctx context.Context, d *schema.ResourceData, me
 
 	// deleteEndpointGroup: Delete an existing GA Endpoint Group
 	var (
-		deleteEndpointGroupHttpUrl = "v1/endpoint-groups/{id}"
+		deleteEndpointGroupHttpUrl = "v1/endpoint-groups/{endpoint_group_id}"
 		deleteEndpointGroupProduct = "ga"
 	)
 	deleteEndpointGroupClient, err := conf.NewServiceClient(deleteEndpointGroupProduct, region)
@@ -472,7 +476,7 @@ func resourceEndpointGroupDelete(ctx context.Context, d *schema.ResourceData, me
 	}
 
 	deleteEndpointGroupPath := deleteEndpointGroupClient.Endpoint + deleteEndpointGroupHttpUrl
-	deleteEndpointGroupPath = strings.ReplaceAll(deleteEndpointGroupPath, "{id}", d.Id())
+	deleteEndpointGroupPath = strings.ReplaceAll(deleteEndpointGroupPath, "{endpoint_group_id}", d.Id())
 
 	deleteEndpointGroupOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
@@ -501,7 +505,7 @@ func deleteEndpointGroupWaitingForStateCompleted(ctx context.Context, d *schema.
 			region := config.GetRegion(d)
 			// deleteEndpointGroupWaiting: missing operation notes
 			var (
-				deleteEndpointGroupWaitingHttpUrl = "v1/endpoint-groups/{id}"
+				deleteEndpointGroupWaitingHttpUrl = "v1/endpoint-groups/{endpoint_group_id}"
 				deleteEndpointGroupWaitingProduct = "ga"
 			)
 			deleteEndpointGroupWaitingClient, err := config.NewServiceClient(deleteEndpointGroupWaitingProduct, region)
@@ -510,7 +514,7 @@ func deleteEndpointGroupWaitingForStateCompleted(ctx context.Context, d *schema.
 			}
 
 			deleteEndpointGroupWaitingPath := deleteEndpointGroupWaitingClient.Endpoint + deleteEndpointGroupWaitingHttpUrl
-			deleteEndpointGroupWaitingPath = strings.ReplaceAll(deleteEndpointGroupWaitingPath, "{id}", d.Id())
+			deleteEndpointGroupWaitingPath = strings.ReplaceAll(deleteEndpointGroupWaitingPath, "{endpoint_group_id}", d.Id())
 
 			deleteEndpointGroupWaitingOpt := golangsdk.RequestOpts{
 				KeepResponseBody: true,
@@ -522,7 +526,8 @@ func deleteEndpointGroupWaitingForStateCompleted(ctx context.Context, d *schema.
 				deleteEndpointGroupWaitingPath, &deleteEndpointGroupWaitingOpt)
 			if err != nil {
 				if _, ok := err.(golangsdk.ErrDefault404); ok {
-					return deleteEndpointGroupWaitingResp, "COMPLETED", nil
+					// When the error code is 404, the value of respBody is nil, and a non-null value is returned to avoid continuing the loop check.
+					return "Resource Not Found", "COMPLETED", nil
 				}
 
 				return nil, "ERROR", err

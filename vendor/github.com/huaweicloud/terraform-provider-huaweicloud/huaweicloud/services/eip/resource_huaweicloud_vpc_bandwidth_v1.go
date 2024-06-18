@@ -8,10 +8,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
-	"github.com/chnsz/golangsdk/openstack/networking/v2/bandwidths"
+	"github.com/chnsz/golangsdk/openstack/networking/v1/bandwidths"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
 // ResourceVpcBandWidthV1
@@ -32,6 +33,11 @@ func ResourceVpcBandWidthV1() *schema.Resource {
 			Delete: schema.DefaultTimeout(10 * time.Minute),
 		},
 
+		Description: utils.SchemaDesc("", utils.SchemaDescInput{
+			Internal: true,
+			UsedBy:   []string{"HCS"},
+		}),
+
 		Schema: map[string]*schema.Schema{
 			"region": {
 				Type:     schema.TypeString,
@@ -50,7 +56,6 @@ func ResourceVpcBandWidthV1() *schema.Resource {
 			"charge_mode": {
 				Type:     schema.TypeString,
 				Optional: true,
-				ForceNew: true,
 				Computed: true,
 			},
 			"enterprise_project_id": {
@@ -89,18 +94,12 @@ func resourceVpcBandWidthV1Update(ctx context.Context, d *schema.ResourceData, m
 		return diag.Errorf("error creating networking V1 client: %s", err)
 	}
 
-	_, err = cfg.BssV1Client(region)
-	if err != nil {
-		return diag.Errorf("error creating BSS V1 client: %s", err)
-	}
-
 	bwID := d.Id()
-	if d.HasChanges("name", "size") {
+	if d.HasChanges("name", "size", "charge_mode") {
 		updateOpts := bandwidths.UpdateOpts{
-			Bandwidth: bandwidths.Bandwidth{
-				Name: d.Get("name").(string),
-				Size: d.Get("size").(int),
-			},
+			Name:       d.Get("name").(string),
+			Size:       d.Get("size").(int),
+			ChargeMode: d.Get("charge_mode").(string),
 		}
 		log.Printf("[DEBUG] bandwidth update options: %#v", updateOpts)
 		_, err := bandwidths.Update(networkingClient, bwID, updateOpts).Extract()

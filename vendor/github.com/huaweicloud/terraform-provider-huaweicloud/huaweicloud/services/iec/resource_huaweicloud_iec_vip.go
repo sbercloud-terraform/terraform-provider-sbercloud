@@ -20,6 +20,11 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
+// @API IEC GET /v1/subnets/{subnet_id}
+// @API IEC DELETE /v1/ports/{port_id}
+// @API IEC GET /v1/ports/{port_id}
+// @API IEC PUT /v1/ports/{port_id}
+// @API IEC POST /v1/ports
 func ResourceVip() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceVipCreate,

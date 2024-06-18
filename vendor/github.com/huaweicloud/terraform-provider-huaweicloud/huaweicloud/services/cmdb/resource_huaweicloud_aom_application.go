@@ -16,6 +16,11 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/internal/httpclient_go"
 )
 
+// @API CMDB POST /v1/applications
+// @API CMDB GET /v1/applications/{application_id}
+// @API CMDB PUT /v1/applications/{application_id}
+// @API CMDB DELETE /v1/applications/{application_id}
+// @API CMDB GET /v1/applications
 func ResourceAomApplication() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: ResourceAomApplicationCreate,
@@ -32,6 +37,7 @@ func ResourceAomApplication() *schema.Resource {
 			Delete: schema.DefaultTimeout(5 * time.Minute),
 		},
 
+		Description: "schema: Internal",
 		Schema: map[string]*schema.Schema{
 			"name": {
 				Type:     schema.TypeString,

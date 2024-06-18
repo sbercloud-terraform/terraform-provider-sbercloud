@@ -29,6 +29,12 @@ const (
 	toJobConfig   = "toJobConfig"
 )
 
+// @API CDM PUT /v1.1/{project_id}/clusters/{clusterId}/cdm/job/{jobName}/start
+// @API CDM PUT /v1.1/{project_id}/clusters/{clusterId}/cdm/job/{jobName}/stop
+// @API CDM GET /v1.1/{project_id}/clusters/{clusterId}/cdm/job/{jobName}
+// @API CDM PUT /v1.1/{project_id}/clusters/{clusterId}/cdm/job/{jobName}
+// @API CDM DELETE /v1.1/{project_id}/clusters/{clusterId}/cdm/job/{jobName}
+// @API CDM POST /v1.1/{project_id}/clusters/{clusterId}/cdm/job
 func ResourceCdmJob() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceCdmJobCreate,
@@ -279,7 +285,7 @@ func resourceCdmJobRead(_ context.Context, d *schema.ResourceData, meta interfac
 	}
 
 	rst, gErr := job.Get(client, clusterId, jobName, job.GetJobsOpts{})
-	log.Printf("[DEBUG] read CDM job opts: %#v", gErr)
+	log.Printf("[DEBUG] read CDM job opts: %v", gErr)
 
 	if gErr != nil {
 		return common.CheckDeletedDiag(d, parseCdmJobErrorToError404(gErr), "Error retrieving CDM job")

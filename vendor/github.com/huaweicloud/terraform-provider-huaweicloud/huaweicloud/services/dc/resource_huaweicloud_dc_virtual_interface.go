@@ -42,6 +42,10 @@ const (
 	AddressTypeIpv6 AddressType = "ipv6"
 )
 
+// @API DC DELETE /v3/{project_id}/dcaas/virtual-interfaces/{interfaceId}
+// @API DC GET /v3/{project_id}/dcaas/virtual-interfaces/{interfaceId}
+// @API DC PUT /v3/{project_id}/dcaas/virtual-interfaces/{interfaceId}
+// @API DC POST /v3/{project_id}/dcaas/virtual-interfaces
 func ResourceVirtualInterface() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceVirtualInterfaceCreate,
@@ -216,6 +220,12 @@ func ResourceVirtualInterface() *schema.Resource {
 				ForceNew:    true,
 				Description: "The ID of the link aggregation group (LAG) associated with the virtual interface.",
 			},
+			"resource_tenant_id": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				ForceNew:    true,
+				Description: "The project ID of another tenant which is used to create virtual interface across tenant.",
+			},
 			"enterprise_project_id": {
 				Type:        schema.TypeString,
 				Optional:    true,
@@ -266,6 +276,7 @@ func buildVirtualInterfaceCreateOpts(d *schema.ResourceData, cfg *config.Config)
 		EnableBfd:           d.Get("enable_bfd").(bool),
 		EnableNqa:           d.Get("enable_nqa").(bool),
 		LagId:               d.Get("lag_id").(string),
+		ResourceTenantId:    d.Get("resource_tenant_id").(string),
 		EnterpriseProjectId: common.GetEnterpriseProjectID(d, cfg),
 	}
 }

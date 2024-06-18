@@ -9,7 +9,7 @@ import (
 // ListContainerNodesRequest Request Object
 type ListContainerNodesRequest struct {
 
-	// region id
+	// Region ID
 	Region string `json:"region"`
 
 	// 企业项目ID，查询所有企业项目时填写：all_granted_eps
@@ -29,6 +29,9 @@ type ListContainerNodesRequest struct {
 
 	// 防护状态，包含如下2种。   - closed ：关闭   - opened ：开启
 	ProtectStatus *string `json:"protect_status,omitempty"`
+
+	// 标签：用来识别cce容器节点和自建  - cce：cce节点  - self：自建节点  - other：其他节点
+	ContainerTags *string `json:"container_tags,omitempty"`
 }
 
 func (o ListContainerNodesRequest) String() string {

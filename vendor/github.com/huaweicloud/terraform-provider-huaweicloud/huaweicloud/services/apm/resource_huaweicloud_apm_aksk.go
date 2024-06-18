@@ -16,6 +16,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/internal/httpclient_go"
 )
 
+// @API APM POST /v1/apm2/access-keys
+// @API APM GET /v1/apm2/access-keys
+// @API APM DELETE /v1/apm2/access-keys/{ak}
 func ResourceApmAkSk() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: ResourceApmAkSkCreate,
@@ -29,6 +32,8 @@ func ResourceApmAkSk() *schema.Resource {
 			Update: schema.DefaultTimeout(5 * time.Minute),
 			Delete: schema.DefaultTimeout(5 * time.Minute),
 		},
+
+		Description: "schema: Internal",
 		Schema: map[string]*schema.Schema{
 			"description": {
 				Type:     schema.TypeString,

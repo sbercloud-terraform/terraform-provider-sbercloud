@@ -13,17 +13,22 @@ import (
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/dayu/v1/instances"
+	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DataArtsStudio POST /v1/{project_id}/instances/onekey-purchase
+// @API DataArtsStudio GET /v1/{project_id}/instances
+
 // ResourceStudioInstance is the impl of huaweicloud_dataarts_studio_instance
 func ResourceStudioInstance() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceStudioInstanceCreate,
 		ReadContext:   resourceStudioInstanceRead,
+		UpdateContext: resourceStudioInstanceupdate,
 		DeleteContext: resourceStudioInstanceDelete,
 
 		Importer: &schema.ResourceImporter{
@@ -92,7 +97,6 @@ func ResourceStudioInstance() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
-				ForceNew: true,
 			},
 
 			"charging_mode": {
@@ -182,8 +186,12 @@ func resourceStudioInstanceCreate(ctx context.Context, d *schema.ResourceData, m
 	if err != nil {
 		return diag.FromErr(err)
 	}
+	resourceId, err := common.WaitOrderResourceComplete(ctx, bssClient, resp.OrderID, d.Timeout(schema.TimeoutCreate))
+	if err != nil {
+		return diag.FromErr(err)
+	}
 
-	d.SetId(resp.ID)
+	d.SetId(resourceId)
 	return resourceStudioInstanceRead(ctx, d, meta)
 }
 
@@ -221,6 +229,26 @@ func resourceStudioInstanceRead(_ context.Context, d *schema.ResourceData, meta 
 		return diag.Errorf("error setting DataArts Studio instance fields: %s", err)
 	}
 	return nil
+}
+
+func resourceStudioInstanceupdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	conf := meta.(*config.Config)
+	region := conf.GetRegion(d)
+	instanceID := d.Id()
+
+	if d.HasChange("enterprise_project_id") {
+		migrateOpts := enterpriseprojects.MigrateResourceOpts{
+			ResourceId:   instanceID,
+			ResourceType: "dayu-instance",
+			RegionId:     region,
+			ProjectId:    conf.GetProjectID(region),
+		}
+		if err := common.MigrateEnterpriseProject(ctx, conf, d, migrateOpts); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	return resourceStudioInstanceRead(ctx, d, meta)
 }
 
 func resourceStudioInstanceDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
