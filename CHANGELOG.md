@@ -1,14 +1,13 @@
 ## 1.12.0 (May 24, 2024)
 
 FEATURES:
-* **Added Resource:** `as_bandwidth_policy`
-* **Added Data source:** `dms_rabbitmq_flavors`
-* **Updated Resource:** `sbercloud_ecs_compute_instance`
-* **Updated Resource:** `sbercloud_rds_instance`
+* **Added Resource:** `as_bandwidth_policy`([#270](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/270))
+* **Added Data source:** `dms_rabbitmq_flavors`([#266](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/266))
+* **Updated Resource:** `sbercloud_ecs_compute_instance`([#282](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/282))
+* **Updated Resource:** `sbercloud_rds_instance`([#285](https://github.com/sbercloud-terraform/terraform-provider-sbercloud/issues/285))
 * **Updated Resource:** Many resources, their tests and documentation have been updated. New documentation has been added for both new resources and old ones.
 
 ENHANCEMENTS:
-
 * Changed tests for RDS resources and data sources.
 * Upgrade to terraform-provider-huaweicloud `v1.61.0`.
 * Updated dependencies.
