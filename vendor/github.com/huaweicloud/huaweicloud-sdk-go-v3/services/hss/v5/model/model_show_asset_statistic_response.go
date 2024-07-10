@@ -9,7 +9,7 @@ import (
 // ShowAssetStatisticResponse Response Object
 type ShowAssetStatisticResponse struct {
 
-	// 账号数量
+	// 主机账号数量
 	AccountNum *int64 `json:"account_num,omitempty"`
 
 	// 开放端口数量
@@ -21,7 +21,7 @@ type ShowAssetStatisticResponse struct {
 	// 软件数量
 	AppNum *int64 `json:"app_num,omitempty"`
 
-	// 自启动数量
+	// 自启动进程数量
 	AutoLaunchNum *int64 `json:"auto_launch_num,omitempty"`
 
 	// web框架数量
@@ -35,7 +35,16 @@ type ShowAssetStatisticResponse struct {
 
 	// 内核模块数量
 	KernelModuleNum *int64 `json:"kernel_module_num,omitempty"`
-	HttpStatusCode  int    `json:"-"`
+
+	// web服务数量
+	WebServiceNum *int64 `json:"web_service_num,omitempty"`
+
+	// web应用数量
+	WebAppNum *int64 `json:"web_app_num,omitempty"`
+
+	// 数据库数量
+	DatabaseNum    *int64 `json:"database_num,omitempty"`
+	HttpStatusCode int    `json:"-"`
 }
 
 func (o ShowAssetStatisticResponse) String() string {

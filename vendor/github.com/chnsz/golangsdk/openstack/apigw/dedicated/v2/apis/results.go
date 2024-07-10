@@ -233,12 +233,16 @@ type BackendParamResp struct {
 	// For example, to return "aaa" upon successful custom authentication, set this parameter to
 	// "$context.authorizer.backend.aaa".
 	Value string `json:"value"`
+	// The ID of the backend parameter.
+	ID string `json:"id"`
 	// ID of the the specifies request parameter.
 	ReqParamId string `json:"req_param_id"`
 }
 
 // PolicyMockResp is an object struct that represents the back-end policy of mock.
 type PolicyMockResp struct {
+	// The policy ID of mock backend.
+	ID string `json:"id"`
 	// Policy conditions.
 	Conditions []APIConditionBase `json:"conditions" required:"true"`
 	// Effective mode of the backend policy. The valid modes are as following:
@@ -248,6 +252,8 @@ type PolicyMockResp struct {
 	// Backend name, which consists of 3 to 64 characters and must start with a letter and can contain letters, digits,
 	// and underscores (_).
 	Name string `json:"name" required:"true"`
+	// The custom status code of the mock response.
+	StatusCode int `json:"status_code"`
 	// Authorizer ID.
 	AuthorizerId string `json:"authorizer_id,omitempty"`
 	// Backend parameters.
@@ -258,6 +264,8 @@ type PolicyMockResp struct {
 
 // PolicyFuncGraphResp is an object struct that represents the back-end policy of function graph.
 type PolicyFuncGraphResp struct {
+	// The policy ID of the FunctionGraph backend.
+	ID string `json:"id"`
 	// Policy conditions.
 	Conditions []APIConditionBase `json:"conditions" required:"true"`
 	// Effective mode of the backend policy.
@@ -266,6 +274,12 @@ type PolicyFuncGraphResp struct {
 	EffectMode string `json:"effect_mode" required:"true"`
 	// Function URN.
 	FunctionUrn string `json:"function_urn" required:"true"`
+	// Function alias URN.
+	FunctionAliasUrn string `json:"alias_urn"`
+	// Network architecture type.
+	NetworkType string `json:"network_type"`
+	// The request protocol of the function.
+	RequestProtocol string `json:"req_protocol"`
 	// Invocation mode. The valid modes are as following:
 	//   async: asynchronous
 	//   sync: synchronous
@@ -286,6 +300,8 @@ type PolicyFuncGraphResp struct {
 
 // PolicyWebResp is an object struct that represents the back-end policy of http and https.
 type PolicyWebResp struct {
+	// The policy ID of the web backend.
+	ID string `json:"id"`
 	// Request protocol. The value can be HTTP or HTTPS.
 	ReqProtocol string `json:"req_protocol" required:"true"`
 	// Request method. The valid methods are GET, POST, PUT, DELETE, HEAD, PATCH, OPTIONS and ANY.

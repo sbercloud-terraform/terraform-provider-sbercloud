@@ -340,8 +340,6 @@ The `volume` block supports:
 
 * `type` - (Required, String, ForceNew) Specifies the volume type. Its value can be any of the following and is
   case-sensitive:
-  + **ULTRAHIGH**: SSD storage.
-  + **LOCALSSD**: local SSD storage.
   + **CLOUDSSD**: cloud SSD storage. This storage type is supported only with general-purpose and dedicated DB
     instances.
   + **ESSD**: extreme SSD storage.

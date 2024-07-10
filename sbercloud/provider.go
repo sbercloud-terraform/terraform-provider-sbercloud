@@ -384,6 +384,7 @@ func Provider() *schema.Provider {
 			"sbercloud_rds_parametergroup":              rds.ResourceRdsConfiguration(),
 			"sbercloud_rds_backup":                      rds.ResourceBackup(),
 			"sbercloud_rds_read_replica_instance":       rds.ResourceRdsReadReplicaInstance(),
+			"sbercloud_rds_pg_database":                 rds.ResourcePgDatabase(),
 			"sbercloud_sfs_access_rule":                 sfs.ResourceSFSAccessRuleV2(),
 			"sbercloud_sfs_file_system":                 sfs.ResourceSFSFileSystemV2(),
 			"sbercloud_sfs_turbo":                       sfs.ResourceSFSTurbo(),
