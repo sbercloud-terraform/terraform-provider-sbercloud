@@ -1,21 +1,21 @@
 package v2
 
 import (
-	httpclient "github.com/huaweicloud/huaweicloud-sdk-go-v3/core"
+	http_client "github.com/huaweicloud/huaweicloud-sdk-go-v3/core"
 	"github.com/huaweicloud/huaweicloud-sdk-go-v3/core/invoker"
 	"github.com/huaweicloud/huaweicloud-sdk-go-v3/services/css/v2/model"
 )
 
 type CssClient struct {
-	HcClient *httpclient.HcHttpClient
+	HcClient *http_client.HcHttpClient
 }
 
-func NewCssClient(hcClient *httpclient.HcHttpClient) *CssClient {
+func NewCssClient(hcClient *http_client.HcHttpClient) *CssClient {
 	return &CssClient{HcClient: hcClient}
 }
 
-func CssClientBuilder() *httpclient.HcHttpClientBuilder {
-	builder := httpclient.NewHcHttpClientBuilder()
+func CssClientBuilder() *http_client.HcHttpClientBuilder {
+	builder := http_client.NewHcHttpClientBuilder()
 	return builder
 }
 

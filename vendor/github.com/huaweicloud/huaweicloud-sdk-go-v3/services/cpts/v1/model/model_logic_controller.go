@@ -8,10 +8,10 @@ import (
 
 type LogicController struct {
 
-	// 旧版本逻辑控制器字段，当前已未使用
+	// for_loop_params
 	ForLoopParams *string `json:"for_loop_params,omitempty"`
 
-	// 逻辑控制器条件
+	// condition
 	Condition *string `json:"condition,omitempty"`
 }
 

@@ -8,10 +8,8 @@ import (
 
 // CreateDomainResponse Response Object
 type CreateDomainResponse struct {
-	Domain *CreateDomainResponseBodyContent `json:"domain,omitempty"`
-
-	XRequestId     *string `json:"X-Request-Id,omitempty"`
-	HttpStatusCode int     `json:"-"`
+	Domain         *CreateDomainResponseBodyContent `json:"domain,omitempty"`
+	HttpStatusCode int                              `json:"-"`
 }
 
 func (o CreateDomainResponse) String() string {

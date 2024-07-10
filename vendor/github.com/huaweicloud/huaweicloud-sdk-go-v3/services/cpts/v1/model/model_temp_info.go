@@ -8,33 +8,33 @@ import (
 
 type TempInfo struct {
 
-	// 事务id
+	// id
 	Id *int32 `json:"id,omitempty"`
 
-	// 工程id
+	// project_id
 	ProjectId *int32 `json:"project_id,omitempty"`
 
-	// 事务名称
+	// name
 	Name *string `json:"name,omitempty"`
 
-	// 事务描述
+	// description
 	Description *string `json:"description,omitempty"`
 
-	// 变量
+	// variables
 	Variables *string `json:"variables,omitempty"`
 
-	// 事务脚本信息
+	// contents
 	Contents *[]interface{} `json:"contents,omitempty"`
 
-	// 事务类型（弃用）
+	// temp_type
 	TempType *int32 `json:"temp_type,omitempty"`
 
-	// 旧版本逻辑控制器字段，当前已未使用
+	// for_loop_params
 	ForLoopParams *[]interface{} `json:"for_loop_params,omitempty"`
 
 	LogicController *LogicController `json:"logic_controller,omitempty"`
 
-	// 是否启用预置事务，当前版本已未使用
+	// enable_pre
 	EnablePre *bool `json:"enable_pre,omitempty"`
 }
 

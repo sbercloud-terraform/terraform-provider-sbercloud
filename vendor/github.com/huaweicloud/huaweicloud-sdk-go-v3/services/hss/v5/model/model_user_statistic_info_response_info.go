@@ -9,10 +9,10 @@ import (
 // UserStatisticInfoResponseInfo 账号统计信息
 type UserStatisticInfoResponseInfo struct {
 
-	// 账号名称，参考windows文件命名规则，支持字母、数字、下划线，特殊字符!@.-等
+	// 账号名称
 	UserName *string `json:"user_name,omitempty"`
 
-	// 当前账号的主机数量
+	// 账号数量
 	Num *int32 `json:"num,omitempty"`
 }
 

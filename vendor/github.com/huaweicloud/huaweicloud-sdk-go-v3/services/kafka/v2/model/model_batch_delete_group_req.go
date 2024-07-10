@@ -9,7 +9,7 @@ import (
 type BatchDeleteGroupReq struct {
 
 	// 所有需要删除的消费组ID。
-	GroupIds []string `json:"group_ids"`
+	GroupIds *[]string `json:"group_ids,omitempty"`
 }
 
 func (o BatchDeleteGroupReq) String() string {

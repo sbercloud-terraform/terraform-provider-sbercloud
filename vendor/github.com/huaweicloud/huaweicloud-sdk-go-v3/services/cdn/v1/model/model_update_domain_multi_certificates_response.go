@@ -8,10 +8,8 @@ import (
 
 // UpdateDomainMultiCertificatesResponse Response Object
 type UpdateDomainMultiCertificatesResponse struct {
-	Https *UpdateDomainMultiCertificatesResponseBodyContent `json:"https,omitempty"`
-
-	XRequestId     *string `json:"X-Request-Id,omitempty"`
-	HttpStatusCode int     `json:"-"`
+	Https          *UpdateDomainMultiCertificatesResponseBodyContent `json:"https,omitempty"`
+	HttpStatusCode int                                               `json:"-"`
 }
 
 func (o UpdateDomainMultiCertificatesResponse) String() string {

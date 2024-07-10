@@ -1,7 +1,6 @@
 package instances
 
 import (
-	"fmt"
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/common/tags"
 	"github.com/chnsz/golangsdk/pagination"
@@ -158,7 +157,7 @@ func (opts DeleteOpts) ToInstancesDeleteMap() (map[string]interface{}, error) {
 	return b, nil
 }
 
-func Delete(client *golangsdk.ServiceClient, instanceId string) (r JobResult) {
+func Delete(client *golangsdk.ServiceClient, instanceId string) (r DeleteResult) {
 
 	url := deleteURL(client, instanceId)
 
@@ -232,7 +231,7 @@ func (opts RestartInstanceOpts) ToActionInstanceMap() (map[string]interface{}, e
 	return toActionInstanceMap(opts)
 }
 
-func Restart(client *golangsdk.ServiceClient, opts ActionInstanceBuilder, instanceId string) (r JobResult) {
+func Restart(client *golangsdk.ServiceClient, opts ActionInstanceBuilder, instanceId string) (r RestartResult) {
 	b, err := opts.ToActionInstanceMap()
 	if err != nil {
 		r.Err = err
@@ -278,7 +277,7 @@ func (opts SingleToHaRdsOpts) ToActionInstanceMap() (map[string]interface{}, err
 	return toActionInstanceMap(opts)
 }
 
-func SingleToHa(client *golangsdk.ServiceClient, opts ActionInstanceBuilder, instanceId string) (r JobResult) {
+func SingleToHa(client *golangsdk.ServiceClient, opts ActionInstanceBuilder, instanceId string) (r SingleToHaResult) {
 	b, err := opts.ToActionInstanceMap()
 	if err != nil {
 		r.Err = err
@@ -473,27 +472,10 @@ func RestRootPassword(c *golangsdk.ServiceClient, instanceID string, opts RestRo
 	}
 
 	var r ErrorResponse
-	_, err = c.Post(updateURL(c, instanceID, "password"), b, &r, &golangsdk.RequestOpts{
+	_, err = c.Post(resetRootPasswordURL(c, instanceID), b, &r, &golangsdk.RequestOpts{
 		MoreHeaders: RequestOpts.MoreHeaders,
 	})
 	return &r, err
-}
-
-type ApplyConfigurationOpts struct {
-	InstanceIds []string `json:"instance_ids" required:"true"`
-}
-
-func ApplyConfiguration(c *golangsdk.ServiceClient, configID string, opts ApplyConfigurationOpts) (r ApplyConfigurationOptsResult) {
-	b, err := golangsdk.BuildRequestBody(opts, "")
-	if err != nil {
-		r.Err = err
-		return
-	}
-
-	_, r.Err = c.Put(applyConfigurationURL(c, configID), b, &r.Body, &golangsdk.RequestOpts{
-		MoreHeaders: RequestOpts.MoreHeaders,
-	})
-	return
 }
 
 type ModifyConfigurationOpts struct {
@@ -507,27 +489,27 @@ func ModifyConfiguration(c *golangsdk.ServiceClient, instanceID string, opts Mod
 		return
 	}
 
-	_, r.Err = c.Put(updateURL(c, instanceID, "configurations"), b, &r.Body, &golangsdk.RequestOpts{
+	_, r.Err = c.Put(configurationsURL(c, instanceID), b, &r.Body, &golangsdk.RequestOpts{
 		OkCodes: []int{200, 202},
 	})
 	return
 }
 
 func GetConfigurations(c *golangsdk.ServiceClient, instanceID string) (r GetConfigurationResult) {
-	_, r.Err = c.Get(getURL(c, instanceID, "configurations"), &r.Body, &golangsdk.RequestOpts{
+	_, r.Err = c.Get(configurationsURL(c, instanceID), &r.Body, &golangsdk.RequestOpts{
 		MoreHeaders: map[string]string{"Content-Type": "application/json"},
 	})
 	return
 }
 
-func RebootInstance(c *golangsdk.ServiceClient, instanceID string) (r JobResult) {
+func RebootInstance(c *golangsdk.ServiceClient, instanceID string) (r RebootResult) {
 	b, err := golangsdk.BuildRequestBody(struct{}{}, "restart")
 	if err != nil {
 		r.Err = err
 		return
 	}
 
-	_, r.Err = c.Post(updateURL(c, instanceID, "action"), b, &r.Body, &golangsdk.RequestOpts{
+	_, r.Err = c.Post(actionURL(c, instanceID), b, &r.Body, &golangsdk.RequestOpts{
 		OkCodes: []int{200, 202},
 	})
 	return
@@ -590,7 +572,7 @@ func EnableAutoExpand(c *golangsdk.ServiceClient, opts EnableAutoExpandOpts) err
 		return err
 	}
 
-	_, err = c.Put(updateURL(c, opts.InstanceId, "disk-auto-expansion"), b, nil, &golangsdk.RequestOpts{
+	_, err = c.Put(autoExpandURL(c, opts.InstanceId), b, nil, &golangsdk.RequestOpts{
 		MoreHeaders: requestOpts.MoreHeaders,
 	})
 	return err
@@ -606,7 +588,7 @@ func DisableAutoExpand(c *golangsdk.ServiceClient, instanceId string) error {
 		return err
 	}
 
-	_, err = c.Put(updateURL(c, instanceId, "disk-auto-expansion"), b, nil, &golangsdk.RequestOpts{
+	_, err = c.Put(autoExpandURL(c, instanceId), b, nil, &golangsdk.RequestOpts{
 		MoreHeaders: requestOpts.MoreHeaders,
 	})
 	return err
@@ -615,7 +597,7 @@ func DisableAutoExpand(c *golangsdk.ServiceClient, instanceId string) error {
 // GetAutoExpand is a method used to obtain the automatic expansion configuarion of instance storage.
 func GetAutoExpand(c *golangsdk.ServiceClient, instanceId string) (*AutoExpansion, error) {
 	var r AutoExpansion
-	_, err := c.Get(getURL(c, instanceId, "disk-auto-expansion"), &r, &golangsdk.RequestOpts{
+	_, err := c.Get(autoExpandURL(c, instanceId), &r, &golangsdk.RequestOpts{
 		MoreHeaders: requestOpts.MoreHeaders,
 	})
 	return &r, err
@@ -709,197 +691,12 @@ func (opts ModifyCollationOpts) ToActionInstanceMap() (map[string]interface{}, e
 }
 
 // ModifyCollation is a method used to modify collation.
-func ModifyCollation(c *golangsdk.ServiceClient, opts ActionInstanceBuilder, instanceId string) (r JobResult) {
+func ModifyCollation(c *golangsdk.ServiceClient, opts ActionInstanceBuilder, instanceId string) (r ModifyCollationResult) {
 	b, err := opts.ToActionInstanceMap()
 	if err != nil {
 		r.Err = err
 		return
 	}
 	_, r.Err = c.Put(updateURL(c, instanceId, "collations"), b, &r.Body, &golangsdk.RequestOpts{})
-	return
-}
-
-type ModifyBinlogRetentionHoursOpts struct {
-	BinlogRetentionHours int `json:"binlog_retention_hours"`
-}
-
-func (opts ModifyBinlogRetentionHoursOpts) ToActionInstanceMap() (map[string]interface{}, error) {
-	return toActionInstanceMap(opts)
-}
-
-// ModifyBinlogRetentionHours is a method used to modify binlog retention hours.
-func ModifyBinlogRetentionHours(c *golangsdk.ServiceClient, opts ActionInstanceBuilder, instanceId string) (r JobResult) {
-	b, err := opts.ToActionInstanceMap()
-	if err != nil {
-		r.Err = err
-		return
-	}
-	_, r.Err = c.Put(updateURL(c, instanceId, "binlog/clear-policy"), b, &r.Body, &golangsdk.RequestOpts{})
-	return
-}
-
-// GetBinlogRetentionHours is a method used to obtain the binlog retention hours.
-func GetBinlogRetentionHours(c *golangsdk.ServiceClient, instanceId string) (r GetBinlogRetentionHoursResult) {
-	_, r.Err = c.Get(getURL(c, instanceId, "binlog/clear-policy"), &r.Body, &golangsdk.RequestOpts{
-		MoreHeaders: requestOpts.MoreHeaders,
-	})
-	return
-}
-
-type ModifyMsdtcHostsOpts struct {
-	Hosts []Host `json:"hosts" required:"true"`
-}
-
-type Host struct {
-	HostName string `json:"host_name" required:"true"`
-	Ip       string `json:"ip" required:"true"`
-}
-
-func (opts ModifyMsdtcHostsOpts) ToActionInstanceMap() (map[string]interface{}, error) {
-	return toActionInstanceMap(opts)
-}
-
-// ModifyMsdtcHosts is a method used to modify msdtc hosts.
-func ModifyMsdtcHosts(c *golangsdk.ServiceClient, opts ActionInstanceBuilder, instanceId string) (r JobResult) {
-	b, err := opts.ToActionInstanceMap()
-	if err != nil {
-		r.Err = err
-		return
-	}
-	_, r.Err = c.Post(updateURL(c, instanceId, "msdtc/host"), b, &r.Body, &golangsdk.RequestOpts{})
-	return
-}
-
-// GetMsdtcHosts is a method used to obtain the msdtc hosts.
-func GetMsdtcHosts(c *golangsdk.ServiceClient, instanceId string) ([]RdsMsdtcHosts, error) {
-	url := updateURL(c, instanceId, "msdtc/hosts")
-
-	pages, err := pagination.NewPager(c, url, func(r pagination.PageResult) pagination.Page {
-		return MsdtcHostsPage{pagination.OffsetPageBase{PageResult: r}}
-	}).AllPages()
-	if err != nil {
-		return nil, err
-	}
-	res, err := ExtractRdsMsdtcHosts(pages)
-	if err != nil {
-		return nil, err
-	}
-	return res.Hosts, err
-}
-
-func Startup(client *golangsdk.ServiceClient, instanceId string) (r JobResult) {
-	_, r.Err = client.Post(updateURL(client, instanceId, "action/startup"), nil, &r.Body, &golangsdk.RequestOpts{
-		MoreHeaders: map[string]string{"Content-Type": "application/json"},
-	})
-	return
-}
-
-func Shutdown(client *golangsdk.ServiceClient, instanceId string) (r JobResult) {
-	_, r.Err = client.Post(updateURL(client, instanceId, "action/shutdown"), nil, &r.Body, &golangsdk.RequestOpts{
-		MoreHeaders: map[string]string{"Content-Type": "application/json"},
-	})
-	return
-}
-
-type ModifyTdeOpts struct {
-	RotateDay     int    `json:"rotate_day,omitempty"`
-	SecretId      string `json:"secret_id,omitempty"`
-	SecretName    string `json:"secret_name,omitempty"`
-	SecretVersion string `json:"secret_version,omitempty"`
-}
-
-func (opts ModifyTdeOpts) ToActionInstanceMap() (map[string]interface{}, error) {
-	return toActionInstanceMap(opts)
-}
-
-// OpenTde is a method used to open TDE of the instance.
-func OpenTde(c *golangsdk.ServiceClient, opts ActionInstanceBuilder, instanceId string) (r JobResult) {
-	b, err := opts.ToActionInstanceMap()
-	if err != nil {
-		r.Err = err
-		return
-	}
-	_, r.Err = c.Put(updateURL(c, instanceId, "tde"), b, &r.Body, &golangsdk.RequestOpts{})
-	return
-}
-
-// GetTdeStatus is a method used to obtain the TDE status.
-func GetTdeStatus(c *golangsdk.ServiceClient, instanceId string) (r GetTdeStatusResult) {
-	_, r.Err = c.Get(getURL(c, instanceId, "tde-status"), &r.Body, &golangsdk.RequestOpts{
-		MoreHeaders: requestOpts.MoreHeaders,
-	})
-	return
-}
-
-type ModifyReadWritePermissionsOpts struct {
-	Readonly bool `json:"readonly"`
-}
-
-func (opts ModifyReadWritePermissionsOpts) ToActionInstanceMap() (map[string]interface{}, error) {
-	return toActionInstanceMap(opts)
-}
-
-// ModifyReadWritePermissions is a method used to modify the read write permissions of the instance.
-func ModifyReadWritePermissions(c *golangsdk.ServiceClient, opts ActionInstanceBuilder, instanceId string) (r JobResult) {
-	b, err := opts.ToActionInstanceMap()
-	if err != nil {
-		r.Err = err
-		return
-	}
-	_, r.Err = c.Put(updateURL(c, instanceId, "readonly-status"), b, &r.Body, &golangsdk.RequestOpts{})
-	return
-}
-
-type ModifySecondLevelMonitoringOpts struct {
-	SwitchOption bool `json:"switch_option"`
-	Interval     int  `json:"interval" required:"true"`
-}
-
-func (opts ModifySecondLevelMonitoringOpts) ToActionInstanceMap() (map[string]interface{}, error) {
-	return toActionInstanceMap(opts)
-}
-
-// ModifySecondLevelMonitoring is a method used to switch second level monitoring of the instance.
-func ModifySecondLevelMonitoring(c *golangsdk.ServiceClient, opts ActionInstanceBuilder, instanceId string) (r ModifySecondLevelMonitoringResult) {
-	b, err := opts.ToActionInstanceMap()
-	if err != nil {
-		r.Err = err
-		return
-	}
-	_, r.Err = c.Put(updateURL(c, instanceId, "second-level-monitor"), b, &r.Body, &golangsdk.RequestOpts{})
-	return
-}
-
-// GetSecondLevelMonitoring is a method used to obtain the second level monitoring.
-func GetSecondLevelMonitoring(c *golangsdk.ServiceClient, instanceId string) (r GetSecondLevelMonitoringResult) {
-	_, r.Err = c.Get(getURL(c, instanceId, "second-level-monitor"), &r.Body, &golangsdk.RequestOpts{
-		MoreHeaders: requestOpts.MoreHeaders,
-	})
-	return
-}
-
-type ModifyPrivateDnsNamePrefixOpts struct {
-	DnsName string `json:"dns_name" required:"true"`
-}
-
-func (opts ModifyPrivateDnsNamePrefixOpts) ToActionInstanceMap() (map[string]interface{}, error) {
-	return toActionInstanceMap(opts)
-}
-
-// ModifyPrivateDnsNamePrefix is a method used to modify private dns name prefix of the instance.
-func ModifyPrivateDnsNamePrefix(c *golangsdk.ServiceClient, opts ActionInstanceBuilder, instanceId string) (r JobResult) {
-	b, err := opts.ToActionInstanceMap()
-	if err != nil {
-		r.Err = err
-		return
-	}
-	_, r.Err = c.Put(updateURL(c, instanceId, "modify-dns"), b, &r.Body, &golangsdk.RequestOpts{})
-	return
-}
-
-// ModifySlowLogShowOriginalStatus is a method used to modify slow log show original status of the instance.
-func ModifySlowLogShowOriginalStatus(c *golangsdk.ServiceClient, instanceId, status string) (r ModifySlowLogShowOriginalStatusResult) {
-	_, r.Err = c.Put(updateURL(c, instanceId, fmt.Sprintf("slowlog-sensitization/%s", status)), nil,
-		&r.Body, &golangsdk.RequestOpts{})
 	return
 }

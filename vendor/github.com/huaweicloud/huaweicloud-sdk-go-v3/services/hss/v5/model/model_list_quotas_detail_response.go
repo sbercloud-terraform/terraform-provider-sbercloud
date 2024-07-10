@@ -33,7 +33,7 @@ type ListQuotasDetailResponse struct {
 	// 配额统计列表
 	QuotaStatisticsList *[]QuotaStatisticsResponseInfo `json:"quota_statistics_list,omitempty"`
 
-	// 配额总数
+	// 总数
 	TotalNum *int32 `json:"total_num,omitempty"`
 
 	// 配额列表

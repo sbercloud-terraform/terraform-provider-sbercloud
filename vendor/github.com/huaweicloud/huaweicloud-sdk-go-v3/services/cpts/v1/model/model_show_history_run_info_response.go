@@ -9,13 +9,13 @@ import (
 // ShowHistoryRunInfoResponse Response Object
 type ShowHistoryRunInfoResponse struct {
 
-	// 响应码
+	// code
 	Code *string `json:"code,omitempty"`
 
-	// 响应消息
+	// message
 	Message *string `json:"message,omitempty"`
 
-	// 报告列表
+	// log_list
 	LogList        *[]HistoryRunInfo `json:"log_list,omitempty"`
 	HttpStatusCode int               `json:"-"`
 }

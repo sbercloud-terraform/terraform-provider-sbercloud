@@ -21,7 +21,7 @@ type QuotaResourcesResponseInfo struct {
 	// 使用状态   - idle : 空闲   - used : 使用中
 	UsedStatus *string `json:"used_status,omitempty"`
 
-	// 主机ID
+	// 服务器ID
 	HostId *string `json:"host_id,omitempty"`
 
 	// 服务器名称

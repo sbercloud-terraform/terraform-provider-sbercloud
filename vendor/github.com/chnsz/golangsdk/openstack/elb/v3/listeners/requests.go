@@ -67,12 +67,6 @@ type CreateOpts struct {
 	// Whether enable member retry
 	EnableMemberRetry *bool `json:"enable_member_retry,omitempty"`
 
-	// Whether enable proxy protocol
-	ProxyProtocolEnable *bool `json:"proxy_protocol_enable,omitempty"`
-
-	// Whether enable ssl early data
-	SslEarlyDataEnable *bool `json:"ssl_early_data_enable,omitempty"`
-
 	// The keepalive timeout of the Listener.
 	KeepaliveTimeout *int `json:"keepalive_timeout,omitempty"`
 
@@ -104,10 +98,10 @@ type CreateOpts struct {
 	QuicConfig *QuicConfig `json:"quic_config,omitempty"`
 
 	// Security Policy ID
-	SecurityPolicyId string `json:"security_policy_id,omitempty"`
+	SecurityPolicyId *string `json:"security_policy_id,omitempty"`
 
 	// The SNI certificates used by the listener.
-	SniMatchAlgo string `json:"sni_match_algo,omitempty"`
+	SniMatchAlgo *string `json:"sni_match_algo,omitempty"`
 
 	// Protection status
 	ProtectionStatus string `json:"protection_status,omitempty"`
@@ -133,16 +127,10 @@ type QuicConfig struct {
 }
 
 type InsertHeaders struct {
-	ForwardedELBIP            *bool `json:"X-Forwarded-ELB-IP,omitempty"`
-	ForwardedPort             *bool `json:"X-Forwarded-Port,omitempty"`
-	ForwardedForPort          *bool `json:"X-Forwarded-For-Port,omitempty"`
-	ForwardedHost             *bool `json:"X-Forwarded-Host,omitempty"`
-	ForwardedProto            *bool `json:"X-Forwarded-Proto,omitempty"`
-	RealIP                    *bool `json:"X-Real-IP,omitempty"`
-	ForwardedELBID            *bool `json:"X-Forwarded-ELB-ID,omitempty"`
-	ForwardedTLSCertificateID *bool `json:"X-Forwarded-TLS-Certificate-ID,omitempty"`
-	ForwardedTLSCipher        *bool `json:"X-Forwarded-TLS-Cipher,omitempty"`
-	ForwardedTLSProtocol      *bool `json:"X-Forwarded-TLS-Protocol,omitempty"`
+	ForwardedELBIP   *bool `json:"X-Forwarded-ELB-IP,omitempty"`
+	ForwardedPort    *bool `json:"X-Forwarded-Port,omitempty"`
+	ForwardedForPort *bool `json:"X-Forwarded-For-Port,omitempty"`
+	ForwardedHost    *bool `json:"X-Forwarded-Host,omitempty"`
 }
 
 // ToListenerCreateMap builds a request body from CreateOpts.
@@ -217,12 +205,6 @@ type UpdateOpts struct {
 	// Whether enable member retry
 	EnableMemberRetry *bool `json:"enable_member_retry,omitempty"`
 
-	// Whether enable proxy protocol
-	ProxyProtocolEnable *bool `json:"proxy_protocol_enable,omitempty"`
-
-	// Whether enable ssl early data
-	SslEarlyDataEnable *bool `json:"ssl_early_data_enable,omitempty"`
-
 	// The keepalive timeout of the Listener.
 	KeepaliveTimeout *int `json:"keepalive_timeout,omitempty"`
 
@@ -248,13 +230,13 @@ type UpdateOpts struct {
 	GzipEnable *bool `json:"gzip_enable,omitempty"`
 
 	// The QUIC configuration for the current listener
-	QuicConfig *QuicConfig `json:"quic_config"`
+	QuicConfig *QuicConfig `json:"quic_config,omitempty"`
 
 	// Security Policy ID
-	SecurityPolicyId *string `json:"security_policy_id"`
+	SecurityPolicyId *string `json:"security_policy_id,omitempty"`
 
 	// The SNI certificates used by the listener.
-	SniMatchAlgo string `json:"sni_match_algo,omitempty"`
+	SniMatchAlgo *string `json:"sni_match_algo,omitempty"`
 
 	// Update protection status
 	ProtectionStatus string `json:"protection_status,omitempty"`

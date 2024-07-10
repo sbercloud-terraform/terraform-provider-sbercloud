@@ -9,28 +9,28 @@ import (
 // UpdateTempRequestBody UpdateTempRequestBody
 type UpdateTempRequestBody struct {
 
-	// 事务id
+	// id
 	Id int32 `json:"id"`
 
-	// 工程id
+	// project_id
 	ProjectId int32 `json:"project_id"`
 
-	// 事务名称
+	// name
 	Name string `json:"name"`
 
-	// 事务类型
+	// temp_type
 	TempType *int32 `json:"temp_type,omitempty"`
 
-	// 描述信息
+	// description
 	Description *string `json:"description,omitempty"`
 
-	// 旧版本逻辑控制器字段，当前已未使用
+	// for_loop_params
 	ForLoopParams *[]interface{} `json:"for_loop_params,omitempty"`
 
-	// 是否启用预置事务，当前版本已未使用
+	// enable_pre
 	EnablePre *bool `json:"enable_pre,omitempty"`
 
-	// 事务脚本信息
+	// contents
 	Contents *[]TempContentInfo `json:"contents,omitempty"`
 }
 

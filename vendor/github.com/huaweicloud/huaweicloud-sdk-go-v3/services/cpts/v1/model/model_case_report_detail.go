@@ -53,7 +53,7 @@ type CaseReportDetail struct {
 	// 事务平均响应时间检查结果
 	AvgTranRespTimeCheckRes *bool `json:"avgTranRespTimeCheckRes,omitempty"`
 
-	// 请求id
+	// awId
 	AwId *string `json:"awId,omitempty"`
 
 	// 用例Uri

@@ -31,7 +31,6 @@ type VolumeReq struct {
 	Ownership string `json:"ownership" required:"true"`
 	Capacity  *int   `json:"capacity,omitempty"`
 	Uri       string `json:"uri,omitempty"`
-	ID        string `json:"id,omitempty"`
 }
 
 type ListOpts struct {

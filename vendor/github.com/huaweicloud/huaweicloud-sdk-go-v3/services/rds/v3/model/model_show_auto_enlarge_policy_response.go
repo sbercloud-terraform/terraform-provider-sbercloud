@@ -17,10 +17,7 @@ type ShowAutoEnlargePolicyResponse struct {
 
 	// 可用空间百分比，小于等于此值或者10GB时触发扩容
 	TriggerThreshold *int32 `json:"trigger_threshold,omitempty"`
-
-	// 每次自动扩容的百分比步长，开启自定义步长功能时返回。
-	StepPercent    *int32 `json:"step_percent,omitempty"`
-	HttpStatusCode int    `json:"-"`
+	HttpStatusCode   int    `json:"-"`
 }
 
 func (o ShowAutoEnlargePolicyResponse) String() string {

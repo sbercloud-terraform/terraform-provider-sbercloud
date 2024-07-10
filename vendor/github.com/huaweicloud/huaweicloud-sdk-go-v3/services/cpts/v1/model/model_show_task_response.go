@@ -9,10 +9,10 @@ import (
 // ShowTaskResponse Response Object
 type ShowTaskResponse struct {
 
-	// 响应码
+	// code
 	Code *string `json:"code,omitempty"`
 
-	// 响应消息
+	// message
 	Message *string `json:"message,omitempty"`
 
 	TaskInfo       *TaskInfo `json:"taskInfo,omitempty"`

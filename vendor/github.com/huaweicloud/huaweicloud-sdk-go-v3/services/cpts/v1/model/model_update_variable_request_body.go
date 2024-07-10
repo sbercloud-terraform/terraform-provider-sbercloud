@@ -9,16 +9,16 @@ import (
 // UpdateVariableRequestBody UpdateVariableRequestBody
 type UpdateVariableRequestBody struct {
 
-	// 变量id
+	// id
 	Id int32 `json:"id"`
 
-	// 变量名称
+	// name
 	Name string `json:"name"`
 
-	// 变量类型（1：整数；2：枚举；3：文件[；5：文本](tag:hws,hws_hk)
+	// variable_type
 	VariableType int32 `json:"variable_type"`
 
-	// 变量值
+	// variable
 	Variable []interface{} `json:"variable"`
 }
 

@@ -9,10 +9,10 @@ import (
 // ShowTempResponse Response Object
 type ShowTempResponse struct {
 
-	// 响应码
+	// code
 	Code *string `json:"code,omitempty"`
 
-	// 响应消息
+	// message
 	Message *string `json:"message,omitempty"`
 
 	TempInfo       *TempInfo `json:"temp_info,omitempty"`

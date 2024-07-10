@@ -39,10 +39,6 @@ type Key struct {
 	Origin string `json:"origin"`
 	//Enterprise peoject id
 	EnterpriseProjectID string `json:"sys_enterprise_project_id"`
-	// Key usage
-	KeyUsage string `json:"key_usage"`
-	// Keystore ID
-	KeyStoreID string `json:"keystore_id"`
 }
 
 type ListKey struct {
@@ -82,17 +78,8 @@ type GetResult struct {
 	commonResult
 }
 
-type ImportKeyMaterialResult struct {
-	commonResult
-}
-
 // DeleteResult contains the response body and error from a Delete request.
 type DeleteResult struct {
-	commonResult
-}
-
-// DeleteKeyMaterialResult contains the response body and error from a DeleteKeyMaterial request.
-type DeleteKeyMaterialResult struct {
 	commonResult
 }
 

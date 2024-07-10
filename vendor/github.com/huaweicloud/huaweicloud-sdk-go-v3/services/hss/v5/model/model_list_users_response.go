@@ -9,7 +9,7 @@ import (
 // ListUsersResponse Response Object
 type ListUsersResponse struct {
 
-	// 账号总数
+	// 总数,
 	TotalNum *int32 `json:"total_num,omitempty"`
 
 	// 账号信息列表

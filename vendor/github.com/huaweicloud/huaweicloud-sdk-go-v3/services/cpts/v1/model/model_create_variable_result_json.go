@@ -8,7 +8,7 @@ import (
 
 type CreateVariableResultJson struct {
 
-	// 变量id
+	// variable_id
 	VariableId *int32 `json:"variable_id,omitempty"`
 }
 

@@ -15,7 +15,3 @@ func resourceURL(client *golangsdk.ServiceClient, groupID, hookName string) stri
 func listURL(client *golangsdk.ServiceClient, groupID string) string {
 	return client.ServiceURL(rootPath, groupID, "list")
 }
-
-func callBackURL(client *golangsdk.ServiceClient, groupID string) string {
-	return client.ServiceURL("scaling_instance_hook", groupID, "callback")
-}

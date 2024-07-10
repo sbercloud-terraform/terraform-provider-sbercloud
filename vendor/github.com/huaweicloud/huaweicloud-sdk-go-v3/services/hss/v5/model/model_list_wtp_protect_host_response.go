@@ -12,7 +12,7 @@ type ListWtpProtectHostResponse struct {
 	// data list
 	DataList *[]WtpProtectHostResponseInfo `json:"data_list,omitempty"`
 
-	// total number of WTP protected servers
+	// total number
 	TotalNum       *int32 `json:"total_num,omitempty"`
 	HttpStatusCode int    `json:"-"`
 }

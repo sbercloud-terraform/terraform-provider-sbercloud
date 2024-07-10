@@ -8,7 +8,7 @@ import (
 
 type TempName struct {
 
-	// 名称
+	// name
 	Name *string `json:"name,omitempty"`
 }
 

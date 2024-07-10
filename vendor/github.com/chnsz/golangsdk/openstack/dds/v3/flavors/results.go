@@ -26,11 +26,10 @@ func ExtractFlavors(r pagination.Page) ([]Flavor, error) {
 
 // Flavor represents a DDS flavor.
 type Flavor struct {
-	EngineName     string            `json:"engine_name"`
-	Type           string            `json:"type"`
-	Vcpus          string            `json:"vcpus"`
-	Ram            string            `json:"ram"`
-	SpecCode       string            `json:"spec_code"`
-	AzStatus       map[string]string `json:"az_status"`
-	EngineVersions []string          `json:"engine_versions"`
+	EngineName       string   `json:"engine_name"`
+	Type             string   `json:"type"`
+	Vcpus            string   `json:"vcpus"`
+	Ram              string   `json:"ram"`
+	SpecCode         string   `json:"spec_code"`
+	AvailabilityZone []string `json:"availability_zone"`
 }

@@ -20,6 +20,7 @@
 package signer
 
 import (
+	_ "crypto/ecdsa"
 	"github.com/huaweicloud/huaweicloud-sdk-go-v3/core/request"
 	"github.com/tjfoc/gmsm/sm2"
 	"math/big"
@@ -52,12 +53,12 @@ func (s SM2SM3Signer) Sign(req *request.DefaultHttpRequest, ak, sk string) (map[
 
 	signedHeaders := extractSignedHeaders(originalHeaders)
 
-	cr, err := canonicalRequest(req, signedHeaders, xSdkContentSm3, sm3HasherInst)
+	cr, err := canonicalRequest(req, signedHeaders, xSdkContentSm3, sha256HasherInst)
 	if err != nil {
 		return nil, err
 	}
 
-	sts, err := stringToSign(sdkSm2Sm3, cr, t, sm3HasherInst)
+	sts, err := stringToSign(sdkSm2Sm3, cr, t, sha256HasherInst)
 	if err != nil {
 		return nil, err
 	}

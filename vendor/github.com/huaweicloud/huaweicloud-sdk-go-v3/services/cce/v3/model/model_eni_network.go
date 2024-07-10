@@ -13,7 +13,7 @@ type EniNetwork struct {
 	EniSubnetId string `json:"eniSubnetId"`
 
 	// ENI子网CIDR(废弃中)
-	EniSubnetCIDR *string `json:"eniSubnetCIDR,omitempty"`
+	EniSubnetCIDR string `json:"eniSubnetCIDR"`
 
 	// IPv4子网ID列表
 	Subnets []NetworkSubnet `json:"subnets"`

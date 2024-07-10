@@ -9,10 +9,10 @@ import (
 // TaskRunInfo TaskRunInfo
 type TaskRunInfo struct {
 
-	// 任务id
+	// id
 	Id *int32 `json:"id,omitempty"`
 
-	// 任务类型（0：旧版本任务；1：新版本任务）
+	// run_type
 	RunType *int32 `json:"run_type,omitempty"`
 }
 

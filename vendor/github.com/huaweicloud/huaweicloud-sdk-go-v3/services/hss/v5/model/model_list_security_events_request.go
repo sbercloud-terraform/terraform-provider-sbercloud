@@ -9,13 +9,10 @@ import (
 // ListSecurityEventsRequest Request Object
 type ListSecurityEventsRequest struct {
 
-	// 事件类别，包含如下:   - host : 主机安全事件   - container : 容器安全事件
-	Category string `json:"category"`
-
-	// Region ID
+	// region id
 	Region string `json:"region"`
 
-	// 企业项目ID，查询所有企业项目时填写：all_granted_eps
+	// 租户企业项目ID，查询所有企业项目时填写：all_granted_eps
 	EnterpriseProjectId *string `json:"enterprise_project_id,omitempty"`
 
 	// 查询时间范围天数，与自定义查询时间begin_time，end_time互斥
@@ -24,19 +21,16 @@ type ListSecurityEventsRequest struct {
 	// 服务器名称
 	HostName *string `json:"host_name,omitempty"`
 
-	// 主机ID
+	// 服务器ID
 	HostId *string `json:"host_id,omitempty"`
 
 	// 服务器私有IP
 	PrivateIp *string `json:"private_ip,omitempty"`
 
-	// 服务器公网IP
-	PublicIp *string `json:"public_ip,omitempty"`
-
 	// 容器实例名称
 	ContainerName *string `json:"container_name,omitempty"`
 
-	// 偏移量：指定返回记录的开始位置，必须为数字
+	// 偏移量：指定返回记录的开始位置，必须为数字，取值范围为大于或等于0，默认0
 	Offset *int32 `json:"offset,omitempty"`
 
 	// 每页显示个数
@@ -50,6 +44,9 @@ type ListSecurityEventsRequest struct {
 
 	// 威胁等级，包含如下:   - Security ：安全   - Low : 低危   - Medium : 中危   - High : 高危   - Critical : 危急
 	Severity *string `json:"severity,omitempty"`
+
+	// 事件类别，包含如下:   - host : 主机安全事件   - container : 容器安全事件
+	Category string `json:"category"`
 
 	// 自定义查询时间，与查询时间范围天数互斥，查询时间段的起始时间，毫秒级时间戳，end_time减去begin_time小于等于2天，与查询时间范围天数互斥
 	BeginTime *string `json:"begin_time,omitempty"`
@@ -74,9 +71,6 @@ type ListSecurityEventsRequest struct {
 
 	// ATT&CK攻击阶，包含如下：   - Reconnaissance : 侦察   - Initial Access : 初始访问   - Execution : 执行   - Persistence : 持久化   - Privilege Escalation : 权限提升   - Defense Evasion : 防御绕过   - Credential Access : 凭据访问   - Command and Control : 命令与控制   - Impact : 影响破坏
 	AttCk *string `json:"att_ck,omitempty"`
-
-	// 告警名称
-	EventName *string `json:"event_name,omitempty"`
 }
 
 func (o ListSecurityEventsRequest) String() string {

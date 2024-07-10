@@ -8,7 +8,7 @@ import (
 
 type CaseAwInfo struct {
 
-	// aw信息
+	// aw信息Dto
 	Aw *[]AwInfoDto `json:"aw,omitempty"`
 
 	// aw详细信息列表

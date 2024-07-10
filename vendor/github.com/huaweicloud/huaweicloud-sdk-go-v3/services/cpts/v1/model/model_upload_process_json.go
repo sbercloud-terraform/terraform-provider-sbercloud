@@ -9,10 +9,10 @@ import (
 // UploadProcessJson json
 type UploadProcessJson struct {
 
-	// 工程导入进度明细信息
+	// details
 	Details *[]UploadProcessJsonDetail `json:"details,omitempty"`
 
-	// 总状态（0：导入中；1：导入完成）
+	// process_status
 	ProcessStatus *int32 `json:"process_status,omitempty"`
 }
 

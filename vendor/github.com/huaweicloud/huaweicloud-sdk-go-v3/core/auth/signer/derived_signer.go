@@ -36,10 +36,6 @@ const (
 	AlgorithmV11      = "V11-HMAC-SHA256"
 )
 
-func SignDerived(r *request.DefaultHttpRequest, ak string, sk string, derivedAuthServiceName string, regionId string) (map[string]string, error) {
-	return DerivedSigner{}.Sign(r, ak, sk, derivedAuthServiceName, regionId)
-}
-
 type DerivedSigner struct {
 }
 

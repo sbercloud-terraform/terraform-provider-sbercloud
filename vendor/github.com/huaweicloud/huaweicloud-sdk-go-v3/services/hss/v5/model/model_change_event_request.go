@@ -9,10 +9,10 @@ import (
 // ChangeEventRequest Request Object
 type ChangeEventRequest struct {
 
-	// Region ID
+	// region id
 	Region string `json:"region"`
 
-	// 企业项目ID，查询所有企业项目时填写：all_granted_eps
+	// 租户企业项目ID，查询所有企业项目时填写：all_granted_eps
 	EnterpriseProjectId *string `json:"enterprise_project_id,omitempty"`
 
 	// 容器实例名称

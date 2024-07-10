@@ -82,8 +82,6 @@ type InstanceRequest struct {
 
 	// 批量创建实例的数量，取值范围为1~50。
 	Count *int32 `json:"count,omitempty"`
-
-	ServerlessInfo *ServerlessInfo `json:"serverless_info,omitempty"`
 }
 
 func (o InstanceRequest) String() string {

@@ -9,7 +9,7 @@ import (
 // ListVulnerabilitiesResponse Response Object
 type ListVulnerabilitiesResponse struct {
 
-	// 漏洞总数
+	// 总数
 	TotalNum *int64 `json:"total_num,omitempty"`
 
 	// 软件漏洞列表

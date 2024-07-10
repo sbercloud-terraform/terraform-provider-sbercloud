@@ -30,7 +30,7 @@ type EventResourceResponseInfo struct {
 	// 虚拟机名称
 	VmName *string `json:"vm_name,omitempty"`
 
-	// 虚拟机UUID，即主机ID
+	// 虚拟机UUID
 	VmUuid *string `json:"vm_uuid,omitempty"`
 
 	// 容器ID

@@ -27,19 +27,19 @@ type ListAutoLaunchChangeHistoriesRequest struct {
 	// 变更类型:   - add ：新建   - delete ：删除   - modify ：修改
 	VariationType *string `json:"variation_type,omitempty"`
 
-	// 企业项目ID，查询所有企业项目时填写：all_granted_eps
+	// 企业项目
 	EnterpriseProjectId *string `json:"enterprise_project_id,omitempty"`
 
-	// 排序的key值，目前只支持按照recent_scan_time排序
+	// 排序的key值
 	SortKey *string `json:"sort_key,omitempty"`
 
-	// 排序方式，默认为降序:   - asc ：升序   - desc ：降序
+	// 升序还是降序，默认升序，asc
 	SortDir *string `json:"sort_dir,omitempty"`
 
-	// 每页显示数量，默认10
+	// 默认10
 	Limit *int32 `json:"limit,omitempty"`
 
-	// 偏移量：指定返回记录的开始位置，必须为数字，取值范围为大于或等于0，默认0
+	// 默认是0
 	Offset *int32 `json:"offset,omitempty"`
 
 	// 变更开始时间，13位时间戳

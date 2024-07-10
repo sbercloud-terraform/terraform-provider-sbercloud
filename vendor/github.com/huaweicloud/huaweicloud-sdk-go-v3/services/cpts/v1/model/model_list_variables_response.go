@@ -9,13 +9,13 @@ import (
 // ListVariablesResponse Response Object
 type ListVariablesResponse struct {
 
-	// 响应吗
+	// code
 	Code *string `json:"code,omitempty"`
 
-	// 响应消息
+	// message
 	Message *string `json:"message,omitempty"`
 
-	// 变量列表
+	// variable_list
 	VariableList   *[]VariableDetail `json:"variable_list,omitempty"`
 	HttpStatusCode int               `json:"-"`
 }

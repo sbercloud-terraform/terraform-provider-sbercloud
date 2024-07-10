@@ -1,21 +1,21 @@
 package v2
 
 import (
-	httpclient "github.com/huaweicloud/huaweicloud-sdk-go-v3/core"
+	http_client "github.com/huaweicloud/huaweicloud-sdk-go-v3/core"
 	"github.com/huaweicloud/huaweicloud-sdk-go-v3/core/invoker"
 	"github.com/huaweicloud/huaweicloud-sdk-go-v3/services/oms/v2/model"
 )
 
 type OmsClient struct {
-	HcClient *httpclient.HcHttpClient
+	HcClient *http_client.HcHttpClient
 }
 
-func NewOmsClient(hcClient *httpclient.HcHttpClient) *OmsClient {
+func NewOmsClient(hcClient *http_client.HcHttpClient) *OmsClient {
 	return &OmsClient{HcClient: hcClient}
 }
 
-func OmsClientBuilder() *httpclient.HcHttpClientBuilder {
-	builder := httpclient.NewHcHttpClientBuilder()
+func OmsClientBuilder() *http_client.HcHttpClientBuilder {
+	builder := http_client.NewHcHttpClientBuilder()
 	return builder
 }
 

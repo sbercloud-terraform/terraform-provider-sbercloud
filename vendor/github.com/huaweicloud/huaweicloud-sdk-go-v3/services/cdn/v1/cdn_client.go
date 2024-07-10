@@ -1,21 +1,21 @@
 package v1
 
 import (
-	httpclient "github.com/huaweicloud/huaweicloud-sdk-go-v3/core"
+	http_client "github.com/huaweicloud/huaweicloud-sdk-go-v3/core"
 	"github.com/huaweicloud/huaweicloud-sdk-go-v3/core/invoker"
 	"github.com/huaweicloud/huaweicloud-sdk-go-v3/services/cdn/v1/model"
 )
 
 type CdnClient struct {
-	HcClient *httpclient.HcHttpClient
+	HcClient *http_client.HcHttpClient
 }
 
-func NewCdnClient(hcClient *httpclient.HcHttpClient) *CdnClient {
+func NewCdnClient(hcClient *http_client.HcHttpClient) *CdnClient {
 	return &CdnClient{HcClient: hcClient}
 }
 
-func CdnClientBuilder() *httpclient.HcHttpClientBuilder {
-	builder := httpclient.NewHcHttpClientBuilder().WithCredentialsType("global.Credentials")
+func CdnClientBuilder() *http_client.HcHttpClientBuilder {
+	builder := http_client.NewHcHttpClientBuilder().WithCredentialsType("global.Credentials")
 	return builder
 }
 
@@ -187,7 +187,6 @@ func (c *CdnClient) EnableDomainInvoker(request *model.EnableDomainRequest) *Ena
 	return &EnableDomainInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
 }
 
-// Deprecated: This function is deprecated and will be removed in the future versions.
 // ListDomains 查询加速域名
 //
 // 查询加速域名信息
@@ -203,7 +202,6 @@ func (c *CdnClient) ListDomains(request *model.ListDomainsRequest) (*model.ListD
 	}
 }
 
-// Deprecated: This function is deprecated and will be removed in the future versions.
 // ListDomainsInvoker 查询加速域名
 func (c *CdnClient) ListDomainsInvoker(request *model.ListDomainsRequest) *ListDomainsInvoker {
 	requestDef := GenReqDefForListDomains()
@@ -294,7 +292,6 @@ func (c *CdnClient) ShowDomainDetailInvoker(request *model.ShowDomainDetailReque
 	return &ShowDomainDetailInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
 }
 
-// Deprecated: This function is deprecated and will be removed in the future versions.
 // ShowDomainFullConfig 查询域名配置接口
 //
 // 查询域名配置接口，
@@ -311,7 +308,6 @@ func (c *CdnClient) ShowDomainFullConfig(request *model.ShowDomainFullConfigRequ
 	}
 }
 
-// Deprecated: This function is deprecated and will be removed in the future versions.
 // ShowDomainFullConfigInvoker 查询域名配置接口
 func (c *CdnClient) ShowDomainFullConfigInvoker(request *model.ShowDomainFullConfigRequest) *ShowDomainFullConfigInvoker {
 	requestDef := GenReqDefForShowDomainFullConfig()
@@ -762,7 +758,6 @@ func (c *CdnClient) UpdateCacheRulesInvoker(request *model.UpdateCacheRulesReque
 	return &UpdateCacheRulesInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
 }
 
-// Deprecated: This function is deprecated and will be removed in the future versions.
 // UpdateDomainFullConfig 修改域名全量配置接口
 //
 // 修改域名配置接口，
@@ -779,7 +774,6 @@ func (c *CdnClient) UpdateDomainFullConfig(request *model.UpdateDomainFullConfig
 	}
 }
 
-// Deprecated: This function is deprecated and will be removed in the future versions.
 // UpdateDomainFullConfigInvoker 修改域名全量配置接口
 func (c *CdnClient) UpdateDomainFullConfigInvoker(request *model.UpdateDomainFullConfigRequest) *UpdateDomainFullConfigInvoker {
 	requestDef := GenReqDefForUpdateDomainFullConfig()

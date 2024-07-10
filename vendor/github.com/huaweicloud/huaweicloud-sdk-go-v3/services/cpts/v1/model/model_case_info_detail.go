@@ -8,31 +8,31 @@ import (
 
 type CaseInfoDetail struct {
 
-	// 用例id
+	// case_id
 	CaseId *int32 `json:"case_id,omitempty"`
 
 	// 用例名称
 	Name *string `json:"name,omitempty"`
 
-	// 用例类型（0：常规用例；）
+	// case_type
 	CaseType *int32 `json:"case_type,omitempty"`
 
-	// 用例脚本信息
+	// contents
 	Contents *[]Contents `json:"contents,omitempty"`
 
-	// 旧版本逻辑控制器字段，当前已未使用
+	// for_loop_params
 	ForLoopParams *[]interface{} `json:"for_loop_params,omitempty"`
 
-	// 梯度递增
+	// increase_setting
 	IncreaseSetting *[]interface{} `json:"increase_setting,omitempty"`
 
-	// 阶段信息
+	// stages
 	Stages *[]TestCaseStage `json:"stages,omitempty"`
 
 	// 状态，0：已删除；1：启用；2：禁用
 	Status *int32 `json:"status,omitempty"`
 
-	// 用例id
+	// temp_id
 	TempId *int32 `json:"temp_id,omitempty"`
 
 	// 排序字段

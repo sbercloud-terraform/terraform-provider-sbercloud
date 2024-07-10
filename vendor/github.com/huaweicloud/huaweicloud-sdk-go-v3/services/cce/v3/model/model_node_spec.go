@@ -11,7 +11,7 @@ type NodeSpec struct {
 	// 节点的规格，CCE支持的节点规格请参考[节点规格说明](cce_02_0368.xml)获取。
 	Flavor string `json:"flavor"`
 
-	// 待创建节点所在的可用区，需要指定可用区（AZ）的名称，不填或者填random选择随机可用区。 [CCE支持的可用区请参考[地区和终端节点](https://developer.huaweicloud.com/endpoint?CCE)](tag:hws) [CCE支持的可用区请参考[地区和终端节点](https://developer.huaweicloud.com/intl/zh-cn/endpoint?CCE)](tag:hws_hk)
+	// 待创建节点所在的可用区，需要指定可用区（AZ）的名称。 [CCE支持的可用区请参考[地区和终端节点](https://developer.huaweicloud.com/endpoint?CCE)](tag:hws) [CCE支持的可用区请参考[地区和终端节点](https://developer.huaweicloud.com/intl/zh-cn/endpoint?CCE)](tag:hws_hk)
 	Az string `json:"az"`
 
 	// 节点的操作系统类型。具体支持的操作系统请参见[节点操作系统说明](node-os.xml)。 > - 系统会根据集群版本自动选择支持的系统版本。当前集群版本不支持该系统类型，则会报错。 > - 若在创建节点时指定了extendParam中的alpha.cce/NodeImageID参数，可以不填写此参数。 > - 创建节点池时，该参数为必选。
@@ -42,7 +42,7 @@ type NodeSpec struct {
 	// 格式为key/value键值对。键值对个数不超过20条。 - Key：必须以字母或数字开头，可以包含字母、数字、连字符、下划线和点，最长63个字符；另外可以使用DNS子域作为前缀，例如example.com/my-key，DNS子域最长253个字符。 - Value：可以为空或者非空字符串，非空字符串必须以字符或数字开头，可以包含字母、数字、连字符、下划线和点，最长63个字符。 字段使用场景：在节点创建场景下，支持指定初始值，查询时不返回该字段；在节点池场景下，其中节点模板中支持指定初始值，查询时支持返回该字段；在其余场景下，查询时都不会返回该字段。   示例： ``` \"k8sTags\": {   \"key\": \"value\" } ```
 	K8sTags map[string]string `json:"k8sTags,omitempty"`
 
-	// 云服务器组ID，若指定，将节点创建在该云服务器组下 > 创建节点池时该配置不会生效，若要保持节点池中的节点都在同一个云服务器组内，请在节点池 nodeManagement 字段中配置
+	// 云服务器组ID，若指定，将节点创建在该云服务器组下
 	EcsGroupId *string `json:"ecsGroupId,omitempty"`
 
 	// 云服务器故障域，将节点创建在指定故障域下。  >必须同时指定故障域策略的云服务器ID，且需要开启故障域特性开关

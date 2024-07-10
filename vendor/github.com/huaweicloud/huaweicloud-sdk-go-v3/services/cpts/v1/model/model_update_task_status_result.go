@@ -8,7 +8,7 @@ import (
 
 type UpdateTaskStatusResult struct {
 
-	// 运行任务id，即报告id
+	// task_run_id
 	TaskRunId *int32 `json:"task_run_id,omitempty"`
 }
 

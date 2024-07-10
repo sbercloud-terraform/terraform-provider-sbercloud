@@ -8,8 +8,7 @@ import (
 
 // CreateTagsResponse Response Object
 type CreateTagsResponse struct {
-	XRequestId     *string `json:"X-Request-Id,omitempty"`
-	HttpStatusCode int     `json:"-"`
+	HttpStatusCode int `json:"-"`
 }
 
 func (o CreateTagsResponse) String() string {

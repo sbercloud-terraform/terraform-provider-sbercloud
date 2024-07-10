@@ -9,19 +9,19 @@ import (
 // CreateTempRequestBody CreateTempRequestBody
 type CreateTempRequestBody struct {
 
-	// 所属工程id
+	// project_id
 	ProjectId int32 `json:"project_id"`
 
-	// 事务类型
+	// temp_type
 	TempType int32 `json:"temp_type"`
 
-	// 事务名称
+	// name
 	Name string `json:"name"`
 
-	// 描述信息
+	// description
 	Description *string `json:"description,omitempty"`
 
-	// 事务脚本信息
+	// contents
 	Contents *[]interface{} `json:"contents,omitempty"`
 }
 

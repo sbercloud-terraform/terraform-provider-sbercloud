@@ -9,13 +9,10 @@ import (
 // SetWtpProtectionStatusInfoRequest Request Object
 type SetWtpProtectionStatusInfoRequest struct {
 
-	// 缺省值:application/json; charset=utf-8
-	ContentType *string `json:"Content-Type,omitempty"`
-
 	// Region Id
 	Region string `json:"region"`
 
-	// 企业项目ID
+	// 企业项目
 	EnterpriseProjectId *string `json:"enterprise_project_id,omitempty"`
 
 	Body *SetWtpProtectionStatusRequestInfo `json:"body,omitempty"`

@@ -17,11 +17,16 @@ type PromInstanceEpsModel struct {
 	// Prometheus实例id。
 	PromId *string `json:"prom_id,omitempty"`
 
-	// Prometheus实例类型（暂时不支持VPC、KUBERNETES）。
+	// Prometheus实例类型。
 	PromType PromInstanceEpsModelPromType `json:"prom_type"`
 
 	// Prometheus实例版本号。
 	PromVersion *string `json:"prom_version,omitempty"`
+
+	// CCE场景特殊字段。
+	CceSpec *string `json:"cce_spec,omitempty"`
+
+	PromConfig *PromConfigModel `json:"prom_config,omitempty"`
 
 	// Prometheus实例创建时间戳。
 	PromCreateTimestamp *int64 `json:"prom_create_timestamp,omitempty"`
@@ -30,7 +35,7 @@ type PromInstanceEpsModel struct {
 	PromUpdateTimestamp *int64 `json:"prom_update_timestamp,omitempty"`
 
 	// Prometheus实例状态。
-	PromStatus *PromInstanceEpsModelPromStatus `json:"prom_status,omitempty"`
+	PromStatus *string `json:"prom_status,omitempty"`
 
 	// Prometheus实例所属的企业项目。
 	EnterpriseProjectId *string `json:"enterprise_project_id,omitempty"`
@@ -48,6 +53,8 @@ type PromInstanceEpsModel struct {
 
 	// Prometheus实例所属CCE特殊配置。
 	CceSpecConfig *string `json:"cce_spec_config,omitempty"`
+
+	Application *ApplicationModel `json:"application,omitempty"`
 }
 
 func (o PromInstanceEpsModel) String() string {
@@ -77,7 +84,7 @@ type PromInstanceEpsModelPromTypeEnum struct {
 func GetPromInstanceEpsModelPromTypeEnum() PromInstanceEpsModelPromTypeEnum {
 	return PromInstanceEpsModelPromTypeEnum{
 		DEFAULT: PromInstanceEpsModelPromType{
-			value: "default",
+			value: "DEFAULT",
 		},
 		ECS: PromInstanceEpsModelPromType{
 			value: "ECS",
@@ -112,57 +119,6 @@ func (c PromInstanceEpsModelPromType) MarshalJSON() ([]byte, error) {
 }
 
 func (c *PromInstanceEpsModelPromType) UnmarshalJSON(b []byte) error {
-	myConverter := converter.StringConverterFactory("string")
-	if myConverter == nil {
-		return errors.New("unsupported StringConverter type: string")
-	}
-
-	interf, err := myConverter.CovertStringToInterface(strings.Trim(string(b[:]), "\""))
-	if err != nil {
-		return err
-	}
-
-	if val, ok := interf.(string); ok {
-		c.value = val
-		return nil
-	} else {
-		return errors.New("convert enum data to string error")
-	}
-}
-
-type PromInstanceEpsModelPromStatus struct {
-	value string
-}
-
-type PromInstanceEpsModelPromStatusEnum struct {
-	DELETED PromInstanceEpsModelPromStatus
-	NORMAL  PromInstanceEpsModelPromStatus
-	ALL     PromInstanceEpsModelPromStatus
-}
-
-func GetPromInstanceEpsModelPromStatusEnum() PromInstanceEpsModelPromStatusEnum {
-	return PromInstanceEpsModelPromStatusEnum{
-		DELETED: PromInstanceEpsModelPromStatus{
-			value: "DELETED",
-		},
-		NORMAL: PromInstanceEpsModelPromStatus{
-			value: "NORMAL",
-		},
-		ALL: PromInstanceEpsModelPromStatus{
-			value: "ALL",
-		},
-	}
-}
-
-func (c PromInstanceEpsModelPromStatus) Value() string {
-	return c.value
-}
-
-func (c PromInstanceEpsModelPromStatus) MarshalJSON() ([]byte, error) {
-	return utils.Marshal(c.value)
-}
-
-func (c *PromInstanceEpsModelPromStatus) UnmarshalJSON(b []byte) error {
 	myConverter := converter.StringConverterFactory("string")
 	if myConverter == nil {
 		return errors.New("unsupported StringConverter type: string")

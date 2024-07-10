@@ -9,9 +9,12 @@ import (
 // ListNotifiedHistoriesResponse Response Object
 type ListNotifiedHistoriesResponse struct {
 
-	// 通知历史列表。
-	NotifiedHistories *[]NotifiedHistoriesResult `json:"notified_histories,omitempty"`
-	HttpStatusCode    int                        `json:"-"`
+	// 告警流水号
+	EventSn *string `json:"event_sn,omitempty"`
+
+	// 通知结果
+	Notifications  *[]Notifications `json:"notifications,omitempty"`
+	HttpStatusCode int              `json:"-"`
 }
 
 func (o ListNotifiedHistoriesResponse) String() string {

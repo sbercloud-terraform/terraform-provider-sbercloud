@@ -45,11 +45,3 @@ func disableKeyURL(c *golangsdk.ServiceClient) string {
 func listURL(c *golangsdk.ServiceClient) string {
 	return c.ServiceURL(c.ProjectID, resourcePath, "list-keys")
 }
-
-func importKeyMaterialURL(c *golangsdk.ServiceClient) string {
-	return c.ServiceURL(c.ProjectID, resourcePath, "import-key-material")
-}
-
-func deleteKeyMaterialURL(c *golangsdk.ServiceClient) string {
-	return c.ServiceURL(c.ProjectID, resourcePath, "delete-imported-key-material")
-}

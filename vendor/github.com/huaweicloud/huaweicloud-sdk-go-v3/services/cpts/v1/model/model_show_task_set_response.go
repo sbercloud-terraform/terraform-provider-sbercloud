@@ -9,13 +9,13 @@ import (
 // ShowTaskSetResponse Response Object
 type ShowTaskSetResponse struct {
 
-	// 响应码
+	// code
 	Code *string `json:"code,omitempty"`
 
-	// 扩展信息
+	// extend
 	Extend *[]string `json:"extend,omitempty"`
 
-	// 响应消息
+	// message
 	Message *string `json:"message,omitempty"`
 
 	// 工程集详细信息

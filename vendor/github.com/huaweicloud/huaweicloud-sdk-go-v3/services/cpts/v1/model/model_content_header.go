@@ -8,10 +8,10 @@ import (
 
 type ContentHeader struct {
 
-	// 键
+	// key
 	Key *string `json:"key,omitempty"`
 
-	// 值
+	// value
 	Value *string `json:"value,omitempty"`
 }
 

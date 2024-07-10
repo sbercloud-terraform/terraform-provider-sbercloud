@@ -8,7 +8,7 @@ import (
 
 type ContentInfo struct {
 
-	// body类型（0：字符串；1：form-data格式；3：x-www-form-urlencoded格式）
+	// body_type
 	BodyType *int32 `json:"body_type,omitempty"`
 
 	// bodys
@@ -23,34 +23,34 @@ type ContentInfo struct {
 	// TCP/UDP协议返回结束类型，1：返回数据长度；2：结束符
 	CheckEndType *interface{} `json:"check_end_type,omitempty"`
 
-	// 超时时间
+	// connect_timeout
 	ConnectTimeout *int32 `json:"connect_timeout,omitempty"`
 
-	// 连接设置，当前版本已未使用
+	// connect_type
 	ConnectType *int32 `json:"connect_type,omitempty"`
 
-	// 请求头
+	// headers
 	Headers *[]ContentHeader `json:"headers,omitempty"`
 
-	// HTTP版本
+	// http_version
 	HttpVersion *string `json:"http_version,omitempty"`
 
-	// HTTP方法
+	// method
 	Method *string `json:"method,omitempty"`
 
-	// 用例名称
+	// name
 	Name *string `json:"name,omitempty"`
 
-	// 协议类型（1：HTTP；2：HTTPS；3：TCP；4：UDP；7：HLS/RTMP；9：WebSocket；10：HTTP-FLV）
+	// protocol_type
 	ProtocolType *int32 `json:"protocol_type,omitempty"`
 
-	// 响应超时
+	// return_timeout
 	ReturnTimeout *int32 `json:"return_timeout,omitempty"`
 
-	// 响应超时参数
+	// return_timeout_param
 	ReturnTimeoutParam *string `json:"return_timeout_param,omitempty"`
 
-	// 请求地址
+	// url
 	Url *string `json:"url,omitempty"`
 
 	// rtmp地址
@@ -62,7 +62,7 @@ type ContentInfo struct {
 	// 分辨率策略
 	BitrateType *int32 `json:"bitrate_type,omitempty"`
 
-	// 持续时间
+	// duration
 	Duration *int32 `json:"duration,omitempty"`
 
 	// HLS重试延迟时间

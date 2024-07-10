@@ -9,20 +9,17 @@ import (
 // ListProcessStatisticsRequest Request Object
 type ListProcessStatisticsRequest struct {
 
-	// 可执行进程路径
+	// 路径
 	Path *string `json:"path,omitempty"`
 
-	// 企业项目ID，查询所有企业项目时填写：all_granted_eps
+	// 企业项目
 	EnterpriseProjectId *string `json:"enterprise_project_id,omitempty"`
 
-	// 每页显示数量，默认10
+	// 默认10
 	Limit *int32 `json:"limit,omitempty"`
 
-	// 偏移量：指定返回记录的开始位置，必须为数字，取值范围为大于或等于0，默认0
+	// 默认是0
 	Offset *int32 `json:"offset,omitempty"`
-
-	// 类别，默认为host，包含如下： - host：主机 - container：容器
-	Category *string `json:"category,omitempty"`
 }
 
 func (o ListProcessStatisticsRequest) String() string {

@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Handler 备注信息，已处理的告警才有
+// Handler 备注信息
 type Handler struct {
 }
 

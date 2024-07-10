@@ -1,21 +1,21 @@
 package v5
 
 import (
-	httpclient "github.com/huaweicloud/huaweicloud-sdk-go-v3/core"
+	http_client "github.com/huaweicloud/huaweicloud-sdk-go-v3/core"
 	"github.com/huaweicloud/huaweicloud-sdk-go-v3/core/invoker"
 	"github.com/huaweicloud/huaweicloud-sdk-go-v3/services/iotda/v5/model"
 )
 
 type IoTDAClient struct {
-	HcClient *httpclient.HcHttpClient
+	HcClient *http_client.HcHttpClient
 }
 
-func NewIoTDAClient(hcClient *httpclient.HcHttpClient) *IoTDAClient {
+func NewIoTDAClient(hcClient *http_client.HcHttpClient) *IoTDAClient {
 	return &IoTDAClient{HcClient: hcClient}
 }
 
-func IoTDAClientBuilder() *httpclient.HcHttpClientBuilder {
-	builder := httpclient.NewHcHttpClientBuilder().WithDerivedAuthServiceName("iotdm")
+func IoTDAClientBuilder() *http_client.HcHttpClientBuilder {
+	builder := http_client.NewHcHttpClientBuilder().WithDerivedAuthServiceName("iotdm")
 	return builder
 }
 
@@ -208,27 +208,6 @@ func (c *IoTDAClient) ShowApplicationsInvoker(request *model.ShowApplicationsReq
 	return &ShowApplicationsInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
 }
 
-// UpdateApplication 更新资源空间
-//
-// 应用服务器可以调用此接口更新资源空间的名称
-//
-// Please refer to HUAWEI cloud API Explorer for details.
-func (c *IoTDAClient) UpdateApplication(request *model.UpdateApplicationRequest) (*model.UpdateApplicationResponse, error) {
-	requestDef := GenReqDefForUpdateApplication()
-
-	if resp, err := c.HcClient.Sync(request, requestDef); err != nil {
-		return nil, err
-	} else {
-		return resp.(*model.UpdateApplicationResponse), nil
-	}
-}
-
-// UpdateApplicationInvoker 更新资源空间
-func (c *IoTDAClient) UpdateApplicationInvoker(request *model.UpdateApplicationRequest) *UpdateApplicationInvoker {
-	requestDef := GenReqDefForUpdateApplication()
-	return &UpdateApplicationInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
-}
-
 // CreateAsyncCommand 下发异步设备命令
 //
 // 设备的产品模型中定义了物联网平台可向设备下发的命令，应用服务器可调用此接口向指定设备下发异步命令，以实现对设备的控制。平台负责将命令发送给设备，并将设备执行命令结果异步通知应用服务器。 命令执行结果支持灵活的数据流转，应用服务器通过调用物联网平台的创建规则触发条件（Resource:device.command.status，Event:update）、创建规则动作并激活规则后，当命令状态变更时，物联网平台会根据规则将结果发送到规则指定的服务器，如用户自定义的HTTP服务器，AMQP服务器，以及华为云的其他储存服务器等, 详情参考[[设备命令状态变更通知](https://support.huaweicloud.com/api-iothub/iot_06_v5_01212.html)](tag:hws)[[设备命令状态变更通知](https://support.huaweicloud.com/intl/zh-cn/api-iothub/iot_06_v5_01212.html)](tag:hws_hk)。
@@ -272,111 +251,6 @@ func (c *IoTDAClient) ShowAsyncDeviceCommand(request *model.ShowAsyncDeviceComma
 func (c *IoTDAClient) ShowAsyncDeviceCommandInvoker(request *model.ShowAsyncDeviceCommandRequest) *ShowAsyncDeviceCommandInvoker {
 	requestDef := GenReqDefForShowAsyncDeviceCommand()
 	return &ShowAsyncDeviceCommandInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
-}
-
-// CreateRoutingBacklogPolicy 新建数据流转积压策略
-//
-// 应用服务器可调用此接口在物联网平台创建数据流转积压策略。
-//
-// Please refer to HUAWEI cloud API Explorer for details.
-func (c *IoTDAClient) CreateRoutingBacklogPolicy(request *model.CreateRoutingBacklogPolicyRequest) (*model.CreateRoutingBacklogPolicyResponse, error) {
-	requestDef := GenReqDefForCreateRoutingBacklogPolicy()
-
-	if resp, err := c.HcClient.Sync(request, requestDef); err != nil {
-		return nil, err
-	} else {
-		return resp.(*model.CreateRoutingBacklogPolicyResponse), nil
-	}
-}
-
-// CreateRoutingBacklogPolicyInvoker 新建数据流转积压策略
-func (c *IoTDAClient) CreateRoutingBacklogPolicyInvoker(request *model.CreateRoutingBacklogPolicyRequest) *CreateRoutingBacklogPolicyInvoker {
-	requestDef := GenReqDefForCreateRoutingBacklogPolicy()
-	return &CreateRoutingBacklogPolicyInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
-}
-
-// DeleteRoutingBacklogPolicy 删除数据流转积压策略
-//
-// 应用服务器可调用此接口在物联网平台删除指定数据流转积压策略。
-//
-// Please refer to HUAWEI cloud API Explorer for details.
-func (c *IoTDAClient) DeleteRoutingBacklogPolicy(request *model.DeleteRoutingBacklogPolicyRequest) (*model.DeleteRoutingBacklogPolicyResponse, error) {
-	requestDef := GenReqDefForDeleteRoutingBacklogPolicy()
-
-	if resp, err := c.HcClient.Sync(request, requestDef); err != nil {
-		return nil, err
-	} else {
-		return resp.(*model.DeleteRoutingBacklogPolicyResponse), nil
-	}
-}
-
-// DeleteRoutingBacklogPolicyInvoker 删除数据流转积压策略
-func (c *IoTDAClient) DeleteRoutingBacklogPolicyInvoker(request *model.DeleteRoutingBacklogPolicyRequest) *DeleteRoutingBacklogPolicyInvoker {
-	requestDef := GenReqDefForDeleteRoutingBacklogPolicy()
-	return &DeleteRoutingBacklogPolicyInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
-}
-
-// ListRoutingBacklogPolicy 查询数据流转积压策略列表
-//
-// 应用服务器可调用此接口查询在物联网平台设置的数据流转积压策略列表。
-//
-// Please refer to HUAWEI cloud API Explorer for details.
-func (c *IoTDAClient) ListRoutingBacklogPolicy(request *model.ListRoutingBacklogPolicyRequest) (*model.ListRoutingBacklogPolicyResponse, error) {
-	requestDef := GenReqDefForListRoutingBacklogPolicy()
-
-	if resp, err := c.HcClient.Sync(request, requestDef); err != nil {
-		return nil, err
-	} else {
-		return resp.(*model.ListRoutingBacklogPolicyResponse), nil
-	}
-}
-
-// ListRoutingBacklogPolicyInvoker 查询数据流转积压策略列表
-func (c *IoTDAClient) ListRoutingBacklogPolicyInvoker(request *model.ListRoutingBacklogPolicyRequest) *ListRoutingBacklogPolicyInvoker {
-	requestDef := GenReqDefForListRoutingBacklogPolicy()
-	return &ListRoutingBacklogPolicyInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
-}
-
-// ShowRoutingBacklogPolicy 查询数据流转积压策略
-//
-// 应用服务器可调用此接口在物联网平台查询指定数据流转积压策略。
-//
-// Please refer to HUAWEI cloud API Explorer for details.
-func (c *IoTDAClient) ShowRoutingBacklogPolicy(request *model.ShowRoutingBacklogPolicyRequest) (*model.ShowRoutingBacklogPolicyResponse, error) {
-	requestDef := GenReqDefForShowRoutingBacklogPolicy()
-
-	if resp, err := c.HcClient.Sync(request, requestDef); err != nil {
-		return nil, err
-	} else {
-		return resp.(*model.ShowRoutingBacklogPolicyResponse), nil
-	}
-}
-
-// ShowRoutingBacklogPolicyInvoker 查询数据流转积压策略
-func (c *IoTDAClient) ShowRoutingBacklogPolicyInvoker(request *model.ShowRoutingBacklogPolicyRequest) *ShowRoutingBacklogPolicyInvoker {
-	requestDef := GenReqDefForShowRoutingBacklogPolicy()
-	return &ShowRoutingBacklogPolicyInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
-}
-
-// UpdateRoutingBacklogPolicy 修改数据流转积压策略
-//
-// 应用服务器可调用此接口在物联网平台修改指定数据流转积压策略。
-//
-// Please refer to HUAWEI cloud API Explorer for details.
-func (c *IoTDAClient) UpdateRoutingBacklogPolicy(request *model.UpdateRoutingBacklogPolicyRequest) (*model.UpdateRoutingBacklogPolicyResponse, error) {
-	requestDef := GenReqDefForUpdateRoutingBacklogPolicy()
-
-	if resp, err := c.HcClient.Sync(request, requestDef); err != nil {
-		return nil, err
-	} else {
-		return resp.(*model.UpdateRoutingBacklogPolicyResponse), nil
-	}
-}
-
-// UpdateRoutingBacklogPolicyInvoker 修改数据流转积压策略
-func (c *IoTDAClient) UpdateRoutingBacklogPolicyInvoker(request *model.UpdateRoutingBacklogPolicyRequest) *UpdateRoutingBacklogPolicyInvoker {
-	requestDef := GenReqDefForUpdateRoutingBacklogPolicy()
-	return &UpdateRoutingBacklogPolicyInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
 }
 
 // CreateBatchTask 创建批量任务
@@ -575,92 +449,6 @@ func (c *IoTDAClient) UploadBatchTaskFileInvoker(request *model.UploadBatchTaskF
 	return &UploadBatchTaskFileInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
 }
 
-// AddBridge 创建网桥
-//
-// 应用服务器可调用此接口在物联网平台创建一个网桥，仅在创建后的网桥才可以接入物联网平台。
-// - 一个实例最多支持20个网桥。
-// - 仅**标准版实例、企业版实例**支持该接口调用，基础版不支持。
-//
-// Please refer to HUAWEI cloud API Explorer for details.
-func (c *IoTDAClient) AddBridge(request *model.AddBridgeRequest) (*model.AddBridgeResponse, error) {
-	requestDef := GenReqDefForAddBridge()
-
-	if resp, err := c.HcClient.Sync(request, requestDef); err != nil {
-		return nil, err
-	} else {
-		return resp.(*model.AddBridgeResponse), nil
-	}
-}
-
-// AddBridgeInvoker 创建网桥
-func (c *IoTDAClient) AddBridgeInvoker(request *model.AddBridgeRequest) *AddBridgeInvoker {
-	requestDef := GenReqDefForAddBridge()
-	return &AddBridgeInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
-}
-
-// DeleteBridge 删除网桥
-//
-// 应用服务器可调用此接口在物联网平台上删除指定网桥。
-//
-// Please refer to HUAWEI cloud API Explorer for details.
-func (c *IoTDAClient) DeleteBridge(request *model.DeleteBridgeRequest) (*model.DeleteBridgeResponse, error) {
-	requestDef := GenReqDefForDeleteBridge()
-
-	if resp, err := c.HcClient.Sync(request, requestDef); err != nil {
-		return nil, err
-	} else {
-		return resp.(*model.DeleteBridgeResponse), nil
-	}
-}
-
-// DeleteBridgeInvoker 删除网桥
-func (c *IoTDAClient) DeleteBridgeInvoker(request *model.DeleteBridgeRequest) *DeleteBridgeInvoker {
-	requestDef := GenReqDefForDeleteBridge()
-	return &DeleteBridgeInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
-}
-
-// ListBridges 查询网桥列表
-//
-// 应用服务器可调用此接口在物联网平台查询网桥列表。
-//
-// Please refer to HUAWEI cloud API Explorer for details.
-func (c *IoTDAClient) ListBridges(request *model.ListBridgesRequest) (*model.ListBridgesResponse, error) {
-	requestDef := GenReqDefForListBridges()
-
-	if resp, err := c.HcClient.Sync(request, requestDef); err != nil {
-		return nil, err
-	} else {
-		return resp.(*model.ListBridgesResponse), nil
-	}
-}
-
-// ListBridgesInvoker 查询网桥列表
-func (c *IoTDAClient) ListBridgesInvoker(request *model.ListBridgesRequest) *ListBridgesInvoker {
-	requestDef := GenReqDefForListBridges()
-	return &ListBridgesInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
-}
-
-// ResetBridgeSecret 重置网桥密钥
-//
-// 应用服务器可调用此接口在物联网平台上重置网桥密钥。
-//
-// Please refer to HUAWEI cloud API Explorer for details.
-func (c *IoTDAClient) ResetBridgeSecret(request *model.ResetBridgeSecretRequest) (*model.ResetBridgeSecretResponse, error) {
-	requestDef := GenReqDefForResetBridgeSecret()
-
-	if resp, err := c.HcClient.Sync(request, requestDef); err != nil {
-		return nil, err
-	} else {
-		return resp.(*model.ResetBridgeSecretResponse), nil
-	}
-}
-
-// ResetBridgeSecretInvoker 重置网桥密钥
-func (c *IoTDAClient) ResetBridgeSecretInvoker(request *model.ResetBridgeSecretRequest) *ResetBridgeSecretInvoker {
-	requestDef := GenReqDefForResetBridgeSecret()
-	return &ResetBridgeSecretInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
-}
-
 // BroadcastMessage 下发广播消息
 //
 // 应用服务器可调用此接口向订阅了指定Topic的所有在线设备发布广播消息。应用将广播消息下发给平台后，平台会先返回应用响应结果，再将消息广播给设备。
@@ -766,27 +554,6 @@ func (c *IoTDAClient) ListCertificates(request *model.ListCertificatesRequest) (
 func (c *IoTDAClient) ListCertificatesInvoker(request *model.ListCertificatesRequest) *ListCertificatesInvoker {
 	requestDef := GenReqDefForListCertificates()
 	return &ListCertificatesInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
-}
-
-// UpdateCertificate 更新CA证书
-//
-// 应用服务器可调用此接口在物联网平台上更新CA证书。仅标准版实例、企业版实例支持该接口调用，基础版不支持。
-//
-// Please refer to HUAWEI cloud API Explorer for details.
-func (c *IoTDAClient) UpdateCertificate(request *model.UpdateCertificateRequest) (*model.UpdateCertificateResponse, error) {
-	requestDef := GenReqDefForUpdateCertificate()
-
-	if resp, err := c.HcClient.Sync(request, requestDef); err != nil {
-		return nil, err
-	} else {
-		return resp.(*model.UpdateCertificateResponse), nil
-	}
-}
-
-// UpdateCertificateInvoker 更新CA证书
-func (c *IoTDAClient) UpdateCertificateInvoker(request *model.UpdateCertificateRequest) *UpdateCertificateInvoker {
-	requestDef := GenReqDefForUpdateCertificate()
-	return &UpdateCertificateInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
 }
 
 // CreateCommand 下发设备命令
@@ -1026,27 +793,6 @@ func (c *IoTDAClient) FreezeDevice(request *model.FreezeDeviceRequest) (*model.F
 func (c *IoTDAClient) FreezeDeviceInvoker(request *model.FreezeDeviceRequest) *FreezeDeviceInvoker {
 	requestDef := GenReqDefForFreezeDevice()
 	return &FreezeDeviceInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
-}
-
-// ListDeviceGroupsByDevice 查询指定设备加入的设备组列表
-//
-// 应用服务器可调用此接口查询物联网平台中的某个设备加入的设备组信息列表。仅标准版实例、企业版实例支持该接口调用，基础版不支持。
-//
-// Please refer to HUAWEI cloud API Explorer for details.
-func (c *IoTDAClient) ListDeviceGroupsByDevice(request *model.ListDeviceGroupsByDeviceRequest) (*model.ListDeviceGroupsByDeviceResponse, error) {
-	requestDef := GenReqDefForListDeviceGroupsByDevice()
-
-	if resp, err := c.HcClient.Sync(request, requestDef); err != nil {
-		return nil, err
-	} else {
-		return resp.(*model.ListDeviceGroupsByDeviceResponse), nil
-	}
-}
-
-// ListDeviceGroupsByDeviceInvoker 查询指定设备加入的设备组列表
-func (c *IoTDAClient) ListDeviceGroupsByDeviceInvoker(request *model.ListDeviceGroupsByDeviceRequest) *ListDeviceGroupsByDeviceInvoker {
-	requestDef := GenReqDefForListDeviceGroupsByDevice()
-	return &ListDeviceGroupsByDeviceInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
 }
 
 // ListDevices 查询设备列表
@@ -1310,113 +1056,6 @@ func (c *IoTDAClient) UpdateDeviceInvoker(request *model.UpdateDeviceRequest) *U
 	return &UpdateDeviceInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
 }
 
-// CreateDeviceProxy 创建设备代理
-//
-// 应用服务器可调用此接口在物联网平台创建一个动态设备代理规则，用于子设备自主选择网关设备上线和上报消息，即代理组下的任意网关下的子设备均可以通过代理组里其他设备上线([[网关更新子设备状态](https://support.huaweicloud.com/api-iothub/iot_06_v5_3022.html)](tag:hws) [[网关更新子设备状态](https://support.huaweicloud.com/intl/zh-cn/api-iothub/iot_06_v5_3022.html)](tag:hws_hk))然后进行数据上报([[网关批量设备属性上报](https://support.huaweicloud.com/api-iothub/iot_06_v5_3006.html)](tag:hws) [[网关更新子设备状态](https://support.huaweicloud.com/intl/zh-cn/api-iothub/iot_06_v5_3006.html)](tag:hws_hk))。
-// - 单实例最多可以配置10个设备代理
-// - 单账号调用该接口的 TPS 限制最大为1/S(每秒1次请求数)
-//
-// Please refer to HUAWEI cloud API Explorer for details.
-func (c *IoTDAClient) CreateDeviceProxy(request *model.CreateDeviceProxyRequest) (*model.CreateDeviceProxyResponse, error) {
-	requestDef := GenReqDefForCreateDeviceProxy()
-
-	if resp, err := c.HcClient.Sync(request, requestDef); err != nil {
-		return nil, err
-	} else {
-		return resp.(*model.CreateDeviceProxyResponse), nil
-	}
-}
-
-// CreateDeviceProxyInvoker 创建设备代理
-func (c *IoTDAClient) CreateDeviceProxyInvoker(request *model.CreateDeviceProxyRequest) *CreateDeviceProxyInvoker {
-	requestDef := GenReqDefForCreateDeviceProxy()
-	return &CreateDeviceProxyInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
-}
-
-// DeleteDeviceProxy 删除设备代理
-//
-// 应用服务器可调用此接口在物联网平台上删除指定设备代理。
-//
-// Please refer to HUAWEI cloud API Explorer for details.
-func (c *IoTDAClient) DeleteDeviceProxy(request *model.DeleteDeviceProxyRequest) (*model.DeleteDeviceProxyResponse, error) {
-	requestDef := GenReqDefForDeleteDeviceProxy()
-
-	if resp, err := c.HcClient.Sync(request, requestDef); err != nil {
-		return nil, err
-	} else {
-		return resp.(*model.DeleteDeviceProxyResponse), nil
-	}
-}
-
-// DeleteDeviceProxyInvoker 删除设备代理
-func (c *IoTDAClient) DeleteDeviceProxyInvoker(request *model.DeleteDeviceProxyRequest) *DeleteDeviceProxyInvoker {
-	requestDef := GenReqDefForDeleteDeviceProxy()
-	return &DeleteDeviceProxyInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
-}
-
-// ListDeviceProxies 查询设备代理列表
-//
-// 应用服务器可调用此接口查询物联网平台中的设备代理列表。
-//
-// Please refer to HUAWEI cloud API Explorer for details.
-func (c *IoTDAClient) ListDeviceProxies(request *model.ListDeviceProxiesRequest) (*model.ListDeviceProxiesResponse, error) {
-	requestDef := GenReqDefForListDeviceProxies()
-
-	if resp, err := c.HcClient.Sync(request, requestDef); err != nil {
-		return nil, err
-	} else {
-		return resp.(*model.ListDeviceProxiesResponse), nil
-	}
-}
-
-// ListDeviceProxiesInvoker 查询设备代理列表
-func (c *IoTDAClient) ListDeviceProxiesInvoker(request *model.ListDeviceProxiesRequest) *ListDeviceProxiesInvoker {
-	requestDef := GenReqDefForListDeviceProxies()
-	return &ListDeviceProxiesInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
-}
-
-// ShowDeviceProxy 查询设备代理详情
-//
-// 应用服务器可调用此接口查询物联网平台中指定设备代理的详细信息。
-//
-// Please refer to HUAWEI cloud API Explorer for details.
-func (c *IoTDAClient) ShowDeviceProxy(request *model.ShowDeviceProxyRequest) (*model.ShowDeviceProxyResponse, error) {
-	requestDef := GenReqDefForShowDeviceProxy()
-
-	if resp, err := c.HcClient.Sync(request, requestDef); err != nil {
-		return nil, err
-	} else {
-		return resp.(*model.ShowDeviceProxyResponse), nil
-	}
-}
-
-// ShowDeviceProxyInvoker 查询设备代理详情
-func (c *IoTDAClient) ShowDeviceProxyInvoker(request *model.ShowDeviceProxyRequest) *ShowDeviceProxyInvoker {
-	requestDef := GenReqDefForShowDeviceProxy()
-	return &ShowDeviceProxyInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
-}
-
-// UpdateDeviceProxy 修改设备代理
-//
-// 应用服务器可调用此接口修改物联网平台中指定设备代理的基本信息。
-//
-// Please refer to HUAWEI cloud API Explorer for details.
-func (c *IoTDAClient) UpdateDeviceProxy(request *model.UpdateDeviceProxyRequest) (*model.UpdateDeviceProxyResponse, error) {
-	requestDef := GenReqDefForUpdateDeviceProxy()
-
-	if resp, err := c.HcClient.Sync(request, requestDef); err != nil {
-		return nil, err
-	} else {
-		return resp.(*model.UpdateDeviceProxyResponse), nil
-	}
-}
-
-// UpdateDeviceProxyInvoker 修改设备代理
-func (c *IoTDAClient) UpdateDeviceProxyInvoker(request *model.UpdateDeviceProxyRequest) *UpdateDeviceProxyInvoker {
-	requestDef := GenReqDefForUpdateDeviceProxy()
-	return &UpdateDeviceProxyInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
-}
-
 // ShowDeviceShadow 查询设备影子数据
 //
 // 应用服务器可调用此接口查询指定设备的设备影子信息，包括对设备的期望属性信息（desired区）和设备最新上报的属性信息（reported区）。
@@ -1478,111 +1117,6 @@ func (c *IoTDAClient) UpdateDeviceShadowDesiredData(request *model.UpdateDeviceS
 func (c *IoTDAClient) UpdateDeviceShadowDesiredDataInvoker(request *model.UpdateDeviceShadowDesiredDataRequest) *UpdateDeviceShadowDesiredDataInvoker {
 	requestDef := GenReqDefForUpdateDeviceShadowDesiredData()
 	return &UpdateDeviceShadowDesiredDataInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
-}
-
-// CreateRoutingFlowControlPolicy 新建数据流转流控策略
-//
-// 应用服务器可调用此接口在物联网平台创建数据流转流控策略。
-//
-// Please refer to HUAWEI cloud API Explorer for details.
-func (c *IoTDAClient) CreateRoutingFlowControlPolicy(request *model.CreateRoutingFlowControlPolicyRequest) (*model.CreateRoutingFlowControlPolicyResponse, error) {
-	requestDef := GenReqDefForCreateRoutingFlowControlPolicy()
-
-	if resp, err := c.HcClient.Sync(request, requestDef); err != nil {
-		return nil, err
-	} else {
-		return resp.(*model.CreateRoutingFlowControlPolicyResponse), nil
-	}
-}
-
-// CreateRoutingFlowControlPolicyInvoker 新建数据流转流控策略
-func (c *IoTDAClient) CreateRoutingFlowControlPolicyInvoker(request *model.CreateRoutingFlowControlPolicyRequest) *CreateRoutingFlowControlPolicyInvoker {
-	requestDef := GenReqDefForCreateRoutingFlowControlPolicy()
-	return &CreateRoutingFlowControlPolicyInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
-}
-
-// DeleteRoutingFlowControlPolicy 删除数据流转流控策略
-//
-// 应用服务器可调用此接口在物联网平台删除指定数据流转流控策略。
-//
-// Please refer to HUAWEI cloud API Explorer for details.
-func (c *IoTDAClient) DeleteRoutingFlowControlPolicy(request *model.DeleteRoutingFlowControlPolicyRequest) (*model.DeleteRoutingFlowControlPolicyResponse, error) {
-	requestDef := GenReqDefForDeleteRoutingFlowControlPolicy()
-
-	if resp, err := c.HcClient.Sync(request, requestDef); err != nil {
-		return nil, err
-	} else {
-		return resp.(*model.DeleteRoutingFlowControlPolicyResponse), nil
-	}
-}
-
-// DeleteRoutingFlowControlPolicyInvoker 删除数据流转流控策略
-func (c *IoTDAClient) DeleteRoutingFlowControlPolicyInvoker(request *model.DeleteRoutingFlowControlPolicyRequest) *DeleteRoutingFlowControlPolicyInvoker {
-	requestDef := GenReqDefForDeleteRoutingFlowControlPolicy()
-	return &DeleteRoutingFlowControlPolicyInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
-}
-
-// ListRoutingFlowControlPolicy 查询数据流转流控策略列表
-//
-// 应用服务器可调用此接口查询在物联网平台设置的数据流转流控策略列表。
-//
-// Please refer to HUAWEI cloud API Explorer for details.
-func (c *IoTDAClient) ListRoutingFlowControlPolicy(request *model.ListRoutingFlowControlPolicyRequest) (*model.ListRoutingFlowControlPolicyResponse, error) {
-	requestDef := GenReqDefForListRoutingFlowControlPolicy()
-
-	if resp, err := c.HcClient.Sync(request, requestDef); err != nil {
-		return nil, err
-	} else {
-		return resp.(*model.ListRoutingFlowControlPolicyResponse), nil
-	}
-}
-
-// ListRoutingFlowControlPolicyInvoker 查询数据流转流控策略列表
-func (c *IoTDAClient) ListRoutingFlowControlPolicyInvoker(request *model.ListRoutingFlowControlPolicyRequest) *ListRoutingFlowControlPolicyInvoker {
-	requestDef := GenReqDefForListRoutingFlowControlPolicy()
-	return &ListRoutingFlowControlPolicyInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
-}
-
-// ShowRoutingFlowControlPolicy 查询数据流转流控策略
-//
-// 应用服务器可调用此接口在物联网平台查询指定数据流转流控策略。
-//
-// Please refer to HUAWEI cloud API Explorer for details.
-func (c *IoTDAClient) ShowRoutingFlowControlPolicy(request *model.ShowRoutingFlowControlPolicyRequest) (*model.ShowRoutingFlowControlPolicyResponse, error) {
-	requestDef := GenReqDefForShowRoutingFlowControlPolicy()
-
-	if resp, err := c.HcClient.Sync(request, requestDef); err != nil {
-		return nil, err
-	} else {
-		return resp.(*model.ShowRoutingFlowControlPolicyResponse), nil
-	}
-}
-
-// ShowRoutingFlowControlPolicyInvoker 查询数据流转流控策略
-func (c *IoTDAClient) ShowRoutingFlowControlPolicyInvoker(request *model.ShowRoutingFlowControlPolicyRequest) *ShowRoutingFlowControlPolicyInvoker {
-	requestDef := GenReqDefForShowRoutingFlowControlPolicy()
-	return &ShowRoutingFlowControlPolicyInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
-}
-
-// UpdateRoutingFlowControlPolicy 修改数据流转流控策略
-//
-// 应用服务器可调用此接口在物联网平台修改指定数据流转流控策略。
-//
-// Please refer to HUAWEI cloud API Explorer for details.
-func (c *IoTDAClient) UpdateRoutingFlowControlPolicy(request *model.UpdateRoutingFlowControlPolicyRequest) (*model.UpdateRoutingFlowControlPolicyResponse, error) {
-	requestDef := GenReqDefForUpdateRoutingFlowControlPolicy()
-
-	if resp, err := c.HcClient.Sync(request, requestDef); err != nil {
-		return nil, err
-	} else {
-		return resp.(*model.UpdateRoutingFlowControlPolicyResponse), nil
-	}
-}
-
-// UpdateRoutingFlowControlPolicyInvoker 修改数据流转流控策略
-func (c *IoTDAClient) UpdateRoutingFlowControlPolicyInvoker(request *model.UpdateRoutingFlowControlPolicyRequest) *UpdateRoutingFlowControlPolicyInvoker {
-	requestDef := GenReqDefForUpdateRoutingFlowControlPolicy()
-	return &UpdateRoutingFlowControlPolicyInvoker{invoker.NewBaseInvoker(c.HcClient, request, requestDef)}
 }
 
 // CreateMessage 下发设备消息

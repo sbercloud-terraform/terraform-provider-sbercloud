@@ -8,25 +8,25 @@ import (
 
 type HistoryRunInfo struct {
 
-	// 名称
+	// name
 	Name *string `json:"name,omitempty"`
 
-	// 报告id
+	// run_id
 	RunId *float64 `json:"run_id,omitempty"`
 
-	// 任务类型（0：旧版本任务；1：融合版本任务）
+	// run_type
 	RunType *float64 `json:"run_type,omitempty"`
 
-	// 开始时间
+	// start_time
 	StartTime *string `json:"start_time,omitempty"`
 
 	// 结束时间
 	EndTime *string `json:"end_time,omitempty"`
 
-	// 继续时间
+	// continue_time
 	ContinueTime *float64 `json:"continue_time,omitempty"`
 
-	// 用例或者事务名称
+	// temp_names
 	TempNames *[]TempName `json:"temp_names,omitempty"`
 
 	// 任务间用例是否并行执行

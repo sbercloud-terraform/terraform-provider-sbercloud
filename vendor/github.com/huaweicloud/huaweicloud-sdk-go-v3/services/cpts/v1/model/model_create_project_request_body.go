@@ -9,10 +9,10 @@ import (
 // CreateProjectRequestBody CreateProjectRequestBody
 type CreateProjectRequestBody struct {
 
-	// 名称
+	// name
 	Name string `json:"name"`
 
-	// 描述
+	// description
 	Description *string `json:"description,omitempty"`
 }
 

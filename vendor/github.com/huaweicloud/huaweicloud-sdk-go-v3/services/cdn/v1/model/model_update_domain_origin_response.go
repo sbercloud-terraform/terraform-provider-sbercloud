@@ -8,10 +8,8 @@ import (
 
 // UpdateDomainOriginResponse Response Object
 type UpdateDomainOriginResponse struct {
-	Origin *ResourceBody `json:"origin,omitempty"`
-
-	XRequestId     *string `json:"X-Request-Id,omitempty"`
-	HttpStatusCode int     `json:"-"`
+	Origin         *ResourceBody `json:"origin,omitempty"`
+	HttpStatusCode int           `json:"-"`
 }
 
 func (o UpdateDomainOriginResponse) String() string {

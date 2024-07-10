@@ -1,21 +1,21 @@
 package v3
 
 import (
-	httpclient "github.com/huaweicloud/huaweicloud-sdk-go-v3/core"
+	http_client "github.com/huaweicloud/huaweicloud-sdk-go-v3/core"
 	"github.com/huaweicloud/huaweicloud-sdk-go-v3/core/invoker"
 	"github.com/huaweicloud/huaweicloud-sdk-go-v3/services/kps/v3/model"
 )
 
 type KpsClient struct {
-	HcClient *httpclient.HcHttpClient
+	HcClient *http_client.HcHttpClient
 }
 
-func NewKpsClient(hcClient *httpclient.HcHttpClient) *KpsClient {
+func NewKpsClient(hcClient *http_client.HcHttpClient) *KpsClient {
 	return &KpsClient{HcClient: hcClient}
 }
 
-func KpsClientBuilder() *httpclient.HcHttpClientBuilder {
-	builder := httpclient.NewHcHttpClientBuilder()
+func KpsClientBuilder() *http_client.HcHttpClientBuilder {
+	builder := http_client.NewHcHttpClientBuilder()
 	return builder
 }
 

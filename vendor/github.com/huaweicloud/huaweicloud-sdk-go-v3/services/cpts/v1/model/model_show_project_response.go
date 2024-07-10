@@ -9,10 +9,10 @@ import (
 // ShowProjectResponse Response Object
 type ShowProjectResponse struct {
 
-	// 响应码
+	// code
 	Code *string `json:"code,omitempty"`
 
-	// 响应消息
+	// message
 	Message *string `json:"message,omitempty"`
 
 	Project        *Project `json:"project,omitempty"`

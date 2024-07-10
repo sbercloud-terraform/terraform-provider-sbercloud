@@ -17,18 +17,18 @@ type BatchUpdateTaskStatusRequestBody struct {
 	// 任务id列表
 	TaskIdList []int32 `json:"task_id_list"`
 
-	// 资源组id
+	// cluster_id
 	ClusterId int32 `json:"cluster_id"`
 
-	// 资源组类型（共享资源组：shared-cluster-internet；私有资源组：private-cluster）
+	// cluster_type
 	ClusterType string `json:"cluster_type"`
 
-	// 套餐包VUM不足的情况下用户选择是不是要走按需计费模式（当前版本固定值：0）
+	// without_package
 	WithoutPackage *int32 `json:"without_package,omitempty"`
 
 	NetworkInfo *NetworkInfo `json:"network_info,omitempty"`
 
-	// 状态（9：启动任务；2：停止任务）
+	// status
 	Status int32 `json:"status"`
 
 	// 企业项目id

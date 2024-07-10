@@ -9,8 +9,8 @@ import (
 // ShowClusterConfigurationDetailsResponse Response Object
 type ShowClusterConfigurationDetailsResponse struct {
 
-	// 获取指定集群配置项列表返回体
-	Body           map[string][]PackageOptions `json:"body,omitempty"`
+	// 指定集群配置项列表返回体，非实际返回参数
+	Responses      map[string][]PackageOptions `json:"responses,omitempty"`
 	HttpStatusCode int                         `json:"-"`
 }
 

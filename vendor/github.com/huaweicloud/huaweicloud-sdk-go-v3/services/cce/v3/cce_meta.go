@@ -154,22 +154,6 @@ func GenReqDefForCreateCluster() *def.HttpRequestDef {
 	return requestDef
 }
 
-func GenReqDefForCreateClusterMasterSnapshot() *def.HttpRequestDef {
-	reqDefBuilder := def.NewHttpRequestDefBuilder().
-		WithMethod(http.MethodPost).
-		WithPath("/api/v3.1/projects/{project_id}/clusters/{cluster_id}/operation/snapshot").
-		WithResponse(new(model.CreateClusterMasterSnapshotResponse)).
-		WithContentType("application/json")
-
-	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("ClusterId").
-		WithJsonTag("cluster_id").
-		WithLocationType(def.Path))
-
-	requestDef := reqDefBuilder.Build()
-	return requestDef
-}
-
 func GenReqDefForCreateKubernetesClusterCert() *def.HttpRequestDef {
 	reqDefBuilder := def.NewHttpRequestDefBuilder().
 		WithMethod(http.MethodPost).
@@ -261,71 +245,11 @@ func GenReqDefForCreatePartition() *def.HttpRequestDef {
 	return requestDef
 }
 
-func GenReqDefForCreatePostCheck() *def.HttpRequestDef {
-	reqDefBuilder := def.NewHttpRequestDefBuilder().
-		WithMethod(http.MethodPost).
-		WithPath("/api/v3/projects/{project_id}/clusters/{cluster_id}/operation/postcheck").
-		WithResponse(new(model.CreatePostCheckResponse)).
-		WithContentType("application/json")
-
-	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("ClusterId").
-		WithJsonTag("cluster_id").
-		WithLocationType(def.Path))
-
-	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("Body").
-		WithLocationType(def.Body))
-
-	requestDef := reqDefBuilder.Build()
-	return requestDef
-}
-
-func GenReqDefForCreatePreCheck() *def.HttpRequestDef {
-	reqDefBuilder := def.NewHttpRequestDefBuilder().
-		WithMethod(http.MethodPost).
-		WithPath("/api/v3/projects/{project_id}/clusters/{cluster_id}/operation/precheck").
-		WithResponse(new(model.CreatePreCheckResponse)).
-		WithContentType("application/json")
-
-	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("ClusterId").
-		WithJsonTag("cluster_id").
-		WithLocationType(def.Path))
-
-	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("Body").
-		WithLocationType(def.Body))
-
-	requestDef := reqDefBuilder.Build()
-	return requestDef
-}
-
 func GenReqDefForCreateRelease() *def.HttpRequestDef {
 	reqDefBuilder := def.NewHttpRequestDefBuilder().
 		WithMethod(http.MethodPost).
 		WithPath("/cce/cam/v3/clusters/{cluster_id}/releases").
 		WithResponse(new(model.CreateReleaseResponse)).
-		WithContentType("application/json")
-
-	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("ClusterId").
-		WithJsonTag("cluster_id").
-		WithLocationType(def.Path))
-
-	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("Body").
-		WithLocationType(def.Body))
-
-	requestDef := reqDefBuilder.Build()
-	return requestDef
-}
-
-func GenReqDefForCreateUpgradeWorkFlow() *def.HttpRequestDef {
-	reqDefBuilder := def.NewHttpRequestDefBuilder().
-		WithMethod(http.MethodPost).
-		WithPath("/api/v3/projects/{project_id}/clusters/{cluster_id}/operation/upgradeworkflows").
-		WithResponse(new(model.CreateUpgradeWorkFlowResponse)).
 		WithContentType("application/json")
 
 	reqDefBuilder.WithRequestField(def.NewFieldDef().
@@ -463,10 +387,6 @@ func GenReqDefForDeleteCluster() *def.HttpRequestDef {
 	reqDefBuilder.WithRequestField(def.NewFieldDef().
 		WithName("DeleteSfs30").
 		WithJsonTag("delete_sfs30").
-		WithLocationType(def.Query))
-	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("LtsReclaimPolicy").
-		WithJsonTag("lts_reclaim_policy").
 		WithLocationType(def.Query))
 	reqDefBuilder.WithRequestField(def.NewFieldDef().
 		WithName("Tobedeleted").
@@ -666,44 +586,6 @@ func GenReqDefForListCharts() *def.HttpRequestDef {
 	return requestDef
 }
 
-func GenReqDefForListClusterMasterSnapshotTasks() *def.HttpRequestDef {
-	reqDefBuilder := def.NewHttpRequestDefBuilder().
-		WithMethod(http.MethodGet).
-		WithPath("/api/v3.1/projects/{project_id}/clusters/{cluster_id}/operation/snapshot/tasks").
-		WithResponse(new(model.ListClusterMasterSnapshotTasksResponse)).
-		WithContentType("application/json")
-
-	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("ClusterId").
-		WithJsonTag("cluster_id").
-		WithLocationType(def.Path))
-
-	requestDef := reqDefBuilder.Build()
-	return requestDef
-}
-
-func GenReqDefForListClusterUpgradeFeatureGates() *def.HttpRequestDef {
-	reqDefBuilder := def.NewHttpRequestDefBuilder().
-		WithMethod(http.MethodGet).
-		WithPath("/api/v3/clusterupgradefeaturegates").
-		WithResponse(new(model.ListClusterUpgradeFeatureGatesResponse)).
-		WithContentType("application/json")
-
-	requestDef := reqDefBuilder.Build()
-	return requestDef
-}
-
-func GenReqDefForListClusterUpgradePaths() *def.HttpRequestDef {
-	reqDefBuilder := def.NewHttpRequestDefBuilder().
-		WithMethod(http.MethodGet).
-		WithPath("/api/v3/clusterupgradepaths").
-		WithResponse(new(model.ListClusterUpgradePathsResponse)).
-		WithContentType("application/json")
-
-	requestDef := reqDefBuilder.Build()
-	return requestDef
-}
-
 func GenReqDefForListClusters() *def.HttpRequestDef {
 	reqDefBuilder := def.NewHttpRequestDefBuilder().
 		WithMethod(http.MethodGet).
@@ -798,22 +680,6 @@ func GenReqDefForListPartitions() *def.HttpRequestDef {
 	return requestDef
 }
 
-func GenReqDefForListPreCheckTasks() *def.HttpRequestDef {
-	reqDefBuilder := def.NewHttpRequestDefBuilder().
-		WithMethod(http.MethodGet).
-		WithPath("/api/v3/projects/{project_id}/clusters/{cluster_id}/operation/precheck/tasks").
-		WithResponse(new(model.ListPreCheckTasksResponse)).
-		WithContentType("application/json")
-
-	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("ClusterId").
-		WithJsonTag("cluster_id").
-		WithLocationType(def.Path))
-
-	requestDef := reqDefBuilder.Build()
-	return requestDef
-}
-
 func GenReqDefForListReleases() *def.HttpRequestDef {
 	reqDefBuilder := def.NewHttpRequestDefBuilder().
 		WithMethod(http.MethodGet).
@@ -838,38 +704,6 @@ func GenReqDefForListReleases() *def.HttpRequestDef {
 	reqDefBuilder.WithResponseField(def.NewFieldDef().
 		WithName("Body").
 		WithLocationType(def.Body))
-
-	requestDef := reqDefBuilder.Build()
-	return requestDef
-}
-
-func GenReqDefForListUpgradeClusterTasks() *def.HttpRequestDef {
-	reqDefBuilder := def.NewHttpRequestDefBuilder().
-		WithMethod(http.MethodGet).
-		WithPath("/api/v3/projects/{project_id}/clusters/{cluster_id}/operation/upgrade/tasks").
-		WithResponse(new(model.ListUpgradeClusterTasksResponse)).
-		WithContentType("application/json")
-
-	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("ClusterId").
-		WithJsonTag("cluster_id").
-		WithLocationType(def.Path))
-
-	requestDef := reqDefBuilder.Build()
-	return requestDef
-}
-
-func GenReqDefForListUpgradeWorkFlows() *def.HttpRequestDef {
-	reqDefBuilder := def.NewHttpRequestDefBuilder().
-		WithMethod(http.MethodGet).
-		WithPath("/api/v3/projects/{project_id}/clusters/{cluster_id}/operation/upgradeworkflows").
-		WithResponse(new(model.ListUpgradeWorkFlowsResponse)).
-		WithContentType("application/json")
-
-	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("ClusterId").
-		WithJsonTag("cluster_id").
-		WithLocationType(def.Path))
 
 	requestDef := reqDefBuilder.Build()
 	return requestDef
@@ -1127,10 +961,6 @@ func GenReqDefForShowClusterConfigurationDetails() *def.HttpRequestDef {
 		WithJsonTag("cluster_id").
 		WithLocationType(def.Path))
 
-	reqDefBuilder.WithResponseField(def.NewFieldDef().
-		WithName("Body").
-		WithLocationType(def.Body))
-
 	requestDef := reqDefBuilder.Build()
 	return requestDef
 }
@@ -1140,22 +970,6 @@ func GenReqDefForShowClusterEndpoints() *def.HttpRequestDef {
 		WithMethod(http.MethodGet).
 		WithPath("/api/v3/projects/{project_id}/clusters/{cluster_id}/openapi").
 		WithResponse(new(model.ShowClusterEndpointsResponse)).
-		WithContentType("application/json")
-
-	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("ClusterId").
-		WithJsonTag("cluster_id").
-		WithLocationType(def.Path))
-
-	requestDef := reqDefBuilder.Build()
-	return requestDef
-}
-
-func GenReqDefForShowClusterUpgradeInfo() *def.HttpRequestDef {
-	reqDefBuilder := def.NewHttpRequestDefBuilder().
-		WithMethod(http.MethodGet).
-		WithPath("/api/v3/projects/{project_id}/clusters/{cluster_id}/upgradeinfo").
-		WithResponse(new(model.ShowClusterUpgradeInfoResponse)).
 		WithContentType("application/json")
 
 	reqDefBuilder.WithRequestField(def.NewFieldDef().
@@ -1233,30 +1047,6 @@ func GenReqDefForShowNodePool() *def.HttpRequestDef {
 	return requestDef
 }
 
-func GenReqDefForShowNodePoolConfigurationDetails() *def.HttpRequestDef {
-	reqDefBuilder := def.NewHttpRequestDefBuilder().
-		WithMethod(http.MethodGet).
-		WithPath("/api/v3/projects/{project_id}/clusters/{cluster_id}/nodepools/{nodepool_id}/configuration/detail").
-		WithResponse(new(model.ShowNodePoolConfigurationDetailsResponse)).
-		WithContentType("application/json")
-
-	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("ClusterId").
-		WithJsonTag("cluster_id").
-		WithLocationType(def.Path))
-	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("NodepoolId").
-		WithJsonTag("nodepool_id").
-		WithLocationType(def.Path))
-
-	reqDefBuilder.WithResponseField(def.NewFieldDef().
-		WithName("Body").
-		WithLocationType(def.Body))
-
-	requestDef := reqDefBuilder.Build()
-	return requestDef
-}
-
 func GenReqDefForShowNodePoolConfigurations() *def.HttpRequestDef {
 	reqDefBuilder := def.NewHttpRequestDefBuilder().
 		WithMethod(http.MethodGet).
@@ -1291,26 +1081,6 @@ func GenReqDefForShowPartition() *def.HttpRequestDef {
 	reqDefBuilder.WithRequestField(def.NewFieldDef().
 		WithName("PartitionName").
 		WithJsonTag("partition_name").
-		WithLocationType(def.Path))
-
-	requestDef := reqDefBuilder.Build()
-	return requestDef
-}
-
-func GenReqDefForShowPreCheck() *def.HttpRequestDef {
-	reqDefBuilder := def.NewHttpRequestDefBuilder().
-		WithMethod(http.MethodGet).
-		WithPath("/api/v3/projects/{project_id}/clusters/{cluster_id}/operation/precheck/tasks/{task_id}").
-		WithResponse(new(model.ShowPreCheckResponse)).
-		WithContentType("application/json")
-
-	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("ClusterId").
-		WithJsonTag("cluster_id").
-		WithLocationType(def.Path))
-	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("TaskId").
-		WithJsonTag("task_id").
 		WithLocationType(def.Path))
 
 	requestDef := reqDefBuilder.Build()
@@ -1394,26 +1164,6 @@ func GenReqDefForShowUpgradeClusterTask() *def.HttpRequestDef {
 	reqDefBuilder.WithRequestField(def.NewFieldDef().
 		WithName("TaskId").
 		WithJsonTag("task_id").
-		WithLocationType(def.Path))
-
-	requestDef := reqDefBuilder.Build()
-	return requestDef
-}
-
-func GenReqDefForShowUpgradeWorkFlow() *def.HttpRequestDef {
-	reqDefBuilder := def.NewHttpRequestDefBuilder().
-		WithMethod(http.MethodGet).
-		WithPath("/api/v3/projects/{project_id}/clusters/{cluster_id}/operation/upgradeworkflows/{upgrade_workflow_id}").
-		WithResponse(new(model.ShowUpgradeWorkFlowResponse)).
-		WithContentType("application/json")
-
-	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("ClusterId").
-		WithJsonTag("cluster_id").
-		WithLocationType(def.Path))
-	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("UpgradeWorkflowId").
-		WithJsonTag("upgrade_workflow_id").
 		WithLocationType(def.Path))
 
 	requestDef := reqDefBuilder.Build()
@@ -1680,30 +1430,6 @@ func GenReqDefForUpgradeCluster() *def.HttpRequestDef {
 	reqDefBuilder.WithRequestField(def.NewFieldDef().
 		WithName("ClusterId").
 		WithJsonTag("cluster_id").
-		WithLocationType(def.Path))
-
-	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("Body").
-		WithLocationType(def.Body))
-
-	requestDef := reqDefBuilder.Build()
-	return requestDef
-}
-
-func GenReqDefForUpgradeWorkFlowUpdate() *def.HttpRequestDef {
-	reqDefBuilder := def.NewHttpRequestDefBuilder().
-		WithMethod(http.MethodPatch).
-		WithPath("/api/v3/projects/{project_id}/clusters/{cluster_id}/operation/upgradeworkflows/{upgrade_workflow_id}").
-		WithResponse(new(model.UpgradeWorkFlowUpdateResponse)).
-		WithContentType("application/json")
-
-	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("ClusterId").
-		WithJsonTag("cluster_id").
-		WithLocationType(def.Path))
-	reqDefBuilder.WithRequestField(def.NewFieldDef().
-		WithName("UpgradeWorkflowId").
-		WithJsonTag("upgrade_workflow_id").
 		WithLocationType(def.Path))
 
 	reqDefBuilder.WithRequestField(def.NewFieldDef().

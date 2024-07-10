@@ -9,13 +9,13 @@ import (
 // CreateTempResponse Response Object
 type CreateTempResponse struct {
 
-	// 响应码
+	// code
 	Code *string `json:"code,omitempty"`
 
-	// 事务id
+	// tempId
 	TempId *int32 `json:"tempId,omitempty"`
 
-	// 响应消息
+	// message
 	Message        *string `json:"message,omitempty"`
 	HttpStatusCode int     `json:"-"`
 }

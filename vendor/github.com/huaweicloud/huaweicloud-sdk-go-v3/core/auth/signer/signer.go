@@ -22,10 +22,6 @@ const (
 	xSdkContentSha256 = "X-Sdk-Content-Sha256"
 )
 
-func Sign(req *request.DefaultHttpRequest, ak, sk string) (map[string]string, error) {
-	return Signer{}.Sign(req, ak, sk)
-}
-
 type Signer struct {
 }
 
@@ -112,8 +108,7 @@ func authHeaderValue(alg, sig, ak string, signedHeaders []string) string {
 }
 
 func processContentHeader(req *request.DefaultHttpRequest, contentHeader string) {
-	if contentType, ok := req.GetHeaderParams()["Content-Type"]; ok && (!strings.Contains(contentType, "application/json") &&
-		!strings.Contains(contentType, "application/bson")) {
+	if contentType, ok := req.GetHeaderParams()["Content-Type"]; ok && !strings.Contains(contentType, "application/json") {
 		req.AddHeaderParam(contentHeader, "UNSIGNED-PAYLOAD")
 	}
 }

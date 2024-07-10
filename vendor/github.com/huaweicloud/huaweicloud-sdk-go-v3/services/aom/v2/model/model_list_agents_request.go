@@ -9,10 +9,10 @@ import (
 // ListAgentsRequest Request Object
 type ListAgentsRequest struct {
 
-	// - 查询集群主机时，填写集群id。 - 查询用户自定义主机时，填写“apm”。
+	// 集群id。
 	ClusterId string `json:"cluster_id"`
 
-	// - 查询集群主机时，填写命名空间。 - 查询用户自定义主机时，填写“apm”。
+	// 命名空间。
 	Namespace string `json:"namespace"`
 }
 

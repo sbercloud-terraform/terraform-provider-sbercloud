@@ -12,10 +12,10 @@ import (
 // ListPromInstanceRequest Request Object
 type ListPromInstanceRequest struct {
 
-	// Prometheus实例id(prom_id与prom_type同时存在时，仅prom_id生效)。
+	// Prometheus实例id。
 	PromId *string `json:"prom_id,omitempty"`
 
-	// Prometheus实例类型（暂时不支持VPC、KUBERNETES）。
+	// Prometheus实例类型。
 	PromType *ListPromInstanceRequestPromType `json:"prom_type,omitempty"`
 
 	// cce集群开关。
@@ -23,9 +23,6 @@ type ListPromInstanceRequest struct {
 
 	// Prometheus实例状态。
 	PromStatus *ListPromInstanceRequestPromStatus `json:"prom_status,omitempty"`
-
-	// 企业项目id。 - 查询单个企业项目下实例，填写企业项目id。 - 查询所有企业项目下实例，填写“all_granted_eps”。
-	EnterpriseProjectId *string `json:"Enterprise-Project-Id,omitempty"`
 }
 
 func (o ListPromInstanceRequest) String() string {
@@ -55,7 +52,7 @@ type ListPromInstanceRequestPromTypeEnum struct {
 func GetListPromInstanceRequestPromTypeEnum() ListPromInstanceRequestPromTypeEnum {
 	return ListPromInstanceRequestPromTypeEnum{
 		DEFAULT: ListPromInstanceRequestPromType{
-			value: "default",
+			value: "DEFAULT",
 		},
 		ECS: ListPromInstanceRequestPromType{
 			value: "ECS",
@@ -160,21 +157,17 @@ type ListPromInstanceRequestPromStatus struct {
 }
 
 type ListPromInstanceRequestPromStatusEnum struct {
-	DELETED ListPromInstanceRequestPromStatus
-	NORMAL  ListPromInstanceRequestPromStatus
-	ALL     ListPromInstanceRequestPromStatus
+	TRUE  ListPromInstanceRequestPromStatus
+	FALSE ListPromInstanceRequestPromStatus
 }
 
 func GetListPromInstanceRequestPromStatusEnum() ListPromInstanceRequestPromStatusEnum {
 	return ListPromInstanceRequestPromStatusEnum{
-		DELETED: ListPromInstanceRequestPromStatus{
-			value: "DELETED",
+		TRUE: ListPromInstanceRequestPromStatus{
+			value: "true",
 		},
-		NORMAL: ListPromInstanceRequestPromStatus{
-			value: "NORMAL",
-		},
-		ALL: ListPromInstanceRequestPromStatus{
-			value: "ALL",
+		FALSE: ListPromInstanceRequestPromStatus{
+			value: "false",
 		},
 	}
 }

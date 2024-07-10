@@ -9,13 +9,13 @@ import (
 // CreateTaskResponse Response Object
 type CreateTaskResponse struct {
 
-	// 响应码
+	// code
 	Code *string `json:"code,omitempty"`
 
-	// 响应消息
+	// message
 	Message *string `json:"message,omitempty"`
 
-	// 任务id
+	// task_id
 	TaskId         *int32 `json:"task_id,omitempty"`
 	HttpStatusCode int    `json:"-"`
 }

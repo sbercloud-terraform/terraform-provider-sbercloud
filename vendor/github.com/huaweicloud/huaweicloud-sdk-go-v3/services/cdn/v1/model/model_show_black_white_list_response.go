@@ -13,10 +13,8 @@ type ShowBlackWhiteListResponse struct {
 	Type *int32 `json:"type,omitempty"`
 
 	// IP黑白名单列表。
-	IpList *[]string `json:"ip_list,omitempty"`
-
-	XRequestId     *string `json:"X-Request-Id,omitempty"`
-	HttpStatusCode int     `json:"-"`
+	IpList         *[]string `json:"ip_list,omitempty"`
+	HttpStatusCode int       `json:"-"`
 }
 
 func (o ShowBlackWhiteListResponse) String() string {

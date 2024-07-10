@@ -15,7 +15,3 @@ func updateURL(client *golangsdk.ServiceClient, userID string) string {
 func getURL(client *golangsdk.ServiceClient, userID string) string {
 	return client.ServiceURL(rootPath, "users", userID)
 }
-
-func loginProtectURL(client *golangsdk.ServiceClient, userID string) string {
-	return client.ServiceURL(rootPath, "users", userID, "login-protect")
-}

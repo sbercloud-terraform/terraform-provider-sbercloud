@@ -197,9 +197,7 @@ func ListVersions(c *golangsdk.ServiceClient, opts ListVersionsOpts) ([]Dependen
 	url += query.String()
 
 	pager := pagination.NewPager(c, url, func(r pagination.PageResult) pagination.Page {
-		p := DependencyVersionPage{pagination.MarkerPageBase{PageResult: r}}
-		p.MarkerPageBase.Owner = p
-		return p
+		return DependencyVersionPage{pagination.SinglePageBase(r)}
 	})
 	pager.Headers = requestOpts.MoreHeaders
 	pages, err := pager.AllPages()

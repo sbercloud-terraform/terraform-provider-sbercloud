@@ -14,6 +14,14 @@ type CreateResult struct {
 	commonResult
 }
 
+type DeleteResult struct {
+	commonResult
+}
+
+type RestartResult struct {
+	commonResult
+}
+
 type RenameResult struct {
 	commonResult
 }
@@ -30,11 +38,15 @@ type ModifyReplicationModeResult struct {
 	commonResult
 }
 
-type ModifyBinlogRetentionHoursResult struct {
+type ModifyCollationResult struct {
 	commonResult
 }
 
 type ModifySwitchStrategyResult struct {
+	commonResult
+}
+
+type SingleToHaResult struct {
 	commonResult
 }
 
@@ -46,15 +58,7 @@ type EnlargeVolumeResult struct {
 	commonResult
 }
 
-type ApplyConfigurationOptsResult struct {
-	commonResult
-}
-
 type ModifyConfigurationResult struct {
-	commonResult
-}
-
-type ModifySecondLevelMonitoringResult struct {
 	commonResult
 }
 
@@ -62,23 +66,7 @@ type GetConfigurationResult struct {
 	commonResult
 }
 
-type GetBinlogRetentionHoursResult struct {
-	commonResult
-}
-
-type GetTdeStatusResult struct {
-	commonResult
-}
-
-type GetSecondLevelMonitoringResult struct {
-	commonResult
-}
-
-type ModifySlowLogShowOriginalStatusResult struct {
-	commonResult
-}
-
-type JobResult struct {
+type RebootResult struct {
 	commonResult
 }
 
@@ -119,22 +107,34 @@ func (r CreateResult) Extract() (*CreateResponse, error) {
 	return &response, err
 }
 
-type JobResponse struct {
-	JobId     string `json:"job_id"`
-	HumpJobId string `json:"jobId"`
+type DeleteResponse struct {
+	JobId string `json:"job_id"`
 }
 
-func (r JobResult) Extract() (*JobResponse, error) {
-	var response JobResponse
+func (r DeleteResult) Extract() (*DeleteResponse, error) {
+	var response DeleteResponse
 	err := r.ExtractInto(&response)
 	return &response, err
 }
 
-func (job JobResponse) GetJobId() string {
-	if job.JobId != "" {
-		return job.JobId
-	}
-	return job.HumpJobId
+type RestartResponse struct {
+	JobId string `json:"job_id"`
+}
+
+func (r RestartResult) Extract() (*RestartResponse, error) {
+	var response RestartResponse
+	err := r.ExtractInto(&response)
+	return &response, err
+}
+
+type SingleToHaResponse struct {
+	JobId string `json:"job_id"`
+}
+
+func (r SingleToHaResult) Extract() (*SingleToHaResponse, error) {
+	var response SingleToHaResponse
+	err := r.ExtractInto(&response)
+	return &response, err
 }
 
 type ResizeFlavor struct {
@@ -159,19 +159,6 @@ func (r EnlargeVolumeResult) Extract() (*EnlargeVolumeResp, error) {
 	return &response, err
 }
 
-type ApplyConfigurationResp struct {
-	ConfigurationId   string `json:"configuration_id"`
-	ConfigurationName string `json:"configuration_name"`
-	Success           bool   `json:"success"`
-	JobId             string `json:"job_id"`
-}
-
-func (r ApplyConfigurationOptsResult) Extract() (*ApplyConfigurationResp, error) {
-	var response ApplyConfigurationResp
-	err := r.ExtractInto(&response)
-	return &response, err
-}
-
 type ModifyConfigurationResp struct {
 	JobId   string `json:"job_id"`
 	Restart bool   `json:"restart_required"`
@@ -179,6 +166,16 @@ type ModifyConfigurationResp struct {
 
 func (r ModifyConfigurationResult) Extract() (*ModifyConfigurationResp, error) {
 	var response ModifyConfigurationResp
+	err := r.ExtractInto(&response)
+	return &response, err
+}
+
+type RebootResp struct {
+	JobId string `json:"job_id"`
+}
+
+func (r RebootResult) Extract() (*RebootResp, error) {
+	var response RebootResp
 	err := r.ExtractInto(&response)
 	return &response, err
 }
@@ -205,69 +202,6 @@ func (r GetConfigurationResult) Extract() (*GetConfigurationResp, error) {
 	return &response, err
 }
 
-type GetTdeStatusResp struct {
-	InstanceId string `json:"instance_id"`
-	TdeStatus  string `json:"tde_status"`
-}
-
-func (r GetTdeStatusResult) Extract() (*GetTdeStatusResp, error) {
-	var response GetTdeStatusResp
-	err := r.ExtractInto(&response)
-	return &response, err
-}
-
-type GetSecondLevelMonitoringResp struct {
-	SwitchOption bool `json:"switch_option"`
-	Interval     int  `json:"interval"`
-}
-
-func (r GetSecondLevelMonitoringResult) Extract() (*GetSecondLevelMonitoringResp, error) {
-	var response GetSecondLevelMonitoringResp
-	err := r.ExtractInto(&response)
-	return &response, err
-}
-
-type GetBinlogRetentionHoursResp struct {
-	BinlogRetentionHours int    `json:"binlog_retention_hours"`
-	BinlogClearType      string `json:"binlog_clear_type"`
-}
-
-func (r GetBinlogRetentionHoursResult) Extract() (*GetBinlogRetentionHoursResp, error) {
-	var response GetBinlogRetentionHoursResp
-	err := r.ExtractInto(&response)
-	return &response, err
-}
-
-type ListMsdtcHostsResponse struct {
-	Hosts      []RdsMsdtcHosts `json:"hosts"`
-	TotalCount int             `json:"total_count"`
-}
-
-type RdsMsdtcHosts struct {
-	Id       string `json:"id"`
-	Host     string `json:"host"`
-	HostName string `json:"host_name"`
-}
-
-type MsdtcHostsPage struct {
-	pagination.OffsetPageBase
-}
-
-func (r MsdtcHostsPage) IsEmpty() (bool, error) {
-	data, err := ExtractRdsMsdtcHosts(r)
-	if err != nil {
-		return false, err
-	}
-	return len(data.Hosts) == 0, err
-}
-
-// ExtractRdsMsdtcHosts is a function that takes a ListResult and returns the msdct hosts' information.
-func ExtractRdsMsdtcHosts(r pagination.Page) (ListMsdtcHostsResponse, error) {
-	var s ListMsdtcHostsResponse
-	err := (r.(MsdtcHostsPage)).ExtractInto(&s)
-	return s, err
-}
-
 type ReplicationMode struct {
 	WorkflowId      string `json:"workflowId"`
 	InstanceId      string `json:"instanceId"`
@@ -280,12 +214,12 @@ func (r ModifyReplicationModeResult) Extract() (*ReplicationMode, error) {
 	return &response, err
 }
 
-type BinlogRetentionHoursResp struct {
-	Resp string `json:"resp"`
+type Collation struct {
+	JobId string `json:"job_id"`
 }
 
-func (r ModifyBinlogRetentionHoursResult) Extract() (*BinlogRetentionHoursResp, error) {
-	var response BinlogRetentionHoursResp
+func (r ModifyCollationResult) Extract() (*Collation, error) {
+	var response Collation
 	err := r.ExtractInto(&response)
 	return &response, err
 }

@@ -9,19 +9,19 @@ import (
 // CreateTaskRequestBody CreateTaskRequestBody
 type CreateTaskRequestBody struct {
 
-	// 名称
+	// name
 	Name string `json:"name"`
 
-	// 工程id
+	// project_id
 	ProjectId int32 `json:"project_id"`
 
-	// 事务信息
+	// temps
 	Temps *[]string `json:"temps,omitempty"`
 
-	// 压力阶段模式，0：时长模式；1：次数模式；2：混合模式
+	// operate_mode
 	OperateMode *int32 `json:"operate_mode,omitempty"`
 
-	// 基准并发
+	// bench_concurrent
 	BenchConcurrent *int32 `json:"bench_concurrent,omitempty"`
 }
 

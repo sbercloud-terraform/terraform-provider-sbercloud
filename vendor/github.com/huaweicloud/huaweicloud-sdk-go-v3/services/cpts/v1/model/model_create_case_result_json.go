@@ -8,7 +8,7 @@ import (
 
 type CreateCaseResultJson struct {
 
-	// 用例id
+	// task_case_id
 	TaskCaseId *int32 `json:"task_case_id,omitempty"`
 }
 

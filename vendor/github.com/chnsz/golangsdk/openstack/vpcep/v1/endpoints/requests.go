@@ -31,9 +31,7 @@ type CreateOpts struct {
 	// Specifies the whitelist for controlling access to the VPC endpoint
 	Whitelist []string `json:"whitelist,omitempty"`
 	// Specifies the IDs of route tables
-	// The parameter is mandatory to create a gateway type VPC endpoint
-	// If the parameter is not set, will be associated with the default route table
-	RouteTables []string `json:"routetables,omitempty"`
+	RouteTables []string `json:"routeTables,omitempty"`
 	// Specifies the resource tags in key/value format
 	Tags []tags.ResourceTag `json:"tags,omitempty"`
 	// Specifies the description of the VPC endpoint service

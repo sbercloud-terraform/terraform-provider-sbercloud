@@ -8,8 +8,7 @@ import (
 
 // UpdateDomainFullConfigResponse Response Object
 type UpdateDomainFullConfigResponse struct {
-	XRequestId     *string `json:"X-Request-Id,omitempty"`
-	HttpStatusCode int     `json:"-"`
+	HttpStatusCode int `json:"-"`
 }
 
 func (o UpdateDomainFullConfigResponse) String() string {

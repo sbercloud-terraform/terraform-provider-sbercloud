@@ -8,7 +8,13 @@ import (
 
 // UpdateBackupPolicyInfoResponse Response Object
 type UpdateBackupPolicyInfoResponse struct {
-	HttpStatusCode int `json:"-"`
+
+	// 错误编码,成功返回0
+	ErrorCode *int32 `json:"error_code,omitempty"`
+
+	// 错误描述，成功返回success
+	ErrorDescription *string `json:"error_description,omitempty"`
+	HttpStatusCode   int     `json:"-"`
 }
 
 func (o UpdateBackupPolicyInfoResponse) String() string {

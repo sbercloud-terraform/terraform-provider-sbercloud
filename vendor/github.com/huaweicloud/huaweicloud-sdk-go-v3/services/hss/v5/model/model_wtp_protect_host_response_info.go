@@ -11,7 +11,7 @@ type WtpProtectHostResponseInfo struct {
 	// 服务器名称
 	HostName *string `json:"host_name,omitempty"`
 
-	// 主机ID
+	// 云服务器ID
 	HostId *string `json:"host_id,omitempty"`
 
 	// 弹性公网IP
@@ -19,9 +19,6 @@ type WtpProtectHostResponseInfo struct {
 
 	// 私有IP
 	PrivateIp *string `json:"private_ip,omitempty"`
-
-	// 私有IPv6地址
-	Ipv6 *string `json:"ipv6,omitempty"`
 
 	// 服务器组名称
 	GroupName *string `json:"group_name,omitempty"`
@@ -44,7 +41,7 @@ type WtpProtectHostResponseInfo struct {
 	// 已发现篡改攻击
 	DetectTamperingTimes *int64 `json:"detect_tampering_times,omitempty"`
 
-	// 最近检测时间(ms)
+	// 最近检测时间
 	LastDetectTime *int64 `json:"last_detect_time,omitempty"`
 
 	// 定时关闭防护开关状态   - opened : 开启   - closed : 未开启

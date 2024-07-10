@@ -13,10 +13,8 @@ type ShowHistoryTasksResponse struct {
 	Total *int32 `json:"total,omitempty"`
 
 	// 日志列表数据
-	Tasks *[]TasksObject `json:"tasks,omitempty"`
-
-	XRequestId     *string `json:"X-Request-Id,omitempty"`
-	HttpStatusCode int     `json:"-"`
+	Tasks          *[]TasksObject `json:"tasks,omitempty"`
+	HttpStatusCode int            `json:"-"`
 }
 
 func (o ShowHistoryTasksResponse) String() string {

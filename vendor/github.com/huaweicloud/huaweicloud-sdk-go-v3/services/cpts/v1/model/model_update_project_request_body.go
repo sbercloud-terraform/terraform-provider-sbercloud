@@ -9,22 +9,22 @@ import (
 // UpdateProjectRequestBody UpdateProjectRequestBody
 type UpdateProjectRequestBody struct {
 
-	// 工程id
+	// id
 	Id int32 `json:"id"`
 
-	// 工程名称
+	// name
 	Name string `json:"name"`
 
-	// 工程描述
+	// description
 	Description *string `json:"description,omitempty"`
 
-	// 导入工程时，缺失的存在于变量文件中的变量
+	// variables_no_file
 	VariablesNoFile *[]string `json:"variables_no_file,omitempty"`
 
-	// 来源（0-PerfTest；2-CloudTest）
+	// source
 	Source *int32 `json:"source,omitempty"`
 
-	// 扩展参数
+	// external_params
 	ExternalParams *interface{} `json:"external_params,omitempty"`
 }
 

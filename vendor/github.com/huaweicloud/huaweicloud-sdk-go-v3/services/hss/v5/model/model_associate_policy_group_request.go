@@ -9,14 +9,11 @@ import (
 // AssociatePolicyGroupRequest Request Object
 type AssociatePolicyGroupRequest struct {
 
-	// Region ID
+	// region id
 	Region string `json:"region"`
 
-	// 企业项目ID，查询所有企业项目时填写：all_granted_eps
+	// 租户企业项目ID，查询所有企业项目时填写：all_granted_eps
 	EnterpriseProjectId *string `json:"enterprise_project_id,omitempty"`
-
-	// 缺省值:application/json; charset=utf-8
-	ContentType *string `json:"Content-Type,omitempty"`
 
 	Body *AssociatePolicyGroupRequestInfo `json:"body,omitempty"`
 }

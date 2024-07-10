@@ -9,13 +9,10 @@ import (
 // BatchCreateTagsRequest Request Object
 type BatchCreateTagsRequest struct {
 
-	// 缺省值:application/json; charset=utf-8
-	ContentType *string `json:"Content-Type,omitempty"`
-
-	// 由标签管理服务定义的资源类别，企业主机安全服务调用此接口时资源类别为hss
+	// 资源类别，hss
 	ResourceType string `json:"resource_type"`
 
-	// 由标签管理服务定义的资源id，企业主机安全服务调用此接口时资源id为配额ID
+	// 资源ID
 	ResourceId string `json:"resource_id"`
 
 	Body *BatchCreateTagsRequestInfo `json:"body,omitempty"`

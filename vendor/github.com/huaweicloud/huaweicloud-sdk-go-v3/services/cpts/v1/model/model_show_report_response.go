@@ -9,13 +9,13 @@ import (
 // ShowReportResponse Response Object
 type ShowReportResponse struct {
 
-	// 响应码
+	// code
 	Code *string `json:"code,omitempty"`
 
-	// 响应消息
+	// message
 	Message *string `json:"message,omitempty"`
 
-	// 扩展信息
+	// extend
 	Extend *string `json:"extend,omitempty"`
 
 	Result         *ReportInfo `json:"result,omitempty"`

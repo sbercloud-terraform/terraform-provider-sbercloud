@@ -9,7 +9,7 @@ import (
 // ListHostRaspProtectHistoryInfoResponse Response Object
 type ListHostRaspProtectHistoryInfoResponse struct {
 
-	// total number of dynamic WTPs
+	// total number
 	TotalNum *int64 `json:"total_num,omitempty"`
 
 	// data list
