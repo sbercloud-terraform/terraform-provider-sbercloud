@@ -22,6 +22,14 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API IoTDA GET /v5/iot/{project_id}/routing-rule/actions
+// @API IoTDA POST /v5/iot/{project_id}/routing-rule/actions
+// @API IoTDA DELETE /v5/iot/{project_id}/routing-rule/rules/{rule_id}
+// @API IoTDA GET /v5/iot/{project_id}/routing-rule/rules/{rule_id}
+// @API IoTDA PUT /v5/iot/{project_id}/routing-rule/rules/{rule_id}
+// @API IoTDA POST /v5/iot/{project_id}/routing-rule/rules
+// @API IoTDA DELETE /v5/iot/{project_id}/routing-rule/actions/{action_id}
+// @API IoTDA PUT /v5/iot/{project_id}/routing-rule/actions/{action_id}
 func ResourceDataForwardingRule() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: ResourceDataForwardingRuleCreate,
@@ -121,13 +129,6 @@ func ResourceDataForwardingRule() *schema.Resource {
 						"type": {
 							Type:     schema.TypeString,
 							Required: true,
-							ValidateFunc: validation.StringInSlice([]string{
-								"HTTP_FORWARDING",
-								"DIS_FORWARDING",
-								"OBS_FORWARDING",
-								"AMQP_FORWARDING",
-								"DMS_KAFKA_FORWARDING",
-							}, false),
 						},
 
 						"http_forwarding": {
@@ -286,6 +287,24 @@ func ResourceDataForwardingRule() *schema.Resource {
 								},
 							},
 						},
+						"fgs_forwarding": {
+							Type:     schema.TypeList,
+							Optional: true,
+							Computed: true,
+							MaxItems: 1,
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{
+									"func_urn": {
+										Type:     schema.TypeString,
+										Required: true,
+									},
+									"func_name": {
+										Type:     schema.TypeString,
+										Required: true,
+									},
+								},
+							},
+						},
 
 						"id": {
 							Type:     schema.TypeString,
@@ -301,7 +320,8 @@ func ResourceDataForwardingRule() *schema.Resource {
 func ResourceDataForwardingRuleCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*config.Config)
 	region := c.GetRegion(d)
-	client, err := c.HcIoTdaV5Client(region)
+	isDerived := WithDerivedAuth(c, region)
+	client, err := c.HcIoTdaV5Client(region, isDerived)
 	if err != nil {
 		return diag.Errorf("error creating IoTDA v5 client: %s", err)
 	}
@@ -352,7 +372,8 @@ func ResourceDataForwardingRuleCreate(ctx context.Context, d *schema.ResourceDat
 func ResourceDataForwardingRuleRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*config.Config)
 	region := c.GetRegion(d)
-	client, err := c.HcIoTdaV5Client(region)
+	isDerived := WithDerivedAuth(c, region)
+	client, err := c.HcIoTdaV5Client(region, isDerived)
 	if err != nil {
 		return diag.Errorf("error creating IoTDA v5 client: %s", err)
 	}
@@ -380,7 +401,8 @@ func ResourceDataForwardingRuleRead(_ context.Context, d *schema.ResourceData, m
 func ResourceDataForwardingRuleUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*config.Config)
 	region := c.GetRegion(d)
-	client, err := c.HcIoTdaV5Client(region)
+	isDerived := WithDerivedAuth(c, region)
+	client, err := c.HcIoTdaV5Client(region, isDerived)
 	if err != nil {
 		return diag.Errorf("error creating IoTDA v5 client: %s", err)
 	}
@@ -460,7 +482,8 @@ func ResourceDataForwardingRuleUpdate(ctx context.Context, d *schema.ResourceDat
 func ResourceDataForwardingRuleDelete(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*config.Config)
 	region := c.GetRegion(d)
-	client, err := c.HcIoTdaV5Client(region)
+	isDerived := WithDerivedAuth(c, region)
+	client, err := c.HcIoTdaV5Client(region, isDerived)
 	if err != nil {
 		return diag.Errorf("error creating IoTDA v5 client: %s", err)
 	}
@@ -624,6 +647,20 @@ func buildChannelDetail(target map[string]interface{}, channel, projectId string
 		}
 		return &d, nil
 
+	case "FUNCTIONGRAPH_FORWARDING":
+		forward := target["fgs_forwarding"].([]interface{})
+		if len(forward) == 0 {
+			return nil, fmt.Errorf("fgs_forwarding is Required when the target type is FUNCTIONGRAPH_FORWARDING")
+		}
+		f := forward[0].(map[string]interface{})
+		d := model.ChannelDetail{
+			FunctiongraphForwarding: &model.FunctionGraphForwarding{
+				FuncUrn:  f["func_urn"].(string),
+				FuncName: f["func_name"].(string),
+			},
+		}
+		return &d, nil
+
 	default:
 		return nil, fmt.Errorf("the target type is %q is not support", channel)
 	}
@@ -716,6 +753,19 @@ func flattenTargets(s []model.RoutingRuleAction) []interface{} {
 							"topic":      v.ChannelDetail.DmsKafkaForwarding.Topic,
 							"user_name":  v.ChannelDetail.DmsKafkaForwarding.Username,
 							"addresses":  flattenAddress(v.ChannelDetail.DmsKafkaForwarding.Addresses),
+						},
+					},
+				}
+			}
+		case "FUNCTIONGRAPH_FORWARDING":
+			if v.ChannelDetail != nil && v.ChannelDetail.FunctiongraphForwarding != nil {
+				rst[i] = map[string]interface{}{
+					"id":   v.ActionId,
+					"type": v.Channel,
+					"fgs_forwarding": []interface{}{
+						map[string]interface{}{
+							"func_urn":  v.ChannelDetail.FunctiongraphForwarding.FuncUrn,
+							"func_name": v.ChannelDetail.FunctiongraphForwarding.FuncName,
 						},
 					},
 				}

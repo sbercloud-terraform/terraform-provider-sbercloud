@@ -24,6 +24,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API EG POST /v1/{project_id}/endpoints
+// @API EG GET /v1/{project_id}/endpoints
+// @API EG PUT /v1/{project_id}/endpoints/{endpoint_id}
+// @API EG DELETE /v1/{project_id}/endpoints/{endpoint_id}
 func ResourceEndpoint() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceEndpointCreate,
@@ -139,7 +143,7 @@ func buildCreateEndpointBodyParams(d *schema.ResourceData) map[string]interface{
 		"name":        d.Get("name"),
 		"vpc_id":      d.Get("vpc_id"),
 		"subnet_id":   d.Get("subnet_id"),
-		"description": utils.ValueIngoreEmpty(d.Get("description")),
+		"description": utils.ValueIgnoreEmpty(d.Get("description")),
 	}
 	return bodyParams
 }

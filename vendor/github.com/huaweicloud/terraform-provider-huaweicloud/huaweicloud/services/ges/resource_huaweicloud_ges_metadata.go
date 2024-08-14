@@ -24,6 +24,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API GES DELETE /v2/{project_id}/graphs/metadatas/{id}
+// @API GES GET /v1.0/{project_id}/graphs/metadatas/{id}
+// @API GES GET /v2/{project_id}/graphs/metadatas
+// @API GES POST /v2/{project_id}/graphs/metadatas
 func ResourceGesMetadata() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceGesMetadataCreate,
@@ -187,9 +191,9 @@ func resourceGesMetadataCreate(ctx context.Context, d *schema.ResourceData, meta
 
 func buildMetadataBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":          utils.ValueIngoreEmpty(d.Get("name")),
-		"metadata_path": utils.ValueIngoreEmpty(d.Get("metadata_path")),
-		"description":   utils.ValueIngoreEmpty(d.Get("description")),
+		"name":          utils.ValueIgnoreEmpty(d.Get("name")),
+		"metadata_path": utils.ValueIgnoreEmpty(d.Get("metadata_path")),
+		"description":   utils.ValueIgnoreEmpty(d.Get("description")),
 		"is_overwrite":  false,
 		"ges_metadata":  buildMetadataReqBodyMetadata(d.Get("ges_metadata")),
 		"encryption":    buildMetadataReqBodyEncryption(d.Get("encryption")),
@@ -218,8 +222,8 @@ func buildMetadataReqBodyEncryption(rawParams interface{}) map[string]interface{
 		}
 		raw := rawArray[0].(map[string]interface{})
 		params := map[string]interface{}{
-			"enable":        utils.ValueIngoreEmpty(raw["enable"]),
-			"master_key_id": utils.ValueIngoreEmpty(raw["master_key_id"]),
+			"enable":        utils.ValueIgnoreEmpty(raw["enable"]),
+			"master_key_id": utils.ValueIgnoreEmpty(raw["master_key_id"]),
 		}
 		return params
 	}
@@ -236,7 +240,7 @@ func buildMetadataLabels(rawParams interface{}) []map[string]interface{} {
 		for i, v := range rawArray {
 			raw := v.(map[string]interface{})
 			rst[i] = map[string]interface{}{
-				"name":       utils.ValueIngoreEmpty(raw["name"]),
+				"name":       utils.ValueIgnoreEmpty(raw["name"]),
 				"properties": raw["properties"],
 			}
 		}
@@ -427,9 +431,9 @@ func resourceGesMetadataUpdate(ctx context.Context, d *schema.ResourceData, meta
 
 func buildUpdateMetadataBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":          utils.ValueIngoreEmpty(d.Get("name")),
-		"metadata_path": utils.ValueIngoreEmpty(d.Get("metadata_path")),
-		"description":   utils.ValueIngoreEmpty(d.Get("description")),
+		"name":          utils.ValueIgnoreEmpty(d.Get("name")),
+		"metadata_path": utils.ValueIgnoreEmpty(d.Get("metadata_path")),
+		"description":   utils.ValueIgnoreEmpty(d.Get("description")),
 		"is_overwrite":  true,
 		"ges_metadata":  buildMetadataReqBodyMetadata(d.Get("ges_metadata")),
 		"encryption":    buildMetadataReqBodyEncryption(d.Get("encryption")),

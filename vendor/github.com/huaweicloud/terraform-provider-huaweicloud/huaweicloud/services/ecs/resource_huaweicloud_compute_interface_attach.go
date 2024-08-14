@@ -22,9 +22,9 @@ import (
 // @API ECS POST /v1/{project_id}/cloudservers/{server_id}/nics
 // @API ECS POST /v1/{project_id}/cloudservers/{server_id}/nics/delete
 // @API ECS GET /v1/{project_id}/cloudservers/{server_id}/os-interface
-// @API VPC GET /v1/{project_id}/ports/{port_id}
-// @API VPC PUT /v1/{project_id}/ports/{port_id}
 // @API ECS GET /v1/{project_id}/jobs/{job_id}
+// @API VPC PUT /v1/{project_id}/ports/{port_id}
+// @API VPC GET /v1/{project_id}/ports/{port_id}
 func ResourceComputeInterfaceAttach() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceComputeInterfaceAttachCreate,
@@ -179,13 +179,13 @@ func resourceComputeInterfaceAttachCreate(ctx context.Context, d *schema.Resourc
 
 func buildCreateNicBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"subnet_id":       utils.ValueIngoreEmpty(d.Get("network_id")),
+		"subnet_id":       utils.ValueIgnoreEmpty(d.Get("network_id")),
 		"security_groups": buildNicsRequestBodySecurityGroups(d.Get("security_group_ids")),
-		"ip_address":      utils.ValueIngoreEmpty(d.Get("fixed_ip")),
-		"port_id":         utils.ValueIngoreEmpty(d.Get("port_id")),
-		"ipv6_enable":     utils.ValueIngoreEmpty(d.Get("ipv6_enable")),
+		"ip_address":      utils.ValueIgnoreEmpty(d.Get("fixed_ip")),
+		"port_id":         utils.ValueIgnoreEmpty(d.Get("port_id")),
+		"ipv6_enable":     utils.ValueIgnoreEmpty(d.Get("ipv6_enable")),
 		"ipv6_bandwidth": map[string]interface{}{
-			"id": utils.ValueIngoreEmpty(d.Get("ipv6_bandwidth_id")),
+			"id": utils.ValueIgnoreEmpty(d.Get("ipv6_bandwidth_id")),
 		},
 	}
 	return bodyParams

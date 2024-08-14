@@ -21,6 +21,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API SMN POST /v2/{project_id}/notifications/message_template
+// @API SMN DELETE /v2/{project_id}/notifications/message_template/{message_template_id}
+// @API SMN GET /v2/{project_id}/notifications/message_template/{message_template_id}
+// @API SMN PUT /v2/{project_id}/notifications/message_template/{message_template_id}
 func ResourceSmnMessageTemplate() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceSmnMessageTemplateCreate,
@@ -112,9 +116,9 @@ func resourceSmnMessageTemplateCreate(ctx context.Context, d *schema.ResourceDat
 
 func buildCreateMessageTemplateBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"message_template_name": utils.ValueIngoreEmpty(d.Get("name")),
-		"protocol":              utils.ValueIngoreEmpty(d.Get("protocol")),
-		"content":               utils.ValueIngoreEmpty(d.Get("content")),
+		"message_template_name": utils.ValueIgnoreEmpty(d.Get("name")),
+		"protocol":              utils.ValueIgnoreEmpty(d.Get("protocol")),
+		"content":               utils.ValueIgnoreEmpty(d.Get("content")),
 	}
 	return bodyParams
 }
@@ -160,7 +164,7 @@ func resourceSmnMessageTemplateUpdate(ctx context.Context, d *schema.ResourceDat
 
 func buildUpdateMessageTemplateBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"content": utils.ValueIngoreEmpty(d.Get("content")),
+		"content": utils.ValueIgnoreEmpty(d.Get("content")),
 	}
 	return bodyParams
 }
@@ -244,7 +248,7 @@ func resourceSmnMessageTemplateDelete(_ context.Context, d *schema.ResourceData,
 	}
 	_, err = deleteMessageTemplateClient.Request("DELETE", deleteMessageTemplatePath, &deleteMessageTemplateOpt)
 	if err != nil {
-		return diag.Errorf("error deleting SMN message template: %s", err)
+		return common.CheckDeletedDiag(d, err, "error deleting SMN message template")
 	}
 
 	return nil

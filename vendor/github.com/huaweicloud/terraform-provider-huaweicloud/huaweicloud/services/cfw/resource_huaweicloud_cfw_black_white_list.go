@@ -23,6 +23,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API CFW POST /v1/{project_id}/black-white-list
+// @API CFW DELETE /v1/{project_id}/black-white-list/{id}
+// @API CFW PUT /v1/{project_id}/black-white-list/{id}
+// @API CFW GET /v1/{project_id}/black-white-lists
 func ResourceBlackWhiteList() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceBlackWhiteListCreate,
@@ -78,6 +82,11 @@ func ResourceBlackWhiteList() *schema.Resource {
 				Required:    true,
 				Description: `Specifies the address.`,
 			},
+			"description": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: `Specifies the description.`,
+			},
 		},
 	}
 }
@@ -129,15 +138,16 @@ func resourceBlackWhiteListCreate(ctx context.Context, d *schema.ResourceData, m
 
 func buildCreateBlackWhiteListBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"object_id": utils.ValueIngoreEmpty(d.Get("object_id")),
-		"list_type": utils.ValueIngoreEmpty(d.Get("list_type")),
+		"object_id": utils.ValueIgnoreEmpty(d.Get("object_id")),
+		"list_type": utils.ValueIgnoreEmpty(d.Get("list_type")),
 		// direction can be 0
 		"direction": d.Get("direction"),
-		"protocol":  utils.ValueIngoreEmpty(d.Get("protocol")),
-		"port":      utils.ValueIngoreEmpty(d.Get("port")),
+		"protocol":  utils.ValueIgnoreEmpty(d.Get("protocol")),
+		"port":      utils.ValueIgnoreEmpty(d.Get("port")),
 		// address_type can be 0
 		"address_type": d.Get("address_type"),
-		"address":      utils.ValueIngoreEmpty(d.Get("address")),
+		"address":      utils.ValueIgnoreEmpty(d.Get("address")),
+		"description":  utils.ValueIgnoreEmpty(d.Get("description")),
 	}
 	return bodyParams
 }
@@ -209,6 +219,7 @@ func resourceBlackWhiteListRead(_ context.Context, d *schema.ResourceData, meta 
 		d.Set("port", utils.PathSearch("port", list, nil)),
 		d.Set("address_type", utils.PathSearch("address_type", list, nil)),
 		d.Set("address", utils.PathSearch("address", list, nil)),
+		d.Set("description", utils.PathSearch("description", list, nil)),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())
@@ -233,6 +244,7 @@ func resourceBlackWhiteListUpdate(ctx context.Context, d *schema.ResourceData, m
 		"port",
 		"address_type",
 		"address",
+		"description",
 	}
 
 	if d.HasChanges(updateBlackWhiteListChanges...) {
@@ -268,14 +280,15 @@ func resourceBlackWhiteListUpdate(ctx context.Context, d *schema.ResourceData, m
 
 func buildUpdateBlackWhiteListBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"list_type": utils.ValueIngoreEmpty(d.Get("list_type")),
+		"list_type": utils.ValueIgnoreEmpty(d.Get("list_type")),
 		// direction can be 0
 		"direction": d.Get("direction"),
-		"protocol":  utils.ValueIngoreEmpty(d.Get("protocol")),
-		"port":      utils.ValueIngoreEmpty(d.Get("port")),
+		"protocol":  utils.ValueIgnoreEmpty(d.Get("protocol")),
+		"port":      utils.ValueIgnoreEmpty(d.Get("port")),
 		// address_type can be 0
 		"address_type": d.Get("address_type"),
-		"address":      utils.ValueIngoreEmpty(d.Get("address")),
+		"address":      utils.ValueIgnoreEmpty(d.Get("address")),
+		"description":  d.Get("description"),
 	}
 	return bodyParams
 }

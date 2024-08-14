@@ -27,9 +27,9 @@ func TestAccRdsReadReplicaInstance_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckRdsInstanceV3Exists(resourceName, &replica),
 					resource.TestCheckResourceAttr(resourceName, "name", name),
-					resource.TestCheckResourceAttr(resourceName, "flavor", "rds.pg.c6.large.4.rr"),
+					resource.TestCheckResourceAttr(resourceName, "flavor", "rds.pg.x1.large.4.rr"),
 					resource.TestCheckResourceAttr(resourceName, "type", "Replica"),
-					resource.TestCheckResourceAttr(resourceName, "volume.0.type", "HIGH"),
+					resource.TestCheckResourceAttr(resourceName, "volume.0.type", "CLOUDSSD"),
 					resource.TestCheckResourceAttr(resourceName, "volume.0.size", "50"),
 					resource.TestCheckResourceAttr(resourceName, "tags.key", "value"),
 					resource.TestCheckResourceAttr(resourceName, "tags.foo", "bar"),
@@ -39,8 +39,8 @@ func TestAccRdsReadReplicaInstance_basic(t *testing.T) {
 				Config: testAccReadRdsReplicaInstance_update(name),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckRdsInstanceV3Exists(resourceName, &replica),
-					resource.TestCheckResourceAttr(resourceName, "flavor", "rds.pg.c6.xlarge.4.rr"),
-					resource.TestCheckResourceAttr(resourceName, "volume.0.type", "HIGH"),
+					resource.TestCheckResourceAttr(resourceName, "flavor", "rds.pg.x1.large.4.rr"),
+					resource.TestCheckResourceAttr(resourceName, "volume.0.type", "CLOUDSSD"),
 					resource.TestCheckResourceAttr(resourceName, "volume.0.size", "50"),
 					resource.TestCheckResourceAttr(resourceName, "tags.key1", "value"),
 					resource.TestCheckResourceAttr(resourceName, "tags.foo", "bar2"),
@@ -86,7 +86,7 @@ func testAccReadRdsReplicaInstanceV3_base(name string) string {
 
 resource "sbercloud_rds_instance" "test" {
   name              = "%s"
-  flavor            = "rds.pg.c6.large.4"
+  flavor            = "rds.pg.x1.large.4" 
   availability_zone = [data.sbercloud_availability_zones.test.names[0]]
   security_group_id = sbercloud_networking_secgroup.test.id
   vpc_id            = sbercloud_vpc.test.id
@@ -96,10 +96,10 @@ resource "sbercloud_rds_instance" "test" {
     password = "Huangwei!120521"
     type     = "PostgreSQL"
     version  = "12"
-    port     = 8635
+    port     = 5432
   }
   volume {
-    type = "HIGH"
+    type = "CLOUDSSD"
     size = 50
   }
 }
@@ -112,12 +112,12 @@ func testAccReadRdsReplicaInstance_basic(name string) string {
 
 resource "sbercloud_rds_read_replica_instance" "test" {
   name                = "%s"
-  flavor              = "rds.pg.c6.large.4.rr"
+  flavor              = "rds.pg.x1.large.4.rr"
   primary_instance_id = sbercloud_rds_instance.test.id
   availability_zone   = data.sbercloud_availability_zones.test.names[0]
 
   volume {
-    type = "HIGH"
+    type = "CLOUDSSD"
   }
 
   tags = {
@@ -134,12 +134,12 @@ func testAccReadRdsReplicaInstance_update(name string) string {
 
 resource "sbercloud_rds_read_replica_instance" "test" {
   name                = "%s"
-  flavor              = "rds.pg.c6.xlarge.4.rr"
+  flavor              = "rds.pg.x1.large.4.rr"
   primary_instance_id = sbercloud_rds_instance.test.id
   availability_zone   = data.sbercloud_availability_zones.test.names[0]
 
   volume {
-	type = "HIGH"
+	type = "CLOUDSSD"
   }
 
   tags = {
@@ -156,13 +156,13 @@ func testAccReadRdsReplicaInstance_withEpsId(name string) string {
 
 resource "sbercloud_rds_read_replica_instance" "test" {
   name                  = "%s"
-  flavor                = "rds.pg.c6.large.4.rr"
+  flavor                = "rds.pg.x1.large.4.rr"
   primary_instance_id   = sbercloud_rds_instance.test.id
   availability_zone     = data.sbercloud_availability_zones.test.names[0]
   enterprise_project_id = "%s"
 
   volume {
-    type = "HIGH"
+    type = "CLOUDSSD"
   }
 }
 `, testAccReadRdsReplicaInstanceV3_base(name), name, acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST)

@@ -203,9 +203,53 @@ func WaitOrderResourceComplete(ctx context.Context, client *golangsdk.ServiceCli
 
 func refreshOrderResourceStatusFunc(client *golangsdk.ServiceClient, orderId string) resource.StateRefreshFunc {
 	return func() (interface{}, string, error) {
+		if strings.TrimSpace(orderId) == "" {
+			return nil, "ERROR", fmt.Errorf("order id is empty")
+		}
 		listOpts := resources.ListOpts{
 			OrderId:          orderId,
 			OnlyMainResource: 1,
+		}
+		resp, err := resources.List(client, listOpts)
+		if err != nil || resp == nil {
+			return nil, "ERROR", fmt.Errorf("error waiting for the order (%s) to complete: %s", orderId, err)
+		}
+		if resp.TotalCount < 1 {
+			return nil, "PENDING", nil
+		}
+		return resp.Resources[0], "DONE", nil
+	}
+}
+
+// WaitOrderAllResourceComplete is the method to wait for the non-main resource to be generated.
+// Notes: Note that this method needs to be used in conjunction with method "WaitOrderComplete", because the ID of some
+// resources may not be generated when the order is not completed.
+func WaitOrderAllResourceComplete(ctx context.Context, client *golangsdk.ServiceClient, orderId string,
+	timeout time.Duration) (string, error) {
+	stateConf := &resource.StateChangeConf{
+		Pending:      []string{"PENDING"},
+		Target:       []string{"DONE"},
+		Refresh:      refreshOrderAllResourceStatusFunc(client, orderId),
+		Timeout:      timeout,
+		Delay:        5 * time.Second,
+		PollInterval: 10 * time.Second,
+	}
+	res, err := stateConf.WaitForStateContext(ctx)
+	if err != nil {
+		return "", fmt.Errorf("error while waiting for the order (%s) to complete: %s", orderId, err)
+	}
+
+	r := res.(resources.Resource)
+	return r.ResourceId, nil
+}
+
+func refreshOrderAllResourceStatusFunc(client *golangsdk.ServiceClient, orderId string) resource.StateRefreshFunc {
+	return func() (interface{}, string, error) {
+		if strings.TrimSpace(orderId) == "" {
+			return nil, "ERROR", fmt.Errorf("order id is empty")
+		}
+		listOpts := resources.ListOpts{
+			OrderId: orderId,
 		}
 		resp, err := resources.List(client, listOpts)
 		if err != nil || resp == nil {
@@ -283,7 +327,6 @@ func RetryContextWithWaitForState(param *RetryContextWithWaitForStateParam) (int
 		Pending:      []string{"retryable"},
 		Target:       []string{"success"},
 		Timeout:      param.Timeout,
-		Delay:        param.DelayTimeout,
 		PollInterval: param.PollInterval,
 		Refresh: func() (interface{}, string, error) {
 			res, retry, err := param.RetryFunc()
@@ -318,4 +361,42 @@ func RetryContextWithWaitForState(param *RetryContextWithWaitForStateParam) (int
 	}
 
 	return stateConf.WaitForStateContext(param.Ctx)
+}
+
+// GetEipsbyAddresses returns the EIPs of addresses when success.
+func GetEipsbyAddresses(client *golangsdk.ServiceClient, addresses []string, epsID string) ([]eips.PublicIp, error) {
+	listOpts := &eips.ListOpts{
+		PublicIp:            addresses,
+		EnterpriseProjectId: epsID,
+	}
+	pages, err := eips.List(client, listOpts).AllPages()
+	if err != nil {
+		return nil, err
+	}
+
+	allEips, err := eips.ExtractPublicIPs(pages)
+	if err != nil {
+		return nil, fmtp.Errorf("Unable to retrieve eips: %s ", err)
+	}
+	return allEips, nil
+}
+
+// GetResourceIDsByOrder returns resource IDs from an order.
+func GetResourceIDsByOrder(client *golangsdk.ServiceClient, orderId string, onlyMainResource int) ([]string, error) {
+	if strings.TrimSpace(orderId) == "" {
+		return nil, fmt.Errorf("order id is empty")
+	}
+	listOpts := resources.ListOpts{
+		OrderId:          orderId,
+		OnlyMainResource: onlyMainResource,
+	}
+	resp, err := resources.List(client, listOpts)
+	if err != nil || resp == nil || resp.TotalCount < 1 {
+		return nil, fmt.Errorf("error getting order (%s) details: %s", orderId, err)
+	}
+	rst := make([]string, len(resp.Resources))
+	for i, v := range resp.Resources {
+		rst[i] = v.ResourceId
+	}
+	return rst, nil
 }

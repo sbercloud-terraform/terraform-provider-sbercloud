@@ -22,6 +22,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API SecMaster GET /v1/{project_id}/workspaces/{workspace_id}/soc/playbooks/{playbook_id}/versions
+// @API SecMaster POST /v1/{project_id}/workspaces/{workspace_id}/soc/playbooks/{playbook_id}/versions
+// @API SecMaster PUT /v1/{project_id}/workspaces/{workspace_id}/soc/playbooks/versions/{id}
+// @API SecMaster DELETE /v1/{project_id}/workspaces/{workspace_id}/soc/playbooks/versions/{id}
 func ResourcePlaybookVersion() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourcePlaybookVersionCreate,
@@ -207,14 +211,14 @@ func resourcePlaybookVersionCreate(ctx context.Context, d *schema.ResourceData, 
 func buildCreatePlaybookVersionBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
 		"dataclass_id":      d.Get("dataclass_id"),
-		"description":       utils.ValueIngoreEmpty(d.Get("description")),
-		"rule_enable":       utils.ValueIngoreEmpty(d.Get("rule_enable")),
-		"rule_id":           utils.ValueIngoreEmpty(d.Get("rule_id")),
-		"trigger_type":      utils.ValueIngoreEmpty(d.Get("trigger_type")),
-		"dataobject_create": utils.ValueIngoreEmpty(d.Get("dataobject_create")),
-		"dataobject_delete": utils.ValueIngoreEmpty(d.Get("dataobject_delete")),
-		"dataobject_update": utils.ValueIngoreEmpty(d.Get("dataobject_update")),
-		"action_strategy":   utils.ValueIngoreEmpty(d.Get("action_strategy")),
+		"description":       utils.ValueIgnoreEmpty(d.Get("description")),
+		"rule_enable":       utils.ValueIgnoreEmpty(d.Get("rule_enable")),
+		"rule_id":           utils.ValueIgnoreEmpty(d.Get("rule_id")),
+		"trigger_type":      utils.ValueIgnoreEmpty(d.Get("trigger_type")),
+		"dataobject_create": utils.ValueIgnoreEmpty(d.Get("dataobject_create")),
+		"dataobject_delete": utils.ValueIgnoreEmpty(d.Get("dataobject_delete")),
+		"dataobject_update": utils.ValueIgnoreEmpty(d.Get("dataobject_update")),
+		"action_strategy":   utils.ValueIgnoreEmpty(d.Get("action_strategy")),
 	}
 	return bodyParams
 }
@@ -346,14 +350,14 @@ func resourcePlaybookVersionUpdate(ctx context.Context, d *schema.ResourceData, 
 func buildUpdatePlaybookVersionBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
 		"description":       d.Get("description"),
-		"dataclass_id":      utils.ValueIngoreEmpty(d.Get("dataclass_id")),
-		"rule_enable":       utils.ValueIngoreEmpty(d.Get("rule_enable")),
-		"rule_id":           utils.ValueIngoreEmpty(d.Get("rule_id")),
-		"trigger_type":      utils.ValueIngoreEmpty(d.Get("trigger_type")),
-		"dataobject_create": utils.ValueIngoreEmpty(d.Get("dataobject_create")),
-		"dataobject_delete": utils.ValueIngoreEmpty(d.Get("dataobject_delete")),
-		"dataobject_update": utils.ValueIngoreEmpty(d.Get("dataobject_update")),
-		"action_strategy":   utils.ValueIngoreEmpty(d.Get("action_strategy")),
+		"dataclass_id":      utils.ValueIgnoreEmpty(d.Get("dataclass_id")),
+		"rule_enable":       utils.ValueIgnoreEmpty(d.Get("rule_enable")),
+		"rule_id":           utils.ValueIgnoreEmpty(d.Get("rule_id")),
+		"trigger_type":      utils.ValueIgnoreEmpty(d.Get("trigger_type")),
+		"dataobject_create": utils.ValueIgnoreEmpty(d.Get("dataobject_create")),
+		"dataobject_delete": utils.ValueIgnoreEmpty(d.Get("dataobject_delete")),
+		"dataobject_update": utils.ValueIgnoreEmpty(d.Get("dataobject_update")),
+		"action_strategy":   utils.ValueIgnoreEmpty(d.Get("action_strategy")),
 	}
 	return bodyParams
 }

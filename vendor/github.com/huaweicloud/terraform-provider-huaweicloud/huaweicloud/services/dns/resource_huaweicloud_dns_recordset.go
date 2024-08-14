@@ -229,15 +229,15 @@ func waitForDNSRecordsetCreateOrUpdate(ctx context.Context, recordsetClient *gol
 
 func buildCreateDNSRecordsetBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":        utils.ValueIngoreEmpty(d.Get("name")),
-		"description": utils.ValueIngoreEmpty(d.Get("description")),
-		"type":        utils.ValueIngoreEmpty(d.Get("type")),
-		"status":      utils.ValueIngoreEmpty(d.Get("status")),
-		"ttl":         utils.ValueIngoreEmpty(d.Get("ttl")),
-		"records":     utils.ValueIngoreEmpty(d.Get("records")),
-		"line":        utils.ValueIngoreEmpty(d.Get("line_id")),
+		"name":        utils.ValueIgnoreEmpty(d.Get("name")),
+		"description": utils.ValueIgnoreEmpty(d.Get("description")),
+		"type":        utils.ValueIgnoreEmpty(d.Get("type")),
+		"status":      utils.ValueIgnoreEmpty(d.Get("status")),
+		"ttl":         utils.ValueIgnoreEmpty(d.Get("ttl")),
+		"records":     utils.ValueIgnoreEmpty(d.Get("records")),
+		"line":        utils.ValueIgnoreEmpty(d.Get("line_id")),
 		"tags":        utils.ExpandResourceTagsMap(d.Get("tags").(map[string]interface{})),
-		"weight":      utils.ValueIngoreEmpty(d.Get("weight")),
+		"weight":      utils.ValueIgnoreEmpty(d.Get("weight")),
 	}
 	return bodyParams
 }
@@ -253,7 +253,7 @@ func resourceDNSRecordsetRead(_ context.Context, d *schema.ResourceData, meta in
 
 	dnsClient, zoneType, err := chooseDNSClientbyZoneID(d, zoneID, meta)
 	if err != nil {
-		return diag.FromErr(err)
+		return common.CheckDeletedDiag(d, err, "error creating DNS client")
 	}
 
 	version := getApiVersionByZoneType(zoneType)
@@ -329,7 +329,7 @@ func resourceDNSRecordsetUpdate(ctx context.Context, d *schema.ResourceData, met
 
 	dnsClient, zoneType, err := chooseDNSClientbyZoneID(d, zoneID, meta)
 	if err != nil {
-		return diag.FromErr(err)
+		return common.CheckDeletedDiag(d, err, "error creating DNS client")
 	}
 
 	if zoneType == "private" {
@@ -432,19 +432,19 @@ func updateDNSRecordsetStatus(recordsetClient *golangsdk.ServiceClient, d *schem
 
 func buildUpdateDNSRecordsetBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":        utils.ValueIngoreEmpty(d.Get("name")),
-		"description": utils.ValueIngoreEmpty(d.Get("description")),
-		"type":        utils.ValueIngoreEmpty(d.Get("type")),
-		"ttl":         utils.ValueIngoreEmpty(d.Get("ttl")),
-		"records":     utils.ValueIngoreEmpty(d.Get("records")),
-		"weight":      utils.ValueIngoreEmpty(d.Get("weight")),
+		"name":        utils.ValueIgnoreEmpty(d.Get("name")),
+		"description": utils.ValueIgnoreEmpty(d.Get("description")),
+		"type":        utils.ValueIgnoreEmpty(d.Get("type")),
+		"ttl":         utils.ValueIgnoreEmpty(d.Get("ttl")),
+		"records":     utils.ValueIgnoreEmpty(d.Get("records")),
+		"weight":      utils.ValueIgnoreEmpty(d.Get("weight")),
 	}
 	return bodyParams
 }
 
 func buildUpdateDNSRecordsetStatusBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"status": utils.ValueIngoreEmpty(d.Get("status")),
+		"status": utils.ValueIgnoreEmpty(d.Get("status")),
 	}
 	return bodyParams
 }
@@ -457,7 +457,7 @@ func resourceDNSRecordsetDelete(ctx context.Context, d *schema.ResourceData, met
 
 	dnsClient, zoneType, err := chooseDNSClientbyZoneID(d, zoneID, meta)
 	if err != nil {
-		return diag.FromErr(err)
+		return common.CheckDeletedDiag(d, err, "error creating DNS client")
 	}
 
 	version := getApiVersionByZoneType(zoneType)
@@ -526,7 +526,8 @@ func dnsRecordsetStatusRefreshFunc(client *golangsdk.ServiceClient, waitForConfi
 		getDNSRecordsetResp, err := client.Request("GET", getDNSRecordsetPath, &getDNSRecordsetOpt)
 		if err != nil {
 			if _, ok := err.(golangsdk.ErrDefault404); ok {
-				return getDNSRecordsetResp, "DELETED", nil
+				// When the error code is 404, the value of respBody is nil, and a non-null value is returned to avoid continuing the loop check.
+				return "Resource Not Found", "DELETED", nil
 			}
 			return nil, "", err
 		}

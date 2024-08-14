@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"reflect"
-	"regexp"
 	"strings"
 	"time"
 
@@ -33,6 +32,12 @@ const (
 	AssignmentStatusEvaluating = "Evaluating"
 )
 
+// @API Config PUT /v1/resource-manager/domains/{domain_id}/policy-assignments
+// @API Config GET /v1/resource-manager/domains/{domain_id}/policy-assignments/{policy_assignment_id}
+// @API Config POST /v1/resource-manager/domains/{domain_id}/policy-assignments/{policy_assignment_id}/disable
+// @API Config POST /v1/resource-manager/domains/{domain_id}/policy-assignments/{policy_assignment_id}/enable
+// @API Config PUT /v1/resource-manager/domains/{domain_id}/policy-assignments/{policy_assignment_id}
+// @API Config DELETE /v1/resource-manager/domains/{domain_id}/policy-assignments/{policy_assignment_id}
 func ResourcePolicyAssignment() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceePolicyAssignmentCreate,
@@ -51,33 +56,25 @@ func ResourcePolicyAssignment() *schema.Resource {
 
 		Schema: map[string]*schema.Schema{
 			"name": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
-				ValidateFunc: validation.All(
-					validation.StringMatch(regexp.MustCompile(`^[\w-]*$`),
-						"Only letters, digits, hyphens and underscores are allowed."),
-					validation.StringLenBetween(1, 64),
-				),
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
 				Description: "The name of the policy assignment.",
 			},
 			"description": {
-				Type:         schema.TypeString,
-				Optional:     true,
-				ValidateFunc: validation.StringLenBetween(0, 512),
-				Description:  "The description of the policy assignment.",
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "The description of the policy assignment.",
 			},
 			"policy_definition_id": {
-				Type:          schema.TypeString,
-				Optional:      true,
-				Description:   "The ID of the policy definition.",
-				ConflictsWith: []string{"custom_policy"},
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "The ID of the policy definition.",
 			},
 			"period": {
-				Type:          schema.TypeString,
-				Optional:      true,
-				Description:   "The period of the policy rule check.",
-				ConflictsWith: []string{"policy_filter"},
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "The period of the policy rule check.",
 			},
 			"policy_filter": {
 				Type:     schema.TypeList,
@@ -101,10 +98,9 @@ func ResourcePolicyAssignment() *schema.Resource {
 							Description: "The resource type of the filtered resources.",
 						},
 						"resource_id": {
-							Type:          schema.TypeString,
-							Optional:      true,
-							ConflictsWith: []string{"policy_filter.0.tag_key"},
-							Description:   "The resource ID used to filter a specified resources.",
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "The resource ID used to filter a specified resources.",
 						},
 						"tag_key": {
 							Type:        schema.TypeString,
@@ -119,8 +115,7 @@ func ResourcePolicyAssignment() *schema.Resource {
 						},
 					},
 				},
-				Description:   "The configuration used to filter resources.",
-				ConflictsWith: []string{"period"},
+				Description: "The configuration used to filter resources.",
 			},
 			"custom_policy": {
 				Type:     schema.TypeList,

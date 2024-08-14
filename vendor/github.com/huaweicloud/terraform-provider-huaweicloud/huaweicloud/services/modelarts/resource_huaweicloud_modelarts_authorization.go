@@ -26,6 +26,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API ModelArts POST /v2/{project_id}/agency
+// @API ModelArts DELETE /v2/{project_id}/authorizations
+// @API ModelArts GET /v2/{project_id}/authorizations
+// @API ModelArts POST /v2/{project_id}/authorizations
 func ResourceModelArtsAuthorization() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceModelArtsAuthorizationCreate,
@@ -151,9 +155,9 @@ func buildCreateAgencyBodyParams(d *schema.ResourceData) map[string]interface{} 
 
 func buildCreateAuthBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"user_id": utils.ValueIngoreEmpty(d.Get("user_id")),
-		"type":    utils.ValueIngoreEmpty(d.Get("type")),
-		"content": utils.ValueIngoreEmpty(d.Get("agency_name")),
+		"user_id": utils.ValueIgnoreEmpty(d.Get("user_id")),
+		"type":    utils.ValueIgnoreEmpty(d.Get("type")),
+		"content": utils.ValueIgnoreEmpty(d.Get("agency_name")),
 	}
 	return bodyParams
 }

@@ -25,6 +25,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API LTS DELETE /v3/{project_id}/lts/access-config
+// @API LTS POST /v3/{project_id}/lts/access-config
+// @API LTS PUT /v3/{project_id}/lts/access-config
+// @API LTS POST /v3/{project_id}/lts/access-config-list
 func ResourceHostAccessConfig() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceHostAccessConfigCreate,
@@ -265,8 +269,8 @@ func buildHostAccessConfigDeatilRequestBody(rawParams interface{}) map[string]in
 		}
 
 		params := map[string]interface{}{
-			"paths":            utils.ValueIngoreEmpty(raw["paths"]),
-			"black_paths":      utils.ValueIngoreEmpty(raw["black_paths"]),
+			"paths":            utils.ValueIgnoreEmpty(raw["paths"]),
+			"black_paths":      utils.ValueIgnoreEmpty(raw["black_paths"]),
 			"format":           buildHostAccessConfigFormatRequestBody(raw),
 			"windows_log_info": buildHostAccessConfigWindowsLogInfoRequestBody(raw["windows_log_info"]),
 		}

@@ -26,6 +26,11 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API GaussDBforMySQL POST /v3/{project_id}/instances/{instance_id}/databases
+// @API GaussDBforMySQL GET /v3/{project_id}/jobs
+// @API GaussDBforMySQL PUT /v3/{project_id}/instances/{instance_id}/databases/comment
+// @API GaussDBforMySQL GET /v3/{project_id}/instances/{instance_id}/databases
+// @API GaussDBforMySQL DELETE /v3/{project_id}/instances/{instance_id}/databases
 func ResourceGaussDBDatabase() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceGaussDBDatabaseCreate,
@@ -146,9 +151,9 @@ func resourceGaussDBDatabaseCreate(ctx context.Context, d *schema.ResourceData, 
 
 func buildCreateGaussDBDatabaseBodyParams(d *schema.ResourceData) map[string]interface{} {
 	params := map[string]interface{}{
-		"name":          utils.ValueIngoreEmpty(d.Get("name")),
-		"comment":       utils.ValueIngoreEmpty(d.Get("description")),
-		"character_set": utils.ValueIngoreEmpty(d.Get("character_set")),
+		"name":          utils.ValueIgnoreEmpty(d.Get("name")),
+		"comment":       utils.ValueIgnoreEmpty(d.Get("description")),
+		"character_set": utils.ValueIgnoreEmpty(d.Get("character_set")),
 	}
 	bodyParams := map[string]interface{}{
 		"databases": []interface{}{params},
@@ -215,7 +220,7 @@ func resourceGaussDBDatabaseRead(_ context.Context, d *schema.ResourceData, meta
 			database = db
 			break
 		}
-		total := utils.PathSearch("total_count", getGaussDBDatabaseRespBody, 0).(float64)
+		total := utils.PathSearch("total_count", getGaussDBDatabaseRespBody, float64(0)).(float64)
 		currentTotal += pageNum
 		if currentTotal == int(total) {
 			break
@@ -323,8 +328,8 @@ func resourceGaussDBDatabaseUpdate(ctx context.Context, d *schema.ResourceData, 
 
 func buildUpdateGaussDBDatabaseBodyParams(d *schema.ResourceData) map[string]interface{} {
 	params := map[string]interface{}{
-		"name":    utils.ValueIngoreEmpty(d.Get("name")),
-		"comment": utils.ValueIngoreEmpty(d.Get("description")),
+		"name":    utils.ValueIgnoreEmpty(d.Get("name")),
+		"comment": utils.ValueIgnoreEmpty(d.Get("description")),
 	}
 	bodyParams := map[string]interface{}{
 		"databases": []interface{}{params},
@@ -398,7 +403,7 @@ func resourceGaussDBDatabaseDelete(ctx context.Context, d *schema.ResourceData, 
 
 func buildDeleteGaussDBDatabaseBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"databases": []interface{}{utils.ValueIngoreEmpty(d.Get("name"))},
+		"databases": []interface{}{utils.ValueIgnoreEmpty(d.Get("name"))},
 	}
 	return bodyParams
 }

@@ -6,144 +6,179 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/jmespath/go-jmespath"
 
-	"github.com/chnsz/golangsdk/openstack/compute/v2/extensions/attachinterfaces"
+	"github.com/chnsz/golangsdk"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
-func TestAccComputeV2InterfaceAttach_Basic(t *testing.T) {
-	var ai attachinterfaces.Interface
-	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
+func getPrivateCAResourceFunc(conf *config.Config, state *terraform.ResourceState) (interface{}, error) {
+	computeClient, err := conf.NewServiceClient("ecs", state.Primary.Attributes["region"])
+	if err != nil {
+		return nil, fmt.Errorf("error creating compute client: %s", err)
+	}
+
+	listNicsHttpUrl := "v1/{project_id}/cloudservers/{server_id}/os-interface"
+	listNicsPath := computeClient.Endpoint + listNicsHttpUrl
+	listNicsPath = strings.ReplaceAll(listNicsPath, "{project_id}", computeClient.ProjectID)
+	listNicsPath = strings.ReplaceAll(listNicsPath, "{server_id}", state.Primary.Attributes["instance_id"])
+	listNicsOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+	}
+
+	listNicsResp, err := computeClient.Request("GET", listNicsPath, &listNicsOpt)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving ECS NICs: %s", err)
+	}
+	listNicsRespBody, err := utils.FlattenResponse(listNicsResp)
+	if err != nil {
+		return nil, fmt.Errorf("error prasing ECS NICs: %s", err)
+	}
+
+	jsonPaths := fmt.Sprintf("interfaceAttachments[?port_id=='%s']|[0]", state.Primary.ID)
+	nic, err := jmespath.Search(jsonPaths, listNicsRespBody)
+	if err != nil {
+		return nil, golangsdk.ErrDefault404{}
+	}
+
+	return nic, nil
+}
+
+func TestAccComputeInterfaceAttach_Basic(t *testing.T) {
+	var obj interface{}
+	rName := acceptance.RandomAccResourceNameWithDash()
+	resourceName := "sbercloud_compute_interface_attach.test"
+
+	rc := acceptance.InitResourceCheck(
+		resourceName,
+		&obj,
+		getPrivateCAResourceFunc,
+	)
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
 		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy:      testAccCheckComputeV2InterfaceAttachDestroy,
+		CheckDestroy:      rc.CheckResourceDestroy(),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccComputeV2InterfaceAttach_basic(rName),
+				Config: testAccComputeInterfaceAttach_basic(rName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckComputeV2InterfaceAttachExists("sbercloud_compute_interface_attach.ai_1", &ai),
-					testAccCheckComputeV2InterfaceAttachIP(&ai, "192.168.10.199"),
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(resourceName, "source_dest_check", "false"),
+					resource.TestCheckResourceAttrPair(resourceName, "security_group_ids.0",
+						"sbercloud_networking_secgroup.test", "id"),
 				),
+			},
+			{
+				Config: testAccComputeInterfaceAttach_update(rName),
+				Check: resource.ComposeTestCheckFunc(
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(resourceName, "source_dest_check", "true"),
+					resource.TestCheckResourceAttrPair(resourceName, "security_group_ids.0",
+						"sbercloud_networking_secgroup.test", "id"),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateIdFunc: testComputeInterfaceAttachImportState(resourceName),
 			},
 		},
 	})
 }
 
-func testAccCheckComputeV2InterfaceAttachDestroy(s *terraform.State) error {
-	config := acceptance.TestAccProvider.Meta().(*config.Config)
-	computeClient, err := config.ComputeV2Client(acceptance.SBC_REGION_NAME)
-	if err != nil {
-		return fmt.Errorf("Error creating Sbercloud compute client: %s", err)
-	}
+func testAccComputeInterfaceAttachBase(rName string) string {
+	return fmt.Sprintf(`
+data "sbercloud_availability_zones" "test" {}
 
-	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "sbercloud_compute_interface_attach" {
-			continue
-		}
-
-		instanceId, portId, err := computeInterfaceAttachV2ParseID(rs.Primary.ID)
-		if err != nil {
-			return err
-		}
-
-		_, err = attachinterfaces.Get(computeClient, instanceId, portId).Extract()
-		if err == nil {
-			return fmt.Errorf("Volume attachment still exists")
-		}
-	}
-
-	return nil
+resource "sbercloud_vpc" "test" {
+  name = "%[1]s"
+  cidr = "192.168.0.0/16"
 }
 
-func testAccCheckComputeV2InterfaceAttachExists(n string, ai *attachinterfaces.Interface) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		rs, ok := s.RootModule().Resources[n]
-		if !ok {
-			return fmt.Errorf("Not found: %s", n)
-		}
-
-		if rs.Primary.ID == "" {
-			return fmt.Errorf("No ID is set")
-		}
-
-		config := acceptance.TestAccProvider.Meta().(*config.Config)
-		computeClient, err := config.ComputeV2Client(acceptance.SBC_REGION_NAME)
-		if err != nil {
-			return fmt.Errorf("Error creating Sbercloud compute client: %s", err)
-		}
-
-		instanceId, portId, err := computeInterfaceAttachV2ParseID(rs.Primary.ID)
-		if err != nil {
-			return err
-		}
-
-		found, err := attachinterfaces.Get(computeClient, instanceId, portId).Extract()
-		if err != nil {
-			return err
-		}
-
-		//if found.instanceID != instanceID || found.PortID != portId {
-		if found.PortID != portId {
-			return fmt.Errorf("InterfaceAttach not found")
-		}
-
-		*ai = *found
-
-		return nil
-	}
+resource "sbercloud_vpc_subnet" "test" {
+  vpc_id     = sbercloud_vpc.test.id
+  name       = "%[1]s"
+  cidr       = cidrsubnet(sbercloud_vpc.test.cidr, 4, 0)
+  gateway_ip = cidrhost(cidrsubnet(sbercloud_vpc.test.cidr, 4, 0), 1)
 }
 
-func computeInterfaceAttachV2ParseID(id string) (string, string, error) {
-	idParts := strings.Split(id, "/")
-	if len(idParts) < 2 {
-		return "", "", fmt.Errorf("Unable to determine huaweicloud_compute_interface_attach_v2 %s ID", id)
-	}
-
-	instanceId := idParts[0]
-	attachmentId := idParts[1]
-
-	return instanceId, attachmentId, nil
+resource "sbercloud_networking_secgroup" "test" {
+  name = "%[1]s"
 }
 
-func testAccCheckComputeV2InterfaceAttachIP(
-	ai *attachinterfaces.Interface, ip string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		for _, i := range ai.FixedIPs {
-			if i.IPAddress == ip {
-				return nil
-			}
-		}
-		return fmt.Errorf("Requested ip (%s) does not exist on port", ip)
-
-	}
+data "sbercloud_compute_flavors" "test" {
+  availability_zone = data.sbercloud_availability_zones.test.names[0]
+  performance_type  = "normal"
+  cpu_core_count    = 2
+  memory_size       = 4
 }
 
-func testAccComputeV2InterfaceAttach_basic(rName string) string {
+data "sbercloud_images_images" "test" {
+  flavor_id = data.sbercloud_compute_flavors.test.ids[0]
+
+  os         = "Ubuntu"
+  visibility = "public"
+}
+
+resource "sbercloud_compute_instance" "test" {
+  name               = "%[1]s"
+  image_id           = data.sbercloud_images_images.test.images[0].id
+  flavor_id          = data.sbercloud_compute_flavors.test.ids[0]
+  security_group_ids = [sbercloud_networking_secgroup.test.id]
+  availability_zone  = data.sbercloud_availability_zones.test.names[0]
+  system_disk_type   = "SSD"
+
+  network {
+    uuid = sbercloud_vpc_subnet.test.id
+  }
+}
+`, rName)
+}
+
+func testAccComputeInterfaceAttach_basic(rName string) string {
 	return fmt.Sprintf(`
 %s
 
-resource "sbercloud_compute_instance" "instance_1" {
-  name = "%s"
-  image_id          = data.sbercloud_images_image.test.id
-  flavor_id         = data.sbercloud_compute_flavors.test.ids[0]
-  security_groups = ["default"]
-  availability_zone = data.sbercloud_availability_zones.test.names[0]
-  system_disk_type  = "SSD"
-  network {
-    uuid = data.sbercloud_vpc_subnet.test.id
-  }
+resource "sbercloud_compute_interface_attach" "test" {
+  instance_id        = sbercloud_compute_instance.test.id
+  network_id         = sbercloud_vpc_subnet.test.id
+  security_group_ids = [sbercloud_networking_secgroup.test.id]
+  source_dest_check  = false
+}
+`, testAccComputeInterfaceAttachBase(rName))
 }
 
-resource "sbercloud_compute_interface_attach" "ai_1" {
-  instance_id = sbercloud_compute_instance.instance_1.id
-  network_id =  data.sbercloud_vpc_subnet.test.id
-  fixed_ip = "192.168.10.199"
-  security_group_ids = [data.sbercloud_networking_secgroup.test.id] 
+func testAccComputeInterfaceAttach_update(rName string) string {
+	return fmt.Sprintf(`
+%s
+
+resource "sbercloud_compute_interface_attach" "test" {
+  instance_id        = sbercloud_compute_instance.test.id
+  network_id         = sbercloud_vpc_subnet.test.id
+  security_group_ids = [sbercloud_networking_secgroup.test.id]
 }
-`, testAccCompute_data, rName)
+`, testAccComputeInterfaceAttachBase(rName))
+}
+
+// testComputeInterfaceAttachImportState use to return an id with format <instance_id>/<port_id>
+func testComputeInterfaceAttachImportState(name string) resource.ImportStateIdFunc {
+	return func(s *terraform.State) (string, error) {
+		rs, ok := s.RootModule().Resources[name]
+		if !ok {
+			return "", fmt.Errorf("resource (%s) not found: %s", name, rs)
+		}
+
+		serverID := rs.Primary.Attributes["instance_id"]
+		if serverID == "" {
+			return "", fmt.Errorf("attribute `instance_id` of the resource (%s) not found", name)
+		}
+
+		return serverID + "/" + rs.Primary.ID, nil
+	}
 }

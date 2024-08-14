@@ -3,10 +3,13 @@ package apig
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
 	"github.com/chnsz/golangsdk"
@@ -17,6 +20,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API APIG POST /v2/{project_id}/apigw/instances/{instance_id}/throttle-bindings
+// @API APIG GET /v2/{project_id}/apigw/instances/{instance_id}/throttle-bindings/unbinded-apis
+// @API APIG GET /v2/{project_id}/apigw/instances/{instance_id}/throttle-bindings/binded-apis
+// @API APIG DELETE /v2/{project_id}/apigw/instances/{instance_id}/throttle-bindings/{throttle_binding_id}
 func ResourceThrottlingPolicyAssociate() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceThrottlingPolicyAssociateCreate,
@@ -26,6 +33,12 @@ func ResourceThrottlingPolicyAssociate() *schema.Resource {
 
 		Importer: &schema.ResourceImporter{
 			StateContext: resourceThrottlingPolicyAssociateImportState,
+		},
+
+		Timeouts: &schema.ResourceTimeout{
+			Create: schema.DefaultTimeout(3 * time.Minute),
+			Update: schema.DefaultTimeout(3 * time.Minute),
+			Delete: schema.DefaultTimeout(3 * time.Minute),
 		},
 
 		Schema: map[string]*schema.Schema{
@@ -58,6 +71,80 @@ func ResourceThrottlingPolicyAssociate() *schema.Resource {
 	}
 }
 
+func throttlingPolicyBindingRefreshFunc(client *golangsdk.ServiceClient, instanceId, policyId string,
+	publishIds []string) resource.StateRefreshFunc {
+	return func() (interface{}, string, error) {
+		var (
+			httpUrl  = "v2/{project_id}/apigw/instances/{instance_id}/throttle-bindings/unbinded-apis"
+			queryUrl = "?throttle_id={throttle_id}"
+			offset   = 0
+			result   = make([]interface{}, 0)
+		)
+
+		listPath := client.Endpoint + httpUrl
+		listPath = strings.ReplaceAll(listPath, "{project_id}", client.ProjectID)
+		listPath = strings.ReplaceAll(listPath, "{instance_id}", instanceId)
+		queryUrl = strings.ReplaceAll(queryUrl, "{throttle_id}", policyId)
+		listPath += queryUrl
+
+		opt := golangsdk.RequestOpts{
+			KeepResponseBody: true,
+		}
+
+		for {
+			listPathWithOffset := fmt.Sprintf("%s&limit=100&offset=%d", listPath, offset)
+			requestResp, err := client.Request("GET", listPathWithOffset, &opt)
+			if err != nil {
+				return nil, "ERROR", fmt.Errorf("error retrieving unassociated throttling policies: %s", err)
+			}
+			respBody, err := utils.FlattenResponse(requestResp)
+			if err != nil {
+				return nil, "ERROR", err
+			}
+			unbindPublishIds := utils.PathSearch("apis[*].publish_id", respBody, make([]interface{}, 0)).([]interface{})
+			if len(unbindPublishIds) < 1 {
+				break
+			}
+			result = append(result, unbindPublishIds...)
+			offset += len(unbindPublishIds)
+		}
+
+		if utils.IsSliceContainsAnyAnotherSliceElement(utils.ExpandToStringList(result), publishIds, false, true) {
+			return result, "PENDING", nil
+		}
+		return result, "COMPLETED", nil
+	}
+}
+
+func bindThrottlingPolicyToApis(ctx context.Context, client *golangsdk.ServiceClient, opts throttles.BindOpts,
+	timeout time.Duration) error {
+	var (
+		instanceId = opts.InstanceId
+		policyId   = opts.ThrottleId
+		publishIds = opts.PublishIds
+	)
+
+	_, err := throttles.Bind(client, opts)
+	if err != nil {
+		return fmt.Errorf("error binding throttling policy to one or more APIs: %s", err)
+	}
+
+	stateConf := &resource.StateChangeConf{
+		Pending: []string{"PENDING"},
+		Target:  []string{"COMPLETED"},
+		Refresh: throttlingPolicyBindingRefreshFunc(client, instanceId, policyId, publishIds),
+		Timeout: timeout,
+		// In most cases, the bind operation will be completed immediately, but in a few cases, it needs to wait
+		// for a short period of time, and the polling is performed by incrementing the time here.
+		MinTimeout: 2 * time.Second,
+	}
+	_, err = stateConf.WaitForStateContext(ctx)
+	if err != nil {
+		return fmt.Errorf("error waiting for the binding completed: %s", err)
+	}
+	return nil
+}
+
 func resourceThrottlingPolicyAssociateCreate(ctx context.Context, d *schema.ResourceData,
 	meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
@@ -77,9 +164,9 @@ func resourceThrottlingPolicyAssociateCreate(ctx context.Context, d *schema.Reso
 			PublishIds: utils.ExpandToStringListBySet(publishIds),
 		}
 	)
-	_, err = throttles.Bind(client, opt)
+	err = bindThrottlingPolicyToApis(ctx, client, opt, d.Timeout(schema.TimeoutCreate))
 	if err != nil {
-		return diag.Errorf("error binding policy to the API: %s", err)
+		return diag.FromErr(err)
 	}
 	d.SetId(fmt.Sprintf("%s/%s", instanceId, policyId))
 
@@ -132,24 +219,103 @@ func resourceThrottlingPolicyAssociateRead(_ context.Context, d *schema.Resource
 	return diag.FromErr(mErr.ErrorOrNil())
 }
 
-func unbindPolicy(client *golangsdk.ServiceClient, instanceId, policyId string, unbindSet *schema.Set) error {
-	opt := buildListOpts(instanceId, policyId)
+func throttlingPolicyUnbindingRefreshFunc(client *golangsdk.ServiceClient, instanceId, policyId string,
+	publishIds []string) resource.StateRefreshFunc {
+	return func() (interface{}, string, error) {
+		var (
+			httpUrl  = "v2/{project_id}/apigw/instances/{instance_id}/throttle-bindings/binded-apis"
+			queryUrl = "?throttle_id={throttle_id}"
+			offset   = 0
+			result   = make([]interface{}, 0)
+		)
+
+		listPath := client.Endpoint + httpUrl
+		listPath = strings.ReplaceAll(listPath, "{project_id}", client.ProjectID)
+		listPath = strings.ReplaceAll(listPath, "{instance_id}", instanceId)
+		queryUrl = strings.ReplaceAll(queryUrl, "{throttle_id}", policyId)
+		listPath += queryUrl
+
+		opt := golangsdk.RequestOpts{
+			KeepResponseBody: true,
+		}
+
+		for {
+			listPathWithOffset := fmt.Sprintf("%s&limit=100&offset=%d", listPath, offset)
+			requestResp, err := client.Request("GET", listPathWithOffset, &opt)
+			if err != nil {
+				return nil, "ERROR", fmt.Errorf("error retrieving associated throttling policies: %s", err)
+			}
+			respBody, err := utils.FlattenResponse(requestResp)
+			if err != nil {
+				return nil, "ERROR", err
+			}
+			unbindPublishIds := utils.PathSearch("apis[*].publish_id", respBody, make([]interface{}, 0)).([]interface{})
+			if len(unbindPublishIds) < 1 {
+				break
+			}
+			result = append(result, unbindPublishIds...)
+			offset += len(unbindPublishIds)
+		}
+
+		if utils.IsSliceContainsAnyAnotherSliceElement(utils.ExpandToStringList(result), publishIds, false, true) {
+			return result, "PENDING", nil
+		}
+		return result, "COMPLETED", nil
+	}
+}
+
+func unbindPolicy(ctx context.Context, client *golangsdk.ServiceClient, opt throttles.ListBindOpts, unbindSet *schema.Set,
+	timeout time.Duration) error {
+	var (
+		instanceId = opt.InstanceId
+		policyId   = opt.ThrottleId
+	)
 	resp, err := throttles.ListBind(client, opt)
 	if err != nil {
+		// The instance or throttling policy not exist.
+		if _, ok := err.(golangsdk.ErrDefault404); ok {
+			return err
+		}
 		return fmt.Errorf("error getting API information from server: %s", err)
 	}
 
+	if len(resp) < 1 {
+		log.Printf("[DEBUG] All APIs has been disassociated from the throttling policy (%s) under dedicated instance (%s)",
+			policyId, instanceId)
+		return nil
+	}
+
+	publishIds := make([]string, 0, unbindSet.Len())
 	for _, rm := range unbindSet.List() {
 		for _, api := range resp {
 			// If the publish ID is not found, it means the policy has been unbound from the API by other ways.
 			if rm == api.PublishId {
+				publishIds = append(publishIds, api.PublishId)
 				err = throttles.Unbind(client, instanceId, api.ThrottleApplyId)
 				if err != nil {
+					if _, ok := err.(golangsdk.ErrDefault404); ok {
+						log.Printf("[DEBUG] All APIs has been disassociated from the throttling policy (%s)", policyId)
+						continue
+					}
 					return fmt.Errorf("error unbound policy from the API: %s", err)
 				}
 				break
 			}
 		}
+	}
+
+	stateConf := &resource.StateChangeConf{
+		Pending: []string{"PENDING"},
+		Target:  []string{"COMPLETED"},
+		Refresh: throttlingPolicyUnbindingRefreshFunc(client, instanceId, policyId, publishIds),
+		Timeout: timeout,
+		// In most cases, the bind operation will be completed immediately, but in a few cases, it needs to wait
+		// for a short period of time, and the polling is performed by incrementing the time here.
+		MinTimeout: 2 * time.Second,
+	}
+	_, err = stateConf.WaitForStateContext(ctx)
+	if err != nil {
+		return fmt.Errorf("error waiting for the binding completed: %s", err)
 	}
 	return nil
 }
@@ -172,7 +338,8 @@ func resourceThrottlingPolicyAssociateUpdate(ctx context.Context, d *schema.Reso
 	)
 
 	if rmSet.Len() > 0 {
-		err = unbindPolicy(client, instanceId, policyId, rmSet)
+		opt := buildListOpts(instanceId, policyId)
+		err = unbindPolicy(ctx, client, opt, rmSet, d.Timeout(schema.TimeoutUpdate))
 		if err != nil {
 			return diag.FromErr(err)
 		}
@@ -183,16 +350,16 @@ func resourceThrottlingPolicyAssociateUpdate(ctx context.Context, d *schema.Reso
 			ThrottleId: policyId,
 			PublishIds: utils.ExpandToStringListBySet(addSet),
 		}
-		_, err = throttles.Bind(client, opt)
+		err = bindThrottlingPolicyToApis(ctx, client, opt, d.Timeout(schema.TimeoutUpdate))
 		if err != nil {
-			return diag.Errorf("error binding policy to the API: %v", err)
+			return diag.FromErr(err)
 		}
 	}
 
 	return resourceThrottlingPolicyAssociateRead(ctx, d, meta)
 }
 
-func resourceThrottlingPolicyAssociateDelete(_ context.Context, d *schema.ResourceData,
+func resourceThrottlingPolicyAssociateDelete(ctx context.Context, d *schema.ResourceData,
 	meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	client, err := cfg.ApigV2Client(cfg.GetRegion(d))
@@ -204,9 +371,13 @@ func resourceThrottlingPolicyAssociateDelete(_ context.Context, d *schema.Resour
 		instanceId = d.Get("instance_id").(string)
 		policyId   = d.Get("policy_id").(string)
 		publishIds = d.Get("publish_ids").(*schema.Set)
+		opt        = buildListOpts(instanceId, policyId)
 	)
+	if err = unbindPolicy(ctx, client, opt, publishIds, d.Timeout(schema.TimeoutDelete)); err != nil {
+		return common.CheckDeletedDiag(d, err, "error unbinding APIs from throttling policy")
+	}
 
-	return diag.FromErr(unbindPolicy(client, instanceId, policyId, publishIds))
+	return nil
 }
 
 func resourceThrottlingPolicyAssociateImportState(_ context.Context, d *schema.ResourceData,

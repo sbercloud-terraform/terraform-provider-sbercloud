@@ -32,6 +32,9 @@ type ddmError struct {
 	ErrorMsg  string `json:"externalMessage"`
 }
 
+// @API DDM POST /v1/{project_id}/instances/{instance_id}/databases
+// @API DDM GET /v1/{project_id}/instances/{instance_id}/databases/{ddm_dbname}
+// @API DDM DELETE /v1/{project_id}/instances/{instance_id}/databases/{ddm_dbname}
 func ResourceDdmSchema() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDdmSchemaCreate,
@@ -123,16 +126,19 @@ func SchemaDataNodeSchema() *schema.Resource {
 			"id": {
 				Type:        schema.TypeString,
 				Required:    true,
+				ForceNew:    true,
 				Description: `Specifies the ID of the RDS instance associated with the schema.`,
 			},
 			"admin_user": {
 				Type:        schema.TypeString,
 				Required:    true,
+				ForceNew:    true,
 				Description: `Specifies the username for logging in to the associated RDS instance.`,
 			},
 			"admin_password": {
 				Type:        schema.TypeString,
 				Required:    true,
+				ForceNew:    true,
 				Sensitive:   true,
 				Description: `Specifies the password for logging in to the associated RDS instance.`,
 			},
@@ -236,7 +242,7 @@ func resourceDdmSchemaCreate(ctx context.Context, d *schema.ResourceData, meta i
 		return diag.Errorf("error creating DdmSchema: Schema name is not found in API response %s", err)
 	}
 
-	err = waitForInstanceRunning(ctx, d, cfg, instanceID, schema.TimeoutCreate)
+	err = waitForInstanceRunning(ctx, d, createSchemaClient, instanceID, schema.TimeoutCreate)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -248,9 +254,9 @@ func resourceDdmSchemaCreate(ctx context.Context, d *schema.ResourceData, meta i
 
 func buildCreateSchemaBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":         utils.ValueIngoreEmpty(d.Get("name")),
-		"shard_mode":   utils.ValueIngoreEmpty(d.Get("shard_mode")),
-		"shard_number": utils.ValueIngoreEmpty(d.Get("shard_number")),
+		"name":         utils.ValueIgnoreEmpty(d.Get("name")),
+		"shard_mode":   utils.ValueIgnoreEmpty(d.Get("shard_mode")),
+		"shard_number": utils.ValueIgnoreEmpty(d.Get("shard_number")),
 		"used_rds":     buildCreateSchemaUsedRdsChildBody(d),
 	}
 	params := map[string]interface{}{
@@ -425,7 +431,7 @@ func resourceDdmSchemaDelete(ctx context.Context, d *schema.ResourceData, meta i
 		return diag.FromErr(err)
 	}
 
-	err = waitForInstanceRunning(ctx, d, cfg, instanceID, schema.TimeoutDelete)
+	err = waitForInstanceRunning(ctx, d, deleteSchemaClient, instanceID, schema.TimeoutDelete)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -461,14 +467,13 @@ func handleOperationError(err error, operateType string, operateObj string) (boo
 	return false, fmt.Errorf("error %s DDM %s: %s", operateType, operateObj, err)
 }
 
-func waitForInstanceRunning(ctx context.Context, d *schema.ResourceData, cfg *config.Config, instanceID string,
+func waitForInstanceRunning(ctx context.Context, d *schema.ResourceData, client *golangsdk.ServiceClient, instanceID string,
 	timeout string) error {
-	region := cfg.GetRegion(d)
 
 	stateConf := &resource.StateChangeConf{
 		Pending:      []string{"PENDING"},
 		Target:       []string{"RUNNING"},
-		Refresh:      ddmInstanceStatusRefreshFunc(instanceID, region, cfg),
+		Refresh:      ddmInstanceStatusRefreshFunc(instanceID, client),
 		Timeout:      d.Timeout(timeout),
 		Delay:        10 * time.Second,
 		PollInterval: 5 * time.Second,

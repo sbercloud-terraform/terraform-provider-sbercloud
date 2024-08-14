@@ -21,6 +21,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DDS POST /v3/{project_id}/configurations
+// @API DDS DELETE /v3/{project_id}/configurations/{config_id}
+// @API DDS GET /v3/{project_id}/configurations/{config_id}
+// @API DDS PUT /v3/{project_id}/configurations/{config_id}
 func ResourceDdsParameterTemplate() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDdsParameterTemplateCreate,
@@ -72,6 +76,14 @@ func ResourceDdsParameterTemplate() *schema.Resource {
 				Elem:        ParameterTemplateParameterSchema(),
 				Computed:    true,
 				Description: `Indicates the parameters defined by users based on the default parameter templates.`,
+			},
+			"created_at": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"updated_at": {
+				Type:     schema.TypeString,
+				Computed: true,
 			},
 		},
 	}
@@ -167,14 +179,14 @@ func resourceDdsParameterTemplateCreate(ctx context.Context, d *schema.ResourceD
 
 func buildCreateParameterTemplateBodyParams(d *schema.ResourceData) map[string]interface{} {
 	datastoreParams := map[string]interface{}{
-		"node_type": utils.ValueIngoreEmpty(d.Get("node_type")),
-		"version":   utils.ValueIngoreEmpty(d.Get("node_version")),
+		"node_type": utils.ValueIgnoreEmpty(d.Get("node_type")),
+		"version":   utils.ValueIgnoreEmpty(d.Get("node_version")),
 	}
 	bodyParams := map[string]interface{}{
-		"name": utils.ValueIngoreEmpty(d.Get("name")),
+		"name": utils.ValueIgnoreEmpty(d.Get("name")),
 		// this param can be empty
 		"parameter_values": d.Get("parameter_values"),
-		"description":      utils.ValueIngoreEmpty(d.Get("description")),
+		"description":      utils.ValueIgnoreEmpty(d.Get("description")),
 		"datastore":        datastoreParams,
 	}
 	return bodyParams
@@ -224,9 +236,9 @@ func resourceDdsParameterTemplateUpdate(ctx context.Context, d *schema.ResourceD
 
 func buildUpdateParameterTemplateBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":             utils.ValueIngoreEmpty(d.Get("name")),
-		"parameter_values": utils.ValueIngoreEmpty(d.Get("parameter_values")),
-		"description":      utils.ValueIngoreEmpty(d.Get("description")),
+		"name":             utils.ValueIgnoreEmpty(d.Get("name")),
+		"parameter_values": utils.ValueIgnoreEmpty(d.Get("parameter_values")),
+		"description":      utils.ValueIgnoreEmpty(d.Get("description")),
 	}
 	return bodyParams
 }
@@ -282,6 +294,8 @@ func resourceDdsParameterTemplateRead(_ context.Context, d *schema.ResourceData,
 		d.Set("description", utils.PathSearch("description",
 			getParameterTemplateRespBody, nil)),
 		d.Set("parameters", flattenGetParameterTemplateResponseBodyParameter(getParameterTemplateRespBody)),
+		d.Set("created_at", utils.PathSearch("created", getParameterTemplateRespBody, nil)),
+		d.Set("updated_at", utils.PathSearch("updated", getParameterTemplateRespBody, nil)),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())

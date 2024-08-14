@@ -1,10 +1,14 @@
 package gaussdb
 
 import (
+	"context"
+	"log"
 	"sort"
 	"strconv"
 	"strings"
 
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
 	"github.com/chnsz/golangsdk/openstack/common/tags"
@@ -13,13 +17,13 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/hashcode"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
 )
 
+// @API GaussDBforNoSQL GET /v3/{project_id}/instances
+// @API GaussDBforNoSQL GET /v3/{project_id}/instances/{instance_id}/tags
 func DataSourceGeminiDBInstances() *schema.Resource {
 	return &schema.Resource{
-		Read: dataSourceGeminiDBInstancesRead,
+		ReadContext: dataSourceGeminiDBInstancesRead,
 
 		Schema: map[string]*schema.Schema{
 			"region": {
@@ -193,13 +197,15 @@ func DataSourceGeminiDBInstances() *schema.Resource {
 	}
 }
 
-func dataSourceGeminiDBInstancesRead(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*config.Config)
-	region := config.GetRegion(d)
-	client, err := config.GeminiDBV3Client(region)
+func dataSourceGeminiDBInstancesRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+	client, err := cfg.GeminiDBV3Client(region)
 	if err != nil {
-		return fmtp.Errorf("Error creating HuaweiCloud GaussDB client: %s", err)
+		return diag.Errorf("error creating GaussDB client: %s", err)
 	}
+
+	var mErr *multierror.Error
 
 	listOpts := instances.ListGeminiDBInstanceOpts{
 		Name:     d.Get("name").(string),
@@ -209,12 +215,12 @@ func dataSourceGeminiDBInstancesRead(d *schema.ResourceData, meta interface{}) e
 
 	pages, err := instances.List(client, listOpts).AllPages()
 	if err != nil {
-		return err
+		return diag.Errorf("error getting GaussDB Cassandra Instances list: %s", err)
 	}
 
 	allInstances, err := instances.ExtractGeminiDBInstances(pages)
 	if err != nil {
-		return fmtp.Errorf("Unable to retrieve instances: %s", err)
+		return diag.Errorf("unable to retrieve instances: %s", err)
 	}
 
 	var instancesToSet []map[string]interface{}
@@ -289,7 +295,7 @@ func dataSourceGeminiDBInstancesRead(d *schema.ResourceData, meta interface{}) e
 		instanceID := instanceInAll.Id
 		instancesIds = append(instancesIds, instanceID)
 
-		//remove duplicate az
+		// remove duplicate az
 		azList = utils.RemoveDuplicateElem(azList)
 		sort.Strings(azList)
 		instanceToSet["availability_zone"] = strings.Join(azList, ",")
@@ -304,19 +310,21 @@ func dataSourceGeminiDBInstancesRead(d *schema.ResourceData, meta interface{}) e
 		backupStrategyList = append(backupStrategyList, backupStrategy)
 		instanceToSet["backup_strategy"] = backupStrategyList
 
-		//save geminidb tags
+		// save geminidb tags
 		if resourceTags, err := tags.Get(client, "instances", instanceID).Extract(); err == nil {
 			tagmap := utils.TagsToMap(resourceTags.Tags)
 			instanceToSet["tags"] = tagmap
 		} else {
-			logp.Printf("[WARN] Error fetching tags of geminidb (%s): %s", instanceID, err)
+			log.Printf("[WARN] error fetching tags of geminidb (%s): %s", instanceID, err)
 		}
 
 		instancesToSet = append(instancesToSet, instanceToSet)
 	}
 
 	d.SetId(hashcode.Strings(instancesIds))
-	d.Set("instances", instancesToSet)
+	mErr = multierror.Append(mErr,
+		d.Set("instances", instancesToSet),
+	)
 
-	return nil
+	return diag.FromErr(mErr.ErrorOrNil())
 }

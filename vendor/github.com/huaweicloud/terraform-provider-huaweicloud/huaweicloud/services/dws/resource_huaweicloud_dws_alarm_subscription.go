@@ -24,6 +24,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DWS GET /v2/{project_id}/alarm-subs
+// @API DWS POST /v2/{project_id}/alarm-subs
+// @API DWS PUT /v2/{project_id}/alarm-subs/{alarm_sub_id}
+// @API DWS DELETE /v2/{project_id}/alarm-subs/{alarm_sub_id}
 func ResourceDwsAlarmSubs() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDwsAlarmSubsCreate,
@@ -101,10 +105,8 @@ func resourceDwsAlarmSubsCreate(ctx context.Context, d *schema.ResourceData, met
 	createDwsAlarmSubsPath = strings.ReplaceAll(createDwsAlarmSubsPath, "{project_id}", createDwsAlarmSubsClient.ProjectID)
 
 	createDwsAlarmSubsOpt := golangsdk.RequestOpts{
+		MoreHeaders:      requestOpts.MoreHeaders,
 		KeepResponseBody: true,
-		OkCodes: []int{
-			200,
-		},
 	}
 	createDwsAlarmSubsOpt.JSONBody = utils.RemoveNil(buildCreateDwsAlarmSubsBodyParams(d))
 	createDwsAlarmSubsResp, err := createDwsAlarmSubsClient.Request("POST", createDwsAlarmSubsPath, &createDwsAlarmSubsOpt)
@@ -128,13 +130,13 @@ func resourceDwsAlarmSubsCreate(ctx context.Context, d *schema.ResourceData, met
 
 func buildCreateDwsAlarmSubsBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":                     utils.ValueIngoreEmpty(d.Get("name")),
-		"alarm_level":              utils.ValueIngoreEmpty(d.Get("alarm_level")),
+		"name":                     utils.ValueIgnoreEmpty(d.Get("name")),
+		"alarm_level":              utils.ValueIgnoreEmpty(d.Get("alarm_level")),
 		"enable":                   d.Get("enable"),
-		"notification_target":      utils.ValueIngoreEmpty(d.Get("notification_target")),
-		"notification_target_name": utils.ValueIngoreEmpty(d.Get("notification_target_name")),
-		"notification_target_type": utils.ValueIngoreEmpty(d.Get("notification_target_type")),
-		"time_zone":                utils.ValueIngoreEmpty(d.Get("time_zone")),
+		"notification_target":      utils.ValueIgnoreEmpty(d.Get("notification_target")),
+		"notification_target_name": utils.ValueIgnoreEmpty(d.Get("notification_target_name")),
+		"notification_target_type": utils.ValueIgnoreEmpty(d.Get("notification_target_type")),
+		"time_zone":                utils.ValueIgnoreEmpty(d.Get("time_zone")),
 	}
 	return bodyParams
 }
@@ -215,7 +217,7 @@ func resourceDwsAlarmSubsUpdate(ctx context.Context, d *schema.ResourceData, met
 	if d.HasChanges(updateDwsAlarmSubsChanges...) {
 		// updateDwsAlarmSubs: update the DWS alarm subscription.
 		var (
-			updateDwsAlarmSubsHttpUrl = "v2/{project_id}/alarm-subs/{id}"
+			updateDwsAlarmSubsHttpUrl = "v2/{project_id}/alarm-subs/{alarm_sub_id}"
 			updateDwsAlarmSubsProduct = "dws"
 		)
 		updateDwsAlarmSubsClient, err := cfg.NewServiceClient(updateDwsAlarmSubsProduct, region)
@@ -225,13 +227,11 @@ func resourceDwsAlarmSubsUpdate(ctx context.Context, d *schema.ResourceData, met
 
 		updateDwsAlarmSubsPath := updateDwsAlarmSubsClient.Endpoint + updateDwsAlarmSubsHttpUrl
 		updateDwsAlarmSubsPath = strings.ReplaceAll(updateDwsAlarmSubsPath, "{project_id}", updateDwsAlarmSubsClient.ProjectID)
-		updateDwsAlarmSubsPath = strings.ReplaceAll(updateDwsAlarmSubsPath, "{id}", d.Id())
+		updateDwsAlarmSubsPath = strings.ReplaceAll(updateDwsAlarmSubsPath, "{alarm_sub_id}", d.Id())
 
 		updateDwsAlarmSubsOpt := golangsdk.RequestOpts{
+			MoreHeaders:      requestOpts.MoreHeaders,
 			KeepResponseBody: true,
-			OkCodes: []int{
-				200,
-			},
 		}
 		updateDwsAlarmSubsOpt.JSONBody = utils.RemoveNil(buildUpdateDwsAlarmSubsBodyParams(d))
 		_, err = updateDwsAlarmSubsClient.Request("PUT", updateDwsAlarmSubsPath, &updateDwsAlarmSubsOpt)
@@ -244,12 +244,12 @@ func resourceDwsAlarmSubsUpdate(ctx context.Context, d *schema.ResourceData, met
 
 func buildUpdateDwsAlarmSubsBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":                     utils.ValueIngoreEmpty(d.Get("name")),
-		"alarm_level":              utils.ValueIngoreEmpty(d.Get("alarm_level")),
+		"name":                     utils.ValueIgnoreEmpty(d.Get("name")),
+		"alarm_level":              utils.ValueIgnoreEmpty(d.Get("alarm_level")),
 		"enable":                   d.Get("enable"),
-		"notification_target":      utils.ValueIngoreEmpty(d.Get("notification_target")),
-		"notification_target_name": utils.ValueIngoreEmpty(d.Get("notification_target_name")),
-		"notification_target_type": utils.ValueIngoreEmpty(d.Get("notification_target_type")),
+		"notification_target":      utils.ValueIgnoreEmpty(d.Get("notification_target")),
+		"notification_target_name": utils.ValueIgnoreEmpty(d.Get("notification_target_name")),
+		"notification_target_type": utils.ValueIgnoreEmpty(d.Get("notification_target_type")),
 	}
 	return bodyParams
 }
@@ -260,7 +260,7 @@ func resourceDwsAlarmSubsDelete(_ context.Context, d *schema.ResourceData, meta 
 
 	// deleteDwsAlarmSubs: delete DWS alarm subscription
 	var (
-		deleteDwsAlarmSubsHttpUrl = "v2/{project_id}/alarm-subs/{id}"
+		deleteDwsAlarmSubsHttpUrl = "v2/{project_id}/alarm-subs/{alarm_sub_id}"
 		deleteDwsAlarmSubsProduct = "dws"
 	)
 	deleteDwsAlarmSubsClient, err := cfg.NewServiceClient(deleteDwsAlarmSubsProduct, region)
@@ -270,9 +270,10 @@ func resourceDwsAlarmSubsDelete(_ context.Context, d *schema.ResourceData, meta 
 
 	deleteDwsAlarmSubsPath := deleteDwsAlarmSubsClient.Endpoint + deleteDwsAlarmSubsHttpUrl
 	deleteDwsAlarmSubsPath = strings.ReplaceAll(deleteDwsAlarmSubsPath, "{project_id}", deleteDwsAlarmSubsClient.ProjectID)
-	deleteDwsAlarmSubsPath = strings.ReplaceAll(deleteDwsAlarmSubsPath, "{id}", d.Id())
+	deleteDwsAlarmSubsPath = strings.ReplaceAll(deleteDwsAlarmSubsPath, "{alarm_sub_id}", d.Id())
 
 	deleteDwsAlarmSubsOpt := golangsdk.RequestOpts{
+		MoreHeaders:      requestOpts.MoreHeaders,
 		KeepResponseBody: true,
 		OkCodes: []int{
 			200,

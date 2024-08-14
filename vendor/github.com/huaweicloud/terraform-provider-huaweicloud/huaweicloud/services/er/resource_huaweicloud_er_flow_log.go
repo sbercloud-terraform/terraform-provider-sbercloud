@@ -22,11 +22,10 @@ import (
 
 // @API ER POST /v3/{project_id}/enterprise-router/{er_id}/flow-logs
 // @API ER GET /v3/{project_id}/enterprise-router/{er_id}/flow-logs/{flow_log_id}
-// @API ER PUT /v3/{project_id}/enterprise-router/{er_id}/flow-logs/{flow_log_id}
-// @API ER DELETE /v3/{project_id}/enterprise-router/{er_id}/flow-logs/{flow_log_id}
 // @API ER POST /v3/{project_id}/enterprise-router/{er_id}/flow-logs/{flow_log_id}/enable
 // @API ER POST /v3/{project_id}/enterprise-router/{er_id}/flow-logs/{flow_log_id}/disable
-
+// @API ER PUT /v3/{project_id}/enterprise-router/{er_id}/flow-logs/{flow_log_id}
+// @API ER DELETE /v3/{project_id}/enterprise-router/{er_id}/flow-logs/{flow_log_id}
 func ResourceFlowLog() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceFlowLogCreate,
@@ -119,7 +118,7 @@ func buildCreateFlowLogBodyParams(d *schema.ResourceData) map[string]interface{}
 			"resource_type":  d.Get("resource_type"),
 			"resource_id":    d.Get("resource_id"),
 			"name":           d.Get("name"),
-			"description":    utils.ValueIngoreEmpty(d.Get("description")),
+			"description":    utils.ValueIgnoreEmpty(d.Get("description")),
 		},
 	}
 	return bodyParams
@@ -232,8 +231,11 @@ func resourceFlowLogRead(_ context.Context, d *schema.ResourceData, meta interfa
 		d.Set("resource_type", utils.PathSearch("flow_log.resource_type", getFlowLogRespBody, nil)),
 		d.Set("resource_id", utils.PathSearch("flow_log.resource_id", getFlowLogRespBody, nil)),
 		d.Set("state", utils.PathSearch("flow_log.state", getFlowLogRespBody, nil)),
-		d.Set("created_at", utils.PathSearch("flow_log.created_at", getFlowLogRespBody, nil)),
-		d.Set("updated_at", utils.PathSearch("flow_log.updated_at", getFlowLogRespBody, nil)),
+		// The time results are not the time in RF3339 format without milliseconds.
+		d.Set("created_at", utils.FormatTimeStampRFC3339(utils.ConvertTimeStrToNanoTimestamp(utils.PathSearch("flow_log.created_at",
+			getFlowLogRespBody, "").(string))/1000, false)),
+		d.Set("updated_at", utils.FormatTimeStampRFC3339(utils.ConvertTimeStrToNanoTimestamp(utils.PathSearch("flow_log.updated_at",
+			getFlowLogRespBody, "").(string))/1000, false)),
 		d.Set("enabled", utils.PathSearch("flow_log.enabled", getFlowLogRespBody, nil)),
 	)
 
@@ -262,7 +264,7 @@ func updateFlowLogState(client *golangsdk.ServiceClient, d *schema.ResourceData,
 
 func buildUpdateFlowLogBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":        utils.ValueIngoreEmpty(d.Get("name")),
+		"name":        utils.ValueIgnoreEmpty(d.Get("name")),
 		"description": d.Get("description"),
 	}
 	return bodyParams
@@ -365,7 +367,8 @@ func flowLogStatusRefreshFunc(d *schema.ResourceData, meta interface{}, isDelete
 		resp, err := getFlowLogInfo(d, meta)
 		if err != nil {
 			if _, ok := err.(golangsdk.ErrDefault404); ok && isDelete {
-				return resp, "DELETED", nil
+				// When the error code is 404, the value of respBody is nil, and a non-null value is returned to avoid continuing the loop check.
+				return "Resource Not Found", "DELETED", nil
 			}
 
 			return nil, "ERROR", err

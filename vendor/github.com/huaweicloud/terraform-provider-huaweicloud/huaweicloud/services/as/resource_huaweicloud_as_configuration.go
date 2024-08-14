@@ -3,13 +3,10 @@ package as
 import (
 	"context"
 	"fmt"
-	"log"
-	"regexp"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/autoscaling/v1/configurations"
@@ -20,12 +17,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
-var (
-	ValidDiskTypes     = []string{"SYS", "DATA"}
-	ValidShareTypes    = []string{"PER", "WHOLE"}
-	ValidChargingModes = []string{"traffic", "bandwidth"}
-)
-
+// @API AS GET /autoscaling-api/v1/{project_id}/scaling_configuration/{id}
+// @API AS DELETE /autoscaling-api/v1/{project_id}/scaling_configuration/{id}
+// @API AS POST /autoscaling-api/v1/{project_id}/scaling_configuration
+// @API AS GET /autoscaling-api/v1/{project_id}/scaling_group
 func ResourceASConfiguration() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceASConfigurationCreate,
@@ -46,11 +41,6 @@ func ResourceASConfiguration() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
-				ValidateFunc: validation.All(
-					validation.StringLenBetween(1, 64),
-					validation.StringMatch(regexp.MustCompile("^[\u4e00-\u9fa50-9a-zA-Z-_]+$"),
-						"only letters, digits, underscores (_), and hyphens (-) are allowed"),
-				),
 			},
 			"instance_config": {
 				Required: true,
@@ -85,7 +75,8 @@ func ResourceASConfiguration() *schema.Resource {
 						},
 						"key_name": {
 							Type:     schema.TypeString,
-							Required: true,
+							Optional: true,
+							Computed: true,
 							ForceNew: true,
 						},
 						"security_group_ids": {
@@ -101,18 +92,12 @@ func ResourceASConfiguration() *schema.Resource {
 							Optional: true,
 							ForceNew: true,
 							Default:  "postPaid",
-							ValidateFunc: validation.StringInSlice([]string{
-								"postPaid", "spot",
-							}, false),
 						},
 						"flavor_priority_policy": {
 							Type:     schema.TypeString,
 							Optional: true,
 							Computed: true,
 							ForceNew: true,
-							ValidateFunc: validation.StringInSlice([]string{
-								"PICK_FIRST", "COST_FIRST",
-							}, false),
 						},
 						"ecs_group_id": {
 							Type:     schema.TypeString,
@@ -139,12 +124,41 @@ func ResourceASConfiguration() *schema.Resource {
 										ForceNew: true,
 									},
 									"disk_type": {
-										Type:         schema.TypeString,
-										Required:     true,
-										ForceNew:     true,
-										ValidateFunc: validation.StringInSlice(ValidDiskTypes, false),
+										Type:     schema.TypeString,
+										Required: true,
+										ForceNew: true,
 									},
 									"kms_id": {
+										Type:     schema.TypeString,
+										Optional: true,
+										Computed: true,
+										ForceNew: true,
+									},
+									"iops": {
+										Type:     schema.TypeInt,
+										Optional: true,
+										Computed: true,
+										ForceNew: true,
+									},
+									"throughput": {
+										Type:     schema.TypeInt,
+										Optional: true,
+										Computed: true,
+										ForceNew: true,
+									},
+									"dedicated_storage_id": {
+										Type:     schema.TypeString,
+										Optional: true,
+										Computed: true,
+										ForceNew: true,
+									},
+									"data_disk_image_id": {
+										Type:     schema.TypeString,
+										Optional: true,
+										Computed: true,
+										ForceNew: true,
+									},
+									"snapshot_id": {
 										Type:     schema.TypeString,
 										Optional: true,
 										Computed: true,
@@ -202,22 +216,27 @@ func ResourceASConfiguration() *schema.Resource {
 													Elem: &schema.Resource{
 														Schema: map[string]*schema.Schema{
 															"size": {
-																Type:         schema.TypeInt,
-																Required:     true,
-																ForceNew:     true,
-																ValidateFunc: validation.IntBetween(1, 2000),
+																Type:     schema.TypeInt,
+																Optional: true,
+																Computed: true,
+																ForceNew: true,
 															},
 															"share_type": {
-																Type:         schema.TypeString,
-																Required:     true,
-																ForceNew:     true,
-																ValidateFunc: validation.StringInSlice(ValidShareTypes, false),
+																Type:     schema.TypeString,
+																Required: true,
+																ForceNew: true,
 															},
 															"charging_mode": {
-																Type:         schema.TypeString,
-																Required:     true,
-																ForceNew:     true,
-																ValidateFunc: validation.StringInSlice(ValidChargingModes, false),
+																Type:     schema.TypeString,
+																Optional: true,
+																Computed: true,
+																ForceNew: true,
+															},
+															"id": {
+																Type:     schema.TypeString,
+																Optional: true,
+																Computed: true,
+																ForceNew: true,
 															},
 														},
 													},
@@ -228,6 +247,18 @@ func ResourceASConfiguration() *schema.Resource {
 								},
 							},
 						},
+						"tenancy": {
+							Type:     schema.TypeString,
+							Optional: true,
+							Computed: true,
+							ForceNew: true,
+						},
+						"dedicated_host_id": {
+							Type:     schema.TypeString,
+							Optional: true,
+							Computed: true,
+							ForceNew: true,
+						},
 						"user_data": {
 							Type:     schema.TypeString,
 							Optional: true,
@@ -235,6 +266,12 @@ func ResourceASConfiguration() *schema.Resource {
 							// just stash the hash for state & diff comparisons
 							StateFunc:        utils.HashAndHexEncode,
 							DiffSuppressFunc: utils.SuppressUserData,
+						},
+						"admin_pass": {
+							Type:      schema.TypeString,
+							Optional:  true,
+							ForceNew:  true,
+							Sensitive: true,
 						},
 						"metadata": {
 							Type:     schema.TypeMap,
@@ -253,36 +290,20 @@ func ResourceASConfiguration() *schema.Resource {
 	}
 }
 
-func validateDiskSize(diskSize int, diskType string) error {
-	if diskType == "SYS" {
-		if diskSize < 40 || diskSize > 32768 {
-			return fmt.Errorf("the system disk size should be between 40 and 32768")
-		}
-	}
-	if diskType == "DATA" {
-		if diskSize < 10 || diskSize > 32768 {
-			return fmt.Errorf("the data disk size should be between 10 and 32768")
-		}
-	}
-	return nil
-}
-
-func buildDiskOpts(diskMeta []interface{}) ([]configurations.DiskOpts, error) {
+func buildDiskOpts(diskMeta []interface{}) []configurations.DiskOpts {
 	var diskOptsList []configurations.DiskOpts
 
 	for _, v := range diskMeta {
 		disk := v.(map[string]interface{})
-		size := disk["size"].(int)
-		volumeType := disk["volume_type"].(string)
-		diskType := disk["disk_type"].(string)
-		if err := validateDiskSize(size, diskType); err != nil {
-			return diskOptsList, nil
-		}
-
 		diskOpts := configurations.DiskOpts{
-			Size:       size,
-			VolumeType: volumeType,
-			DiskType:   diskType,
+			Size:               disk["size"].(int),
+			VolumeType:         disk["volume_type"].(string),
+			DiskType:           disk["disk_type"].(string),
+			Iops:               disk["iops"].(int),
+			Throughput:         disk["throughput"].(int),
+			DedicatedStorageID: disk["dedicated_storage_id"].(string),
+			DataDiskImageID:    disk["data_disk_image_id"].(string),
+			SnapshotId:         disk["snapshot_id"].(string),
 		}
 		kmsId := disk["kms_id"].(string)
 		if kmsId != "" {
@@ -294,7 +315,7 @@ func buildDiskOpts(diskMeta []interface{}) ([]configurations.DiskOpts, error) {
 		diskOptsList = append(diskOptsList, diskOpts)
 	}
 
-	return diskOptsList, nil
+	return diskOptsList
 }
 
 func buildPersonalityOpts(personalityMeta []interface{}) []configurations.PersonalityOpts {
@@ -321,6 +342,7 @@ func buildPublicIpOpts(publicIpMeta map[string]interface{}) configurations.Publi
 		Size:         bandWidthMap["size"].(int),
 		ShareType:    bandWidthMap["share_type"].(string),
 		ChargingMode: bandWidthMap["charging_mode"].(string),
+		ID:           bandWidthMap["id"].(string),
 	}
 
 	eipOpts := configurations.EipOpts{
@@ -349,13 +371,25 @@ func buildSecurityGroupIDsOpts(secGroups []interface{}) []configurations.Securit
 	return res
 }
 
-func buildInstanceConfig(configDataMap map[string]interface{}) (configurations.InstanceConfigOpts, error) {
-	disksData := configDataMap["disk"].([]interface{})
-	disks, err := buildDiskOpts(disksData)
-	if err != nil {
-		return configurations.InstanceConfigOpts{}, fmt.Errorf("the disk size is invalid: %s", err)
+func buildMetadataOpts(configDataMap map[string]interface{}) map[string]interface{} {
+	metadataMap := configDataMap["metadata"].(map[string]interface{})
+	adminPass := configDataMap["admin_pass"].(string)
+	if metadataMap == nil && adminPass == "" {
+		return nil
 	}
 
+	resultMap := make(map[string]interface{})
+	if adminPass != "" {
+		resultMap["admin_pass"] = adminPass
+	}
+
+	for k, v := range metadataMap {
+		resultMap[k] = v
+	}
+	return resultMap
+}
+
+func buildInstanceConfig(configDataMap map[string]interface{}) configurations.InstanceConfigOpts {
 	instanceConfigOpts := configurations.InstanceConfigOpts{
 		InstanceID:           configDataMap["instance_id"].(string),
 		FlavorRef:            configDataMap["flavor"].(string),
@@ -363,11 +397,13 @@ func buildInstanceConfig(configDataMap map[string]interface{}) (configurations.I
 		SSHKey:               configDataMap["key_name"].(string),
 		FlavorPriorityPolicy: configDataMap["flavor_priority_policy"].(string),
 		ServerGroupID:        configDataMap["ecs_group_id"].(string),
+		Tenancy:              configDataMap["tenancy"].(string),
+		DedicatedHostID:      configDataMap["dedicated_host_id"].(string),
 		UserData:             []byte(configDataMap["user_data"].(string)),
-		Metadata:             configDataMap["metadata"].(map[string]interface{}),
+		Metadata:             buildMetadataOpts(configDataMap),
 		SecurityGroups:       buildSecurityGroupIDsOpts(configDataMap["security_group_ids"].([]interface{})),
 		Personality:          buildPersonalityOpts(configDataMap["personality"].([]interface{})),
-		Disk:                 disks,
+		Disk:                 buildDiskOpts(configDataMap["disk"].([]interface{})),
 	}
 
 	if mode, ok := configDataMap["charging_mode"]; ok && mode.(string) == "spot" {
@@ -381,7 +417,7 @@ func buildInstanceConfig(configDataMap map[string]interface{}) (configurations.I
 		instanceConfigOpts.PubicIP = &publicIps
 	}
 
-	return instanceConfigOpts, nil
+	return instanceConfigOpts
 }
 
 func resourceASConfigurationCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -393,16 +429,13 @@ func resourceASConfigurationCreate(ctx context.Context, d *schema.ResourceData, 
 	}
 
 	configDataMap := d.Get("instance_config").([]interface{})[0].(map[string]interface{})
-	instanceConfig, err := buildInstanceConfig(configDataMap)
-	if err != nil {
-		return diag.Errorf("error when getting instance_config object: %s", err)
-	}
+	instanceConfig := buildInstanceConfig(configDataMap)
+
 	createOpts := configurations.CreateOpts{
 		Name:           d.Get("scaling_configuration_name").(string),
 		InstanceConfig: instanceConfig,
 	}
 
-	log.Printf("[DEBUG] Create AS configuration Options: %#v", createOpts)
 	asConfigId, err := configurations.Create(asClient, createOpts).Extract()
 	if err != nil {
 		return diag.Errorf("error creating AS configuration: %s", err)
@@ -431,7 +464,8 @@ func resourceASConfigurationRead(_ context.Context, d *schema.ResourceData, meta
 	configId := d.Id()
 	asConfig, err := configurations.Get(asClient, configId).Extract()
 	if err != nil {
-		return common.CheckDeletedDiag(d, err, "AS configuration")
+		// When the resource does not exist, the response HTTP status code of the details API is 404.
+		return common.CheckDeletedDiag(d, err, "error retrieving AS configuration")
 	}
 
 	// update InstanceID if necessary
@@ -440,11 +474,10 @@ func resourceASConfigurationRead(_ context.Context, d *schema.ResourceData, meta
 			asConfig.InstanceConfig.InstanceID = v.(string)
 		}
 	}
-	log.Printf("[DEBUG] Retrieved AS configuration %s: %+v", configId, asConfig)
 	mErr := multierror.Append(nil,
 		d.Set("region", region),
 		d.Set("scaling_configuration_name", asConfig.Name),
-		d.Set("instance_config", flattenInstanceConfig(asConfig.InstanceConfig)),
+		d.Set("instance_config", flattenInstanceConfig(asConfig.InstanceConfig, d)),
 		d.Set("status", normalizeConfigurationStatus(asConfig.ScalingGroupID)),
 	)
 
@@ -473,7 +506,8 @@ func resourceASConfigurationDelete(_ context.Context, d *schema.ResourceData, me
 	}
 
 	if delErr := configurations.Delete(asClient, configId).ExtractErr(); delErr != nil {
-		return diag.Errorf("error deleting AS configuration: %s", delErr)
+		// When the resource does not exist, the response HTTP status code of the delete API is 404.
+		return common.CheckDeletedDiag(d, delErr, "error deleting AS configuration")
 	}
 
 	return nil
@@ -494,7 +528,8 @@ func getASGroupsByConfiguration(asClient *golangsdk.ServiceClient, configuration
 	return gs, err
 }
 
-func flattenInstanceConfig(instanceConfig configurations.InstanceConfig) []map[string]interface{} {
+// In order to avoid triggering force_new changes, write `admin_pass` and `metadata` in local files.
+func flattenInstanceConfig(instanceConfig configurations.InstanceConfig, d *schema.ResourceData) []map[string]interface{} {
 	return []map[string]interface{}{
 		{
 			"charging_mode":          normalizeConfigurationChargingMode(instanceConfig.MarketType),
@@ -504,8 +539,11 @@ func flattenInstanceConfig(instanceConfig configurations.InstanceConfig) []map[s
 			"key_name":               instanceConfig.SSHKey,
 			"flavor_priority_policy": instanceConfig.FlavorPriorityPolicy,
 			"ecs_group_id":           instanceConfig.ServerGroupID,
+			"tenancy":                instanceConfig.Tenancy,
+			"dedicated_host_id":      instanceConfig.DedicatedHostID,
 			"user_data":              instanceConfig.UserData,
-			"metadata":               instanceConfig.Metadata,
+			"admin_pass":             d.Get("instance_config.0.admin_pass"),
+			"metadata":               d.Get("instance_config.0.metadata"),
 			"disk":                   flattenInstanceDisks(instanceConfig.Disk),
 			"public_ip":              flattenInstancePublicIP(instanceConfig.PublicIp.Eip),
 			"security_group_ids":     flattenSecurityGroupIDs(instanceConfig.SecurityGroups),
@@ -522,9 +560,14 @@ func flattenInstanceDisks(disks []configurations.Disk) []map[string]interface{} 
 	res := make([]map[string]interface{}, len(disks))
 	for i, item := range disks {
 		res[i] = map[string]interface{}{
-			"volume_type": item.VolumeType,
-			"size":        item.Size,
-			"disk_type":   item.DiskType,
+			"volume_type":          item.VolumeType,
+			"size":                 item.Size,
+			"disk_type":            item.DiskType,
+			"iops":                 item.Iops,
+			"throughput":           item.Throughput,
+			"dedicated_storage_id": item.DedicatedStorageID,
+			"data_disk_image_id":   item.DataDiskImageID,
+			"snapshot_id":          item.SnapshotID,
 		}
 
 		if kms, ok := item.Metadata["__system__cmkid"]; ok {
@@ -544,6 +587,7 @@ func flattenInstancePublicIP(eipObject configurations.Eip) []map[string]interfac
 			"share_type":    eipObject.Bandwidth.ShareType,
 			"size":          eipObject.Bandwidth.Size,
 			"charging_mode": eipObject.Bandwidth.ChargingMode,
+			"id":            eipObject.Bandwidth.ID,
 		},
 	}
 

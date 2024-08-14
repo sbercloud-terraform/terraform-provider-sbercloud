@@ -2,8 +2,10 @@ package gaussdb
 
 import (
 	"context"
+	"log"
 	"strconv"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -13,10 +15,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/hashcode"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
 )
 
+// @API GaussDBforNoSQL GET /v3.1/{project_id}/flavors
 func DataSourceGaussDBNoSQLFlavors() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: dataSourceGaussDBFlavorsRead,
@@ -107,7 +108,7 @@ func filterAvailableFlavors(d *schema.ResourceData, flavorList []flavors.Flavor)
 	if err != nil {
 		return nil, nil, err
 	}
-	logp.Printf("[DEBUG] The filter is %v and the result is %v", filter, filterFlavors)
+	log.Printf("[DEBUG] the filter is %v and the result is %v", filter, filterFlavors)
 
 	// filter by availability zone
 	az := d.Get("availability_zone").(string)
@@ -131,15 +132,15 @@ func filterAvailableFlavors(d *schema.ResourceData, flavorList []flavors.Flavor)
 		names = append(names, flavor.SpecCode)
 	}
 
-	logp.Printf("[DEBUG] After filtering, the NoSQL flavors is %v", result)
+	log.Printf("[DEBUG] after filtering, the NoSQL flavors is %v", result)
 	return result, names, nil
 }
 
 func dataSourceGaussDBFlavorsRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	client, err := config.GeminiDBV31Client(config.GetRegion(d))
+	cfg := meta.(*config.Config)
+	client, err := cfg.GeminiDBV31Client(cfg.GetRegion(d))
 	if err != nil {
-		return fmtp.DiagErrorf("Error creating HuaweiCloud GaussDB client: %s", err)
+		return diag.Errorf("error creating GaussDB client: %s", err)
 	}
 
 	opt := flavors.ListFlavorOpts{
@@ -147,18 +148,22 @@ func dataSourceGaussDBFlavorsRead(_ context.Context, d *schema.ResourceData, met
 	}
 	pages, err := flavors.List(client, opt).AllPages()
 	if err != nil {
-		return fmtp.DiagErrorf(err.Error())
+		return diag.FromErr(err)
 	}
 	flavorsResp, err := flavors.ExtractFlavors(pages)
 	if err != nil {
-		return fmtp.DiagErrorf("Unable to retrieve GuassDB NoSQL flavors: %s", err)
+		return diag.Errorf("unable to retrieve GuassDB NoSQL flavors: %s", err)
 	}
 
 	result, names, err := filterAvailableFlavors(d, flavorsResp.Flavors)
 	if err != nil {
-		return fmtp.DiagErrorf("An error occurred while filtering the GaussDB NoSQL flavors: %s", err)
+		return diag.Errorf("an error occurred while filtering the GaussDB NoSQL flavors: %s", err)
 	}
 	d.SetId(hashcode.Strings(names))
+	var mErr *multierror.Error
+	mErr = multierror.Append(mErr,
+		d.Set("flavors", result),
+	)
 
-	return diag.FromErr(d.Set("flavors", result))
+	return diag.FromErr(mErr.ErrorOrNil())
 }

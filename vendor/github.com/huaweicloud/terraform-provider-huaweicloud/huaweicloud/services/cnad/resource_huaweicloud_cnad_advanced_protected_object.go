@@ -23,6 +23,8 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API AAD POST /v1/cnad/packages/{package_id}/protected-ips
+// @API AAD GET /v1/cnad/protected-ips
 func ResourceProtectedObject() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceProtectedObjectCreateOrUpdate,
@@ -160,9 +162,9 @@ func buildProtectedObjectBodyParams(d *schema.ResourceData) map[string]interface
 		for i, v := range rawArray {
 			raw := v.(map[string]interface{})
 			protectedObjects[i] = map[string]interface{}{
-				"id":   utils.ValueIngoreEmpty(raw["id"]),
-				"ip":   utils.ValueIngoreEmpty(raw["ip_address"]),
-				"type": utils.ValueIngoreEmpty(raw["type"]),
+				"id":   utils.ValueIgnoreEmpty(raw["id"]),
+				"ip":   utils.ValueIgnoreEmpty(raw["ip_address"]),
+				"type": utils.ValueIgnoreEmpty(raw["type"]),
 			}
 		}
 	}

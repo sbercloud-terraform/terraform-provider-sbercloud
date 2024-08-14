@@ -17,6 +17,7 @@ import (
 	"github.com/chnsz/golangsdk/openstack/bcs/v2/blockchains"
 	"github.com/chnsz/golangsdk/openstack/cce/v3/clusters"
 	"github.com/chnsz/golangsdk/openstack/dms/v2/kafka/instances"
+	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -24,6 +25,12 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dms"
 )
 
+// @API BCS POST /v2/{project_id}/blockchains
+// @API BCS DELETE /v2/{project_id}/blockchains/{blockchain_id}
+// @API BCS GET /v2/{project_id}/blockchains/{blockchain_id}
+// @API CCE GET /api/v3/projects/{project_id}/clusters/{cluster_id}
+// @API DMS DELETE /v2/{project_id}/instances/{instance_id}
+// @API DMS GET /v2/{project_id}/instances
 func ResourceInstance() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceBCSInstanceCreate,
@@ -75,7 +82,6 @@ func ResourceInstance() *schema.Resource {
 			"enterprise_project_id": {
 				Type:     schema.TypeString,
 				Required: true,
-				ForceNew: true,
 			},
 			"fabric_version": {
 				Type:     schema.TypeString,
@@ -511,10 +517,24 @@ func resourceBCSInstanceRead(_ context.Context, d *schema.ResourceData, meta int
 	return diag.FromErr(mErr.ErrorOrNil())
 }
 
-func resourceBCSInstanceUpdate(_ context.Context, _ *schema.ResourceData, _ interface{}) diag.Diagnostics {
-	// Since delete_obs and delete_storage involve updates but contains cloud service modifications,
-	// an empty udpate function will be set and only the read method will be called
-	return nil
+func resourceBCSInstanceUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+	instanceId := d.Id()
+
+	if d.HasChange("enterprise_project_id") {
+		migrateOpts := enterpriseprojects.MigrateResourceOpts{
+			ResourceId:   instanceId,
+			ResourceType: "bcs",
+			RegionId:     region,
+			ProjectId:    cfg.GetProjectID(region),
+		}
+		if err := common.MigrateEnterpriseProject(ctx, cfg, d, migrateOpts); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	return resourceBCSInstanceRead(ctx, d, meta)
 }
 
 func resourceBCSInstanceDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

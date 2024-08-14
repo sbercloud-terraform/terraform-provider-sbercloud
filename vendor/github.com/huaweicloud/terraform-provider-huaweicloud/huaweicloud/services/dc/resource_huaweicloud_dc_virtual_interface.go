@@ -5,12 +5,10 @@ import (
 	"fmt"
 	"log"
 	"reflect"
-	"regexp"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/dc/v3/interfaces"
@@ -20,28 +18,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
-type (
-	InterfaceType string
-	ServiceType   string
-	RouteMode     string
-	AddressType   string
-)
-
-const (
-	InterfaceTypePrivate InterfaceType = "private"
-
-	ServiceTypeVpc  ServiceType = "VPC"
-	ServiceTypeVgw  ServiceType = "VGW"
-	ServiceTypeGdww ServiceType = "GDWW"
-	ServiceTypeLgw  ServiceType = "LGW"
-
-	RouteModeStatic RouteMode = "static"
-	RouteModeBgp    RouteMode = "bgp"
-
-	AddressTypeIpv4 AddressType = "ipv4"
-	AddressTypeIpv6 AddressType = "ipv6"
-)
-
+// @API DC DELETE /v3/{project_id}/dcaas/virtual-interfaces/{interfaceId}
+// @API DC GET /v3/{project_id}/dcaas/virtual-interfaces/{interfaceId}
+// @API DC PUT /v3/{project_id}/dcaas/virtual-interfaces/{interfaceId}
+// @API DC POST /v3/{project_id}/dcaas/virtual-interfaces
 func ResourceVirtualInterface() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceVirtualInterfaceCreate,
@@ -74,41 +54,27 @@ func ResourceVirtualInterface() *schema.Resource {
 				Description: "The ID of the virtual gateway to which the virtual interface is connected.",
 			},
 			"name": {
-				Type:     schema.TypeString,
-				Required: true,
-				ValidateFunc: validation.All(
-					validation.StringMatch(regexp.MustCompile("^[\u4e00-\u9fa5\\w-.]*$"),
-						"Only chinese and english letters, digits, hyphens (-), underscores (_) and dots (.) are "+
-							"allowed."),
-					validation.StringLenBetween(1, 64),
-				),
+				Type:        schema.TypeString,
+				Required:    true,
 				Description: "The name of the virtual interface.",
 			},
 			"type": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
-				ValidateFunc: validation.StringInSlice([]string{
-					string(InterfaceTypePrivate),
-				}, false),
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
 				Description: "The type of the virtual interface.",
 			},
 			"route_mode": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
-				ValidateFunc: validation.StringInSlice([]string{
-					string(RouteModeStatic),
-					string(RouteModeBgp),
-				}, false),
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
 				Description: "The route mode of the virtual interface.",
 			},
 			"vlan": {
-				Type:         schema.TypeInt,
-				Required:     true,
-				ForceNew:     true,
-				ValidateFunc: validation.IntBetween(0, 3999),
-				Description:  "The VLAN for constom side.",
+				Type:        schema.TypeInt,
+				Required:    true,
+				ForceNew:    true,
+				Description: "The VLAN for constom side.",
 			},
 			"bandwidth": {
 				Type:        schema.TypeInt,
@@ -122,26 +88,15 @@ func ResourceVirtualInterface() *schema.Resource {
 				Description: "The CIDR list of remote subnets.",
 			},
 			"description": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ValidateFunc: validation.All(
-					validation.StringMatch(regexp.MustCompile(`^[^<>]*$`),
-						"The angle brackets (< and >) are not allowed."),
-					validation.StringLenBetween(0, 128),
-				),
+				Type:        schema.TypeString,
+				Optional:    true,
 				Description: "The description of the virtual interface.",
 			},
 			"service_type": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
-				ForceNew: true,
-				ValidateFunc: validation.StringInSlice([]string{
-					string(ServiceTypeVpc),
-					string(ServiceTypeVgw),
-					string(ServiceTypeGdww),
-					string(ServiceTypeLgw),
-				}, false),
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
+				ForceNew:    true,
 				Description: "The service type of the virtual interface.",
 			},
 			"local_gateway_v4_ip": {
@@ -159,13 +114,9 @@ func ResourceVirtualInterface() *schema.Resource {
 				Description:   "The IPv4 address of the virtual interface in client side.",
 			},
 			"address_family": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
-				ValidateFunc: validation.StringInSlice([]string{
-					string(AddressTypeIpv4),
-					string(AddressTypeIpv6),
-				}, false),
+				Type:        schema.TypeString,
+				Optional:    true,
+				ForceNew:    true,
 				Description: "The address family type of the virtual interface.",
 			},
 			"local_gateway_v6_ip": {
@@ -183,12 +134,11 @@ func ResourceVirtualInterface() *schema.Resource {
 				Description: "The IPv6 address of the virtual interface in client side.",
 			},
 			"asn": {
-				Type:         schema.TypeInt,
-				Optional:     true,
-				Computed:     true,
-				ForceNew:     true,
-				ValidateFunc: validation.IntNotInSlice([]int{64512}),
-				Description:  "The local BGP ASN in client side.",
+				Type:        schema.TypeInt,
+				Optional:    true,
+				Computed:    true,
+				ForceNew:    true,
+				Description: "The local BGP ASN in client side.",
 			},
 			"bgp_md5": {
 				Type:        schema.TypeString,
@@ -216,6 +166,12 @@ func ResourceVirtualInterface() *schema.Resource {
 				ForceNew:    true,
 				Description: "The ID of the link aggregation group (LAG) associated with the virtual interface.",
 			},
+			"resource_tenant_id": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				ForceNew:    true,
+				Description: "The project ID of another tenant which is used to create virtual interface across tenant.",
+			},
 			"enterprise_project_id": {
 				Type:        schema.TypeString,
 				Optional:    true,
@@ -223,6 +179,8 @@ func ResourceVirtualInterface() *schema.Resource {
 				ForceNew:    true,
 				Description: "The enterprise project ID to which the virtual interface belongs.",
 			},
+			"tags": common.TagsSchema(),
+
 			// Attributes
 			"device_id": {
 				Type:        schema.TypeString,
@@ -239,9 +197,113 @@ func ResourceVirtualInterface() *schema.Resource {
 				Computed:    true,
 				Description: "The creation time of the virtual interface.",
 			},
-			"tags": common.TagsSchema(),
+			"vif_peers": {
+				Type:        schema.TypeList,
+				Computed:    true,
+				Elem:        vifPeersSchema(),
+				Description: "The peer information of the virtual interface.",
+			},
 		},
 	}
+}
+
+func vifPeersSchema() *schema.Resource {
+	sc := schema.Resource{
+		Schema: map[string]*schema.Schema{
+			"id": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `The VIF peer resource ID.`,
+			},
+			"name": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `The name of the virtual interface peer.`,
+			},
+			"description": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `The description of the virtual interface peer.`,
+			},
+			"address_family": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `The address family type of the virtual interface, which can be IPv4 or IPv6.`,
+			},
+			"local_gateway_ip": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `The address of the virtual interface peer used on the cloud.`,
+			},
+			"remote_gateway_ip": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `The address of the virtual interface peer used in the on-premises data center.`,
+			},
+			"route_mode": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `The routing mode, which can be static or bgp.`,
+			},
+			"bgp_asn": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: `The ASN of the BGP peer.`,
+			},
+			"bgp_md5": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `The MD5 password of the BGP peer.`,
+			},
+			"device_id": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `The ID of the device that the virtual interface peer belongs to.`,
+			},
+			"enable_bfd": {
+				Type:        schema.TypeBool,
+				Computed:    true,
+				Description: `Whether to enable BFD.`,
+			},
+			"enable_nqa": {
+				Type:        schema.TypeBool,
+				Computed:    true,
+				Description: `Whether to enable NQA.`,
+			},
+			"bgp_route_limit": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: `The BGP route configuration.`,
+			},
+			"bgp_status": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `The BGP protocol status of the virtual interface peer.`,
+			},
+			"status": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `The status of the virtual interface peer.`,
+			},
+			"vif_id": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `The ID of the virtual interface corresponding to the virtual interface peer.`,
+			},
+			"receive_route_num": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: `The number of received BGP routes if BGP routing is used.`,
+			},
+			"remote_ep_group": {
+				Type:        schema.TypeList,
+				Computed:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Description: `The remote subnet list, which records the CIDR blocks used in the on-premises data center.`,
+			},
+		},
+	}
+	return &sc
 }
 
 func buildVirtualInterfaceCreateOpts(d *schema.ResourceData, cfg *config.Config) interfaces.CreateOpts {
@@ -266,6 +328,7 @@ func buildVirtualInterfaceCreateOpts(d *schema.ResourceData, cfg *config.Config)
 		EnableBfd:           d.Get("enable_bfd").(bool),
 		EnableNqa:           d.Get("enable_nqa").(bool),
 		LagId:               d.Get("lag_id").(string),
+		ResourceTenantId:    d.Get("resource_tenant_id").(string),
 		EnterpriseProjectId: common.GetEnterpriseProjectID(d, cfg),
 	}
 }
@@ -302,7 +365,8 @@ func resourceVirtualInterfaceRead(_ context.Context, d *schema.ResourceData, met
 	interfaceId := d.Id()
 	resp, err := interfaces.Get(client, interfaceId)
 	if err != nil {
-		return common.CheckDeletedDiag(d, err, "virtual interface")
+		// When the interface does not exist, the response HTTP status code of the details API is 404.
+		return common.CheckDeletedDiag(d, err, "error retrieving DC virtual interface")
 	}
 	log.Printf("[DEBUG] The response of virtual interface is: %#v", resp)
 
@@ -332,6 +396,7 @@ func resourceVirtualInterfaceRead(_ context.Context, d *schema.ResourceData, met
 		d.Set("device_id", resp.DeviceId),
 		d.Set("status", resp.Status),
 		d.Set("created_at", resp.CreatedAt),
+		d.Set("vif_peers", flattenVifPeers(resp.VifPeers)),
 		utils.SetResourceTagsToState(d, client, "dc-vif", d.Id()),
 	)
 
@@ -339,6 +404,37 @@ func resourceVirtualInterfaceRead(_ context.Context, d *schema.ResourceData, met
 		return diag.Errorf("error saving virtual interface fields: %s", err)
 	}
 	return nil
+}
+
+func flattenVifPeers(vifPeers []interfaces.VifPeer) []interface{} {
+	if vifPeers == nil {
+		return nil
+	}
+
+	rst := make([]interface{}, 0, len(vifPeers))
+	for _, v := range vifPeers {
+		rst = append(rst, map[string]interface{}{
+			"id":                v.ID,
+			"name":              v.Name,
+			"description":       v.Description,
+			"address_family":    v.AddressFamily,
+			"local_gateway_ip":  v.LocalGatewayIp,
+			"remote_gateway_ip": v.RemoteGatewayIp,
+			"route_mode":        v.RouteMode,
+			"bgp_asn":           v.BgpAsn,
+			"bgp_md5":           v.BgpMd5,
+			"device_id":         v.DeviceId,
+			"enable_bfd":        v.EnableBfd,
+			"enable_nqa":        v.EnableNqa,
+			"bgp_route_limit":   v.BgpRouteLimit,
+			"bgp_status":        v.BgpStatus,
+			"status":            v.Status,
+			"vif_id":            v.VifId,
+			"receive_route_num": v.ReceiveRouteNum,
+			"remote_ep_group":   v.RemoteEpGroup,
+		})
+	}
+	return rst
 }
 
 func closeVirtualInterfaceNetworkDetection(client *golangsdk.ServiceClient, d *schema.ResourceData) error {
@@ -448,7 +544,8 @@ func resourceVirtualInterfaceDelete(_ context.Context, d *schema.ResourceData, m
 	interfaceId := d.Id()
 	err = interfaces.Delete(client, interfaceId)
 	if err != nil {
-		return diag.Errorf("error deleting virtual interface (%s): %s", interfaceId, err)
+		// When the interface does not exist, the response HTTP status code of the deletion API is 404.
+		return common.CheckDeletedDiag(d, err, "error deleting DC virtual interface")
 	}
 
 	return nil

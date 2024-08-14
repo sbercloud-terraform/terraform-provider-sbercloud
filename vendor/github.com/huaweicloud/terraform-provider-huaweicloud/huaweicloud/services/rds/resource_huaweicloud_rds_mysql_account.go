@@ -25,6 +25,12 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API RDS PUT /v3/{project_id}/instances/{instance_id}/db-users/{user_name}/comment
+// @API RDS POST /v3/{project_id}/instances/{instance_id}/db_user
+// @API RDS GET /v3/{project_id}/instances
+// @API RDS DELETE /v3/{project_id}/instances/{instance_id}/db_user/{user_name}
+// @API RDS GET /v3/{project_id}/instances/{instance_id}/db_user/detail
+// @API RDS POST /v3/{project_id}/instances/{instance_id}/db_user/resetpwd
 func ResourceMysqlAccount() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceMysqlAccountCreate,
@@ -108,7 +114,7 @@ func resourceMysqlAccountCreate(ctx context.Context, d *schema.ResourceData, met
 	}
 	requestBody := buildCreateMysqlAccountBodyParams(d)
 	log.Printf("[DEBUG] Create RDS Mysql account options: %#v", createMysqlAccountOpt)
-	requestBody["password"] = utils.ValueIngoreEmpty(d.Get("password"))
+	requestBody["password"] = utils.ValueIgnoreEmpty(d.Get("password"))
 	createMysqlAccountOpt.JSONBody = utils.RemoveNil(requestBody)
 
 	retryFunc := func() (interface{}, bool, error) {
@@ -137,9 +143,9 @@ func resourceMysqlAccountCreate(ctx context.Context, d *schema.ResourceData, met
 
 func buildCreateMysqlAccountBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":    utils.ValueIngoreEmpty(d.Get("name")),
-		"comment": utils.ValueIngoreEmpty(d.Get("description")),
-		"hosts":   utils.ValueIngoreEmpty(d.Get("hosts")),
+		"name":    utils.ValueIgnoreEmpty(d.Get("name")),
+		"comment": utils.ValueIgnoreEmpty(d.Get("description")),
+		"hosts":   utils.ValueIgnoreEmpty(d.Get("hosts")),
 	}
 	return bodyParams
 }
@@ -296,15 +302,15 @@ func updateMysqlAccountDescription(d *schema.ResourceData, client *golangsdk.Ser
 
 func buildUpdateMysqlAccountPasswordBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":     utils.ValueIngoreEmpty(d.Get("name")),
-		"password": utils.ValueIngoreEmpty(d.Get("password")),
+		"name":     utils.ValueIgnoreEmpty(d.Get("name")),
+		"password": utils.ValueIgnoreEmpty(d.Get("password")),
 	}
 	return bodyParams
 }
 
 func buildUpdateMysqlAccountDescriptionBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"comment": utils.ValueIngoreEmpty(d.Get("description")),
+		"comment": utils.ValueIgnoreEmpty(d.Get("description")),
 	}
 	return bodyParams
 }

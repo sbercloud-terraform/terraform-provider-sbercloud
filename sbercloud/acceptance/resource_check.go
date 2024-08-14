@@ -1,7 +1,6 @@
 package acceptance
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -53,50 +52,50 @@ func (rc *ResourceCheck) CheckResourceDestroy() resource.TestCheckFunc {
 	}
 }
 
-func (rc *ResourceCheck) checkResourceExists(s *terraform.State) error {
-	rs, ok := s.RootModule().Resources[rc.resourceName]
-	if !ok {
-		return fmt.Errorf("can not found the resource or data source in state: %s", rc.resourceName)
-	}
-
-	if rs.Primary.ID == "" {
-		return fmt.Errorf("No id set for the resource or data source: %s", rc.resourceName)
-	}
-	if strings.EqualFold(rc.resourceType, dataSourceTypeCode) {
-		return nil
-	}
-
-	if rc.getResourceFunc == nil {
-		return fmt.Errorf("the 'getResourceFunc' is nil, please set it during initialization")
-	}
-
-	conf := TestAccProvider.Meta().(*config.Config)
-	r, err := rc.getResourceFunc(conf, rs)
-	if err != nil {
-		return fmt.Errorf("checking resource %s %s exists error: %s ",
-			rc.resourceName, rs.Primary.ID, err)
-	}
-
-	b, err := json.Marshal(r)
-	if err != nil {
-		return fmt.Errorf("marshaling resource %s %s error: %s ",
-			rc.resourceName, rs.Primary.ID, err)
-	}
-
-	// unmarshal the response body into the resourceObject
-	if rc.resourceObject != nil {
-		return json.Unmarshal(b, rc.resourceObject)
-	}
-
-	return nil
-}
-
-// CheckResourceExists check whether resources exist
-func (rc *ResourceCheck) CheckResourceExists() resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		return rc.checkResourceExists(s)
-	}
-}
+//func (rc *ResourceCheck) checkResourceExists(s *terraform.State) error {
+//	rs, ok := s.RootModule().Resources[rc.resourceName]
+//	if !ok {
+//		return fmt.Errorf("can not found the resource or data source in state: %s", rc.resourceName)
+//	}
+//
+//	if rs.Primary.ID == "" {
+//		return fmt.Errorf("No id set for the resource or data source: %s", rc.resourceName)
+//	}
+//	if strings.EqualFold(rc.resourceType, dataSourceTypeCode) {
+//		return nil
+//	}
+//
+//	if rc.getResourceFunc == nil {
+//		return fmt.Errorf("the 'getResourceFunc' is nil, please set it during initialization")
+//	}
+//
+//	conf := TestAccProvider.Meta().(*config.Config)
+//	r, err := rc.getResourceFunc(conf, rs)
+//	if err != nil {
+//		return fmt.Errorf("checking resource %s %s exists error: %s ",
+//			rc.resourceName, rs.Primary.ID, err)
+//	}
+//
+//	b, err := json.Marshal(r)
+//	if err != nil {
+//		return fmt.Errorf("marshaling resource %s %s error: %s ",
+//			rc.resourceName, rs.Primary.ID, err)
+//	}
+//
+//	// unmarshal the response body into the resourceObject
+//	if rc.resourceObject != nil {
+//		return json.Unmarshal(b, rc.resourceObject)
+//	}
+//
+//	return nil
+//}
+//
+//// CheckResourceExists check whether resources exist
+//func (rc *ResourceCheck) CheckResourceExists() resource.TestCheckFunc {
+//	return func(s *terraform.State) error {
+//		return rc.checkResourceExists(s)
+//	}
+//}
 
 /*
 CheckMultiResourcesExists checks whether multiple resources created by count are both existed.
@@ -104,18 +103,18 @@ CheckMultiResourcesExists checks whether multiple resources created by count are
 	Parameters:
 	  count: the expected number of resources that will be created.
 */
-func (rc *ResourceCheck) CheckMultiResourcesExists(count int) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		var err error
-		for i := 0; i < count; i++ {
-			rcCopy := *rc
-			rcCopy.resourceName = fmt.Sprintf("%s.%d", rcCopy.resourceName, i)
-			err = rcCopy.checkResourceExists(s)
-			if err != nil {
-				return err
-			}
-		}
-
-		return nil
-	}
-}
+//func (rc *ResourceCheck) CheckMultiResourcesExists(count int) resource.TestCheckFunc {
+//	return func(s *terraform.State) error {
+//		var err error
+//		for i := 0; i < count; i++ {
+//			rcCopy := *rc
+//			rcCopy.resourceName = fmt.Sprintf("%s.%d", rcCopy.resourceName, i)
+//			err = rcCopy.checkResourceExists(s)
+//			if err != nil {
+//				return err
+//			}
+//		}
+//
+//		return nil
+//	}
+//}

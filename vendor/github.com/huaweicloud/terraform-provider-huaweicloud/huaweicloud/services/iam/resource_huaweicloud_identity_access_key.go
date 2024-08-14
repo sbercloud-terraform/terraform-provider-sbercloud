@@ -20,6 +20,11 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/encryption"
 )
 
+// @API IAM POST /v3.0/OS-CREDENTIAL/credentials
+// @API IAM PUT /v3.0/OS-CREDENTIAL/credentials/{access_key}
+// @API IAM DELETE /v3.0/OS-CREDENTIAL/credentials/{access_key}
+// @API IAM GET /v3.0/OS-CREDENTIAL/credentials/{access_key}
+// @API IAM GET /v3.0/OS-USER/users/{user_id}
 func ResourceIdentityKey() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceIdentityKeyCreate,

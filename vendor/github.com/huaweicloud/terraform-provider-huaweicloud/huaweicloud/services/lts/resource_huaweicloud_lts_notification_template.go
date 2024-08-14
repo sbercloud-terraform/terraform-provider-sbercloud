@@ -20,6 +20,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API LTS GET /v2/{project_id}/{domain_id}/lts/events/notification/template/{template_name}
+// @API LTS DELETE /v2/{project_id}/{domain_id}/lts/events/notification/templates
+// @API LTS POST /v2/{project_id}/{domain_id}/lts/events/notification/templates
+// @API LTS PUT /v2/{project_id}/{domain_id}/lts/events/notification/templates
 func ResourceNotificationTemplate() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceNotificationTemplateCreate,
@@ -134,7 +138,7 @@ func resourceNotificationTemplateCreate(ctx context.Context, d *schema.ResourceD
 func buildNotificationTemplateBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
 		"name":      d.Get("name"),
-		"desc":      utils.ValueIngoreEmpty(d.Get("description")),
+		"desc":      utils.ValueIgnoreEmpty(d.Get("description")),
 		"source":    d.Get("source"),
 		"locale":    d.Get("locale"),
 		"templates": buildNotificationTemplateBodySubTemplate(d.Get("templates")),
@@ -152,8 +156,8 @@ func buildNotificationTemplateBodySubTemplate(rawParams interface{}) []map[strin
 		for i, v := range rawArray {
 			if raw, ok := v.(map[string]interface{}); ok {
 				rst[i] = map[string]interface{}{
-					"sub_type": utils.ValueIngoreEmpty(raw["sub_type"]),
-					"content":  utils.ValueIngoreEmpty(raw["content"]),
+					"sub_type": utils.ValueIgnoreEmpty(raw["sub_type"]),
+					"content":  utils.ValueIgnoreEmpty(raw["content"]),
 				}
 			}
 		}

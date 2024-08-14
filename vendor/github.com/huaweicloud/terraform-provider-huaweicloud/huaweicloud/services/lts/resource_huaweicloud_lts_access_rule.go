@@ -16,6 +16,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API LTS POST /v2/{project_id}/lts/aom-mapping
+// @API LTS GET /v2/{project_id}/lts/aom-mapping/{rule_id}
+// @API LTS PUT /v2/{project_id}/lts/aom-mapping
+// @API LTS DELETE /v2/{project_id}/lts/aom-mapping
 func ResourceAomMappingRule() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceAomMappingRuleCreate,
@@ -25,6 +29,8 @@ func ResourceAomMappingRule() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
+
+		Description: "schema: Internal",
 		Schema: map[string]*schema.Schema{
 			"region": {
 				Type:     schema.TypeString,

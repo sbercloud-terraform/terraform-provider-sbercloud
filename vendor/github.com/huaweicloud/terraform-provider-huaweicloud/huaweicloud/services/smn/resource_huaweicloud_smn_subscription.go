@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/smn/v2/subscriptions"
@@ -18,6 +17,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
+// @API SMN DELETE /v2/{project_id}/notifications/subscriptions/{subscriptionUrn}
+// @API SMN GET /v2/{project_id}/notifications/topics/{topicUrn}/subscriptions
+// @API SMN POST /v2/{project_id}/notifications/topics/{topicUrn}/subscriptions
 func ResourceSubscription() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceSubscriptionCreate,
@@ -43,9 +45,6 @@ func ResourceSubscription() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
-				ValidateFunc: validation.StringInSlice([]string{
-					"email", "sms", "http", "https", "functionstage", "functiongraph",
-				}, false),
 			},
 			"endpoint": {
 				Type:     schema.TypeString,

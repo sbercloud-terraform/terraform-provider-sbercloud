@@ -51,6 +51,8 @@ type Group struct {
 	Status int `json:"status"`
 	// Indicates whether the API group is the default group.
 	IsDefault int `json:"is_default"`
+	// whether the APIs can be accessed through the debugging domain name.
+	SlDomainAccessEnabled bool `json:"sl_domain_access_enabled"`
 }
 
 type UrlDomian struct {
@@ -73,6 +75,16 @@ type UrlDomian struct {
 	//     TLSv1.1
 	//     TLSv1.2
 	MinSSLVersion string `json:"min_ssl_version"`
+	// Whether to enable client certificate verification.
+	VerifiedClientCertificateEnabled bool `json:"verified_client_certificate_enabled"`
+	// Whether a trusted root certificate (CA) exists.
+	IsHasTrustedRootCA bool `json:"is_has_trusted_root_ca"`
+	// Inbound HTTP port bound to the domain name.
+	IngressHttpPort int `json:"ingress_http_port"`
+	// Inbound HTTPS port bound to the domain name.
+	IngressHttpsPort int `json:"ingress_https_port"`
+	// Whether to enable redirection from HTTP to HTTPS.
+	IsHttpRedirectToHttps bool `json:"is_http_redirect_to_https"`
 }
 
 func (r commonResult) Extract() (*Group, error) {
@@ -95,4 +107,24 @@ func ExtractGroups(r pagination.Page) ([]Group, error) {
 // DeleteResult represents a result of the Delete method.
 type DeleteResult struct {
 	golangsdk.ErrResult
+}
+
+// AssociateDoaminResp is the structure that represents the API response of AssociateDomain method request.
+type AssociateDoaminResp struct {
+	// Domain ID.
+	ID string `json:"id"`
+	// Custom domain name.
+	UrlDoamin string `json:"url_domain"`
+	// CNAME resolution status of the domain name.
+	// + 1: not resolved
+	// + 2: resolving
+	// + 3: resolved
+	// + 4: resolving failed
+	Status int `json:"status"`
+	// The minimum SSL version supported.
+	MinSSLVersion string `json:"min_ssl_version"`
+	// Whether to enable redirection from HTTP to HTTPS.
+	IsHttpRedirectToHttps bool `json:"is_http_redirect_to_https"`
+	// Whether to enable client certificate verification.
+	VerifiedClientCertificateEnabled bool `json:"verified_client_certificate_enabled"`
 }

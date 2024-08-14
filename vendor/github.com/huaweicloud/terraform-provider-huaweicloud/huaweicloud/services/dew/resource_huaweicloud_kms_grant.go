@@ -85,6 +85,13 @@ func ResourceKmsGrant() *schema.Resource {
 					"user", "domain",
 				}, false),
 			},
+			"retiring_principal": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				ForceNew:    true,
+				Computed:    true,
+				Description: `The ID of the retiring user.`,
+			},
 			"creator": {
 				Type:        schema.TypeString,
 				Computed:    true,
@@ -139,11 +146,12 @@ func resourceKmsGrantCreate(ctx context.Context, d *schema.ResourceData, meta in
 
 func buildCreateGrantBodyParams(d *schema.ResourceData, _ *config.Config) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":                   utils.ValueIngoreEmpty(d.Get("name")),
-		"key_id":                 utils.ValueIngoreEmpty(d.Get("key_id")),
-		"grantee_principal_type": utils.ValueIngoreEmpty(d.Get("type")),
-		"grantee_principal":      utils.ValueIngoreEmpty(d.Get("grantee_principal")),
-		"operations":             utils.ValueIngoreEmpty(d.Get("operations")),
+		"name":                   utils.ValueIgnoreEmpty(d.Get("name")),
+		"key_id":                 utils.ValueIgnoreEmpty(d.Get("key_id")),
+		"grantee_principal_type": utils.ValueIgnoreEmpty(d.Get("type")),
+		"grantee_principal":      utils.ValueIgnoreEmpty(d.Get("grantee_principal")),
+		"operations":             utils.ValueIgnoreEmpty(d.Get("operations")),
+		"retiring_principal":     utils.ValueIgnoreEmpty(d.Get("retiring_principal")),
 	}
 	return bodyParams
 }
@@ -174,20 +182,32 @@ func resourceKmsGrantRead(_ context.Context, d *schema.ResourceData, meta interf
 		},
 	}
 
+	allGrants := make([]interface{}, 0)
+	var nextMarker string
 	getGrantOpt.JSONBody = utils.RemoveNil(buildReadGrantBodyParams(d, cfg))
-	getGrantResp, err := getGrantClient.Request("POST", getGrantPath, &getGrantOpt)
-
-	if err != nil {
-		return common.CheckDeletedDiag(d, err, "KMS grant")
+	getGrantJSONBody := getGrantOpt.JSONBody.(map[string]interface{})
+	for {
+		getGrantResp, err := getGrantClient.Request("POST", getGrantPath, &getGrantOpt)
+		if err != nil {
+			return common.CheckDeletedDiag(d, err, "KMS grant")
+		}
+		getGrantRespBody, err := utils.FlattenResponse(getGrantResp)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		grants := utils.PathSearch("grants", getGrantRespBody, make([]interface{}, 0)).([]interface{})
+		if len(grants) > 0 {
+			allGrants = append(allGrants, grants...)
+		}
+		nextMarker = utils.PathSearch("next_marker", getGrantRespBody, "").(string)
+		if nextMarker == "" {
+			break
+		}
+		getGrantJSONBody["marker"] = nextMarker
 	}
 
-	getGrantRespBody, err := utils.FlattenResponse(getGrantResp)
-	if err != nil {
-		return diag.FromErr(err)
-	}
-
-	searchPath := fmt.Sprintf("grants[?grant_id=='%s']|[0]", d.Id())
-	grantDetail := utils.PathSearch(searchPath, getGrantRespBody, nil)
+	searchPath := fmt.Sprintf("[?grant_id=='%s']|[0]", d.Id())
+	grantDetail := utils.PathSearch(searchPath, allGrants, nil)
 	if grantDetail == nil {
 		return common.CheckDeletedDiag(d, golangsdk.ErrDefault404{}, "KMS grant")
 	}
@@ -201,6 +221,7 @@ func resourceKmsGrantRead(_ context.Context, d *schema.ResourceData, meta interf
 		d.Set("grantee_principal", utils.PathSearch("grantee_principal", grantDetail, nil)),
 		d.Set("operations", utils.PathSearch("operations", grantDetail, nil)),
 		d.Set("creator", utils.PathSearch("issuing_principal", grantDetail, nil)),
+		d.Set("retiring_principal", utils.PathSearch("retiring_principal", grantDetail, nil)),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())

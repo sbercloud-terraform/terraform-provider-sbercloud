@@ -5,7 +5,6 @@ import (
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
 
 	"github.com/chnsz/golangsdk/openstack/ecs/v1/cloudservers"
@@ -66,6 +65,7 @@ resource "sbercloud_compute_instance" "test" {
   flavor_id          = data.sbercloud_compute_flavors.test.ids[0]
   security_group_ids = [data.sbercloud_networking_secgroup.test.id]
   availability_zone  = data.sbercloud_availability_zones.test.names[0]
+  system_disk_type  = "SSD"
 
   network {
     uuid = data.sbercloud_vpc_subnet.test.id
@@ -80,59 +80,4 @@ data "sbercloud_compute_instance" "this" {
   ]
 }
 `, testAccCompute_data, rName)
-}
-
-func testAccCheckComputeInstanceExists(n string, instance *cloudservers.CloudServer) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		rs, ok := s.RootModule().Resources[n]
-		if !ok {
-			return fmtp.Errorf("Not found: %s", n)
-		}
-
-		if rs.Primary.ID == "" {
-			return fmtp.Errorf("No ID is set")
-		}
-
-		config := acceptance.TestAccProvider.Meta().(*config.Config)
-		computeClient, err := config.ComputeV1Client(acceptance.SBC_REGION_NAME)
-		if err != nil {
-			return fmtp.Errorf("Error creating SberCloud compute client: %s", err)
-		}
-
-		found, err := cloudservers.Get(computeClient, rs.Primary.ID).Extract()
-		if err != nil {
-			return err
-		}
-
-		if found.ID != rs.Primary.ID {
-			return fmtp.Errorf("Instance not found")
-		}
-
-		*instance = *found
-
-		return nil
-	}
-}
-
-func testAccCheckComputeInstanceDestroy(s *terraform.State) error {
-	config := acceptance.TestAccProvider.Meta().(*config.Config)
-	computeClient, err := config.ComputeV1Client(acceptance.SBC_REGION_NAME)
-	if err != nil {
-		return fmtp.Errorf("Error creating SberCloud compute client: %s", err)
-	}
-
-	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "sbercloud_compute_instance" {
-			continue
-		}
-
-		server, err := cloudservers.Get(computeClient, rs.Primary.ID).Extract()
-		if err == nil {
-			if server.Status != "DELETED" {
-				return fmtp.Errorf("Instance still exists")
-			}
-		}
-	}
-
-	return nil
 }

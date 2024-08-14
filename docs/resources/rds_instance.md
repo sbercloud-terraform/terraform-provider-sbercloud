@@ -314,8 +314,8 @@ For RDS for SQL Server databases, the interval between the maintenance begin tim
 
 The `db` block supports:
 
-* `type` - (Required, String, ForceNew) Specifies the DB engine. Available value are **MySQL**, **PostgreSQL**,
-  **SQLServer** and **MariaDB**. Changing this parameter will create a new resource.
+* `type` - (Required, String, ForceNew) Specifies the DB engine. Available value are **MySQL**, **PostgreSQL**
+   and **SQLServer**. Changing this parameter will create a new resource.
 
 * `version` - (Required, String, ForceNew) Specifies the database version. Changing this parameter will create a new
   resource.
@@ -343,6 +343,7 @@ The `volume` block supports:
   + **CLOUDSSD**: cloud SSD storage. This storage type is supported only with general-purpose and dedicated DB
     instances.
   + **ESSD**: extreme SSD storage.
+  + **ULTRAHIGH** the only storage type for SQLServer
 
   Changing this parameter will create a new resource.
 

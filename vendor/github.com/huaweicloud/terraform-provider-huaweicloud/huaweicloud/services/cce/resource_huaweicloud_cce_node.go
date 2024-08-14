@@ -23,6 +23,25 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API CCE GET /api/v3/projects/{project_id}/clusters/{cluster_id}
+// @API CCE POST /api/v3/projects/{project_id}/clusters/{cluster_id}/nodes
+// @API BSS GET /V2/orders/customer-orders/details/{order_id}
+// @API BSS POST /v2/orders/suscriptions/resources/query
+// @API CCE GET /api/v3/projects/{project_id}/jobs/{job_id}
+// @API CCE GET /api/v3/projects/{project_id}/clusters/{cluster_id}/nodes/{node_id}
+// @API ECS GET /v1/{project_id}/cloudservers/{server_id}
+// @API ECS GET /v1/{project_id}/cloudservers/{server_id}/tags
+// @API CCE PUT /api/v3/projects/{project_id}/clusters/{cluster_id}/nodes/{node_id}
+// @API ECS POST /v1/{project_id}/cloudservers/{id}/tags/action
+// @API KMS POST /v3/{project_id}/keypairs/associate
+// @API KMS POST /v3/{project_id}/keypairs/disassociate
+// @API ECS PUT /v1/{project_id}/cloudservers/{id}/os-reset-password
+// @API BSS POST /v2/orders/subscriptions/resources/autorenew/{id}
+// @API BSS DELETE /v2/orders/subscriptions/resources/autorenew/{id}
+// @API CCE DELETE /api/v3/projects/{project_id}/clusters/{cluster_id}/nodes/{node_id}
+// @API CCE PUT /api/v3/projects/{project_id}/clusters/{cluster_id}/nodes/operation/remove
+// @API BSS POST /v2/orders/subscriptions/resources/unsubscribe
+
 func ResourceNode() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceNodeCreate,
@@ -104,7 +123,7 @@ func ResourceNode() *schema.Resource {
 						},
 						"value": {
 							Type:     schema.TypeString,
-							Required: true,
+							Optional: true,
 							ForceNew: true,
 						},
 						"effect": {
@@ -561,7 +580,7 @@ func resourceNodeCreate(ctx context.Context, d *schema.ResourceData, meta interf
 	}
 	// The completion of the creation of the underlying resource (ECS) corresponding to the CCE node does not mean that
 	// the creation of the CCE node is completed.
-	nodeID, err := getResourceIDFromJob(ctx, nodeClient, s.Status.JobID, "CreateNode", "CreateNodeVM",
+	nodeID, err := getResourceIDFromJob(ctx, nodeClient, s.Status.JobID, "CreateNode", "InstallNode",
 		d.Timeout(schema.TimeoutCreate))
 	if err != nil {
 		return diag.FromErr(err)

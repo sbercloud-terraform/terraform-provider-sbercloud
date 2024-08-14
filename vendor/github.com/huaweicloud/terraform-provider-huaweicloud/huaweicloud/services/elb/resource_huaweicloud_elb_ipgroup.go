@@ -14,6 +14,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
+// @API ELB POST /v3/{project_id}/elb/ipgroups
+// @API ELB GET /v3/{project_id}/elb/ipgroups/{ipgroup_id}
+// @API ELB PUT /v3/{project_id}/elb/ipgroups/{ipgroup_id}
+// @API ELB DELETE /v3/{project_id}/elb/ipgroups/{ipgroup_id}
 func ResourceIpGroupV3() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceIpGroupV3Create,
@@ -63,6 +67,19 @@ func ResourceIpGroupV3() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
+				Computed: true,
+			},
+			"listener_ids": {
+				Type:     schema.TypeList,
+				Computed: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
+			},
+			"created_at": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"updated_at": {
+				Type:     schema.TypeString,
 				Computed: true,
 			},
 		},
@@ -133,11 +150,19 @@ func resourceIpGroupV3Read(_ context.Context, d *schema.ResourceData, meta inter
 		}
 	}
 
+	listenerIDs := make([]string, 0)
+	for _, listener := range ipGroup.Listeners {
+		listenerIDs = append(listenerIDs, listener.ID)
+	}
+
 	mErr := multierror.Append(nil,
 		d.Set("name", ipGroup.Name),
 		d.Set("description", ipGroup.Description),
 		d.Set("region", cfg.GetRegion(d)),
 		d.Set("ip_list", ipList),
+		d.Set("listener_ids", listenerIDs),
+		d.Set("created_at", ipGroup.CreatedAt),
+		d.Set("updated_at", ipGroup.UpdatedAt),
 	)
 
 	if err := mErr.ErrorOrNil(); err != nil {

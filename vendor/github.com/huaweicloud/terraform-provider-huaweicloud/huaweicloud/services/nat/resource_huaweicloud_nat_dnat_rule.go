@@ -18,6 +18,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API NAT POST /v2/{project_id}/dnat_rules
+// @API NAT GET /v2/{project_id}/dnat_rules/{dnat_rule_id}
+// @API NAT PUT /v2/{project_id}/dnat_rules/{dnat_rule_id}
+// @API NAT DELETE /v2/{project_id}/nat_gateways/{nat_gateway_id}/dnat_rules/{dnat_rule_id}
 func ResourcePublicDnatRule() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourcePublicDnatRuleCreate,
@@ -44,9 +48,15 @@ func ResourcePublicDnatRule() *schema.Resource {
 				Description: "The region where the DNAT rule is located.",
 			},
 			"floating_ip_id": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				ExactlyOneOf: []string{"floating_ip_id", "global_eip_id"},
+				Description:  "The ID of the floating IP address.",
+			},
+			"global_eip_id": {
 				Type:        schema.TypeString,
-				Required:    true,
-				Description: "The ID of the floating IP address.",
+				Optional:    true,
+				Description: "The ID of the global EIP connected by the DNAT rule.",
 			},
 			"protocol": {
 				Type:        schema.TypeString,
@@ -112,6 +122,11 @@ func ResourcePublicDnatRule() *schema.Resource {
 				Computed:    true,
 				Description: "The floating IP address of the DNAT rule.",
 			},
+			"global_eip_address": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "The global EIP address connected by the DNAT rule.",
+			},
 			"status": {
 				Type:        schema.TypeString,
 				Computed:    true,
@@ -125,6 +140,7 @@ func buildPublicDnatRuleCreateOpts(d *schema.ResourceData) dnats.CreateOpts {
 	return dnats.CreateOpts{
 		GatewayId:                d.Get("nat_gateway_id").(string),
 		FloatingIpId:             d.Get("floating_ip_id").(string),
+		GlobalEipId:              d.Get("global_eip_id").(string),
 		Protocol:                 d.Get("protocol").(string),
 		InternalServicePort:      utils.Int(d.Get("internal_service_port").(int)),
 		ExternalServicePort:      utils.Int(d.Get("external_service_port").(int)),
@@ -198,13 +214,15 @@ func resourcePublicDnatRuleRead(_ context.Context, d *schema.ResourceData, meta 
 	ruleId := d.Id()
 	resp, err := dnats.Get(client, ruleId)
 	if err != nil {
-		return common.CheckDeletedDiag(d, err, "DNAT rule")
+		// If the DNAT rule does not exist, the response HTTP status code of the details API is 404.
+		return common.CheckDeletedDiag(d, err, "error retrieving DNAT rule")
 	}
 
 	mErr := multierror.Append(nil,
 		d.Set("region", region),
 		d.Set("nat_gateway_id", resp.GatewayId),
 		d.Set("floating_ip_id", resp.FloatingIpId),
+		d.Set("global_eip_id", resp.GlobalEipId),
 		d.Set("protocol", resp.Protocol),
 		d.Set("internal_service_port", resp.InternalServicePort),
 		d.Set("external_service_port", resp.ExternalServicePort),
@@ -215,6 +233,7 @@ func resourcePublicDnatRuleRead(_ context.Context, d *schema.ResourceData, meta 
 		d.Set("private_ip", resp.PrivateIp),
 		d.Set("created_at", resp.CreatedAt),
 		d.Set("floating_ip_address", resp.FloatingIpAddress),
+		d.Set("global_eip_address", resp.GlobalEipAddress),
 		d.Set("status", resp.Status),
 	)
 	if err = mErr.ErrorOrNil(); err != nil {
@@ -227,6 +246,7 @@ func buildPublicDnatRuleUpdateOpts(d *schema.ResourceData) dnats.UpdateOpts {
 	return dnats.UpdateOpts{
 		GatewayId:                d.Get("nat_gateway_id").(string),
 		FloatingIpId:             d.Get("floating_ip_id").(string),
+		GlobalEipId:              d.Get("global_eip_id").(string),
 		Protocol:                 d.Get("protocol").(string),
 		InternalServicePort:      utils.Int(d.Get("internal_service_port").(int)),
 		ExternalServicePort:      utils.Int(d.Get("external_service_port").(int)),
@@ -282,7 +302,8 @@ func resourcePublicDnatRuleDelete(ctx context.Context, d *schema.ResourceData, m
 	)
 	err = dnats.Delete(client, gatewayId, ruleId)
 	if err != nil {
-		return diag.Errorf("error deleting DNAT rule (%s): %s", ruleId, err)
+		// If the DNAT rule does not exist, the response HTTP status code of the details API is 404.
+		return common.CheckDeletedDiag(d, err, "error deleting DNAT rule")
 	}
 
 	stateConf := &resource.StateChangeConf{

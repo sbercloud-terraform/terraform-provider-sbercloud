@@ -25,6 +25,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API GaussDBforMySQL PUT /v3/{project_id}/instances/{instance_id}/sql-filter/rules
+// @API GaussDBforMySQL GET /v3/{project_id}/instances/{instance_id}/sql-filter/rules
+// @API GaussDBforMySQL DELETE /v3/{project_id}/instances/{instance_id}/sql-filter/rules
 func ResourceGaussDBSqlControlRule() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceGaussDBSqlControlRuleCreate,
@@ -154,15 +157,15 @@ func dealGaussDBSqlControlRule(ctx context.Context, d *schema.ResourceData, cfg 
 
 func buildGaussDBSqlControlRuleBodyParams(d *schema.ResourceData) map[string]interface{} {
 	patternParams := map[string]interface{}{
-		"pattern":         utils.ValueIngoreEmpty(d.Get("pattern")),
-		"max_concurrency": utils.ValueIngoreEmpty(d.Get("max_concurrency")),
+		"pattern":         utils.ValueIgnoreEmpty(d.Get("pattern")),
+		"max_concurrency": utils.ValueIgnoreEmpty(d.Get("max_concurrency")),
 	}
 	rulesParams := map[string]interface{}{
-		"sql_type": utils.ValueIngoreEmpty(d.Get("sql_type")),
+		"sql_type": utils.ValueIgnoreEmpty(d.Get("sql_type")),
 		"patterns": []interface{}{patternParams},
 	}
 	nodeFilterRulesParams := map[string]interface{}{
-		"node_id": utils.ValueIngoreEmpty(d.Get("node_id")),
+		"node_id": utils.ValueIgnoreEmpty(d.Get("node_id")),
 		"rules":   []interface{}{rulesParams},
 	}
 	bodyParams := map[string]interface{}{
@@ -320,11 +323,11 @@ func resourceGaussDBSqlControlRuleDelete(ctx context.Context, d *schema.Resource
 
 func buildDeleteGaussDBSqlControlRuleBodyParams(d *schema.ResourceData) map[string]interface{} {
 	rulesParams := map[string]interface{}{
-		"sql_type": utils.ValueIngoreEmpty(d.Get("sql_type")),
-		"patterns": []interface{}{utils.ValueIngoreEmpty(d.Get("pattern"))},
+		"sql_type": utils.ValueIgnoreEmpty(d.Get("sql_type")),
+		"patterns": []interface{}{utils.ValueIgnoreEmpty(d.Get("pattern"))},
 	}
 	nodeFilterRulesParams := map[string]interface{}{
-		"node_id": utils.ValueIngoreEmpty(d.Get("node_id")),
+		"node_id": utils.ValueIgnoreEmpty(d.Get("node_id")),
 		"rules":   []interface{}{rulesParams},
 	}
 	bodyParams := map[string]interface{}{

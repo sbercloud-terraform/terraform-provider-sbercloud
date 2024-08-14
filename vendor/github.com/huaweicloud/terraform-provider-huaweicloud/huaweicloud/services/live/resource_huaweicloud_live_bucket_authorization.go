@@ -19,6 +19,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API Live PUT /v1/{project_id}/obs/authority
 func ResourceLiveBucketAuthorization() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceLiveBucketAuthorizationCreate,
@@ -83,7 +84,7 @@ func resourceLiveBucketAuthorizationCreate(ctx context.Context, d *schema.Resour
 
 func buildLiveBucketAuthorizationBodyParams(d *schema.ResourceData, operation int) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"bucket":    utils.ValueIngoreEmpty(d.Get("bucket")),
+		"bucket":    utils.ValueIgnoreEmpty(d.Get("bucket")),
 		"operation": operation,
 	}
 	return bodyParams

@@ -22,6 +22,11 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API WAF PUT /v1/{project_id}/waf/policy/{policy_id}/{rule_type}/{rule_id}/status
+// @API WAF POST /v1/{project_id}/waf/policy/{policy_id}/custom
+// @API WAF DELETE /v1/{project_id}/waf/policy/{policy_id}/custom/{rule_id}
+// @API WAF GET /v1/{project_id}/waf/policy/{policy_id}/custom/{rule_id}
+// @API WAF PUT /v1/{project_id}/waf/policy/{policy_id}/custom/{rule_id}
 func ResourceRulePreciseProtection() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceRulePreciseProtectionCreate,
@@ -231,11 +236,11 @@ func updateRuleStatus(client *golangsdk.ServiceClient, d *schema.ResourceData, c
 
 func buildCreateOrUpdateBodyParams(d *schema.ResourceData) (map[string]interface{}, error) {
 	bodyParams := map[string]interface{}{
-		"name":        utils.ValueIngoreEmpty(d.Get("name")),
-		"priority":    utils.ValueIngoreEmpty(d.Get("priority")),
+		"name":        utils.ValueIgnoreEmpty(d.Get("name")),
+		"priority":    utils.ValueIgnoreEmpty(d.Get("priority")),
 		"conditions":  buildConditionBodyParam(d.Get("conditions")),
 		"action":      buildActionBodyParam(d),
-		"description": utils.ValueIngoreEmpty(d.Get("description")),
+		"description": utils.ValueIgnoreEmpty(d.Get("description")),
 		"time":        false,
 	}
 
@@ -283,11 +288,11 @@ func buildConditionBodyParam(rawParams interface{}) []map[string]interface{} {
 		for i, v := range rawArray {
 			raw := v.(map[string]interface{})
 			rst[i] = map[string]interface{}{
-				"category":        utils.ValueIngoreEmpty(raw["field"]),
-				"index":           utils.ValueIngoreEmpty(raw["subfield"]),
-				"logic_operation": utils.ValueIngoreEmpty(raw["logic"]),
+				"category":        utils.ValueIgnoreEmpty(raw["field"]),
+				"index":           utils.ValueIgnoreEmpty(raw["subfield"]),
+				"logic_operation": utils.ValueIgnoreEmpty(raw["logic"]),
 				"contents":        buildContentBodyParam(raw),
-				"value_list_id":   utils.ValueIngoreEmpty(raw["reference_table_id"]),
+				"value_list_id":   utils.ValueIgnoreEmpty(raw["reference_table_id"]),
 			}
 		}
 		return rst
@@ -297,7 +302,7 @@ func buildConditionBodyParam(rawParams interface{}) []map[string]interface{} {
 
 func buildContentBodyParam(raw map[string]interface{}) []string {
 	var contents []string
-	if content := utils.ValueIngoreEmpty(raw["content"]); content != nil {
+	if content := utils.ValueIgnoreEmpty(raw["content"]); content != nil {
 		contents = append(contents, content.(string))
 	}
 	return contents

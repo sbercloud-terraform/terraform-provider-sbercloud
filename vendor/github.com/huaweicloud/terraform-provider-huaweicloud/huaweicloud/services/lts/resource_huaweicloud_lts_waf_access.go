@@ -22,6 +22,8 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API WAF GET /v1/{project_id}/waf/config/lts
+// @API WAF PUT /v1/{project_id}/waf/config/lts/{ltsconfig_id}
 func ResourceWAFAccess() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceWAFAccessCreate,
@@ -132,8 +134,8 @@ func buildModifyWAFAccessBodyParams(d *schema.ResourceData) map[string]interface
 func buildWAFAccessLTSInfoBodyParams(d *schema.ResourceData) map[string]interface{} {
 	return map[string]interface{}{
 		"ltsGroupId":        d.Get("lts_group_id"),
-		"ltsAttackStreamID": utils.ValueIngoreEmpty(d.Get("lts_attack_stream_id")),
-		"ltsAccessStreamID": utils.ValueIngoreEmpty(d.Get("lts_access_stream_id")),
+		"ltsAttackStreamID": utils.ValueIgnoreEmpty(d.Get("lts_attack_stream_id")),
+		"ltsAccessStreamID": utils.ValueIgnoreEmpty(d.Get("lts_access_stream_id")),
 	}
 }
 

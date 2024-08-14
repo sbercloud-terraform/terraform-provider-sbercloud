@@ -26,6 +26,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API GA POST /v1/health-checks
+// @API GA GET /v1/health-checks/{health_check_id}
+// @API GA PUT /v1/health-checks/{health_check_id}
+// @API GA DELETE /v1/health-checks/{health_check_id}
 func ResourceHealthCheck() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceHealthCheckCreate,
@@ -165,13 +169,13 @@ func resourceHealthCheckCreate(ctx context.Context, d *schema.ResourceData, meta
 func buildCreateHealthCheckBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
 		"health_check": map[string]interface{}{
-			"enabled":           utils.ValueIngoreEmpty(d.Get("enabled")),
-			"endpoint_group_id": utils.ValueIngoreEmpty(d.Get("endpoint_group_id")),
-			"interval":          utils.ValueIngoreEmpty(d.Get("interval")),
-			"max_retries":       utils.ValueIngoreEmpty(d.Get("max_retries")),
-			"port":              utils.ValueIngoreEmpty(d.Get("port")),
-			"protocol":          utils.ValueIngoreEmpty(d.Get("protocol")),
-			"timeout":           utils.ValueIngoreEmpty(d.Get("timeout")),
+			"enabled":           utils.ValueIgnoreEmpty(d.Get("enabled")),
+			"endpoint_group_id": utils.ValueIgnoreEmpty(d.Get("endpoint_group_id")),
+			"interval":          utils.ValueIgnoreEmpty(d.Get("interval")),
+			"max_retries":       utils.ValueIgnoreEmpty(d.Get("max_retries")),
+			"port":              utils.ValueIgnoreEmpty(d.Get("port")),
+			"protocol":          utils.ValueIgnoreEmpty(d.Get("protocol")),
+			"timeout":           utils.ValueIgnoreEmpty(d.Get("timeout")),
 		},
 	}
 	return bodyParams
@@ -186,7 +190,7 @@ func createHealthCheckWaitingForStateCompleted(ctx context.Context, d *schema.Re
 			region := config.GetRegion(d)
 			// createHealthCheckWaiting: missing operation notes
 			var (
-				createHealthCheckWaitingHttpUrl = "v1/health-checks/{id}"
+				createHealthCheckWaitingHttpUrl = "v1/health-checks/{health_check_id}"
 				createHealthCheckWaitingProduct = "ga"
 			)
 			createHealthCheckWaitingClient, err := config.NewServiceClient(createHealthCheckWaitingProduct, region)
@@ -195,7 +199,7 @@ func createHealthCheckWaitingForStateCompleted(ctx context.Context, d *schema.Re
 			}
 
 			createHealthCheckWaitingPath := createHealthCheckWaitingClient.Endpoint + createHealthCheckWaitingHttpUrl
-			createHealthCheckWaitingPath = strings.ReplaceAll(createHealthCheckWaitingPath, "{id}", d.Id())
+			createHealthCheckWaitingPath = strings.ReplaceAll(createHealthCheckWaitingPath, "{health_check_id}", d.Id())
 
 			createHealthCheckWaitingOpt := golangsdk.RequestOpts{
 				KeepResponseBody: true,
@@ -252,7 +256,7 @@ func resourceHealthCheckRead(_ context.Context, d *schema.ResourceData, meta int
 
 	// getHealthCheck: Query the GA Health Check detail
 	var (
-		getHealthCheckHttpUrl = "v1/health-checks/{id}"
+		getHealthCheckHttpUrl = "v1/health-checks/{health_check_id}"
 		getHealthCheckProduct = "ga"
 	)
 	getHealthCheckClient, err := conf.NewServiceClient(getHealthCheckProduct, region)
@@ -261,7 +265,7 @@ func resourceHealthCheckRead(_ context.Context, d *schema.ResourceData, meta int
 	}
 
 	getHealthCheckPath := getHealthCheckClient.Endpoint + getHealthCheckHttpUrl
-	getHealthCheckPath = strings.ReplaceAll(getHealthCheckPath, "{id}", d.Id())
+	getHealthCheckPath = strings.ReplaceAll(getHealthCheckPath, "{health_check_id}", d.Id())
 
 	getHealthCheckOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
@@ -314,7 +318,7 @@ func resourceHealthCheckUpdate(ctx context.Context, d *schema.ResourceData, meta
 	if d.HasChanges(updateHealthCheckhasChanges...) {
 		// updateHealthCheck: Update the configuration of GA Health Check
 		var (
-			updateHealthCheckHttpUrl = "v1/health-checks/{id}"
+			updateHealthCheckHttpUrl = "v1/health-checks/{health_check_id}"
 			updateHealthCheckProduct = "ga"
 		)
 		updateHealthCheckClient, err := conf.NewServiceClient(updateHealthCheckProduct, region)
@@ -323,7 +327,7 @@ func resourceHealthCheckUpdate(ctx context.Context, d *schema.ResourceData, meta
 		}
 
 		updateHealthCheckPath := updateHealthCheckClient.Endpoint + updateHealthCheckHttpUrl
-		updateHealthCheckPath = strings.ReplaceAll(updateHealthCheckPath, "{id}", d.Id())
+		updateHealthCheckPath = strings.ReplaceAll(updateHealthCheckPath, "{health_check_id}", d.Id())
 
 		updateHealthCheckOpt := golangsdk.RequestOpts{
 			KeepResponseBody: true,
@@ -348,11 +352,11 @@ func buildUpdateHealthCheckBodyParams(d *schema.ResourceData) map[string]interfa
 	bodyParams := map[string]interface{}{
 		"health_check": map[string]interface{}{
 			"enabled":     d.Get("enabled"),
-			"interval":    utils.ValueIngoreEmpty(d.Get("interval")),
-			"max_retries": utils.ValueIngoreEmpty(d.Get("max_retries")),
-			"port":        utils.ValueIngoreEmpty(d.Get("port")),
-			"protocol":    utils.ValueIngoreEmpty(d.Get("protocol")),
-			"timeout":     utils.ValueIngoreEmpty(d.Get("timeout")),
+			"interval":    utils.ValueIgnoreEmpty(d.Get("interval")),
+			"max_retries": utils.ValueIgnoreEmpty(d.Get("max_retries")),
+			"port":        utils.ValueIgnoreEmpty(d.Get("port")),
+			"protocol":    utils.ValueIgnoreEmpty(d.Get("protocol")),
+			"timeout":     utils.ValueIgnoreEmpty(d.Get("timeout")),
 		},
 	}
 	return bodyParams
@@ -367,7 +371,7 @@ func updateHealthCheckWaitingForStateCompleted(ctx context.Context, d *schema.Re
 			region := config.GetRegion(d)
 			// updateHealthCheckWaiting: missing operation notes
 			var (
-				updateHealthCheckWaitingHttpUrl = "v1/health-checks/{id}"
+				updateHealthCheckWaitingHttpUrl = "v1/health-checks/{health_check_id}"
 				updateHealthCheckWaitingProduct = "ga"
 			)
 			updateHealthCheckWaitingClient, err := config.NewServiceClient(updateHealthCheckWaitingProduct, region)
@@ -376,7 +380,7 @@ func updateHealthCheckWaitingForStateCompleted(ctx context.Context, d *schema.Re
 			}
 
 			updateHealthCheckWaitingPath := updateHealthCheckWaitingClient.Endpoint + updateHealthCheckWaitingHttpUrl
-			updateHealthCheckWaitingPath = strings.ReplaceAll(updateHealthCheckWaitingPath, "{id}", d.Id())
+			updateHealthCheckWaitingPath = strings.ReplaceAll(updateHealthCheckWaitingPath, "{health_check_id}", d.Id())
 
 			updateHealthCheckWaitingOpt := golangsdk.RequestOpts{
 				KeepResponseBody: true,
@@ -431,7 +435,7 @@ func resourceHealthCheckDelete(ctx context.Context, d *schema.ResourceData, meta
 
 	// deleteHealthCheck: Delete an existing GA Health Check
 	var (
-		deleteHealthCheckHttpUrl = "v1/health-checks/{id}"
+		deleteHealthCheckHttpUrl = "v1/health-checks/{health_check_id}"
 		deleteHealthCheckProduct = "ga"
 	)
 	deleteHealthCheckClient, err := conf.NewServiceClient(deleteHealthCheckProduct, region)
@@ -440,7 +444,7 @@ func resourceHealthCheckDelete(ctx context.Context, d *schema.ResourceData, meta
 	}
 
 	deleteHealthCheckPath := deleteHealthCheckClient.Endpoint + deleteHealthCheckHttpUrl
-	deleteHealthCheckPath = strings.ReplaceAll(deleteHealthCheckPath, "{id}", d.Id())
+	deleteHealthCheckPath = strings.ReplaceAll(deleteHealthCheckPath, "{health_check_id}", d.Id())
 
 	deleteHealthCheckOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
@@ -469,7 +473,7 @@ func deleteHealthCheckWaitingForStateCompleted(ctx context.Context, d *schema.Re
 			region := config.GetRegion(d)
 			// deleteHealthCheckWaiting: missing operation notes
 			var (
-				deleteHealthCheckWaitingHttpUrl = "v1/health-checks/{id}"
+				deleteHealthCheckWaitingHttpUrl = "v1/health-checks/{health_check_id}"
 				deleteHealthCheckWaitingProduct = "ga"
 			)
 			deleteHealthCheckWaitingClient, err := config.NewServiceClient(deleteHealthCheckWaitingProduct, region)
@@ -478,7 +482,7 @@ func deleteHealthCheckWaitingForStateCompleted(ctx context.Context, d *schema.Re
 			}
 
 			deleteHealthCheckWaitingPath := deleteHealthCheckWaitingClient.Endpoint + deleteHealthCheckWaitingHttpUrl
-			deleteHealthCheckWaitingPath = strings.ReplaceAll(deleteHealthCheckWaitingPath, "{id}", d.Id())
+			deleteHealthCheckWaitingPath = strings.ReplaceAll(deleteHealthCheckWaitingPath, "{health_check_id}", d.Id())
 
 			deleteHealthCheckWaitingOpt := golangsdk.RequestOpts{
 				KeepResponseBody: true,
@@ -490,7 +494,8 @@ func deleteHealthCheckWaitingForStateCompleted(ctx context.Context, d *schema.Re
 				deleteHealthCheckWaitingPath, &deleteHealthCheckWaitingOpt)
 			if err != nil {
 				if _, ok := err.(golangsdk.ErrDefault404); ok {
-					return deleteHealthCheckWaitingResp, "COMPLETED", nil
+					// When the error code is 404, the value of respBody is nil, and a non-null value is returned to avoid continuing the loop check.
+					return "Resource Not Found", "COMPLETED", nil
 				}
 
 				return nil, "ERROR", err

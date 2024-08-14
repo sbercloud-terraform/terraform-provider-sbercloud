@@ -25,6 +25,15 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API Organizations POST /v1/organizations/accounts
+// @API Organizations GET /v1/organizations/accounts/{account_id}
+// @API Organizations GET /v1/organizations/{resource_type}/{resource_id}/tags
+// @API Organizations POST /v1/organizations/accounts/{account_id}/move
+// @API Organizations GET /v1/organizations/entities
+// @API Organizations GET /v1/organizations/create-account-status/{create_account_status_id}
+// @API Organizations POST /v1/organizations/{resource_type}/{resource_id}/tags/delete
+// @API Organizations POST /v1/organizations/{resource_type}/{resource_id}/tags/create
+// @API Organizations POST /v1/organizations/accounts/{account_id}/close
 func ResourceAccount() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceAccountCreate,
@@ -197,9 +206,9 @@ func accountStateRefreshFunc(client *golangsdk.ServiceClient, accountStatusId st
 func buildCreateAccountBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
 		"name":        d.Get("name"),
-		"email":       utils.ValueIngoreEmpty(d.Get("email")),
-		"phone":       utils.ValueIngoreEmpty(d.Get("phone")),
-		"agency_name": utils.ValueIngoreEmpty(d.Get("agency_name")),
+		"email":       utils.ValueIgnoreEmpty(d.Get("email")),
+		"phone":       utils.ValueIgnoreEmpty(d.Get("phone")),
+		"agency_name": utils.ValueIgnoreEmpty(d.Get("agency_name")),
 		"tags":        utils.ExpandResourceTags(d.Get("tags").(map[string]interface{})),
 	}
 	return bodyParams
@@ -236,6 +245,11 @@ func resourceAccountRead(_ context.Context, d *schema.ResourceData, meta interfa
 	getAccountRespBody, err := utils.FlattenResponse(getAccountResp)
 	if err != nil {
 		return diag.FromErr(err)
+	}
+
+	status := utils.PathSearch("account.status", getAccountRespBody, "").(string)
+	if status == "" || status == "pending_closure" || status == "suspended" {
+		return common.CheckDeletedDiag(d, golangsdk.ErrDefault404{}, "")
 	}
 
 	parentID, err := getParentIdByAccountId(getAccountClient, d.Id())
@@ -316,15 +330,32 @@ func moveAccount(client *golangsdk.ServiceClient, accountId, sourceParentID, des
 	return err
 }
 
-func resourceAccountDelete(_ context.Context, _ *schema.ResourceData, _ interface{}) diag.Diagnostics {
-	errorMsg := "Deleting Organizations account is not supported. The account is only removed from the state," +
-		" but it remains in the cloud."
-	return diag.Diagnostics{
-		diag.Diagnostic{
-			Severity: diag.Warning,
-			Summary:  errorMsg,
-		},
+func resourceAccountDelete(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+
+	// deleteAccount: close Organizations account
+	var (
+		deleteAccountHttpUrl = "v1/organizations/accounts/{account_id}/close"
+		deleteAccountProduct = "organizations"
+	)
+	deleteAccountClient, err := cfg.NewServiceClient(deleteAccountProduct, region)
+	if err != nil {
+		return diag.Errorf("error creating Organizations client: %s", err)
 	}
+
+	deleteAccountPath := deleteAccountClient.Endpoint + deleteAccountHttpUrl
+	deleteAccountPath = strings.ReplaceAll(deleteAccountPath, "{account_id}", d.Id())
+
+	deleteAccountOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+	}
+	_, err = deleteAccountClient.Request("POST", deleteAccountPath, &deleteAccountOpt)
+	if err != nil {
+		return diag.Errorf("error deleting account: %s", err)
+	}
+
+	return nil
 }
 
 func getParentIdByAccountId(client *golangsdk.ServiceClient, accountID string) (string, error) {

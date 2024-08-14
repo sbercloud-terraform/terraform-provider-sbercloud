@@ -26,6 +26,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DNS GET /v2.1/customlines
+// @API DNS POST /v2.1/customlines
+// @API DNS DELETE /v2.1/customlines/{line_id}
+// @API DNS PUT /v2.1/customlines/{line_id}
 func ResourceDNSCustomLine() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDNSCustomLineCreate,
@@ -156,9 +160,9 @@ func waitForDNSCustomLineCreateOrUpdate(ctx context.Context, customLineClient *g
 
 func buildCreateOrUpdateDNSCustomLineBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":        utils.ValueIngoreEmpty(d.Get("name")),
-		"description": utils.ValueIngoreEmpty(d.Get("description")),
-		"ip_segments": utils.ValueIngoreEmpty(d.Get("ip_segments")),
+		"name":        utils.ValueIgnoreEmpty(d.Get("name")),
+		"description": utils.ValueIgnoreEmpty(d.Get("description")),
+		"ip_segments": utils.ValueIgnoreEmpty(d.Get("ip_segments")),
 	}
 	return bodyParams
 }
@@ -369,7 +373,8 @@ func dnsCustomLineStatusRefreshFunc(d *schema.ResourceData, client *golangsdk.Se
 		customLineMap, err := flattenCustomLineResponseBody(getDNSCustomLineRespBody, d)
 		if err != nil {
 			if _, ok := err.(golangsdk.ErrDefault404); ok {
-				return customLineMap, "DELETED", nil
+				// When the error code is 404, the value of respBody is nil, and a non-null value is returned to avoid continuing the loop check.
+				return "Resource Not Found", "DELETED", nil
 			}
 			return customLineMap, "", err
 		}

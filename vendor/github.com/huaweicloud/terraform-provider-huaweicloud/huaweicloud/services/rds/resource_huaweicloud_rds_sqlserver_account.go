@@ -24,6 +24,11 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API RDS POST /v3/{project_id}/instances/{instance_id}/db_user
+// @API RDS GET /v3/{project_id}/instances
+// @API RDS DELETE /v3/{project_id}/instances/{instance_id}/db_user/{user_name}
+// @API RDS GET /v3/{project_id}/instances/{instance_id}/db_user/detail?page=1&limit=100
+// @API RDS POST /v3/{project_id}/instances/{instance_id}/db_user/resetpwd
 func ResourceSQLServerAccount() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceSQLServerAccountCreate,
@@ -251,8 +256,8 @@ func resourceSQLServerAccountUpdate(ctx context.Context, d *schema.ResourceData,
 
 func buildUpdateSQLServerAccountBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":     utils.ValueIngoreEmpty(d.Get("name")),
-		"password": utils.ValueIngoreEmpty(d.Get("password")),
+		"name":     utils.ValueIgnoreEmpty(d.Get("name")),
+		"password": utils.ValueIgnoreEmpty(d.Get("password")),
 	}
 	return bodyParams
 }

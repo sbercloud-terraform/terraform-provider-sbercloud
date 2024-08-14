@@ -78,6 +78,9 @@ type CreateOps struct {
 	// Indicates a product ID.
 	ProductID string `json:"product_id" required:"true"`
 
+	// CPU architecture.
+	ArchType string `json:"arch_type,omitempty"`
+
 	// Indicates the username for logging in to the Kafka Manager.
 	// The username consists of 4 to 64 characters and can contain
 	//letters, digits, hyphens (-), and underscores (_).
@@ -292,12 +295,13 @@ func List(client *golangsdk.ServiceClient, opts ListOpsBuilder) pagination.Pager
 }
 
 type ResizeInstanceOpts struct {
-	NewSpecCode     *string `json:"new_spec_code,omitempty"`
-	NewStorageSpace *int    `json:"new_storage_space,omitempty"`
-	OperType        *string `json:"oper_type,omitempty"`
-	NewBrokerNum    *int    `json:"new_broker_num,omitempty"`
-	NewProductID    *string `json:"new_product_id,omitempty"`
-	PublicIpID      *string `json:"publicip_id,omitempty"`
+	NewSpecCode     *string  `json:"new_spec_code,omitempty"`
+	NewStorageSpace *int     `json:"new_storage_space,omitempty"`
+	OperType        *string  `json:"oper_type,omitempty"`
+	NewBrokerNum    *int     `json:"new_broker_num,omitempty"`
+	NewProductID    *string  `json:"new_product_id,omitempty"`
+	PublicIpID      *string  `json:"publicip_id,omitempty"`
+	TenantIps       []string `json:"tenant_ips,omitempty"`
 }
 
 func Resize(client *golangsdk.ServiceClient, id string, opts ResizeInstanceOpts) (string, error) {
@@ -393,6 +397,57 @@ func ResetPassword(client *golangsdk.ServiceClient, id string, opts ResetPasswor
 
 	_, r.Err = client.Post(resetPasswordURL(client, id), body, nil, &golangsdk.RequestOpts{
 		OkCodes: []int{204},
+	})
+	return
+}
+
+type ConfigParam struct {
+	Name  string `json:"name" required:"true"`
+	Value string `json:"value" required:"true"`
+}
+
+type KafkaConfigs struct {
+	KafkaConfigs []ConfigParam `json:"kafka_configs"`
+}
+
+type RestartInstanceOpts struct {
+	Action    string   `json:"action" required:"true"`
+	Instances []string `json:"instances" required:"true"`
+}
+
+func ModifyConfiguration(c *golangsdk.ServiceClient, instanceID string, opts KafkaConfigs) (r ModifyConfigurationResult) {
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		r.Err = err
+		return
+	}
+
+	_, r.Err = c.Put(configurationsURL(c, instanceID), b, &r.Body, &golangsdk.RequestOpts{})
+	return
+}
+
+func GetConfigurations(c *golangsdk.ServiceClient, instanceID string) (r GetConfigurationResult) {
+	_, r.Err = c.Get(configurationsURL(c, instanceID), &r.Body, &golangsdk.RequestOpts{
+		MoreHeaders: map[string]string{"Content-Type": "application/json"},
+	})
+	return
+}
+
+func RebootInstance(c *golangsdk.ServiceClient, params RestartInstanceOpts) (r RebootResult) {
+	_, r.Err = c.Post(actionURL(c), params, &r.Body, &golangsdk.RequestOpts{})
+	return
+}
+
+func GetTasks(c *golangsdk.ServiceClient, instanceID string) (r GetTasksResult) {
+	_, r.Err = c.Get(tasksURL(c, instanceID), &r.Body, &golangsdk.RequestOpts{
+		MoreHeaders: map[string]string{"Content-Type": "application/json"},
+	})
+	return
+}
+
+func GetTask(c *golangsdk.ServiceClient, instanceID, taskID string) (r GetTasksResult) {
+	_, r.Err = c.Get(taskURL(c, instanceID, taskID), &r.Body, &golangsdk.RequestOpts{
+		MoreHeaders: map[string]string{"Content-Type": "application/json"},
 	})
 	return
 }

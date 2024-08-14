@@ -55,7 +55,7 @@ func ResourceDatasourceAuth() *schema.Resource {
 				ForceNew:    true,
 				Description: `Data source type.`,
 			},
-			"username": {
+			"user_name": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Computed:    true,
@@ -70,9 +70,6 @@ func ResourceDatasourceAuth() *schema.Resource {
 				Computed:    true,
 				Sensitive:   true,
 				Description: `The password for accessing the security cluster or datasource.`,
-				RequiredWith: []string{
-					"username",
-				},
 			},
 			"certificate_location": {
 				Type:        schema.TypeString,
@@ -141,6 +138,20 @@ func ResourceDatasourceAuth() *schema.Resource {
 				Computed:    true,
 				Description: `The user name of owner.`,
 			},
+			// Deprecated arguments
+			"username": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ConflictsWith: []string{
+					"truststore_location",
+				},
+				Description: utils.SchemaDesc(
+					`Username for accessing the security cluster or datasource. Use 'user_name' instead.`,
+					utils.SchemaDescInput{
+						Deprecated: true,
+					}),
+			},
 		},
 	}
 }
@@ -169,9 +180,17 @@ func resourceDatasourceAuthCreate(ctx context.Context, d *schema.ResourceData, m
 		},
 	}
 	createDatasourceAuthOpt.JSONBody = utils.RemoveNil(buildCreateDatasourceAuthBodyParams(d, cfg))
-	_, err = createDatasourceAuthClient.Request("POST", createDatasourceAuthPath, &createDatasourceAuthOpt)
+	requestResp, err := createDatasourceAuthClient.Request("POST", createDatasourceAuthPath, &createDatasourceAuthOpt)
 	if err != nil {
 		return diag.Errorf("error creating DatasourceAuth: %s", err)
+	}
+	respBody, err := utils.FlattenResponse(requestResp)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	if !utils.PathSearch("is_success", respBody, true).(bool) {
+		return diag.Errorf("unable to create the authentication: %s",
+			utils.PathSearch("message", respBody, "Message Not Found"))
 	}
 
 	d.SetId(d.Get("name").(string))
@@ -179,20 +198,29 @@ func resourceDatasourceAuthCreate(ctx context.Context, d *schema.ResourceData, m
 	return resourceDatasourceAuthRead(ctx, d, meta)
 }
 
+func buildUserName(d *schema.ResourceData) interface{} {
+	userName := d.Get("user_name")
+	if userName.(string) == "" {
+		userName = d.Get("username")
+	}
+
+	return utils.ValueIgnoreEmpty(userName)
+}
+
 func buildCreateDatasourceAuthBodyParams(d *schema.ResourceData, _ *config.Config) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"auth_info_name":       utils.ValueIngoreEmpty(d.Get("name")),
-		"datasource_type":      utils.ValueIngoreEmpty(d.Get("type")),
-		"username":             utils.ValueIngoreEmpty(d.Get("username")),
-		"password":             utils.ValueIngoreEmpty(d.Get("password")),
-		"certificate_location": utils.ValueIngoreEmpty(d.Get("certificate_location")),
-		"truststore_location":  utils.ValueIngoreEmpty(d.Get("truststore_location")),
-		"truststore_password":  utils.ValueIngoreEmpty(d.Get("truststore_password")),
-		"keystore_location":    utils.ValueIngoreEmpty(d.Get("keystore_location")),
-		"keystore_password":    utils.ValueIngoreEmpty(d.Get("keystore_password")),
-		"key_password":         utils.ValueIngoreEmpty(d.Get("key_password")),
-		"krb5_conf":            utils.ValueIngoreEmpty(d.Get("krb5_conf")),
-		"keytab":               utils.ValueIngoreEmpty(d.Get("keytab")),
+		"auth_info_name":       utils.ValueIgnoreEmpty(d.Get("name")),
+		"datasource_type":      utils.ValueIgnoreEmpty(d.Get("type")),
+		"user_name":            buildUserName(d),
+		"password":             utils.ValueIgnoreEmpty(d.Get("password")),
+		"certificate_location": utils.ValueIgnoreEmpty(d.Get("certificate_location")),
+		"truststore_location":  utils.ValueIgnoreEmpty(d.Get("truststore_location")),
+		"truststore_password":  utils.ValueIgnoreEmpty(d.Get("truststore_password")),
+		"keystore_location":    utils.ValueIgnoreEmpty(d.Get("keystore_location")),
+		"keystore_password":    utils.ValueIgnoreEmpty(d.Get("keystore_password")),
+		"key_password":         utils.ValueIgnoreEmpty(d.Get("key_password")),
+		"krb5_conf":            utils.ValueIgnoreEmpty(d.Get("krb5_conf")),
+		"keytab":               utils.ValueIgnoreEmpty(d.Get("keytab")),
 	}
 	return bodyParams
 }
@@ -235,6 +263,10 @@ func resourceDatasourceAuthRead(_ context.Context, d *schema.ResourceData, meta 
 	if err != nil {
 		return diag.FromErr(err)
 	}
+	if !utils.PathSearch("is_success", getDatasourceAuthRespBody, true).(bool) {
+		return diag.Errorf("unable to query the authentication: %s",
+			utils.PathSearch("message", getDatasourceAuthRespBody, "Message Not Found"))
+	}
 
 	v := utils.PathSearch("auth_infos[0]", getDatasourceAuthRespBody, nil)
 	if v == nil {
@@ -246,7 +278,7 @@ func resourceDatasourceAuthRead(_ context.Context, d *schema.ResourceData, meta 
 		d.Set("region", region),
 		d.Set("name", utils.PathSearch("auth_infos[0].auth_info_name", getDatasourceAuthRespBody, nil)),
 		d.Set("type", utils.PathSearch("auth_infos[0].datasource_type", getDatasourceAuthRespBody, nil)),
-		d.Set("username", utils.PathSearch("auth_infos[0].user_name", getDatasourceAuthRespBody, nil)),
+		d.Set("user_name", utils.PathSearch("auth_infos[0].user_name", getDatasourceAuthRespBody, nil)),
 		d.Set("certificate_location", utils.PathSearch("auth_infos[0].certificate_location", getDatasourceAuthRespBody, nil)),
 		d.Set("truststore_location", utils.PathSearch("auth_infos[0].truststore_location", getDatasourceAuthRespBody, nil)),
 		d.Set("keystore_location", utils.PathSearch("auth_infos[0].keystore_location", getDatasourceAuthRespBody, nil)),
@@ -275,6 +307,7 @@ func resourceDatasourceAuthUpdate(ctx context.Context, d *schema.ResourceData, m
 	updateDatasourceAuthChanges := []string{
 		"name",
 		"username",
+		"user_name",
 		"password",
 		"truststore_location",
 		"truststore_password",
@@ -304,9 +337,17 @@ func resourceDatasourceAuthUpdate(ctx context.Context, d *schema.ResourceData, m
 			},
 		}
 		updateDatasourceAuthOpt.JSONBody = utils.RemoveNil(buildUpdateDatasourceAuthBodyParams(d, cfg))
-		_, err = updateDatasourceAuthClient.Request("PUT", updateDatasourceAuthPath, &updateDatasourceAuthOpt)
+		requestResp, err := updateDatasourceAuthClient.Request("PUT", updateDatasourceAuthPath, &updateDatasourceAuthOpt)
 		if err != nil {
 			return diag.Errorf("error updating DatasourceAuth: %s", err)
+		}
+		respBody, err := utils.FlattenResponse(requestResp)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		if !utils.PathSearch("is_success", respBody, true).(bool) {
+			return diag.Errorf("unable to update the authentication: %s",
+				utils.PathSearch("message", respBody, "Message Not Found"))
 		}
 	}
 	return resourceDatasourceAuthRead(ctx, d, meta)
@@ -314,15 +355,15 @@ func resourceDatasourceAuthUpdate(ctx context.Context, d *schema.ResourceData, m
 
 func buildUpdateDatasourceAuthBodyParams(d *schema.ResourceData, _ *config.Config) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"auth_info_name":      utils.ValueIngoreEmpty(d.Get("name")),
-		"username":            utils.ValueIngoreEmpty(d.Get("username")),
-		"password":            utils.ValueIngoreEmpty(d.Get("password")),
-		"truststore_location": utils.ValueIngoreEmpty(d.Get("truststore_location")),
-		"truststore_password": utils.ValueIngoreEmpty(d.Get("truststore_password")),
-		"keystore_location":   utils.ValueIngoreEmpty(d.Get("keystore_location")),
-		"keystore_password":   utils.ValueIngoreEmpty(d.Get("keystore_password")),
-		"krb5_conf":           utils.ValueIngoreEmpty(d.Get("krb5_conf")),
-		"keytab":              utils.ValueIngoreEmpty(d.Get("keytab")),
+		"auth_info_name":      utils.ValueIgnoreEmpty(d.Get("name")),
+		"user_name":           buildUserName(d),
+		"password":            utils.ValueIgnoreEmpty(d.Get("password")),
+		"truststore_location": utils.ValueIgnoreEmpty(d.Get("truststore_location")),
+		"truststore_password": utils.ValueIgnoreEmpty(d.Get("truststore_password")),
+		"keystore_location":   utils.ValueIgnoreEmpty(d.Get("keystore_location")),
+		"keystore_password":   utils.ValueIgnoreEmpty(d.Get("keystore_password")),
+		"krb5_conf":           utils.ValueIgnoreEmpty(d.Get("krb5_conf")),
+		"keytab":              utils.ValueIgnoreEmpty(d.Get("keytab")),
 	}
 	return bodyParams
 }
@@ -333,7 +374,7 @@ func resourceDatasourceAuthDelete(_ context.Context, d *schema.ResourceData, met
 
 	// deleteDatasourceAuth: missing operation notes
 	var (
-		deleteDatasourceAuthHttpUrl = "v3/{project_id}/datasource/auth-infos/{id}"
+		deleteDatasourceAuthHttpUrl = "v3/{project_id}/datasource/auth-infos/{auth_info_name}"
 		deleteDatasourceAuthProduct = "dli"
 	)
 	deleteDatasourceAuthClient, err := cfg.NewServiceClient(deleteDatasourceAuthProduct, region)
@@ -343,7 +384,7 @@ func resourceDatasourceAuthDelete(_ context.Context, d *schema.ResourceData, met
 
 	deleteDatasourceAuthPath := deleteDatasourceAuthClient.Endpoint + deleteDatasourceAuthHttpUrl
 	deleteDatasourceAuthPath = strings.ReplaceAll(deleteDatasourceAuthPath, "{project_id}", deleteDatasourceAuthClient.ProjectID)
-	deleteDatasourceAuthPath = strings.ReplaceAll(deleteDatasourceAuthPath, "{id}", d.Id())
+	deleteDatasourceAuthPath = strings.ReplaceAll(deleteDatasourceAuthPath, "{auth_info_name}", d.Id())
 
 	deleteDatasourceAuthOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
@@ -351,9 +392,17 @@ func resourceDatasourceAuthDelete(_ context.Context, d *schema.ResourceData, met
 			200,
 		},
 	}
-	_, err = deleteDatasourceAuthClient.Request("DELETE", deleteDatasourceAuthPath, &deleteDatasourceAuthOpt)
+	requestResp, err := deleteDatasourceAuthClient.Request("DELETE", deleteDatasourceAuthPath, &deleteDatasourceAuthOpt)
 	if err != nil {
 		return diag.Errorf("error deleting DatasourceAuth: %s", err)
+	}
+	respBody, err := utils.FlattenResponse(requestResp)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	if !utils.PathSearch("is_success", respBody, true).(bool) {
+		return diag.Errorf("unable to delete the authentication: %s",
+			utils.PathSearch("message", respBody, "Message Not Found"))
 	}
 
 	return nil

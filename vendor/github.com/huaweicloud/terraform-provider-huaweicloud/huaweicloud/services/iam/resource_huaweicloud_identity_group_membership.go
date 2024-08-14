@@ -17,6 +17,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API IAM PUT /v3/groups/{group_id}/users/{user_id}
+// @API IAM DELETE /v3/groups/{group_id}/users/{user_id}
+// @API IAM GET /v3/groups/{group_id}/users
+// @API IAM GET /v3/groups/{group_id}
 func ResourceIdentityGroupMembership() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceIdentityGroupMembershipCreate,

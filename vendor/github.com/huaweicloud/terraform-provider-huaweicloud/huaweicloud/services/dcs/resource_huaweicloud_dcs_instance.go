@@ -25,6 +25,7 @@ import (
 	"github.com/chnsz/golangsdk/openstack/dcs/v2/instances"
 	dcsTags "github.com/chnsz/golangsdk/openstack/dcs/v2/tags"
 	"github.com/chnsz/golangsdk/openstack/dcs/v2/whitelists"
+	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -53,6 +54,8 @@ var (
 	operateErrorCode = map[string]bool{
 		// current state not support
 		"DCS.4026": true,
+		// instance status is not running
+		"DCS.4049": true,
 		// backup
 		"DCS.4096": true,
 		// restore
@@ -73,9 +76,33 @@ var (
 		"DCS.4118": true,
 		// freeze
 		"DCS.4120": true,
+		// creating/restarting
+		"DCS.4975": true,
 	}
 )
 
+// @API DCS GET /v2/available-zones
+// @API DCS POST /v2/{project_id}/instances
+// @API DCS GET /v2/{project_id}/instances/{instance_id}
+// @API DCS PUT /v2/{project_id}/instance/{instance_id}/whitelist
+// @API DCS GET /v2/{project_id}/instance/{instance_id}/whitelist
+// @API DCS PUT /v2/{project_id}/instances/{instance_id}/configs
+// @API DCS GET /v2/{project_id}/instances/{instance_id}/configs
+// @API DCS PUT /v2/{project_id}/instances/status
+// @API DCS PUT /v2/{project_id}/instances/{instance_id}/ssl
+// @API DCS GET /v2/{project_id}/instances/{instance_id}/ssl
+// @API DCS GET /v2/{project_id}/instances/{instance_id}/tags
+// @API DCS PUT /v2/{project_id}/instances/{instance_id}
+// @API DCS PUT /v2/{project_id}/instances/{instance_id}/password
+// @API DCS POST /v2/{project_id}/instances/{instance_id}/resize
+// @API DCS POST /v3/{project_id}/instances/{instance_id}/tags/action
+// @API EPS POST /v1.0/enterprise-projects/{enterprise_project_id}/resources-migrat
+// @API DCS DELETE /v2/{project_id}/instances/{instance_id}
+// @API BSS GET /v2/orders/customer-orders/details/{order_id}
+// @API BSS POST /v2/orders/suscriptions/resources/query
+// @API BSS POST /v2/orders/subscriptions/resources/autorenew/{instance_id}
+// @API BSS DELETE /v2/orders/subscriptions/resources/autorenew/{instance_id}
+// @API BSS POST /v2/orders/subscriptions/resources/unsubscribe
 func ResourceDcsInstance() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDcsInstancesCreate,
@@ -198,6 +225,11 @@ func ResourceDcsInstance() *schema.Resource {
 					},
 				},
 			},
+			"ssl_enable": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Computed: true,
+			},
 			"maintain_begin": {
 				Type:         schema.TypeString,
 				Optional:     true,
@@ -264,7 +296,6 @@ func ResourceDcsInstance() *schema.Resource {
 			"enterprise_project_id": {
 				Type:     schema.TypeString,
 				Optional: true,
-				ForceNew: true,
 				Computed: true,
 			},
 			"parameters": {
@@ -321,6 +352,10 @@ func ResourceDcsInstance() *schema.Resource {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
+			"subnet_cidr": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
 			"used_memory": {
 				Type:     schema.TypeInt,
 				Computed: true,
@@ -335,6 +370,47 @@ func ResourceDcsInstance() *schema.Resource {
 			},
 			"domain_name": {
 				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"created_at": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"launched_at": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"bandwidth_info": {
+				Type:     schema.TypeList,
+				Elem:     bandwidthSchema(),
+				Computed: true,
+			},
+			"cache_mode": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"cpu_type": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"replica_count": {
+				Type:     schema.TypeInt,
+				Computed: true,
+			},
+			"readonly_domain_name": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"transparent_client_ip_enable": {
+				Type:     schema.TypeBool,
+				Computed: true,
+			},
+			"product_type": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"sharding_count": {
+				Type:     schema.TypeInt,
 				Computed: true,
 			},
 
@@ -418,6 +494,54 @@ func ResourceDcsInstance() *schema.Resource {
 			},
 		},
 	}
+}
+
+func bandwidthSchema() *schema.Resource {
+	sc := schema.Resource{
+		Schema: map[string]*schema.Schema{
+			"bandwidth": {
+				Type:     schema.TypeInt,
+				Computed: true,
+			},
+			"begin_time": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"current_time": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"end_time": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"expand_count": {
+				Type:     schema.TypeInt,
+				Computed: true,
+			},
+			"expand_effect_time": {
+				Type:     schema.TypeInt,
+				Computed: true,
+			},
+			"expand_interval_time": {
+				Type:     schema.TypeInt,
+				Computed: true,
+			},
+			"max_expand_count": {
+				Type:     schema.TypeInt,
+				Computed: true,
+			},
+			"next_expand_time": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"task_running": {
+				Type:     schema.TypeBool,
+				Computed: true,
+			},
+		},
+	}
+	return &sc
 }
 
 func buildBackupPolicyParams(d *schema.ResourceData) *instances.InstanceBackupPolicyOpts {
@@ -525,6 +649,13 @@ func buildWhiteListParams(d *schema.ResourceData) whitelists.WhitelistOpts {
 		Groups: groups,
 	}
 	return whitelistOpts
+}
+
+func buildSslParam(enable bool) instances.SslOpts {
+	sslOpts := instances.SslOpts{
+		Enable: &enable,
+	}
+	return sslOpts
 }
 
 func waitForWhiteListCompleted(ctx context.Context, c *golangsdk.ServiceClient, d *schema.ResourceData) error {
@@ -686,6 +817,19 @@ func resourceDcsInstancesCreate(ctx context.Context, d *schema.ResourceData, met
 		}
 	}
 
+	if sslEnabled := d.Get("ssl_enable").(bool); sslEnabled {
+		sslOpts := buildSslParam(sslEnabled)
+		_, err := instances.UpdateSsl(client, id, sslOpts)
+		if err != nil {
+			return diag.Errorf("error updating SSL for the instance (%s): %s", id, err)
+		}
+
+		err = waitForSslCompleted(ctx, client, d)
+		if err != nil {
+			return diag.Errorf("error waiting for updating SSL to complete: %s", err)
+		}
+	}
+
 	return resourceDcsInstancesRead(ctx, d, meta)
 }
 
@@ -817,7 +961,7 @@ func waitForOrderComplete(ctx context.Context, d *schema.ResourceData, cfg *conf
 	err = common.WaitOrderComplete(ctx, bssClient, orderId, d.Timeout(schema.TimeoutCreate))
 	if err != nil {
 		return fmt.Errorf("[DEBUG] error the order is not completed while "+
-			"creating DCS instance. %s : %#v", d.Id(), err)
+			"creating DCS instance. %s : %v", d.Id(), err)
 	}
 	_, err = common.WaitOrderResourceComplete(ctx, bssClient, orderId, d.Timeout(schema.TimeoutCreate))
 	return err
@@ -836,7 +980,7 @@ func waitForDcsInstanceCompleted(ctx context.Context, c *golangsdk.ServiceClient
 	}
 	_, err := stateConf.WaitForStateContext(ctx)
 	if err != nil {
-		return fmt.Errorf("[DEBUG] error while waiting to create/resize/delete DCS instance. %s : %#v",
+		return fmt.Errorf("[DEBUG] error while waiting to create/resize/delete DCS instance. %s : %v",
 			id, err)
 	}
 	return nil
@@ -895,6 +1039,7 @@ func resourceDcsInstancesRead(ctx context.Context, d *schema.ResourceData, meta 
 		d.Set("vpc_name", r.VpcName),
 		d.Set("subnet_id", r.SubnetId),
 		d.Set("subnet_name", r.SubnetName),
+		d.Set("subnet_cidr", r.SubnetCidr),
 		d.Set("security_group_id", securityGroupID),
 		d.Set("security_group_name", r.SecurityGroupName),
 		d.Set("enterprise_project_id", r.EnterpriseProjectId),
@@ -912,6 +1057,17 @@ func resourceDcsInstancesRead(ctx context.Context, d *schema.ResourceData, meta 
 		d.Set("user_id", r.UserId),
 		d.Set("user_name", r.UserName),
 		d.Set("access_user", r.AccessUser),
+		d.Set("ssl_enable", r.EnableSsl),
+		d.Set("created_at", r.CreatedAt),
+		d.Set("launched_at", r.LaunchedAt),
+		d.Set("cache_mode", r.CacheMode),
+		d.Set("cpu_type", r.CpuType),
+		d.Set("readonly_domain_name", r.ReadOnlyDomainName),
+		d.Set("replica_count", r.ReplicaCount),
+		d.Set("transparent_client_ip_enable", r.TransparentClientIpEnable),
+		d.Set("bandwidth_info", setBandWidthInfo(&r.BandWidthDetail)),
+		d.Set("product_type", r.ProductType),
+		d.Set("sharding_count", r.ShardingCount),
 	)
 
 	if mErr.ErrorOrNil() != nil {
@@ -1009,7 +1165,9 @@ func generateParametersMap(configurations *instances.Configuration) map[string]i
 
 func resourceDcsInstancesUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
-	client, err := cfg.DcsV2Client(cfg.GetRegion(d))
+	region := cfg.GetRegion(d)
+	instanceId := d.Id()
+	client, err := cfg.DcsV2Client(region)
 	if err != nil {
 		return diag.Errorf("error creating DCS Client(v2): %s", err)
 	}
@@ -1032,7 +1190,7 @@ func resourceDcsInstancesUpdate(ctx context.Context, d *schema.ResourceData, met
 		}
 		log.Printf("[DEBUG] Update DCS instance options : %#v", opts)
 
-		_, err = instances.Update(client, d.Id(), opts)
+		_, err = instances.Update(client, instanceId, opts)
 		if err != nil {
 			return diag.FromErr(err)
 		}
@@ -1052,7 +1210,7 @@ func resourceDcsInstancesUpdate(ctx context.Context, d *schema.ResourceData, met
 			NewPassword: newVal.(string),
 		}
 		err = resource.RetryContext(ctx, d.Timeout(schema.TimeoutUpdate), func() *resource.RetryError {
-			_, err = instances.UpdatePassword(client, d.Id(), opts)
+			_, err = instances.UpdatePassword(client, instanceId, opts)
 			isRetry, err := handleOperationError(err)
 			if isRetry {
 				return resource.RetryableError(err)
@@ -1076,7 +1234,7 @@ func resourceDcsInstancesUpdate(ctx context.Context, d *schema.ResourceData, met
 	// update tags
 	if d.HasChange("tags") {
 		oldVal, newVal := d.GetChange("tags")
-		err = updateDcsTags(client, d.Id(), oldVal.(map[string]interface{}), newVal.(map[string]interface{}))
+		err = updateDcsTags(client, instanceId, oldVal.(map[string]interface{}), newVal.(map[string]interface{}))
 		if err != nil {
 			return diag.FromErr(err)
 		}
@@ -1087,9 +1245,9 @@ func resourceDcsInstancesUpdate(ctx context.Context, d *schema.ResourceData, met
 		whitelistOpts := buildWhiteListParams(d)
 		log.Printf("[DEBUG] Update DCS instance whitelist options: %#v", whitelistOpts)
 
-		err = whitelists.Put(client, d.Id(), whitelistOpts).ExtractErr()
+		err = whitelists.Put(client, instanceId, whitelistOpts).ExtractErr()
 		if err != nil {
-			return diag.Errorf("error updating whitelist for instance (%s): %s", d.Id(), err)
+			return diag.Errorf("error updating whitelist for instance (%s): %s", instanceId, err)
 		}
 
 		// wait for whitelist updated
@@ -1100,24 +1258,51 @@ func resourceDcsInstancesUpdate(ctx context.Context, d *schema.ResourceData, met
 	}
 
 	if d.HasChange("auto_renew") {
-		bssClient, err := cfg.BssV2Client(cfg.GetRegion(d))
+		bssClient, err := cfg.BssV2Client(region)
 		if err != nil {
 			return diag.Errorf("error creating BSS V2 client: %s", err)
 		}
-		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), d.Id()); err != nil {
-			return diag.Errorf("error updating the auto-renew of the instance (%s): %s", d.Id(), err)
+		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), instanceId); err != nil {
+			return diag.Errorf("error updating the auto-renew of the instance (%s): %s", instanceId, err)
 		}
 	}
 
 	if d.HasChange("parameters") {
 		oRaw, nRaw := d.GetChange("parameters")
 		changedParameters := nRaw.(*schema.Set).Difference(oRaw.(*schema.Set)).List()
-		err = updateParameters(ctx, d.Timeout(schema.TimeoutUpdate), client, d.Id(), changedParameters)
+		err = updateParameters(ctx, d.Timeout(schema.TimeoutUpdate), client, instanceId, changedParameters)
 		if err != nil {
 			return diag.FromErr(err)
 		}
 		// Sending parametersChanged to Read to warn users the instance needs a reboot.
 		ctx = context.WithValue(ctx, ctxType("parametersChanged"), "true")
+	}
+
+	if d.HasChange("enterprise_project_id") {
+		migrateOpts := enterpriseprojects.MigrateResourceOpts{
+			ResourceId:   instanceId,
+			ResourceType: "dcs",
+			RegionId:     region,
+			ProjectId:    client.ProjectID,
+		}
+		if err := common.MigrateEnterpriseProject(ctx, cfg, d, migrateOpts); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	// update SSL
+	if d.HasChange("ssl_enable") {
+		sslOpts := buildSslParam(d.Get("ssl_enable").(bool))
+		_, err = instances.UpdateSsl(client, instanceId, sslOpts)
+		if err != nil {
+			return diag.Errorf("error updating SSL for the instance (%s): %s", instanceId, err)
+		}
+
+		// wait for SSL updated
+		err = waitForSslCompleted(ctx, client, d)
+		if err != nil {
+			return diag.Errorf("error waiting for updating SSL to complete: %s", err)
+		}
 	}
 
 	return resourceDcsInstancesRead(ctx, d, meta)
@@ -1325,24 +1510,8 @@ func handleOperationError(err error) (bool, error) {
 		if errorCodeErr != nil {
 			return false, fmt.Errorf("error parse errorCode from response body: %s", errorCodeErr)
 		}
-		if operateErrorCode[errorCode.(string)] {
-			return true, err
-		}
-	}
-	// unsubscribe fail
-	if errCode, ok := err.(golangsdk.ErrDefault400); ok {
-		var apiError interface{}
-		if jsonErr := json.Unmarshal(errCode.Body, &apiError); jsonErr != nil {
-			return false, fmt.Errorf("unmarshal the response body failed: %s", jsonErr)
-		}
-
-		errorCode, errorCodeErr := jmespath.Search("error_code", apiError)
-		if errorCodeErr != nil {
-			return false, fmt.Errorf("error parse errorCode from response body: %s", errorCodeErr)
-		}
-
 		// CBC.99003651: Another operation is being performed.
-		if errorCode == "CBC.99003651" {
+		if operateErrorCode[errorCode.(string)] || errorCode == "CBC.99003651" {
 			return true, err
 		}
 	}
@@ -1438,4 +1607,45 @@ func getAvailableZoneCodeByID(client *golangsdk.ServiceClient, azIds []interface
 	}
 
 	return azCodes, nil
+}
+
+func waitForSslCompleted(ctx context.Context, c *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	enable := d.Get("ssl_enable").(bool)
+	stateConf := &resource.StateChangeConf{
+		Pending:      []string{strconv.FormatBool(!enable)},
+		Target:       []string{strconv.FormatBool(enable)},
+		Refresh:      updateSslStatusRefreshFunc(c, d.Id()),
+		Timeout:      d.Timeout(schema.TimeoutUpdate),
+		Delay:        2 * time.Second,
+		PollInterval: 2 * time.Second,
+	}
+	_, err := stateConf.WaitForStateContext(ctx)
+	return err
+}
+
+func updateSslStatusRefreshFunc(c *golangsdk.ServiceClient, id string) resource.StateRefreshFunc {
+	return func() (interface{}, string, error) {
+		r, err := instances.GetSsl(c, id)
+		if err != nil {
+			return nil, "Error", err
+		}
+		return r, strconv.FormatBool(r.Enable), nil
+	}
+}
+
+func setBandWidthInfo(bandWidthInfo *instances.BandWidthInfo) []map[string]interface{} {
+	return []map[string]interface{}{
+		{
+			"bandwidth":            bandWidthInfo.BandWidth,
+			"begin_time":           utils.FormatTimeStampRFC3339(int64(bandWidthInfo.BeginTime)/1000, false),
+			"current_time":         utils.FormatTimeStampRFC3339(int64(bandWidthInfo.CurrentTime)/1000, false),
+			"end_time":             utils.FormatTimeStampRFC3339(int64(bandWidthInfo.EndTime)/1000, false),
+			"expand_count":         bandWidthInfo.ExpandCount,
+			"expand_effect_time":   bandWidthInfo.ExpandEffectTime,
+			"expand_interval_time": bandWidthInfo.ExpandIntervalTime,
+			"max_expand_count":     bandWidthInfo.MaxExpandCount,
+			"next_expand_time":     utils.FormatTimeStampRFC3339(int64(bandWidthInfo.NextExpandTime)/1000, false),
+			"task_running":         bandWidthInfo.TaskRunning,
+		},
+	}
 }

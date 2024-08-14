@@ -22,6 +22,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API Kafka GET /v1/{project_id}/instances/{instance_id}/topics/{topic_name}/accesspolicy
+// @API Kafka POST /v1/{project_id}/instances/{instance_id}/topics/accesspolicy
+// @API Kafka GET /v2/{project_id}/instances/{instance_id}
 func ResourceDmsKafkaPermissions() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDmsKafkaPermissionsCreateOrUpdate,

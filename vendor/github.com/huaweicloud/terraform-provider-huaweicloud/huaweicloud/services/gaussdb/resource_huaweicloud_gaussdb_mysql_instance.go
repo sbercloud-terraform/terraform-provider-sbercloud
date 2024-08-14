@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -16,6 +17,7 @@ import (
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/bss/v2/orders"
 	"github.com/chnsz/golangsdk/openstack/common/tags"
+	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 	"github.com/chnsz/golangsdk/openstack/taurusdb/v3/auditlog"
 	"github.com/chnsz/golangsdk/openstack/taurusdb/v3/backups"
 	"github.com/chnsz/golangsdk/openstack/taurusdb/v3/configurations"
@@ -25,18 +27,45 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
 )
 
+// @API GaussDBforMySQL GET /v3/{project_id}/instances
+// @API GaussDBforMySQL GET /v3/{project_id}/configurations
+// @API GaussDBforNoSQL GET /v3/{project_id}/dedicated-resources
+// @API GaussDBforNoSQL POST /v3/{project_id}/instances
+// @API GaussDBforMySQL POST /v3/{project_id}/instance/{instance_id}/audit-log/switch
+// @API GaussDBforMySQL POST /v3/{project_id}/instances/{instance_id}/sql-filter/switch
+// @API GaussDBforMySQL PUT /v3/{project_id}/instances/{instance_id}/backups/policy/update
+// @API GaussDBforMySQL POST /v3/{project_id}/instances/{instance_id}/proxy
+// @API GaussDBforMySQL GET /v3/{project_id}/jobs
+// @API GaussDBforNoSQL POST /v3/{project_id}/instances/{instance_id}/tags/action
+// @API GaussDBforMySQL PUT /v3/{project_id}/instances/{instance_id}/name
+// @API GaussDBforMySQL POST /v3/{project_id}/instances/{instance_id}/password
+// @API GaussDBforMySQL POST /v3/{project_id}/instances/{instance_id}/action
+// @API GaussDBforMySQL POST /v3/{project_id}/instances/{instance_id}/nodes/enlarge
+// @API GaussDBforMySQL DELETE /v3/{project_id}/instances/{instance_id}/nodes/{nodeID}
+// @API GaussDBforMySQL POST /v3/{project_id}/instances/{instance_id}/volume/extend
+// @API GaussDBforMySQL PUT /v3/{project_id}/instances/{instance_id}/backups/policy/update
+// @API GaussDBforMySQL DELETE /v3/{project_id}/instances/{instance_id}/proxy
+// @API GaussDBforMySQL POST /v3/{project_id}/instances/{instance_id}/proxy/enlarge
+// @API GaussDBforMySQL GET /v3/{project_id}/instances/{instance_id}
+// @API GaussDBforMySQL GET /v3/{project_id}/instances/{instance_id}/proxy
+// @API GaussDBforMySQL GET /v3/{project_id}/instance/{instance_id}/audit-log/switch-status
+// @API GaussDBforMySQL GET /v3/{project_id}/instances/{instance_id}/sql-filter/switch
+// @API GaussDBforMySQL GET /v3/{project_id}/instances/{instance_id}/tags
+// @API GaussDBforMySQL DELETE /v3/{project_id}/instances/{instance_id}
+// @API BSS GET /v2/orders/customer-orders/details/{order_id}
+// @API BSS POST /v2/orders/subscriptions/resources/autorenew/{instance_id}
+// @API BSS DELETE /v2/orders/subscriptions/resources/autorenew/{instance_id}
+// @API BSS POST /v2/orders/subscriptions/resources/unsubscribe
 func ResourceGaussDBInstance() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceGaussDBInstanceCreate,
-		Update: resourceGaussDBInstanceUpdate,
-		Read:   resourceGaussDBInstanceRead,
-		Delete: resourceGaussDBInstanceDelete,
+		CreateContext: resourceGaussDBInstanceCreate,
+		UpdateContext: resourceGaussDBInstanceUpdate,
+		ReadContext:   resourceGaussDBInstanceRead,
+		DeleteContext: resourceGaussDBInstanceDelete,
 		Importer: &schema.ResourceImporter{
-			State: schema.ImportStatePassthrough,
+			StateContext: schema.ImportStatePassthroughContext,
 		},
 
 		CustomizeDiff: func(_ context.Context, d *schema.ResourceDiff, v interface{}) error {
@@ -106,7 +135,6 @@ func ResourceGaussDBInstance() *schema.Resource {
 			"enterprise_project_id": {
 				Type:     schema.TypeString,
 				Optional: true,
-				ForceNew: true,
 			},
 			"dedicated_resource_id": {
 				Type:     schema.TypeString,
@@ -357,45 +385,45 @@ func GaussDBInstanceStateRefreshFunc(client *golangsdk.ServiceClient, instanceID
 	}
 }
 
-func resourceGaussDBInstanceCreate(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*config.Config)
-	client, err := config.GaussdbV3Client(config.GetRegion(d))
+func resourceGaussDBInstanceCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cfg := meta.(*config.Config)
+	client, err := cfg.GaussdbV3Client(cfg.GetRegion(d))
 	if err != nil {
-		return fmtp.Errorf("error creating HuaweiCloud GaussDB client: %s ", err)
+		return diag.Errorf("error creating GaussDB client: %s ", err)
 	}
 
 	// If force_import set, try to import it instead of creating
 	if common.HasFilledOpt(d, "force_import") {
-		logp.Printf("[DEBUG] Gaussdb mysql instance force_import is set, try to import it instead of creating")
+		log.Printf("[DEBUG] the Gaussdb mysql instance force_import is set, try to import it instead of creating")
 		listOpts := instances.ListTaurusDBInstanceOpts{
 			Name: d.Get("name").(string),
 		}
 		pages, err := instances.List(client, listOpts).AllPages()
 		if err != nil {
-			return err
+			return diag.FromErr(err)
 		}
 
 		allInstances, err := instances.ExtractTaurusDBInstances(pages)
 		if err != nil {
-			return fmtp.Errorf("Unable to retrieve instances: %s ", err)
+			return diag.Errorf("unable to retrieve instances: %s ", err)
 		}
 		if allInstances.TotalCount > 0 {
 			instance := allInstances.Instances[0]
-			logp.Printf("[DEBUG] Found existing mysql instance %s with name %s", instance.Id, instance.Name)
+			log.Printf("[DEBUG] found existing mysql instance %s with name %s", instance.Id, instance.Name)
 			d.SetId(instance.Id)
-			return resourceGaussDBInstanceRead(d, meta)
+			return resourceGaussDBInstanceRead(ctx, d, meta)
 		}
 	}
 
 	createOpts := instances.CreateTaurusDBOpts{
 		Name:                d.Get("name").(string),
 		Flavor:              d.Get("flavor").(string),
-		Region:              config.GetRegion(d),
+		Region:              cfg.GetRegion(d),
 		VpcId:               d.Get("vpc_id").(string),
 		SubnetId:            d.Get("subnet_id").(string),
 		SecurityGroupId:     d.Get("security_group_id").(string),
 		ConfigurationId:     d.Get("configuration_id").(string),
-		EnterpriseProjectId: config.GetEnterpriseProjectID(d),
+		EnterpriseProjectId: cfg.GetEnterpriseProjectID(d),
 		DedicatedResourceId: d.Get("dedicated_resource_id").(string),
 		TimeZone:            d.Get("time_zone").(string),
 		SlaveCount:          d.Get("read_replicas").(int),
@@ -413,7 +441,7 @@ func resourceGaussDBInstanceCreate(d *schema.ResourceData, meta interface{}) err
 	if azMode == "multi" {
 		v, exist := d.GetOk("master_availability_zone")
 		if !exist {
-			return fmtp.Errorf("missing master_availability_zone in a multi availability zone mode")
+			return diag.Errorf("missing master_availability_zone in a multi availability zone mode")
 		}
 		createOpts.MasterAZ = v.(string)
 	}
@@ -429,7 +457,7 @@ func resourceGaussDBInstanceCreate(d *schema.ResourceData, meta interface{}) err
 	if d.Get("configuration_id") == "" && d.Get("configuration_name") != "" {
 		configsList, err := configurations.List(client).Extract()
 		if err != nil {
-			return fmtp.Errorf("Unable to retrieve configurations: %s", err)
+			return diag.Errorf("unable to retrieve configurations: %s", err)
 		}
 		confName := d.Get("configuration_name").(string)
 		for _, conf := range configsList {
@@ -439,7 +467,7 @@ func resourceGaussDBInstanceCreate(d *schema.ResourceData, meta interface{}) err
 			}
 		}
 		if createOpts.ConfigurationId == "" {
-			return fmtp.Errorf("Unable to find configuration named %s", confName)
+			return diag.Errorf("unable to find configuration named %s", confName)
 		}
 	}
 
@@ -447,11 +475,11 @@ func resourceGaussDBInstanceCreate(d *schema.ResourceData, meta interface{}) err
 	if d.Get("dedicated_resource_id") == "" && d.Get("dedicated_resource_name") != "" {
 		pages, err := instances.ListDeh(client).AllPages()
 		if err != nil {
-			return fmtp.Errorf("Unable to retrieve dedicated resources: %s", err)
+			return diag.Errorf("unable to retrieve dedicated resources: %s", err)
 		}
 		allResources, err := instances.ExtractDehResources(pages)
 		if err != nil {
-			return fmtp.Errorf("Unable to extract dedicated resources: %s", err)
+			return diag.Errorf("unable to extract dedicated resources: %s", err)
 		}
 
 		derName := d.Get("dedicated_resource_name").(string)
@@ -462,14 +490,14 @@ func resourceGaussDBInstanceCreate(d *schema.ResourceData, meta interface{}) err
 			}
 		}
 		if createOpts.DedicatedResourceId == "" {
-			return fmtp.Errorf("Unable to find dedicated resource named %s", derName)
+			return diag.Errorf("unable to find dedicated resource named %s", derName)
 		}
 	}
 
 	// PrePaid
 	if d.Get("charging_mode") == "prePaid" {
 		if err := common.ValidatePrePaidChargeInfo(d); err != nil {
-			return err
+			return diag.FromErr(err)
 		}
 
 		chargeInfo := &instances.ChargeInfoOpt{
@@ -482,13 +510,13 @@ func resourceGaussDBInstanceCreate(d *schema.ResourceData, meta interface{}) err
 		createOpts.ChargeInfo = chargeInfo
 	}
 
-	logp.Printf("[DEBUG] Create Options: %#v", createOpts)
+	log.Printf("[DEBUG] create options: %#v", createOpts)
 	// Add password here so it wouldn't go in the above log entry
 	createOpts.Password = d.Get("password").(string)
 
 	instance, err := instances.Create(client, createOpts).Extract()
 	if err != nil {
-		return fmtp.Errorf("error creating GaussDB instance : %s", err)
+		return diag.Errorf("error creating GaussDB instance : %s", err)
 	}
 
 	id := instance.Instance.Id
@@ -504,15 +532,15 @@ func resourceGaussDBInstanceCreate(d *schema.ResourceData, meta interface{}) err
 		PollInterval: 20 * time.Second,
 	}
 
-	_, err = stateConf.WaitForState()
+	_, err = stateConf.WaitForStateContext(ctx)
 	if err != nil {
-		return fmtp.Errorf(
+		return diag.Errorf(
 			"error waiting for instance (%s) to become ready: %s",
 			id, err)
 	}
 
 	// This is a workaround to avoid db connection issue
-	time.Sleep(360 * time.Second) //lintignore:R018
+	time.Sleep(360 * time.Second) // lintignore:R018
 
 	// waiting for the instance to become ready again
 	// as instance will become BACKING UP state after ACTIVE
@@ -525,60 +553,38 @@ func resourceGaussDBInstanceCreate(d *schema.ResourceData, meta interface{}) err
 		PollInterval: 5 * time.Second,
 	}
 
-	_, err = stateConf.WaitForState()
+	_, err = stateConf.WaitForStateContext(ctx)
 	if err != nil {
-		return fmtp.Errorf(
+		return diag.Errorf(
 			"error waiting for instance (%s) to become ready: %s",
 			id, err)
 	}
 
-	//audit-log switch
-	if v, ok := d.GetOk("audit_log_enabled"); ok {
-		err = switchAuditLog(client, id, v.(bool))
+	// audit-log switch
+	if _, ok := d.GetOk("audit_log_enabled"); ok {
+		err = switchAuditLog(ctx, client, d, schema.TimeoutCreate)
 		if err != nil {
-			return err
+			return diag.FromErr(err)
 		}
 	}
 
 	// sql-filter switch
-	if v, ok := d.GetOk("sql_filter_enabled"); ok {
-		err = switchSQLFilter(client, id, v.(bool), d.Timeout(schema.TimeoutCreate))
+	if _, ok := d.GetOk("sql_filter_enabled"); ok {
+		err = switchSQLFilter(ctx, client, d, schema.TimeoutCreate)
 		if err != nil {
-			return err
+			return diag.FromErr(err)
 		}
 	}
 
-	if common.HasFilledOpt(d, "backup_strategy") {
-		var updateOpts backups.UpdateOpts
-		backupRaw := d.Get("backup_strategy").([]interface{})
-		rawMap := backupRaw[0].(map[string]interface{})
-		keep_days := rawMap["keep_days"].(int)
-		updateOpts.KeepDays = &keep_days
-		updateOpts.StartTime = rawMap["start_time"].(string)
-		// Fixed to "1,2,3,4,5,6,7"
-		updateOpts.Period = "1,2,3,4,5,6,7"
-		logp.Printf("[DEBUG] Update backup_strategy: %#v", updateOpts)
-
-		err = backups.Update(client, id, updateOpts).ExtractErr()
-		if err != nil {
-			return fmtp.Errorf("error updating backup_strategy: %s", err)
+	if _, ok := d.GetOk("backup_strategy"); ok {
+		if err = updateInstanceBackupStrategy(client, d); err != nil {
+			return diag.FromErr(err)
 		}
 	}
 
-	if common.HasFilledOpt(d, "proxy_flavor") {
-		proxyOpts := instances.ProxyOpts{
-			Flavor:  d.Get("proxy_flavor").(string),
-			NodeNum: d.Get("proxy_node_num").(int),
-		}
-		logp.Printf("[DEBUG] Enable proxy: %#v", proxyOpts)
-
-		n, err := instances.EnableProxy(client, id, proxyOpts).ExtractJobResponse()
-		if err != nil {
-			return fmtp.Errorf("error enabling proxy: %s", err)
-		}
-
-		if err := instances.WaitForJobSuccess(client, int(d.Timeout(schema.TimeoutCreate)/time.Second), n.JobID); err != nil {
-			return err
+	if _, ok := d.GetOk("proxy_flavor"); ok {
+		if err = enableInstanceProxy(ctx, client, d, schema.TimeoutCreate); err != nil {
+			return diag.FromErr(err)
 		}
 	}
 
@@ -587,78 +593,57 @@ func resourceGaussDBInstanceCreate(d *schema.ResourceData, meta interface{}) err
 	if len(tagRaw) > 0 {
 		taglist := utils.ExpandResourceTags(tagRaw)
 		if tagErr := tags.Create(client, "instances", d.Id(), taglist).ExtractErr(); tagErr != nil {
-			return fmtp.Errorf("error setting tags of Gaussdb mysql instance %s: %s", d.Id(), tagErr)
+			return diag.Errorf("error setting tags of Gaussdb mysql instance %s: %s", d.Id(), tagErr)
 		}
 	}
 
-	return resourceGaussDBInstanceRead(d, meta)
+	return resourceGaussDBInstanceRead(ctx, d, meta)
 }
 
-func resourceGaussDBInstanceRead(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*config.Config)
-	region := config.GetRegion(d)
-	client, err := config.GaussdbV3Client(region)
+func resourceGaussDBInstanceRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+	client, err := cfg.GaussdbV3Client(region)
 	if err != nil {
-		return fmtp.Errorf("error creating HuaweiCloud GaussDB client: %s", err)
+		return diag.Errorf("error creating GaussDB client: %s", err)
 	}
+	var mErr *multierror.Error
 
 	instanceID := d.Id()
 	instance, err := instances.Get(client, instanceID).Extract()
 	if err != nil {
-		return common.CheckDeleted(d, err, "GaussDB instance")
+		return common.CheckDeletedDiag(d, err, "GaussDB instance")
 	}
 	if instance.Id == "" {
 		d.SetId("")
 		return nil
 	}
 
-	logp.Printf("[DEBUG] Retrieved instance %s: %#v", instanceID, instance)
+	log.Printf("[DEBUG] retrieved instance %s: %#v", instanceID, instance)
 
-	d.Set("region", region)
-	d.Set("name", instance.Name)
-	d.Set("status", instance.Status)
-	d.Set("mode", instance.Type)
-	d.Set("vpc_id", instance.VpcId)
-	d.Set("subnet_id", instance.SubnetId)
-	d.Set("security_group_id", instance.SecurityGroupId)
-	d.Set("configuration_id", instance.ConfigurationId)
-	d.Set("dedicated_resource_id", instance.DedicatedResourceId)
-	d.Set("db_user_name", instance.DbUserName)
-	d.Set("time_zone", instance.TimeZone)
-	d.Set("availability_zone_mode", instance.AZMode)
-	d.Set("master_availability_zone", instance.MasterAZ)
+	mErr = multierror.Append(
+		mErr,
+		d.Set("region", region),
+		d.Set("name", instance.Name),
+		d.Set("status", instance.Status),
+		d.Set("mode", instance.Type),
+		d.Set("vpc_id", instance.VpcId),
+		d.Set("subnet_id", instance.SubnetId),
+		d.Set("security_group_id", instance.SecurityGroupId),
+		d.Set("configuration_id", instance.ConfigurationId),
+		d.Set("dedicated_resource_id", instance.DedicatedResourceId),
+		d.Set("db_user_name", instance.DbUserName),
+		d.Set("time_zone", instance.TimeZone),
+		d.Set("availability_zone_mode", instance.AZMode),
+		d.Set("master_availability_zone", instance.MasterAZ),
+	)
 
 	if instance.ConfigurationId != "" {
-		configsList, err := configurations.List(client).Extract()
-		if err != nil {
-			logp.Printf("Unable to retrieve configurations: %s", err)
-		} else {
-			for _, conf := range configsList {
-				if conf.ID == instance.ConfigurationId {
-					d.Set("configuration_name", conf.Name)
-					break
-				}
-			}
-		}
+		setConfigurationId(d, client, instance.ConfigurationId)
 	}
 
 	if instance.DedicatedResourceId != "" {
-		pages, err := instances.ListDeh(client).AllPages()
-		if err != nil {
-			logp.Printf("Unable to retrieve dedicated resources: %s", err)
-		} else {
-			allResources, err := instances.ExtractDehResources(pages)
-			if err != nil {
-				logp.Printf("Unable to extract dedicated resources: %s", err)
-			} else {
-				for _, der := range allResources.Resources {
-					if der.Id == instance.DedicatedResourceId {
-						d.Set("dedicated_resource_name", der.ResourceName)
-						break
-					}
-				}
-			}
-		}
+		setDedicatedResourceId(d, client, instance.DedicatedResourceId)
 	}
 
 	if dbPort, err := strconv.Atoi(instance.Port); err == nil {
@@ -669,25 +654,75 @@ func resourceGaussDBInstanceRead(d *schema.ResourceData, meta interface{}) error
 	}
 
 	// set data store
-	dbList := make([]map[string]interface{}, 1)
-	db := map[string]interface{}{
-		"version": instance.DataStore.Version,
+	setDatastore(d, instance.DataStore)
+	// set nodes, read_replicas, volume_size, flavor
+	setNodes(d, instance.Nodes)
+	// set backup_strategy
+	setBackupStrategy(d, instance.BackupStrategy)
+	// set proxy
+	setProxy(d, client, instanceID)
+	// set audit log status
+	setAuditLog(d, client, instanceID)
+	// set sql filter status
+	res, err := sqlfilter.Get(client, instanceID).Extract()
+	if err != nil {
+		log.Printf("[DEBUG] query instance %s sql filter status failed: %s", instanceID, err)
+	} else {
+		d.Set("sql_filter_enabled", res.SwitchStatus == "ON")
 	}
-	// normalize engine
-	engine := instance.DataStore.Type
-	if engine == "GaussDB(for MySQL)" {
-		engine = "gaussdb-mysql"
-	}
-	db["engine"] = engine
-	dbList[0] = db
-	d.Set("datastore", dbList)
 
-	// set nodes
+	// save tags
+	if resourceTags, err := tags.Get(client, "instances", d.Id()).Extract(); err == nil {
+		tagmap := utils.TagsToMap(resourceTags.Tags)
+		if err := d.Set("tags", tagmap); err != nil {
+			return diag.Errorf("error saving tags to state for Gaussdb mysql instance (%s): %s", d.Id(), err)
+		}
+	} else {
+		log.Printf("[WARN] error fetching tags of Gaussdb mysql instance (%s): %s", d.Id(), err)
+	}
+
+	return diag.FromErr(mErr.ErrorOrNil())
+}
+
+func setConfigurationId(d *schema.ResourceData, client *golangsdk.ServiceClient, configurationId string) {
+	configsList, err := configurations.List(client).Extract()
+	if err != nil {
+		log.Printf("unable to retrieve configurations: %s", err)
+		return
+	}
+	for _, conf := range configsList {
+		if conf.ID == configurationId {
+			d.Set("configuration_name", conf.Name)
+			break
+		}
+	}
+}
+
+func setDedicatedResourceId(d *schema.ResourceData, client *golangsdk.ServiceClient, dedicatedResourceId string) {
+	pages, err := instances.ListDeh(client).AllPages()
+	if err != nil {
+		log.Printf("unable to retrieve dedicated resources: %s", err)
+		return
+	}
+	allResources, err := instances.ExtractDehResources(pages)
+	if err != nil {
+		log.Printf("unable to extract dedicated resources: %s", err)
+		return
+	}
+	for _, der := range allResources.Resources {
+		if der.Id == dedicatedResourceId {
+			d.Set("dedicated_resource_name", der.ResourceName)
+			break
+		}
+	}
+}
+
+func setNodes(d *schema.ResourceData, nodes []instances.Nodes) {
 	flavor := ""
-	slave_count := 0
-	volume_size := 0
+	slaveCount := 0
+	volumeSize := 0
 	nodesList := make([]map[string]interface{}, 0, 1)
-	for _, raw := range instance.Nodes {
+	for _, raw := range nodes {
 		node := map[string]interface{}{
 			"id":                raw.Id,
 			"name":              raw.Name,
@@ -699,412 +734,202 @@ func resourceGaussDBInstanceRead(d *schema.ResourceData, meta interface{}) error
 			node["private_read_ip"] = raw.PrivateIps[0]
 		}
 		if raw.Volume.Size > 0 {
-			volume_size = raw.Volume.Size
+			volumeSize = raw.Volume.Size
 		}
 		nodesList = append(nodesList, node)
 		if raw.Type == "slave" && (raw.Status == "ACTIVE" || raw.Status == "BACKING UP") {
-			slave_count += 1
+			slaveCount++
 		}
 		if flavor == "" {
 			flavor = raw.Flavor
 		}
 	}
 	d.Set("nodes", nodesList)
-	d.Set("read_replicas", slave_count)
-	d.Set("volume_size", volume_size)
+	d.Set("read_replicas", slaveCount)
+	d.Set("volume_size", volumeSize)
 	if flavor != "" {
-		logp.Printf("[DEBUG] Node Flavor: %s", flavor)
+		log.Printf("[DEBUG] node flavor: %s", flavor)
 		d.Set("flavor", flavor)
 	}
+}
 
-	// set backup_strategy
+func setDatastore(d *schema.ResourceData, datastore instances.DataStore) {
+	dbList := make([]map[string]interface{}, 1)
+	db := map[string]interface{}{
+		"version": datastore.Version,
+	}
+	// normalize engine
+	engine := datastore.Type
+	if engine == "GaussDB(for MySQL)" {
+		engine = "gaussdb-mysql"
+	}
+	db["engine"] = engine
+	dbList[0] = db
+	d.Set("datastore", dbList)
+}
+
+func setBackupStrategy(d *schema.ResourceData, strategy instances.BackupStrategy) {
 	backupStrategyList := make([]map[string]interface{}, 1)
 	backupStrategy := map[string]interface{}{
-		"start_time": instance.BackupStrategy.StartTime,
+		"start_time": strategy.StartTime,
 	}
-	if days, err := strconv.Atoi(instance.BackupStrategy.KeepDays); err == nil {
+	if days, err := strconv.Atoi(strategy.KeepDays); err == nil {
 		backupStrategy["keep_days"] = days
 	}
 	backupStrategyList[0] = backupStrategy
 	d.Set("backup_strategy", backupStrategyList)
-
-	// set proxy
-	proxy, err := instances.GetProxy(client, instanceID).Extract()
-	if err != nil {
-		logp.Printf("[DEBUG] Instance %s Proxy not enabled: %s", instanceID, err)
-	} else {
-		d.Set("proxy_flavor", proxy.Flavor)
-		d.Set("proxy_node_num", proxy.NodeNum)
-		d.Set("proxy_address", proxy.Address)
-		d.Set("proxy_port", proxy.Port)
-	}
-
-	// set audit log status
-	resp, err := auditlog.Get(client, instanceID)
-	if err != nil {
-		logp.Printf("[DEBUG] query Instance %s audit log status failed: %s", instanceID, err)
-	} else {
-		var status bool
-		if resp.SwitchStatus == "ON" {
-			status = true
-		}
-		d.Set("audit_log_enabled", status)
-	}
-
-	// set sql filter status
-	res, err := sqlfilter.Get(client, instanceID).Extract()
-	if err != nil {
-		log.Printf("[DEBUG] query Instance %s sql filter status failed: %s", instanceID, err)
-	} else {
-		d.Set("sql_filter_enabled", res.SwitchStatus == "ON")
-	}
-
-	// save tags
-	if resourceTags, err := tags.Get(client, "instances", d.Id()).Extract(); err == nil {
-		tagmap := utils.TagsToMap(resourceTags.Tags)
-		if err := d.Set("tags", tagmap); err != nil {
-			return fmtp.Errorf("error saving tags to state for Gaussdb mysql instance (%s): %s", d.Id(), err)
-		}
-	} else {
-		logp.Printf("[WARN] error fetching tags of Gaussdb mysql instance (%s): %s", d.Id(), err)
-	}
-
-	return nil
 }
 
-func resourceGaussDBInstanceUpdate(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*config.Config)
-	client, err := config.GaussdbV3Client(config.GetRegion(d))
+func setProxy(d *schema.ResourceData, client *golangsdk.ServiceClient, instanceId string) {
+	proxy, err := instances.GetProxy(client, instanceId).Extract()
 	if err != nil {
-		return fmtp.Errorf("error creating HuaweiCloud GaussDB client: %s ", err)
+		log.Printf("[DEBUG] instance %s proxy not enabled: %s", instanceId, err)
+		return
 	}
-	bssClient, err := config.BssV2Client(config.GetRegion(d))
+	d.Set("proxy_flavor", proxy.Flavor)
+	d.Set("proxy_node_num", proxy.NodeNum)
+	d.Set("proxy_address", proxy.Address)
+	d.Set("proxy_port", proxy.Port)
+}
+
+func setAuditLog(d *schema.ResourceData, client *golangsdk.ServiceClient, instanceId string) {
+	resp, err := auditlog.Get(client, instanceId)
 	if err != nil {
-		return fmtp.Errorf("error creating HuaweiCloud bss V2 client: %s", err)
+		log.Printf("[DEBUG] query instance %s audit log status failed: %s", instanceId, err)
+		return
+	}
+	var status bool
+	if resp.SwitchStatus == "ON" {
+		status = true
+	}
+	d.Set("audit_log_enabled", status)
+}
+
+func resourceGaussDBInstanceUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+	client, err := cfg.GaussdbV3Client(region)
+	if err != nil {
+		return diag.Errorf("error creating GaussDB client: %s ", err)
+	}
+	bssClient, err := cfg.BssV2Client(region)
+	if err != nil {
+		return diag.Errorf("error creating bss V2 client: %s", err)
 	}
 
 	instanceId := d.Id()
 
 	if d.HasChange("name") {
-		newName := d.Get("name").(string)
-		updateNameOpts := instances.UpdateNameOpts{
-			Name: newName,
+		if err = updateInstanceName(ctx, client, d); err != nil {
+			return diag.FromErr(err)
 		}
-		logp.Printf("[DEBUG] Update Name Options: %+v", updateNameOpts)
-
-		n, err := instances.UpdateName(client, instanceId, updateNameOpts).ExtractJobResponse()
-		if err != nil {
-			return fmtp.Errorf("error updating name for instance %s: %s ", instanceId, err)
-		}
-
-		if err := instances.WaitForJobSuccess(client, int(d.Timeout(schema.TimeoutUpdate)/time.Second), n.JobID); err != nil {
-			return err
-		}
-		logp.Printf("[DEBUG] Updated Name to %s for instance %s", newName, instanceId)
 	}
 
 	if d.HasChange("password") {
-		newPass := d.Get("password").(string)
-		updatePassOpts := instances.UpdatePassOpts{
-			Password: newPass,
+		if err = updateInstancePassword(ctx, client, d); err != nil {
+			return diag.FromErr(err)
 		}
-
-		_, err := instances.UpdatePass(client, instanceId, updatePassOpts).ExtractJobResponse()
-		if err != nil {
-			return fmtp.Errorf("error updating password for instance %s: %s ", instanceId, err)
-		}
-		logp.Printf("[DEBUG] Updated Password for instance %s", instanceId)
 	}
 
 	if d.HasChange("flavor") {
-		newFlavor := d.Get("flavor").(string)
-		resizeOpts := instances.ResizeOpts{
-			Resize: instances.ResizeOpt{
-				Spec: newFlavor,
-			},
+		if err = updateInstanceFlavor(ctx, client, bssClient, d); err != nil {
+			return diag.FromErr(err)
 		}
-		if d.Get("charging_mode") == "prePaid" {
-			resizeOpts.IsAutoPay = common.GetAutoPay(d)
-		}
-		logp.Printf("[DEBUG] Update Flavor Options: %+v", resizeOpts)
-
-		n, err := instances.Resize(client, instanceId, resizeOpts).ExtractJobResponse()
-		if err != nil {
-			return fmtp.Errorf("error updating flavor for instance %s: %s ", instanceId, err)
-		}
-
-		// wait for job success
-		if n.JobID != "" {
-			if err := instances.WaitForJobSuccess(client, int(d.Timeout(schema.TimeoutUpdate)/time.Second), n.JobID); err != nil {
-				return err
-			}
-		}
-		// wait for order success
-		if n.OrderID != "" {
-			if err := orders.WaitForOrderSuccess(bssClient, int(d.Timeout(schema.TimeoutUpdate)/time.Second), n.OrderID); err != nil {
-				return err
-			}
-			// check whether the order take effect
-			instance, err := instances.Get(client, instanceId).Extract()
-			if err != nil {
-				return err
-			}
-			currFlavor := ""
-			for _, raw := range instance.Nodes {
-				if currFlavor == "" {
-					currFlavor = raw.Flavor
-					break
-				}
-			}
-			if currFlavor != newFlavor {
-				return fmtp.Errorf("error updating flavor for instance %s: order failed", instanceId)
-			}
-		}
-		logp.Printf("[DEBUG] Updated Flavor for instance %s", instanceId)
 	}
 
 	if d.HasChange("read_replicas") {
-		old, newnum := d.GetChange("read_replicas")
-		if newnum.(int) > old.(int) {
-			expand_size := newnum.(int) - old.(int)
-			priorities := []int{}
-			for i := 0; i < expand_size; i++ {
-				priorities = append(priorities, 1)
-			}
-			createReplicaOpts := instances.CreateReplicaOpts{
-				Priorities: priorities,
-			}
-			if d.Get("charging_mode") == "prePaid" {
-				createReplicaOpts.IsAutoPay = common.GetAutoPay(d)
-			}
-			logp.Printf("[DEBUG] Create Replica Options: %+v", createReplicaOpts)
-
-			n, err := instances.CreateReplica(client, instanceId, createReplicaOpts).ExtractJobResponse()
-			if err != nil {
-				return fmtp.Errorf("error creating read replicas for instance %s: %s ", instanceId, err)
-			}
-
-			// wait for job success
-			if n.JobID != "" {
-				job_list := strings.Split(n.JobID, ",")
-				logp.Printf("[DEBUG] Create Replica Jobs: %#v", job_list)
-				for i := 0; i < len(job_list); i++ {
-					job_id := job_list[i]
-					logp.Printf("[DEBUG] Waiting for job: %s", job_id)
-					if err := instances.WaitForJobSuccess(client, int(d.Timeout(schema.TimeoutUpdate)/time.Second), job_id); err != nil {
-						return err
-					}
-				}
-			}
-			// wait for order success
-			if n.OrderID != "" {
-				if err := orders.WaitForOrderSuccess(bssClient, int(d.Timeout(schema.TimeoutUpdate)/time.Second), n.OrderID); err != nil {
-					return err
-				}
-				// check whether the order take effect
-				instance, err := instances.Get(client, instanceId).Extract()
-				if err != nil {
-					return err
-				}
-				slave_count := 0
-				for _, raw := range instance.Nodes {
-					if raw.Type == "slave" && (raw.Status == "ACTIVE" || raw.Status == "BACKING UP") {
-						slave_count += 1
-					}
-				}
-				if newnum.(int) != slave_count {
-					return fmtp.Errorf("error updating read_replicas for instance %s: order failed", instanceId)
-				}
-			}
-		}
-		if newnum.(int) < old.(int) {
-			shrink_size := old.(int) - newnum.(int)
-
-			slave_nodes := []string{}
-			nodes := d.Get("nodes").([]interface{})
-			for _, nodeRaw := range nodes {
-				node := nodeRaw.(map[string]interface{})
-				if node["type"].(string) == "slave" && node["status"] == "ACTIVE" {
-					slave_nodes = append(slave_nodes, node["id"].(string))
-				}
-			}
-			logp.Printf("[DEBUG] Slave Nodes: %+v", slave_nodes)
-			if len(slave_nodes) <= shrink_size {
-				return fmtp.Errorf("error deleting read replicas for instance %s: Shrink Size is bigger than active slave nodes", instanceId)
-			}
-			for i := 0; i < shrink_size; i++ {
-				n, err := instances.DeleteReplica(client, instanceId, slave_nodes[i]).ExtractJobResponse()
-				if err != nil {
-					return fmtp.Errorf("error creating read replica %s for instance %s: %s ", slave_nodes[i], instanceId, err)
-				}
-
-				if err := instances.WaitForJobSuccess(client, int(d.Timeout(schema.TimeoutUpdate)/time.Second), n.JobID); err != nil {
-					return err
-				}
-				logp.Printf("[DEBUG] Deleted Read Replica: %s", slave_nodes[i])
-			}
+		if err = updateInstanceReadReplica(ctx, client, bssClient, d); err != nil {
+			return diag.FromErr(err)
 		}
 	}
 
 	if d.HasChange("volume_size") {
-		extendOpts := instances.ExtendVolumeOpts{
-			Size:      d.Get("volume_size").(int),
-			IsAutoPay: common.GetAutoPay(d),
-		}
-		logp.Printf("[DEBUG] Extending Volume: %#v", extendOpts)
-
-		n, err := instances.ExtendVolume(client, d.Id(), extendOpts).ExtractJobResponse()
-		if err != nil {
-			return fmtp.Errorf("error extending volume: %s", err)
-		}
-
-		// wait for order success
-		if n.OrderID != "" {
-			if err := orders.WaitForOrderSuccess(bssClient, int(d.Timeout(schema.TimeoutUpdate)/time.Second), n.OrderID); err != nil {
-				return err
-			}
-			// check whether the order take effect
-			instance, err := instances.Get(client, instanceId).Extract()
-			if err != nil {
-				return err
-			}
-			volume_size := 0
-			for _, raw := range instance.Nodes {
-				if raw.Volume.Size > 0 {
-					volume_size = raw.Volume.Size
-					break
-				}
-			}
-			if volume_size != d.Get("volume_size").(int) {
-				return fmtp.Errorf("error updating volume for instance %s: order failed", instanceId)
-			}
+		if err = updateInstanceVolumeSize(ctx, client, bssClient, d); err != nil {
+			return diag.FromErr(err)
 		}
 	}
 
 	if d.HasChange("backup_strategy") {
-		var updateOpts backups.UpdateOpts
-		backupRaw := d.Get("backup_strategy").([]interface{})
-		rawMap := backupRaw[0].(map[string]interface{})
-		keep_days := rawMap["keep_days"].(int)
-		updateOpts.KeepDays = &keep_days
-		updateOpts.StartTime = rawMap["start_time"].(string)
-		// Fixed to "1,2,3,4,5,6,7"
-		updateOpts.Period = "1,2,3,4,5,6,7"
-		logp.Printf("[DEBUG] Update backup_strategy: %#v", updateOpts)
-
-		err = backups.Update(client, d.Id(), updateOpts).ExtractErr()
-		if err != nil {
-			return fmtp.Errorf("error updating backup_strategy: %s", err)
+		if err = updateInstanceBackupStrategy(client, d); err != nil {
+			return diag.FromErr(err)
 		}
 	}
 
 	if d.HasChange("proxy_flavor") {
-		if common.HasFilledOpt(d, "proxy_flavor") {
-			proxyOpts := instances.ProxyOpts{
-				Flavor:  d.Get("proxy_flavor").(string),
-				NodeNum: d.Get("proxy_node_num").(int),
-			}
-			logp.Printf("[DEBUG] Enable proxy: %#v", proxyOpts)
-
-			ep, err := instances.EnableProxy(client, d.Id(), proxyOpts).ExtractJobResponse()
-			if err != nil {
-				return fmtp.Errorf("error enabling proxy: %s", err)
-			}
-
-			if err = instances.WaitForJobSuccess(client, int(d.Timeout(schema.TimeoutUpdate)/time.Second), ep.JobID); err != nil {
-				return err
-			}
-		} else {
-			dp, err := instances.DeleteProxy(client, d.Id()).ExtractJobResponse()
-			if err != nil {
-				return fmtp.Errorf("error disabling proxy: %s", err)
-			}
-
-			if err = instances.WaitForJobSuccess(client, int(d.Timeout(schema.TimeoutUpdate)/time.Second), dp.JobID); err != nil {
-				return err
-			}
+		if err = updateInstanceProxyFlavor(ctx, client, d); err != nil {
+			return diag.FromErr(err)
 		}
 	}
 
 	if d.HasChange("proxy_node_num") {
-		oldnum, newnum := d.GetChange("proxy_node_num")
-		if oldnum.(int) != 0 && newnum.(int) > oldnum.(int) && common.HasFilledOpt(d, "proxy_flavor") {
-			enlarge_size := newnum.(int) - oldnum.(int)
-			enlargeProxyOpts := instances.EnlargeProxyOpts{
-				NodeNum: enlarge_size,
-			}
-			logp.Printf("[DEBUG] Enlarge proxy: %#v", enlargeProxyOpts)
-
-			lp, err := instances.EnlargeProxy(client, d.Id(), enlargeProxyOpts).ExtractJobResponse()
-			if err != nil {
-				return fmtp.Errorf("error enlarging proxy: %s", err)
-			}
-
-			if err = instances.WaitForJobSuccess(client, int(d.Timeout(schema.TimeoutUpdate)/time.Second), lp.JobID); err != nil {
-				return err
-			}
-		}
-		if newnum.(int) < oldnum.(int) && !d.HasChange("proxy_flavor") {
-			return fmtp.Errorf("error updating proxy_node_num for instance %s: new num should be greater than old num", d.Id())
+		if err = updateInstanceProxyNodeNum(ctx, client, d); err != nil {
+			return diag.FromErr(err)
 		}
 	}
 
 	if d.HasChange("audit_log_enabled") {
-		err = switchAuditLog(client, instanceId, d.Get("audit_log_enabled").(bool))
+		err = switchAuditLog(ctx, client, d, schema.TimeoutUpdate)
 		if err != nil {
-			return err
+			return diag.FromErr(err)
 		}
 	}
 
 	if d.HasChange("sql_filter_enabled") {
-		err = switchSQLFilter(client, instanceId, d.Get("sql_filter_enabled").(bool),
-			d.Timeout(schema.TimeoutUpdate))
+		err = switchSQLFilter(ctx, client, d, schema.TimeoutUpdate)
 		if err != nil {
-			return err
+			return diag.FromErr(err)
 		}
 	}
 
 	// update tags
 	if d.HasChange("tags") {
-		tagErr := utils.UpdateResourceTags(client, d, "instances", d.Id())
+		tagErr := utils.UpdateResourceTags(client, d, "instances", instanceId)
 		if tagErr != nil {
-			return fmtp.Errorf("error updating tags of Gaussdb mysql instance %q: %s", d.Id(), tagErr)
+			return diag.Errorf("error updating tags of Gaussdb mysql instance %q: %s", instanceId, tagErr)
 		}
 	}
 
 	if d.HasChange("auto_renew") {
-		bssClient, err := config.BssV2Client(config.GetRegion(d))
-		if err != nil {
-			return fmtp.Errorf("error creating BSS V2 client: %s", err)
-		}
-		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), d.Id()); err != nil {
-			return fmtp.Errorf("error updating the auto-renew of the instance (%s): %s", d.Id(), err)
+		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), instanceId); err != nil {
+			return diag.Errorf("error updating the auto-renew of the instance (%s): %s", instanceId, err)
 		}
 	}
 
-	return resourceGaussDBInstanceRead(d, meta)
+	if d.HasChange("enterprise_project_id") {
+		migrateOpts := enterpriseprojects.MigrateResourceOpts{
+			ResourceId:   instanceId,
+			ResourceType: "gaussdb",
+			RegionId:     region,
+			ProjectId:    cfg.GetProjectID(region),
+		}
+		if err := common.MigrateEnterpriseProject(ctx, cfg, d, migrateOpts); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	return resourceGaussDBInstanceRead(ctx, d, meta)
 }
 
-func resourceGaussDBInstanceDelete(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*config.Config)
-	client, err := config.GaussdbV3Client(config.GetRegion(d))
+func resourceGaussDBInstanceDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cfg := meta.(*config.Config)
+	client, err := cfg.GaussdbV3Client(cfg.GetRegion(d))
 	if err != nil {
-		return fmtp.Errorf("error creating HuaweiCloud GaussDB client: %s ", err)
+		return diag.Errorf("error creating GaussDB client: %s ", err)
 	}
 
 	instanceId := d.Id()
 	if d.Get("charging_mode") == "prePaid" {
-		if err := common.UnsubscribePrePaidResource(d, config, []string{instanceId}); err != nil {
+		if err := common.UnsubscribePrePaidResource(d, cfg, []string{instanceId}); err != nil {
 			// try to delete the instance directly if unsubscribing failed
 			res := instances.Delete(client, instanceId)
 			if res.Err != nil {
-				return common.CheckDeleted(d, res.Err, "GaussDB instance")
+				return common.CheckDeletedDiag(d, res.Err, "GaussDB instance")
 			}
 		}
 	} else {
 		result := instances.Delete(client, instanceId)
 		if result.Err != nil {
-			return common.CheckDeleted(d, result.Err, "GaussDB instance")
+			return common.CheckDeletedDiag(d, result.Err, "GaussDB instance")
 		}
 	}
 
@@ -1117,19 +942,445 @@ func resourceGaussDBInstanceDelete(d *schema.ResourceData, meta interface{}) err
 		MinTimeout: 10 * time.Second,
 	}
 
-	_, err = stateConf.WaitForState()
+	_, err = stateConf.WaitForStateContext(ctx)
 	if err != nil {
-		return fmtp.Errorf(
+		return diag.Errorf(
 			"error waiting for instance (%s) to be deleted: %s ",
 			instanceId, err)
 	}
-	logp.Printf("[DEBUG] Successfully deleted instance %s", instanceId)
+	log.Printf("[DEBUG] successfully deleted instance %s", instanceId)
 	return nil
 }
 
-func switchAuditLog(client *golangsdk.ServiceClient, instanceId string, v bool) error {
+func updateInstanceName(ctx context.Context, client *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	newName := d.Get("name").(string)
+	updateNameOpts := instances.UpdateNameOpts{
+		Name: newName,
+	}
+
+	retryFunc := func() (interface{}, bool, error) {
+		res, err := instances.UpdateName(client, d.Id(), updateNameOpts).ExtractJobResponse()
+		retry, err := handleMultiOperationsError(err)
+		return res, retry, err
+	}
+	r, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     GaussDBInstanceStateRefreshFunc(client, d.Id()),
+		WaitTarget:   []string{"ACTIVE"},
+		Timeout:      d.Timeout(schema.TimeoutUpdate),
+		DelayTimeout: 10 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("error updating name for instance %s: %s ", d.Id(), err)
+	}
+
+	job := r.(*instances.JobResponse)
+	return checkGaussDBMySQLJobFinish(ctx, client, job.JobID, d.Timeout(schema.TimeoutUpdate))
+}
+
+func updateInstancePassword(ctx context.Context, client *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	newPass := d.Get("password").(string)
+	updatePassOpts := instances.UpdatePassOpts{
+		Password: newPass,
+	}
+
+	retryFunc := func() (interface{}, bool, error) {
+		res, err := instances.UpdatePass(client, d.Id(), updatePassOpts).ExtractJobResponse()
+		retry, err := handleMultiOperationsError(err)
+		return res, retry, err
+	}
+	_, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     GaussDBInstanceStateRefreshFunc(client, d.Id()),
+		WaitTarget:   []string{"ACTIVE"},
+		Timeout:      d.Timeout(schema.TimeoutUpdate),
+		DelayTimeout: 10 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("error updating password for instance %s: %s ", d.Id(), err)
+	}
+	return nil
+}
+
+func updateInstanceFlavor(ctx context.Context, client, bssClient *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	newFlavor := d.Get("flavor").(string)
+	resizeOpts := instances.ResizeOpts{
+		Resize: instances.ResizeOpt{
+			Spec: newFlavor,
+		},
+	}
+	if d.Get("charging_mode") == "prePaid" {
+		resizeOpts.IsAutoPay = common.GetAutoPay(d)
+	}
+	retryFunc := func() (interface{}, bool, error) {
+		res, err := instances.Resize(client, d.Id(), resizeOpts).ExtractJobResponse()
+		retry, err := handleMultiOperationsError(err)
+		return res, retry, err
+	}
+	r, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     GaussDBInstanceStateRefreshFunc(client, d.Id()),
+		WaitTarget:   []string{"ACTIVE"},
+		Timeout:      d.Timeout(schema.TimeoutUpdate),
+		DelayTimeout: 10 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("error updating flavor for instance %s: %s ", d.Id(), err)
+	}
+	job := r.(*instances.JobResponse)
+
+	// wait for job success
+	if job.JobID != "" {
+		if err = checkGaussDBMySQLJobFinish(ctx, client, job.JobID, d.Timeout(schema.TimeoutUpdate)); err != nil {
+			return err
+		}
+	}
+	// wait for order success
+	if job.OrderID != "" {
+		waitTime := int(d.Timeout(schema.TimeoutUpdate) / time.Second)
+		if err = orders.WaitForOrderSuccess(bssClient, waitTime, job.OrderID); err != nil {
+			return err
+		}
+		// check whether the order take effect
+		instance, err := instances.Get(client, d.Id()).Extract()
+		if err != nil {
+			return err
+		}
+		currFlavor := ""
+		for _, raw := range instance.Nodes {
+			if currFlavor == "" {
+				currFlavor = raw.Flavor
+				break
+			}
+		}
+		if currFlavor != newFlavor {
+			return fmt.Errorf("error updating flavor for instance %s: order failed", d.Id())
+		}
+	}
+	return nil
+}
+
+func updateInstanceReadReplica(ctx context.Context, client, bssClient *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	oldNum, newNum := d.GetChange("read_replicas")
+	if newNum.(int) > oldNum.(int) {
+		if err := createInstanceReadReplica(ctx, client, bssClient, d, newNum.(int), oldNum.(int)); err != nil {
+			return err
+		}
+	}
+	if newNum.(int) < oldNum.(int) {
+		if err := deleteInstanceReadReplica(ctx, client, bssClient, d, newNum.(int), oldNum.(int)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func createInstanceReadReplica(ctx context.Context, client, bssClient *golangsdk.ServiceClient, d *schema.ResourceData,
+	newNum, oldNum int) error {
+	expandSize := newNum - oldNum
+	priorities := make([]int, 0)
+	for i := 0; i < expandSize; i++ {
+		priorities = append(priorities, 1)
+	}
+	createReplicaOpts := instances.CreateReplicaOpts{
+		Priorities: priorities,
+	}
+	if d.Get("charging_mode") == "prePaid" {
+		createReplicaOpts.IsAutoPay = common.GetAutoPay(d)
+	}
+	retryFunc := func() (interface{}, bool, error) {
+		res, err := instances.CreateReplica(client, d.Id(), createReplicaOpts).ExtractJobResponse()
+		retry, err := handleMultiOperationsError(err)
+		return res, retry, err
+	}
+	r, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     GaussDBInstanceStateRefreshFunc(client, d.Id()),
+		WaitTarget:   []string{"ACTIVE"},
+		Timeout:      d.Timeout(schema.TimeoutUpdate),
+		DelayTimeout: 10 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("error creating read replicas for instance %s: %s ", d.Id(), err)
+	}
+	job := r.(*instances.JobResponse)
+
+	// wait for job success
+	if job.JobID != "" {
+		jobList := strings.Split(job.JobID, ",")
+		log.Printf("[DEBUG] create replica jobs: %#v", jobList)
+		for i := 0; i < len(jobList); i++ {
+			jobId := jobList[i]
+			log.Printf("[DEBUG] waiting for job: %s", jobId)
+			if err = checkGaussDBMySQLJobFinish(ctx, client, jobId, d.Timeout(schema.TimeoutUpdate)); err != nil {
+				return err
+			}
+		}
+	}
+	// wait for order success
+	if job.OrderID != "" {
+		waitTime := int(d.Timeout(schema.TimeoutUpdate) / time.Second)
+		if err = orders.WaitForOrderSuccess(bssClient, waitTime, job.OrderID); err != nil {
+			return err
+		}
+		// check whether the order take effect
+		instance, err := instances.Get(client, d.Id()).Extract()
+		if err != nil {
+			return err
+		}
+		slaveCount := 0
+		for _, raw := range instance.Nodes {
+			if raw.Type == "slave" && (raw.Status == "ACTIVE" || raw.Status == "BACKING UP") {
+				slaveCount++
+			}
+		}
+		if newNum != slaveCount {
+			return fmt.Errorf("error updating read_replicas for instance %s: order failed", d.Id())
+		}
+	}
+	return nil
+}
+
+func deleteInstanceReadReplica(ctx context.Context, client, bssClient *golangsdk.ServiceClient, d *schema.ResourceData,
+	newNum, oldNum int) error {
+	shrinkSize := oldNum - newNum
+	slaveNodes := make([]string, 0)
+	nodes := d.Get("nodes").([]interface{})
+	for _, nodeRaw := range nodes {
+		node := nodeRaw.(map[string]interface{})
+		if node["type"].(string) == "slave" && node["status"] == "ACTIVE" {
+			slaveNodes = append(slaveNodes, node["id"].(string))
+		}
+	}
+	log.Printf("[DEBUG] Slave Nodes: %+v", slaveNodes)
+	if len(slaveNodes) <= shrinkSize {
+		return fmt.Errorf("error deleting read replicas for instance %s: Shrink Size is bigger than active slave nodes", d.Id())
+	}
+	for i := 0; i < shrinkSize; i++ {
+		retryFunc := func() (interface{}, bool, error) {
+			res, err := instances.DeleteReplica(client, d.Id(), slaveNodes[i]).ExtractJobResponse()
+			retry, err := handleMultiOperationsError(err)
+			return res, retry, err
+		}
+		r, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+			Ctx:          ctx,
+			RetryFunc:    retryFunc,
+			WaitFunc:     GaussDBInstanceStateRefreshFunc(client, d.Id()),
+			WaitTarget:   []string{"ACTIVE"},
+			Timeout:      d.Timeout(schema.TimeoutUpdate),
+			DelayTimeout: 10 * time.Second,
+			PollInterval: 10 * time.Second,
+		})
+		if err != nil {
+			return fmt.Errorf("error deleting read replicas for instance %s: %s ", d.Id(), err)
+		}
+		job := r.(*instances.JobResponse)
+		// wait for job success
+		if job.JobID != "" {
+			if err = checkGaussDBMySQLJobFinish(ctx, client, job.JobID, d.Timeout(schema.TimeoutUpdate)); err != nil {
+				return err
+			}
+		}
+		// wait for order success
+		if job.OrderID != "" {
+			waitTime := int(d.Timeout(schema.TimeoutUpdate) / time.Second)
+			if err = orders.WaitForOrderSuccess(bssClient, waitTime, job.OrderID); err != nil {
+				return err
+			}
+		}
+	}
+	// check whether the order take effect
+	instance, err := instances.Get(client, d.Id()).Extract()
+	if err != nil {
+		return err
+	}
+	slaveCount := 0
+	for _, raw := range instance.Nodes {
+		if raw.Type == "slave" && (raw.Status == "ACTIVE" || raw.Status == "BACKING UP") {
+			slaveCount++
+		}
+	}
+	if newNum != slaveCount {
+		return fmt.Errorf("error updating read_replicas for instance %s: order failed", d.Id())
+	}
+	return nil
+}
+
+func updateInstanceVolumeSize(ctx context.Context, client, bssClient *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	extendOpts := instances.ExtendVolumeOpts{
+		Size:      d.Get("volume_size").(int),
+		IsAutoPay: common.GetAutoPay(d),
+	}
+	retryFunc := func() (interface{}, bool, error) {
+		res, err := instances.ExtendVolume(client, d.Id(), extendOpts).ExtractJobResponse()
+		retry, err := handleMultiOperationsError(err)
+		return res, retry, err
+	}
+	r, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     GaussDBInstanceStateRefreshFunc(client, d.Id()),
+		WaitTarget:   []string{"ACTIVE"},
+		Timeout:      d.Timeout(schema.TimeoutUpdate),
+		DelayTimeout: 10 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("error extending volume: %s", err)
+	}
+	job := r.(*instances.JobResponse)
+
+	// wait for order success
+	if job.OrderID != "" {
+		waitTime := int(d.Timeout(schema.TimeoutUpdate) / time.Second)
+		if err = orders.WaitForOrderSuccess(bssClient, waitTime, job.OrderID); err != nil {
+			return err
+		}
+		// check whether the order take effect
+		instance, err := instances.Get(client, d.Id()).Extract()
+		if err != nil {
+			return err
+		}
+		volumeSize := 0
+		for _, raw := range instance.Nodes {
+			if raw.Volume.Size > 0 {
+				volumeSize = raw.Volume.Size
+				break
+			}
+		}
+		if volumeSize != d.Get("volume_size").(int) {
+			return fmt.Errorf("error updating volume for instance %s: order failed", d.Id())
+		}
+	}
+	return nil
+}
+
+func updateInstanceBackupStrategy(client *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	var updateOpts backups.UpdateOpts
+	backupRaw := d.Get("backup_strategy").([]interface{})
+	rawMap := backupRaw[0].(map[string]interface{})
+	keepDays := rawMap["keep_days"].(int)
+	updateOpts.KeepDays = &keepDays
+	updateOpts.StartTime = rawMap["start_time"].(string)
+	// Fixed to "1,2,3,4,5,6,7"
+	updateOpts.Period = "1,2,3,4,5,6,7"
+	log.Printf("[DEBUG] update backup_strategy: %#v", updateOpts)
+
+	err := backups.Update(client, d.Id(), updateOpts).ExtractErr()
+	if err != nil {
+		return fmt.Errorf("error updating backup_strategy: %s", err)
+	}
+	return nil
+}
+
+func updateInstanceProxyFlavor(ctx context.Context, client *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	if _, ok := d.GetOk("proxy_flavor"); ok {
+		if err := enableInstanceProxy(ctx, client, d, schema.TimeoutUpdate); err != nil {
+			return err
+		}
+	} else {
+		if err := deleteInstanceProxy(ctx, client, d); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func enableInstanceProxy(ctx context.Context, client *golangsdk.ServiceClient, d *schema.ResourceData, timeout string) error {
+	proxyOpts := instances.ProxyOpts{
+		Flavor:  d.Get("proxy_flavor").(string),
+		NodeNum: d.Get("proxy_node_num").(int),
+	}
+
+	retryFunc := func() (interface{}, bool, error) {
+		res, err := instances.EnableProxy(client, d.Id(), proxyOpts).ExtractJobResponse()
+		retry, err := handleMultiOperationsError(err)
+		return res, retry, err
+	}
+	r, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     GaussDBInstanceStateRefreshFunc(client, d.Id()),
+		WaitTarget:   []string{"ACTIVE"},
+		Timeout:      d.Timeout(timeout),
+		DelayTimeout: 10 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("error enabling proxy: %s", err)
+	}
+	job := r.(*instances.JobResponse)
+	return checkGaussDBMySQLJobFinish(ctx, client, job.JobID, d.Timeout(timeout))
+}
+
+func deleteInstanceProxy(ctx context.Context, client *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	retryFunc := func() (interface{}, bool, error) {
+		res, err := instances.DeleteProxy(client, d.Id()).ExtractJobResponse()
+		retry, err := handleMultiOperationsError(err)
+		return res, retry, err
+	}
+	r, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     GaussDBInstanceStateRefreshFunc(client, d.Id()),
+		WaitTarget:   []string{"ACTIVE"},
+		Timeout:      d.Timeout(schema.TimeoutUpdate),
+		DelayTimeout: 10 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("error disabling proxy: %s", err)
+	}
+	job := r.(*instances.JobResponse)
+	return checkGaussDBMySQLJobFinish(ctx, client, job.JobID, d.Timeout(schema.TimeoutUpdate))
+}
+
+func updateInstanceProxyNodeNum(ctx context.Context, client *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	oldNum, newNum := d.GetChange("proxy_node_num")
+	if oldNum.(int) != 0 && newNum.(int) > oldNum.(int) && common.HasFilledOpt(d, "proxy_flavor") {
+		enlargeSize := newNum.(int) - oldNum.(int)
+		enlargeProxyOpts := instances.EnlargeProxyOpts{
+			NodeNum: enlargeSize,
+		}
+		retryFunc := func() (interface{}, bool, error) {
+			res, err := instances.EnlargeProxy(client, d.Id(), enlargeProxyOpts).ExtractJobResponse()
+			retry, err := handleMultiOperationsError(err)
+			return res, retry, err
+		}
+		r, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+			Ctx:          ctx,
+			RetryFunc:    retryFunc,
+			WaitFunc:     GaussDBInstanceStateRefreshFunc(client, d.Id()),
+			WaitTarget:   []string{"ACTIVE"},
+			Timeout:      d.Timeout(schema.TimeoutUpdate),
+			DelayTimeout: 10 * time.Second,
+			PollInterval: 10 * time.Second,
+		})
+		if err != nil {
+			return fmt.Errorf("error enlarging proxy: %s", err)
+		}
+		job := r.(*instances.JobResponse)
+		if err = checkGaussDBMySQLJobFinish(ctx, client, job.JobID, d.Timeout(schema.TimeoutUpdate)); err != nil {
+			return err
+		}
+	}
+	if newNum.(int) < oldNum.(int) && !d.HasChange("proxy_flavor") {
+		return fmt.Errorf("error updating proxy_node_num for instance %s: new num should be greater than old num", d.Id())
+	}
+	return nil
+}
+
+func switchAuditLog(ctx context.Context, client *golangsdk.ServiceClient, d *schema.ResourceData, timeout string) error {
 	var flag string
-	if v {
+	if d.Get("audit_log_enabled").(bool) {
 		flag = "ON"
 	} else {
 		flag = "OFF"
@@ -1137,43 +1388,67 @@ func switchAuditLog(client *golangsdk.ServiceClient, instanceId string, v bool) 
 	opts := auditlog.UpdateAuditlogOpts{
 		SwitchStatus: flag,
 	}
-
-	_, err := auditlog.Update(client, instanceId, opts)
+	retryFunc := func() (interface{}, bool, error) {
+		res, err := auditlog.Update(client, d.Id(), opts)
+		retry, err := handleMultiOperationsError(err)
+		return res, retry, err
+	}
+	_, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     GaussDBInstanceStateRefreshFunc(client, d.Id()),
+		WaitTarget:   []string{"ACTIVE"},
+		Timeout:      d.Timeout(timeout),
+		DelayTimeout: 10 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
 	if err != nil {
-		return fmtp.Errorf("switch audit log to %q failed: %s", flag, err)
+		return fmt.Errorf("switch audit log to %q failed: %s", flag, err)
 	}
 
 	return nil
 }
 
-func switchSQLFilter(client *golangsdk.ServiceClient, instanceId string, isSQLFilterEnabled bool,
-	timeout time.Duration) error {
+func switchSQLFilter(ctx context.Context, client *golangsdk.ServiceClient, d *schema.ResourceData, timeout string) error {
 	flag := "OFF"
-	if isSQLFilterEnabled {
+	if d.Get("sql_filter_enabled").(bool) {
 		flag = "ON"
 	}
 	opts := sqlfilter.UpdateSqlFilterOpts{
 		SwitchStatus: flag,
 	}
-
-	res, err := sqlfilter.Update(client, instanceId, opts).ExtractJobResponse()
+	retryFunc := func() (interface{}, bool, error) {
+		res, err := sqlfilter.Update(client, d.Id(), opts).ExtractJobResponse()
+		retry, err := handleMultiOperationsError(err)
+		return res, retry, err
+	}
+	r, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     GaussDBInstanceStateRefreshFunc(client, d.Id()),
+		WaitTarget:   []string{"ACTIVE"},
+		Timeout:      d.Timeout(timeout),
+		DelayTimeout: 10 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
 	if err != nil {
 		return fmt.Errorf("switch SQL filter to %q failed: %s", flag, err)
 	}
+	job := r.(*sqlfilter.JobResponse)
+	return checkGaussDBMySQLJobFinish(ctx, client, job.JobID, d.Timeout(schema.TimeoutUpdate))
+}
 
+func checkGaussDBMySQLJobFinish(ctx context.Context, client *golangsdk.ServiceClient, jobID string, timeout time.Duration) error {
 	stateConf := &resource.StateChangeConf{
-		Pending:      []string{"Pending", "Running", "Failed"},
+		Pending:      []string{"Pending", "Running"},
 		Target:       []string{"Completed"},
-		Refresh:      gaussDBMysqlDatabaseStatusRefreshFunc(client, res.JobID),
+		Refresh:      gaussDBMysqlDatabaseStatusRefreshFunc(client, jobID),
 		Timeout:      timeout,
-		Delay:        1 * time.Second,
-		PollInterval: 1 * time.Second,
+		Delay:        10 * time.Second,
+		PollInterval: 10 * time.Second,
 	}
-
-	//nolint:staticcheck
-	_, err = stateConf.WaitForState()
-	if err != nil {
-		return fmt.Errorf("error waiting for switch SQL filter job (%s) to complete: %s", instanceId, err)
+	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
+		return fmt.Errorf("error waiting for GaussDB MySQL instance job (%s) to be completed: %s ", jobID, err)
 	}
 	return nil
 }

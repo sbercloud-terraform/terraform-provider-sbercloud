@@ -56,6 +56,17 @@ func desktopVolumeSchemaResource() *schema.Resource {
 	}
 }
 
+// @API Workspace POST /v2/{project_id}/desktops/rebuild
+// @API Workspace POST /v2/{project_id}/desktops/resize
+// @API Workspace GET /v2/{project_id}/desktops/{desktop_id}
+// @API Workspace DELETE /v2/{project_id}/desktops/{desktop_id}
+// @API Workspace POST /v2/{project_id}/desktops/{id}/tags/action
+// @API Workspace POST /v2/{project_id}/volumes
+// @API Workspace GET /v2/{project_id}/desktops/{desktop_id}/networks
+// @API Workspace PUT /v2/{project_id}/desktops/{desktop_id}/networks
+// @API Workspace POST /v2/{project_id}/desktops
+// @API Workspace POST /v2/{project_id}/volumes/expand
+// @API Workspace GET /v2/{project_id}/workspace-sub-jobs
 func ResourceDesktop() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDesktopCreate,
@@ -576,22 +587,22 @@ func updateDesktopVolumes(ctx context.Context, client *golangsdk.ServiceClient, 
 			}
 			log.Printf("[DEBUG] The job (%s) has been completed", resp.JobId)
 		}
+	}
 
-		if len(expandSlice) > 1 {
-			expandOpts := desktops.VolumeExpandOpts{
-				VolumeConfigs: expandSlice,
-			}
-			log.Printf("[DEBUG] The new expandOpts is: %#v", expandOpts)
-			resp, err := desktops.ExpandVolumes(client, expandOpts)
-			if err != nil {
-				return fmt.Errorf("failed to expand volume size: %s", err)
-			}
-			_, err = waitForWorkspaceJobCompleted(ctx, client, resp.JobId, d.Timeout(schema.TimeoutUpdate))
-			if err != nil {
-				return fmt.Errorf("error waiting for the job (%s) completed: %s", resp.JobId, err)
-			}
-			log.Printf("[DEBUG] The job (%s) has been completed", resp.JobId)
+	if len(expandSlice) > 0 {
+		expandOpts := desktops.VolumeExpandOpts{
+			VolumeConfigs: expandSlice,
 		}
+		log.Printf("[DEBUG] The new expandOpts is: %#v", expandOpts)
+		resp, err := desktops.ExpandVolumes(client, expandOpts)
+		if err != nil {
+			return fmt.Errorf("failed to expand volume size: %s", err)
+		}
+		_, err = waitForWorkspaceJobCompleted(ctx, client, resp.JobId, d.Timeout(schema.TimeoutUpdate))
+		if err != nil {
+			return fmt.Errorf("error waiting for the job (%s) completed: %s", resp.JobId, err)
+		}
+		log.Printf("[DEBUG] The job (%s) has been completed", resp.JobId)
 	}
 	return nil
 }

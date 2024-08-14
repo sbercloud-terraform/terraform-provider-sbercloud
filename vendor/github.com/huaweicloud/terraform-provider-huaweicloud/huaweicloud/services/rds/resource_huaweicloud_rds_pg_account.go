@@ -25,6 +25,14 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API RDS PUT /v3/{project_id}/instances/{instance_id}/db-users/{user_name}/comment
+// @API RDS POST /v3/{project_id}/instances/{instance_id}/db_user
+// @API RDS GET /v3/{project_id}/instances
+// @API RDS DELETE /v3/{project_id}/instances/{instance_id}/db_user/{user_name}
+// @API RDS GET /v3/{project_id}/instances/{instance_id}/db_user/detail
+// @API RDS POST /v3/{project_id}/instances/{instance_id}/db_user/resetpwd
+// @API RDS POST /v3/{project_id}/instances/{instance_id}/db-user-role
+// @API RDS DELETE /v3/{project_id}/instances/{instance_id}/db-user-role
 func ResourcePgAccount() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourcePgAccountCreate,
@@ -71,8 +79,69 @@ func ResourcePgAccount() *schema.Resource {
 				Optional:    true,
 				Description: `Specifies the remarks of the DB account.`,
 			},
+			"attributes": {
+				Type:        schema.TypeList,
+				Elem:        pgAccountAttributesSchema(),
+				Computed:    true,
+				Description: `Indicates the permission attributes of the account.`,
+			},
+			"memberof": {
+				Type:        schema.TypeSet,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Optional:    true,
+				Description: `schema: Deprecated`,
+			},
 		},
 	}
+}
+
+func pgAccountAttributesSchema() *schema.Resource {
+	sc := schema.Resource{
+		Schema: map[string]*schema.Schema{
+			"rol_super": {
+				Type:        schema.TypeBool,
+				Computed:    true,
+				Description: `Indicates whether a user has the super-user permission.`,
+			},
+			"rol_inherit": {
+				Type:     schema.TypeBool,
+				Computed: true,
+				Description: `Indicates whether a user automatically inherits the permissions of the role to which the
+user belongs.`,
+			},
+			"rol_create_role": {
+				Type:        schema.TypeBool,
+				Computed:    true,
+				Description: `Indicates whether a user can create other sub-users.`,
+			},
+			"rol_create_db": {
+				Type:        schema.TypeBool,
+				Computed:    true,
+				Description: `Indicates whether a user can create a database.`,
+			},
+			"rol_can_login": {
+				Type:        schema.TypeBool,
+				Computed:    true,
+				Description: `Indicates whether a user can log in to the database.`,
+			},
+			"rol_conn_limit": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: `Indicates the maximum number of concurrent connections to a DB instance.`,
+			},
+			"rol_replication": {
+				Type:        schema.TypeBool,
+				Computed:    true,
+				Description: `Indicates whether the user is a replication role.`,
+			},
+			"rol_bypass_rls": {
+				Type:        schema.TypeBool,
+				Computed:    true,
+				Description: `Indicates whether a user bypasses each row-level security policy.`,
+			},
+		},
+	}
+	return &sc
 }
 
 func resourcePgAccountCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -124,13 +193,17 @@ func resourcePgAccountCreate(ctx context.Context, d *schema.ResourceData, meta i
 	accountName := d.Get("name").(string)
 	d.SetId(instanceId + "/" + accountName)
 
+	if err = updatePgAccountMemberOf(ctx, d, createPgAccountClient); err != nil {
+		return diag.FromErr(err)
+	}
+
 	return resourcePgAccountRead(ctx, d, meta)
 }
 
 func buildCreatePgAccountBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
 		"name":    d.Get("name"),
-		"comment": utils.ValueIngoreEmpty(d.Get("description")),
+		"comment": utils.ValueIgnoreEmpty(d.Get("description")),
 	}
 	return bodyParams
 }
@@ -195,9 +268,30 @@ func resourcePgAccountRead(_ context.Context, d *schema.ResourceData, meta inter
 		d.Set("instance_id", instanceId),
 		d.Set("name", utils.PathSearch("name", account, nil)),
 		d.Set("description", utils.PathSearch("comment", account, nil)),
+		d.Set("attributes", flattenPgAccountAttributesBody(account)),
+		d.Set("memberof", utils.PathSearch("memberof", account, nil)),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())
+}
+
+func flattenPgAccountAttributesBody(account interface{}) []interface{} {
+	attributes := utils.PathSearch("attributes", account, nil)
+	if attributes == nil {
+		return nil
+	}
+	rst := make([]interface{}, 0, 1)
+	rst = append(rst, map[string]interface{}{
+		"rol_super":       utils.PathSearch("rolsuper", attributes, nil),
+		"rol_inherit":     utils.PathSearch("rolinherit", attributes, nil),
+		"rol_create_role": utils.PathSearch("rolcreaterole", attributes, nil),
+		"rol_create_db":   utils.PathSearch("rolcreatedb", attributes, nil),
+		"rol_can_login":   utils.PathSearch("rolcanlogin", attributes, nil),
+		"rol_conn_limit":  utils.PathSearch("rolconnlimit", attributes, nil),
+		"rol_replication": utils.PathSearch("rolreplication", attributes, nil),
+		"rol_bypass_rls":  utils.PathSearch("rolbypassrls", attributes, nil),
+	})
+	return rst
 }
 
 func resourcePgAccountUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -209,6 +303,10 @@ func resourcePgAccountUpdate(ctx context.Context, d *schema.ResourceData, meta i
 		return diag.Errorf("error creating RDS client: %s", err)
 	}
 
+	if err = updatePgAccountMemberOf(ctx, d, updatePgAccountClient); err != nil {
+		return diag.FromErr(err)
+	}
+
 	if err = updatePgAccountPassword(ctx, d, updatePgAccountClient); err != nil {
 		return diag.FromErr(err)
 	}
@@ -217,6 +315,77 @@ func resourcePgAccountUpdate(ctx context.Context, d *schema.ResourceData, meta i
 		return diag.FromErr(err)
 	}
 	return resourcePgAccountRead(ctx, d, meta)
+}
+
+func updatePgAccountMemberOf(ctx context.Context, d *schema.ResourceData, client *golangsdk.ServiceClient) error {
+	if !d.HasChange("memberof") {
+		return nil
+	}
+
+	oldRaws, newRaws := d.GetChange("memberof")
+	addMemberOf := newRaws.(*schema.Set).Difference(oldRaws.(*schema.Set))
+	deleteMemberOf := oldRaws.(*schema.Set).Difference(newRaws.(*schema.Set))
+
+	if deleteMemberOf.Len() > 0 {
+		requestBody := buildUpdatePgAccountMemberOfBodyParams(d.Get("name").(string), deleteMemberOf.List())
+		err := updateMemberOf(ctx, d, client, "DELETE", requestBody)
+		if err != nil {
+			return err
+		}
+	}
+
+	if addMemberOf.Len() > 0 {
+		requestBody := buildUpdatePgAccountMemberOfBodyParams(d.Get("name").(string), addMemberOf.List())
+		err := updateMemberOf(ctx, d, client, "POST", requestBody)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func buildUpdatePgAccountMemberOfBodyParams(user string, memberOf []interface{}) map[string]interface{} {
+	bodyParams := map[string]interface{}{
+		"user":  user,
+		"roles": memberOf,
+	}
+	return bodyParams
+}
+
+func updateMemberOf(ctx context.Context, d *schema.ResourceData, client *golangsdk.ServiceClient, httpMethod string,
+	requestBody map[string]interface{}) error {
+	// updatePgAccount: update RDS PostgreSQL account memberOf
+	updatePgAccountMemberOfHttpUrl := "v3/{project_id}/instances/{instance_id}/db-user-role"
+
+	instanceId := d.Get("instance_id").(string)
+	updatePgAccountMemberOfPath := client.Endpoint + updatePgAccountMemberOfHttpUrl
+	updatePgAccountMemberOfPath = strings.ReplaceAll(updatePgAccountMemberOfPath, "{project_id}", client.ProjectID)
+	updatePgAccountMemberOfPath = strings.ReplaceAll(updatePgAccountMemberOfPath, "{instance_id}", instanceId)
+
+	updatePgAccountMemberOfOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		JSONBody:         requestBody,
+	}
+
+	retryFunc := func() (interface{}, bool, error) {
+		_, err := client.Request(httpMethod, updatePgAccountMemberOfPath, &updatePgAccountMemberOfOpt)
+		retry, err := handleMultiOperationsError(err)
+		return nil, retry, err
+	}
+	_, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     rdsInstanceStateRefreshFunc(client, instanceId),
+		WaitTarget:   []string{"ACTIVE"},
+		Timeout:      d.Timeout(schema.TimeoutUpdate),
+		DelayTimeout: 10 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("error updating PostgreSQL account member: %s", err)
+	}
+	return nil
 }
 
 func updatePgAccountPassword(ctx context.Context, d *schema.ResourceData, client *golangsdk.ServiceClient) error {

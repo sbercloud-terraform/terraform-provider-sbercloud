@@ -23,6 +23,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DataArtsStudio POST /v1/{project_id}/service/apps
+// @API DataArtsStudio GET /v1/{project_id}/service/apps/{app_id}
+// @API DataArtsStudio PUT /v1/{project_id}/service/apps/{app_id}
+// @API DataArtsStudio DELETE /v1/{project_id}/service/apps/{app_id}
 func ResourceDataServiceApp() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDataServiceAppCreate,
@@ -135,8 +139,8 @@ func resourceDataServiceAppCreate(ctx context.Context, d *schema.ResourceData, m
 func buildCreateAppBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
 		"name":        d.Get("name"),
-		"description": utils.ValueIngoreEmpty(d.Get("description")),
-		"app_type":    utils.ValueIngoreEmpty(d.Get("app_type")),
+		"description": utils.ValueIgnoreEmpty(d.Get("description")),
+		"app_type":    utils.ValueIgnoreEmpty(d.Get("app_type")),
 	}
 	return bodyParams
 }

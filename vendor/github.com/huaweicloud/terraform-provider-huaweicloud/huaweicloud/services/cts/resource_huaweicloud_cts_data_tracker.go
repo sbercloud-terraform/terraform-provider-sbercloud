@@ -21,6 +21,10 @@ import (
 )
 
 // ResourceCTSDataTracker is the impl of huaweicloud_cts_data_tracker
+// @API CTS POST /v3/{project_id}/tracker
+// @API CTS PUT /v3/{project_id}/tracker
+// @API CTS DELETE /v3/{project_id}/trackers
+// @API CTS GET /v3/{project_id}/trackers
 func ResourceCTSDataTracker() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceCTSDataTrackerCreate,
@@ -89,6 +93,17 @@ func ResourceCTSDataTracker() *schema.Resource {
 				Optional:     true,
 				RequiredWith: []string{"bucket_name"},
 			},
+			"compress_type": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				RequiredWith: []string{"bucket_name"},
+			},
+			"is_sort_by_service": {
+				Type:         schema.TypeBool,
+				Optional:     true,
+				RequiredWith: []string{"bucket_name"},
+				Default:      true,
+			},
 			"lts_enabled": {
 				Type:     schema.TypeBool,
 				Optional: true,
@@ -111,12 +126,17 @@ func ResourceCTSDataTracker() *schema.Resource {
 				Type:     schema.TypeBool,
 				Computed: true,
 			},
+			"agency_name": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
 		},
 	}
 }
 
 func buildCreateRequestBody(d *schema.ResourceData) *cts.CreateTrackerRequestBody {
 	trackerType := cts.GetCreateTrackerRequestBodyTrackerTypeEnum().DATA
+	agencyName := cts.GetCreateTrackerRequestBodyAgencyNameEnum().CTS_ADMIN_TRUST
 	reqBody := cts.CreateTrackerRequestBody{
 		TrackerType:       trackerType,
 		TrackerName:       d.Get("name").(string),
@@ -124,6 +144,7 @@ func buildCreateRequestBody(d *schema.ResourceData) *cts.CreateTrackerRequestBod
 		IsSupportValidate: utils.Bool(d.Get("validate_file").(bool)),
 		DataBucket:        buildDataBucketOpts(d),
 		ObsInfo:           buildTransferBucketOpts(d),
+		AgencyName:        &agencyName,
 	}
 
 	log.Printf("[DEBUG] creating data CTS tracker options: %#v", reqBody)
@@ -199,8 +220,16 @@ func buildDataBucketOpts(d *schema.ResourceData) *cts.DataBucket {
 
 func buildTransferBucketOpts(d *schema.ResourceData) *cts.TrackerObsInfo {
 	transferCfg := cts.TrackerObsInfo{
-		BucketName:     utils.String(d.Get("bucket_name").(string)),
-		FilePrefixName: utils.String(d.Get("file_prefix").(string)),
+		BucketName:      utils.String(d.Get("bucket_name").(string)),
+		FilePrefixName:  utils.String(d.Get("file_prefix").(string)),
+		IsSortByService: utils.Bool(d.Get("is_sort_by_service").(bool)),
+	}
+	if v, ok := d.GetOk("compress_type"); ok {
+		compressType := cts.GetTrackerObsInfoCompressTypeEnum().GZIP
+		if v.(string) != "gzip" {
+			compressType = cts.GetTrackerObsInfoCompressTypeEnum().JSON
+		}
+		transferCfg.CompressType = &compressType
 	}
 	if v, ok := d.GetOk("obs_retention_period"); ok {
 		lifecycle := int32(v.(int))
@@ -262,10 +291,9 @@ func resourceCTSDataTrackerCreate(ctx context.Context, d *schema.ResourceData, m
 		}
 	}
 
-	trackerName := d.Get("name").(string)
 	// disable status if necessary
 	if enabled := d.Get("enabled").(bool); !enabled {
-		err = updateDataTrackerStatus(ctsClient, trackerName, "disabled")
+		err = updateDataTrackerStatus(ctsClient, d)
 		if err != nil {
 			return diag.Errorf("failed to disable CTS data tracker: %s", err)
 		}
@@ -281,15 +309,9 @@ func resourceCTSDataTrackerUpdate(ctx context.Context, d *schema.ResourceData, m
 		return diag.Errorf("error creating CTS client: %s", err)
 	}
 
-	trackerName := d.Get("name").(string)
 	// update status firstly
 	if d.HasChange("enabled") {
-		status := "enabled"
-		if enabled := d.Get("enabled").(bool); !enabled {
-			status = "disabled"
-		}
-
-		err = updateDataTrackerStatus(ctsClient, trackerName, status)
+		err = updateDataTrackerStatus(ctsClient, d)
 		if err != nil {
 			return diag.Errorf("error updating CTS tracker status: %s", err)
 		}
@@ -298,15 +320,18 @@ func resourceCTSDataTrackerUpdate(ctx context.Context, d *schema.ResourceData, m
 	// update other configurations
 	if d.HasChangeExcept("enabled") {
 		trackerType := cts.GetUpdateTrackerRequestBodyTrackerTypeEnum().DATA
+		agencyName := cts.GetUpdateTrackerRequestBodyAgencyNameEnum().CTS_ADMIN_TRUST
+		trackerName := d.Get("name").(string)
 		updateReq := cts.UpdateTrackerRequestBody{
 			TrackerName:       trackerName,
 			TrackerType:       trackerType,
 			IsLtsEnabled:      utils.Bool(d.Get("lts_enabled").(bool)),
 			IsSupportValidate: utils.Bool(d.Get("validate_file").(bool)),
 			DataBucket:        buildDataBucketOpts(d),
+			AgencyName:        &agencyName,
 		}
 
-		if d.HasChanges("bucket_name", "file_prefix", "obs_retention_period") {
+		if d.HasChanges("bucket_name", "file_prefix", "obs_retention_period", "compress_type", "is_sort_by_service") {
 			updateReq.ObsInfo = buildTransferBucketOpts(d)
 		}
 
@@ -379,6 +404,10 @@ func resourceCTSDataTrackerRead(_ context.Context, d *schema.ResourceData, meta 
 		d.Set("validate_file", ctsTracker.IsSupportValidate),
 	)
 
+	if ctsTracker.AgencyName != nil {
+		mErr = multierror.Append(mErr, d.Set("agency_name", ctsTracker.AgencyName.Value()))
+	}
+
 	if ctsTracker.DataBucket != nil {
 		mErr = multierror.Append(mErr, d.Set("data_bucket", ctsTracker.DataBucket.DataBucketName))
 
@@ -397,7 +426,12 @@ func resourceCTSDataTrackerRead(_ context.Context, d *schema.ResourceData, meta 
 			mErr,
 			d.Set("bucket_name", bucketName),
 			d.Set("file_prefix", ctsTracker.ObsInfo.FilePrefixName),
+			d.Set("is_sort_by_service", ctsTracker.ObsInfo.IsSortByService),
 		)
+
+		if ctsTracker.ObsInfo.CompressType != nil {
+			mErr = multierror.Append(mErr, d.Set("compress_type", formatValue(ctsTracker.ObsInfo.CompressType)))
+		}
 
 		if *bucketName != "" {
 			mErr = multierror.Append(
@@ -447,17 +481,25 @@ func resourceCTSDataTrackerDelete(_ context.Context, d *schema.ResourceData, met
 	return nil
 }
 
-func updateDataTrackerStatus(c *client.CtsClient, name, status string) error {
+func updateDataTrackerStatus(c *client.CtsClient, d *schema.ResourceData) error {
+	status := "enabled"
+	if enabled := d.Get("enabled").(bool); !enabled {
+		status = "disabled"
+	}
 	enabledStatus := new(cts.UpdateTrackerRequestBodyStatus)
 	if err := enabledStatus.UnmarshalJSON([]byte(status)); err != nil {
 		return fmt.Errorf("failed to parse status %s: %s", status, err)
 	}
 
 	trackerType := cts.GetUpdateTrackerRequestBodyTrackerTypeEnum().DATA
+	agencyName := cts.GetUpdateTrackerRequestBodyAgencyNameEnum().CTS_ADMIN_TRUST
+	name := d.Get("name").(string)
 	statusOpts := cts.UpdateTrackerRequestBody{
 		TrackerName: name,
 		TrackerType: trackerType,
 		Status:      enabledStatus,
+		DataBucket:  buildDataBucketOpts(d),
+		AgencyName:  &agencyName,
 	}
 	statusReq := cts.UpdateTrackerRequest{
 		Body: &statusOpts,

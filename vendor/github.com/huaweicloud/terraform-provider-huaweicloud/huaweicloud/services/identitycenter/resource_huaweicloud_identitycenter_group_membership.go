@@ -22,6 +22,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API IdentityStore DELETE /v1/identity-stores/{identity_store_id}/group-memberships/{membership_id}
+// @API IdentityStore GET /v1/identity-stores/{identity_store_id}/group-memberships/{membership_id}
+// @API IdentityStore POST /v1/identity-stores/{identity_store_id}/group-memberships
 func ResourceGroupMembership() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceGroupMembershipCreate,
@@ -105,7 +108,7 @@ func resourceGroupMembershipCreate(ctx context.Context, d *schema.ResourceData, 
 
 func buildCreateGroupMembershipBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"group_id":  utils.ValueIngoreEmpty(d.Get("group_id")),
+		"group_id":  utils.ValueIgnoreEmpty(d.Get("group_id")),
 		"member_id": buildCreateGroupMembershipMemberIdChildBody(d),
 	}
 	return bodyParams
@@ -113,7 +116,7 @@ func buildCreateGroupMembershipBodyParams(d *schema.ResourceData) map[string]int
 
 func buildCreateGroupMembershipMemberIdChildBody(d *schema.ResourceData) map[string]interface{} {
 	params := map[string]interface{}{
-		"user_id": utils.ValueIngoreEmpty(d.Get("member_id")),
+		"user_id": utils.ValueIgnoreEmpty(d.Get("member_id")),
 	}
 	return params
 }

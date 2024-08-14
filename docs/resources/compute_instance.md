@@ -227,13 +227,12 @@ The following arguments are supported:
 * `private_key` - (Optional, String) Specifies the the private key of the keypair in use. This parameter is mandatory
   when replacing or unbinding a keypair and the instance is in **Running** state.
 
-* `system_disk_type` - (Optional, String, ForceNew) Specifies the system disk type of the instance. Defaults to `GPSSD`.
+* `system_disk_type` - (Required, String, ForceNew) Specifies the system disk type of the instance. Defaults to `GPSSD`.
   Changing this creates a new instance.
 
   Available options are:
     + `SAS`: high I/O disk type.
     + `SSD`: ultra-high I/O disk type.
-    + `GPSSD`: general purpose SSD disk type.
     + `ESSD`: Extreme SSD type.
 
 * `system_disk_size` - (Optional, Int) Specifies the system disk size in GB, The value range is 1 to 1024.

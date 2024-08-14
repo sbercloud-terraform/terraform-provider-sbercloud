@@ -14,6 +14,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
+// @API IEC DELETE /v1/os-keypairs/{keypair_name}
+// @API IEC GET /v1/os-keypairs/{keypair_name}
+// @API IEC POST /v1/os-keypairs
 func ResourceKeypair() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceKeypairCreate,

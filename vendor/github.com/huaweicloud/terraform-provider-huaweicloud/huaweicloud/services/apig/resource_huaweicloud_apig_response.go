@@ -17,6 +17,11 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
+// @API APIG GET /v2/{project_id}/apigw/instances/{instanceId}/api-groups/{group_id}/gateway-responses/{response_id}
+// @API APIG PUT /v2/{project_id}/apigw/instances/{instanceId}/api-groups/{group_id}/gateway-responses/{response_id}
+// @API APIG DELETE /v2/{project_id}/apigw/instances/{instanceId}/api-groups/{group_id}/gateway-responses/{response_id}
+// @API APIG GET /v2/{project_id}/apigw/instances/{instanceId}/api-groups/{group_id}/gateway-responses
+// @API APIG POST /v2/{project_id}/apigw/instances/{instanceId}/api-groups/{group_id}/gateway-responses
 func ResourceApigResponseV2() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceResponseCreate,
@@ -227,8 +232,8 @@ func resourceResponseDelete(_ context.Context, d *schema.ResourceData, meta inte
 	)
 	err = responses.Delete(client, instanceId, groupId, responseId).ExtractErr()
 	if err != nil {
-		return diag.Errorf("error deleting APIG custom response (%s) from the dedicated group (%s): %s",
-			responseId, groupId, err)
+		return common.CheckDeletedDiag(d, err, fmt.Sprintf("error deleting APIG custom response (%s) from the dedicated group (%s)",
+			responseId, groupId))
 	}
 	return nil
 }

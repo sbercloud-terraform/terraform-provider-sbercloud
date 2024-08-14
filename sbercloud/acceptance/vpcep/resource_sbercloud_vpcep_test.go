@@ -2,6 +2,7 @@ package vpcep
 
 import (
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -16,7 +17,7 @@ import (
 func TestAccVPCEPService_Basic(t *testing.T) {
 	var service services.Service
 
-	rName := acceptance.RandomAccResourceNameWithDash()
+	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(4)) //acceptance.RandomAccResourceNameWithDash()
 	resourceName := "sbercloud_vpcep_service.test"
 
 	rc := acceptance.InitResourceCheck(
@@ -76,7 +77,7 @@ func TestAccVPCEPService_Basic(t *testing.T) {
 func TestAccVPCEPService_enablePolicy(t *testing.T) {
 	var service services.Service
 
-	rName := acceptance.RandomAccResourceNameWithDash()
+	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(4)) //acceptance.RandomAccResourceNameWithDash()
 	resourceName := "sbercloud_vpcep_service.test"
 
 	rc := acceptance.InitResourceCheck(
@@ -139,6 +140,7 @@ resource "sbercloud_compute_instance" "ecs" {
   flavor_id          = data.sbercloud_compute_flavors.test.ids[0]
   security_group_ids = [data.sbercloud_networking_secgroup.test.id]
   availability_zone  = data.sbercloud_availability_zones.test.names[0]
+  system_disk_type = "SSD"
 
   network {
     uuid = data.sbercloud_vpc_subnet.test.id
@@ -158,8 +160,8 @@ resource "sbercloud_vpcep_service" "test" {
   port_id                  = sbercloud_compute_instance.ecs.network[0].port
   approval                 = false
   description              = "test description"
-  permissions              = ["iam:domain::6e9dfd5d1124e8d8498dce894923a0dd", "iam:domain::6e9dfd5d1124e8d8498dce894923a0de"]
-  organization_permissions = ["organizations:orgPath::1234", "organizations:orgPath::5678"]
+  permissions              = ["iam:domain::*"]
+  organization_permissions = ["organizations:orgPath::*"]
 
   port_mapping {
     service_port  = 8080

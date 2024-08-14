@@ -23,6 +23,11 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API WAF PUT /v1/{project_id}/waf/policy/{policy_id}/{rule_type}/{rule_id}/status
+// @API WAF POST /v1/{project_id}/waf/policy/{policy_id}/ignore
+// @API WAF DELETE /v1/{project_id}/waf/policy/{policy_id}/ignore/{rule_id}
+// @API WAF GET /v1/{project_id}/waf/policy/{policy_id}/ignore/{rule_id}
+// @API WAF PUT /v1/{project_id}/waf/policy/{policy_id}/ignore/{rule_id}
 func ResourceRuleGlobalProtectionWhitelist() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceRuleGlobalProtectionWhitelistCreate,
@@ -182,8 +187,8 @@ func resourceRuleGlobalProtectionWhitelistCreate(ctx context.Context, d *schema.
 
 func buildCreateOrUpdateGlobalProtectionWhitelistBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"rule":        utils.ValueIngoreEmpty(d.Get("ignore_waf_protection")),
-		"description": utils.ValueIngoreEmpty(d.Get("description")),
+		"rule":        utils.ValueIgnoreEmpty(d.Get("ignore_waf_protection")),
+		"description": utils.ValueIgnoreEmpty(d.Get("description")),
 		"domain":      d.Get("domains"),
 		"conditions":  buildGlobalProtectionWhitelistConditions(d.Get("conditions")),
 		"mode":        1,
@@ -214,10 +219,10 @@ func buildGlobalProtectionWhitelistConditions(rawParams interface{}) []map[strin
 		for i, v := range rawArray {
 			raw := v.(map[string]interface{})
 			rst[i] = map[string]interface{}{
-				"category":        utils.ValueIngoreEmpty(raw["field"]),
-				"logic_operation": utils.ValueIngoreEmpty(raw["logic"]),
+				"category":        utils.ValueIgnoreEmpty(raw["field"]),
+				"logic_operation": utils.ValueIgnoreEmpty(raw["logic"]),
 				"contents":        buildGlobalProtectionWhitelistContents(raw),
-				"index":           utils.ValueIngoreEmpty(raw["subfield"]),
+				"index":           utils.ValueIgnoreEmpty(raw["subfield"]),
 			}
 		}
 		return rst
@@ -227,7 +232,7 @@ func buildGlobalProtectionWhitelistConditions(rawParams interface{}) []map[strin
 
 func buildGlobalProtectionWhitelistContents(raw map[string]interface{}) []string {
 	var contents []string
-	if content := utils.ValueIngoreEmpty(raw["content"]); content != nil {
+	if content := utils.ValueIgnoreEmpty(raw["content"]); content != nil {
 		contents = append(contents, content.(string))
 	}
 	return contents

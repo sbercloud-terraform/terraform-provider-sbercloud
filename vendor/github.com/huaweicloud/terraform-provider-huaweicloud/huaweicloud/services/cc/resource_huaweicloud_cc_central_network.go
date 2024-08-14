@@ -24,6 +24,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API CC POST /v3/{domain_id}/gcn/central-networks
+// @API CC GET /v3/{domain_id}/gcn/central-networks/{central_network_id}
+// @API CC DELETE /v3/{domain_id}/gcn/central-networks/{central_network_id}
+// @API CC PUT /v3/{domain_id}/gcn/central-networks/{central_network_id}
 func ResourceCentralNetwork() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceCentralNetworkCreate,
@@ -133,8 +137,8 @@ func buildCreateCentralNetworkBodyParams(d *schema.ResourceData, cfg *config.Con
 	bodyParams := map[string]interface{}{
 		"central_network": map[string]interface{}{
 			"name":                  d.Get("name"),
-			"description":           utils.ValueIngoreEmpty(d.Get("description")),
-			"enterprise_project_id": utils.ValueIngoreEmpty(common.GetEnterpriseProjectID(d, cfg)),
+			"description":           utils.ValueIgnoreEmpty(d.Get("description")),
+			"enterprise_project_id": utils.ValueIgnoreEmpty(common.GetEnterpriseProjectID(d, cfg)),
 			"tags":                  utils.ExpandResourceTags(d.Get("tags").(map[string]interface{})),
 		},
 	}
@@ -187,23 +191,15 @@ func centralNetworkWaitingForStateCompleted(ctx context.Context, d *schema.Resou
 
 			status := fmt.Sprintf("%v", statusRaw)
 
-			targetStatus := []string{
-				"AVAILABLE",
+			if utils.StrSliceContains([]string{"FAILED", "DELETED"}, status) {
+				return createCentralNetworkWaitingRespBody, "", fmt.Errorf("unexpected status '%s'", status)
 			}
-			if utils.StrSliceContains(targetStatus, status) {
+
+			if status == "AVAILABLE" {
 				return createCentralNetworkWaitingRespBody, "COMPLETED", nil
 			}
 
-			pendingStatus := []string{
-				"CREATING",
-				"UPDATING",
-				"DELETING",
-			}
-			if utils.StrSliceContains(pendingStatus, status) {
-				return createCentralNetworkWaitingRespBody, "PENDING", nil
-			}
-
-			return createCentralNetworkWaitingRespBody, status, nil
+			return createCentralNetworkWaitingRespBody, "PENDING", nil
 		},
 		Timeout:      t,
 		Delay:        10 * time.Second,
@@ -314,8 +310,8 @@ func resourceCentralNetworkUpdate(ctx context.Context, d *schema.ResourceData, m
 func buildUpdateCentralNetworkBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
 		"central_network": map[string]interface{}{
-			"name":        utils.ValueIngoreEmpty(d.Get("name")),
-			"description": utils.ValueIngoreEmpty(d.Get("description")),
+			"name":        utils.ValueIgnoreEmpty(d.Get("name")),
+			"description": utils.ValueIgnoreEmpty(d.Get("description")),
 			"tags":        utils.ExpandResourceTags(d.Get("tags").(map[string]interface{})),
 		},
 	}
@@ -410,21 +406,15 @@ func deleteCentralNetworkWaitingForStateCompleted(ctx context.Context, d *schema
 
 			status := fmt.Sprintf("%v", statusRaw)
 
-			targetStatus := []string{
-				"DELETED",
+			if status == "FAILED" {
+				return deleteCentralNetworkWaitingRespBody, "", fmt.Errorf("unexpected status '%s'", status)
 			}
-			if utils.StrSliceContains(targetStatus, status) {
+
+			if status == "DELETED" {
 				return deleteCentralNetworkWaitingRespBody, "COMPLETED", nil
 			}
 
-			pendingStatus := []string{
-				"DELETING",
-			}
-			if utils.StrSliceContains(pendingStatus, status) {
-				return deleteCentralNetworkWaitingRespBody, "PENDING", nil
-			}
-
-			return deleteCentralNetworkWaitingRespBody, status, nil
+			return deleteCentralNetworkWaitingRespBody, "PENDING", nil
 		},
 		Timeout:      t,
 		Delay:        10 * time.Second,
