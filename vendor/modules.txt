@@ -104,7 +104,6 @@ github.com/chnsz/golangsdk/openstack/cloudeyeservice/v2/alarmrule
 github.com/chnsz/golangsdk/openstack/cloudtable/v2/clusters
 github.com/chnsz/golangsdk/openstack/common/structs
 github.com/chnsz/golangsdk/openstack/common/tags
-github.com/chnsz/golangsdk/openstack/compute/v2/extensions/attachinterfaces
 github.com/chnsz/golangsdk/openstack/compute/v2/extensions/availabilityzones
 github.com/chnsz/golangsdk/openstack/compute/v2/extensions/bootfromvolume
 github.com/chnsz/golangsdk/openstack/compute/v2/extensions/floatingips

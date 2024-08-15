@@ -4,7 +4,7 @@ services:
   - docker
 language: go
 go:
-  - "1.13.x"
+  - "1.18.x"
 
 install:
 # This script is used by the Travis build to install a cookie for
@@ -12,6 +12,8 @@ install:
 # packages that live there.
 # See: https://github.com/golang/go/issues/12933
 - bash scripts/gogetcookie.sh
+- go mod tidy
+- go mod vendor
 
 script:
 - make test
