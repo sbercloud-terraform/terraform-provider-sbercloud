@@ -256,6 +256,7 @@ func Provider() *schema.Provider {
 			"sbercloud_obs_buckets":            obs.DataSourceObsBuckets(),
 			"sbercloud_obs_bucket_object":      obs.DataSourceObsBucketObject(),
 			"sbercloud_rds_flavors":            rds.DataSourceRdsFlavor(),
+			"sbercloud_rds_backups":            rds.DataSourceRdsBackups(),
 			"sbercloud_rds_engine_versions":    rds.DataSourceRdsEngineVersionsV3(),
 			"sbercloud_rds_instances":          rds.DataSourceRdsInstances(),
 			"sbercloud_rds_storage_types":      rds.DataSourceStoragetype(),
