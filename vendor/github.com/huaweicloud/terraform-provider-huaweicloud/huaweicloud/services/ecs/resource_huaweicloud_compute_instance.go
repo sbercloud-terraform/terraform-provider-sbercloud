@@ -41,6 +41,25 @@ var (
 	SystemDiskType = "GPSSD"
 )
 
+// @API ECS POST /v1.1/{project_id}/cloudservers
+// @API ECS POST /v1/{project_id}/cloudservers/delete
+// @API ECS PUT /v1/{project_id}/cloudservers/{server_id}
+// @API ECS POST /v1/{project_id}/cloudservers/action
+// @API ECS POST /v1/{project_id}/cloudservers/{server_id}/metadata
+// @API ECS DELETE /v1/{project_id}/cloudservers/{server_id}/metadata/{key}
+// @API ECS POST /v1.1/{project_id}/cloudservers/{server_id}/resize
+// @API ECS PUT /v1/{project_id}/cloudservers/{server_id}/os-reset-password
+// @API ECS POST /v1/{project_id}/cloudservers/{server_id}/tags/action
+// @API ECS POST /v2.1/{project_id}/servers/{server_id}/action
+// @API ECS GET /v1/{project_id}/cloudservers/{server_id}
+// @API ECS GET /v1/{project_id}/cloudservers/{server_id}/block_device/{volume_id}
+// @API ECS GET /v1/{project_id}/jobs/{job_id}
+// @API IMS GET /v2/cloudimages
+// @API EVS POST /v2.1/{project_id}/cloudvolumes/{volume_id}/action
+// @API EVS GET /v2/{project_id}/cloudvolumes/{volume_id}
+// @API VPC PUT /v1/{project_id}/ports/{port_id}
+// @API VPC GET /v1/{project_id}/security-groups
+// @API VPC GET /v1/{project_id}/subnets/{subnet_id}
 func ResourceComputeInstance() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceComputeInstanceCreate,
@@ -391,6 +410,12 @@ func ResourceComputeInstance() *schema.Resource {
 							ForceNew:     true,
 							RequiredWith: []string{"bandwidth.0.size"},
 						},
+						"extend_param": {
+							Type:     schema.TypeMap,
+							Optional: true,
+							ForceNew: true,
+							Elem:     &schema.Schema{Type: schema.TypeString},
+						},
 					},
 				},
 			},
@@ -430,7 +455,7 @@ func ResourceComputeInstance() *schema.Resource {
 				RequiredWith: []string{"spot_duration"},
 			},
 
-			"user_id": { // required if in prePaid charging mode with key_pair.
+			"user_id": {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
@@ -559,11 +584,6 @@ func resourceComputeInstanceCreate(ctx context.Context, d *schema.ResourceData, 
 	nicClient, err := cfg.NetworkingV1Client(region)
 	if err != nil {
 		return diag.Errorf("error creating networking v2 client: %s", err)
-	}
-
-	// user_id is required if in prePaid charging mode with key_pair
-	if err := validateComputeInstanceConfig(d, cfg); err != nil {
-		return diag.FromErr(err)
 	}
 
 	// Determines the Image ID using the following rules:
@@ -1141,7 +1161,7 @@ func resourceComputeInstanceUpdate(ctx context.Context, d *schema.ResourceData, 
 			}
 			err = common.WaitOrderComplete(ctx, bssClient, resp.OrderID, d.Timeout(schema.TimeoutUpdate))
 			if err != nil {
-				return diag.Errorf("The order (%s) is not completed while extending system disk (%s) size: %#v",
+				return diag.Errorf("The order (%s) is not completed while extending system disk (%s) size: %v",
 					resp.OrderID, serverID, err)
 			}
 		}
@@ -1456,18 +1476,6 @@ func getOpSvcUserID(d *schema.ResourceData, conf *config.Config) string {
 	return conf.UserID
 }
 
-func validateComputeInstanceConfig(d *schema.ResourceData, conf *config.Config) error {
-	_, hasSSH := d.GetOk("key_pair")
-	if d.Get("charging_mode").(string) == "prePaid" && hasSSH {
-		if getOpSvcUserID(d, conf) == "" {
-			return fmt.Errorf("user_id must be specified when charging_mode is set to prePaid and " +
-				"the ECS is logged in using an SSH key")
-		}
-	}
-
-	return nil
-}
-
 func buildInstanceNicsRequest(d *schema.ResourceData) []cloudservers.Nic {
 	var nicRequests []cloudservers.Nic
 
@@ -1505,10 +1513,19 @@ func buildInstancePublicIPRequest(d *schema.ResourceData) *cloudservers.PublicIp
 		Size:       bandWidth["size"].(int),
 	}
 
+	var eipExtendOpts *cloudservers.EipExtendParam
+	extendParam := bandWidth["extend_param"].(map[string]interface{})
+	if v, ok := extendParam["charging_mode"]; ok {
+		eipExtendOpts = &cloudservers.EipExtendParam{
+			ChargingMode: v.(string),
+		}
+	}
+
 	return &cloudservers.PublicIp{
 		Eip: &cloudservers.Eip{
-			IpType:    d.Get("eip_type").(string),
-			BandWidth: &bwOpts,
+			IpType:      d.Get("eip_type").(string),
+			BandWidth:   &bwOpts,
+			ExtendParam: eipExtendOpts,
 		},
 		DeleteOnTermination: d.Get("delete_eip_on_termination").(bool),
 	}

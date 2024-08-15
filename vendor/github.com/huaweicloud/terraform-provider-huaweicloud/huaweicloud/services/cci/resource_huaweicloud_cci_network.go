@@ -22,6 +22,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/vpc"
 )
 
+// @API CCI DELETE /apis/networking.cci.io/v1beta1/namespaces/{ns}/networks/{name}
+// @API CCI GET /apis/networking.cci.io/v1beta1/namespaces/{ns}/networks/{name}
+// @API CCI POST /apis/networking.cci.io/v1beta1/namespaces/{ns}/networks
+// @API VPC GET /v1/{project_id}/subnets/{subnet_id}
 func ResourceCciNetworkV1() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceCciNetworkCreate,
@@ -46,7 +50,7 @@ func ResourceCciNetworkV1() *schema.Resource {
 			},
 			"availability_zone": {
 				Type:     schema.TypeString,
-				Required: true,
+				Optional: true,
 				ForceNew: true,
 			},
 			"namespace": {
@@ -128,11 +132,14 @@ func resourceCciNetworkCreate(ctx context.Context, d *schema.ResourceData, meta 
 			Annotations: resourceNetworkAnnotations(d, conf),
 		},
 		Spec: networks.Spec{
-			AvailableZone: d.Get("availability_zone").(string),
-			NetworkType:   "underlay_neutron",
-			AttachedVPC:   subnet.VPC_ID,
-			NetworkID:     networkId,
+			NetworkType: "underlay_neutron",
+			AttachedVPC: subnet.VPC_ID,
+			NetworkID:   networkId,
 		},
+	}
+
+	if az, ok := d.GetOk("availability_zone"); ok {
+		opt.Spec.AvailableZone = az.(string)
 	}
 
 	ns := d.Get("namespace").(string)

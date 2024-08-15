@@ -6,7 +6,6 @@
 package rds
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -23,12 +22,15 @@ import (
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/hashcode"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
 const maxElementsPerRequest = 50
 
+// @API RDS GET /v3/{project_id}/instances/{instance_id}/database/db_user
+// @API RDS DELETE /v3/{project_id}/instances/{instance_id}/db_privilege
+// @API RDS POST /v3/{project_id}/instances/{instance_id}/db_privilege
+// @API RDS GET /v3/{project_id}/instances
 func ResourceSQLServerDatabasePrivilege() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceSQLServerDatabasePrivilegeCreate,
@@ -68,7 +70,6 @@ func ResourceSQLServerDatabasePrivilege() *schema.Resource {
 				Type:        schema.TypeSet,
 				Elem:        sQLServerDatabasePrivilegeCreateUserSchema(),
 				Required:    true,
-				Set:         resourceRdsSQLServerDbPrivilegeHash,
 				Description: `Specifies the account that associated with the database`,
 			},
 		},
@@ -365,7 +366,7 @@ func buildCreateSQLServerDatabasePrivilegeRequestBodyCreateUser(rawParams interf
 			raw := v.(map[string]interface{})
 			rst[i] = map[string]interface{}{
 				"name":     raw["name"],
-				"readonly": utils.ValueIngoreEmpty(raw["readonly"]),
+				"readonly": utils.ValueIgnoreEmpty(raw["readonly"]),
 			}
 		}
 		return rst
@@ -389,15 +390,4 @@ func buildDeleteSQLServerDatabasePrivilegeRequestBodyDeleteUser(rawParams interf
 		return rst
 	}
 	return nil
-}
-
-func resourceRdsSQLServerDbPrivilegeHash(v interface{}) int {
-	var buf bytes.Buffer
-	m := v.(map[string]interface{})
-
-	if m["name"] != nil {
-		buf.WriteString(fmt.Sprintf("%s-", m["name"].(string)))
-	}
-
-	return hashcode.String(buf.String())
 }

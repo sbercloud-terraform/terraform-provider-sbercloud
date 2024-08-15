@@ -122,6 +122,9 @@ func resourceDmsKafkaSmartConnectCreate(ctx context.Context, d *schema.ResourceD
 	}
 
 	connectorId := utils.PathSearch("connector_id", kafkaSmartConnectRespBody, nil)
+	if connectorId == nil {
+		return diag.Errorf("error creating DMS kafka smart connect: connector ID is not found in API response")
+	}
 	d.SetId(connectorId.(string))
 
 	// enable smart connect, need to wait for the instance status to be RUNNING so that the job could be completed.
@@ -146,7 +149,7 @@ func buildCreateKafkaSmartConnectBodyParams(d *schema.ResourceData) map[string]i
 	bodyParams := map[string]interface{}{
 		"spec_code":     d.Get("storage_spec_code"),
 		"specification": d.Get("bandwidth"),
-		"node_cnt":      utils.ValueIngoreEmpty(d.Get("node_count")),
+		"node_cnt":      utils.ValueIgnoreEmpty(d.Get("node_count")),
 	}
 	return bodyParams
 }

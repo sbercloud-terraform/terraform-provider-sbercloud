@@ -15,6 +15,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API Kafka PUT /v2/{engine}/{project_id}/instances/{instance_id}/users/{user_name}
+// @API Kafka GET /v2/{project_id}/instances/{instance_id}/users
+// @API Kafka POST /v2/{project_id}/instances/{instance_id}/users
+// @API Kafka PUT /v2/{project_id}/instances/{instance_id}/users
 func ResourceDmsKafkaUser() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDmsKafkaUserCreate,
@@ -50,6 +54,18 @@ func ResourceDmsKafkaUser() *schema.Resource {
 			"description": {
 				Type:     schema.TypeString,
 				Optional: true,
+			},
+			"default_app": {
+				Type:     schema.TypeBool,
+				Computed: true,
+			},
+			"role": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"created_at": {
+				Type:     schema.TypeString,
+				Computed: true,
 			},
 		},
 	}
@@ -116,6 +132,9 @@ func resourceDmsKafkaUserRead(ctx context.Context, d *schema.ResourceData, meta 
 				d.Set("instance_id", instanceId)
 				d.Set("name", instanceUser)
 				d.Set("description", user.UserDesc)
+				d.Set("default_app", user.DefaultApp)
+				d.Set("role", user.Role)
+				d.Set("created_at", utils.FormatTimeStampRFC3339(*user.CreatedTime/1000, false))
 				return nil
 			}
 		}

@@ -32,7 +32,7 @@ func TestAccRdsInstanceV3_basic(t *testing.T) {
 					testAccCheckRdsInstanceV3Exists(resourceName, &instance),
 					resource.TestCheckResourceAttr(resourceName, "name", name),
 					resource.TestCheckResourceAttr(resourceName, "backup_strategy.0.keep_days", "1"),
-					resource.TestCheckResourceAttr(resourceName, "flavor", "rds.pg.c6.large.4"),
+					resource.TestCheckResourceAttr(resourceName, "flavor", "rds.pg.x1.large.2"),
 					resource.TestCheckResourceAttr(resourceName, "volume.0.size", "50"),
 					resource.TestCheckResourceAttr(resourceName, "tags.key", "value"),
 					resource.TestCheckResourceAttr(resourceName, "tags.foo", "bar"),
@@ -47,7 +47,7 @@ func TestAccRdsInstanceV3_basic(t *testing.T) {
 					testAccCheckRdsInstanceV3Exists(resourceName, &instance),
 					resource.TestCheckResourceAttr(resourceName, "name", name),
 					resource.TestCheckResourceAttr(resourceName, "backup_strategy.0.keep_days", "2"),
-					resource.TestCheckResourceAttr(resourceName, "flavor", "rds.pg.c6.xlarge.4"),
+					resource.TestCheckResourceAttr(resourceName, "flavor", "rds.pg.x1.large.2"),
 					resource.TestCheckResourceAttr(resourceName, "volume.0.size", "100"),
 					resource.TestCheckResourceAttr(resourceName, "tags.key1", "value"),
 					resource.TestCheckResourceAttr(resourceName, "tags.foo", "bar_updated"),
@@ -61,6 +61,7 @@ func TestAccRdsInstanceV3_basic(t *testing.T) {
 				ImportStateVerifyIgnore: []string{
 					"db",
 					"status",
+					"availability_zone",
 				},
 			},
 		},
@@ -106,7 +107,7 @@ func TestAccRdsInstanceV3_ha(t *testing.T) {
 					testAccCheckRdsInstanceV3Exists(resourceName, &instance),
 					resource.TestCheckResourceAttr(resourceName, "name", name),
 					resource.TestCheckResourceAttr(resourceName, "backup_strategy.0.keep_days", "1"),
-					resource.TestCheckResourceAttr(resourceName, "flavor", "rds.pg.c6.large.4.ha"),
+					resource.TestCheckResourceAttr(resourceName, "flavor", "rds.pg.x1.large.2.ha"),
 					resource.TestCheckResourceAttr(resourceName, "volume.0.size", "50"),
 					resource.TestCheckResourceAttr(resourceName, "tags.key", "value"),
 					resource.TestCheckResourceAttr(resourceName, "tags.foo", "bar"),
@@ -239,7 +240,7 @@ func testAccRdsInstanceV3_basic(name string) string {
 
 resource "sbercloud_rds_instance" "test" {
   name              = "%s"
-  flavor            = "rds.pg.c6.large.4"
+  flavor            = "rds.pg.x1.large.2"
   availability_zone = [data.sbercloud_availability_zones.test.names[0]]
   security_group_id = sbercloud_networking_secgroup.test.id
   subnet_id         = sbercloud_vpc_subnet.test.id
@@ -254,7 +255,7 @@ resource "sbercloud_rds_instance" "test" {
     port     = 8635
   }
   volume {
-    type = "HIGH"
+    type = "CLOUDSSD"
     size = 50
   }
   backup_strategy {
@@ -277,7 +278,7 @@ func testAccRdsInstanceV3_update(name string) string {
 
 resource "sbercloud_rds_instance" "test" {
   name              = "%s"
-  flavor            = "rds.pg.c6.xlarge.4"
+  flavor            = "rds.pg.x1.large.2"
   availability_zone = [data.sbercloud_availability_zones.test.names[0]]
   security_group_id = sbercloud_networking_secgroup.test.id
   subnet_id         = sbercloud_vpc_subnet.test.id
@@ -291,7 +292,7 @@ resource "sbercloud_rds_instance" "test" {
     port     = 8635
   }
   volume {
-    type = "HIGH"
+    type = "CLOUDSSD"
     size = 100
   }
   backup_strategy {
@@ -313,7 +314,7 @@ func testAccRdsInstanceV3_epsId(name string) string {
 
 resource "sbercloud_rds_instance" "test" {
   name                  = "%s"
-  flavor                = "rds.pg.c6.large.4"
+  flavor                = "rds.pg.x1.large.2"
   availability_zone     = [data.sbercloud_availability_zones.test.names[0]]
   security_group_id     = sbercloud_networking_secgroup.test.id
   subnet_id             = sbercloud_vpc_subnet.test.id
@@ -327,7 +328,7 @@ resource "sbercloud_rds_instance" "test" {
     port     = 8635
   }
   volume {
-    type = "HIGH"
+    type = "CLOUDSSD"
     size = 50
   }
   backup_strategy {
@@ -344,7 +345,7 @@ func testAccRdsInstanceV3_ha(name string) string {
 
 resource "sbercloud_rds_instance" "test" {
   name                = "%s"
-  flavor              = "rds.pg.c6.large.4.ha"
+  flavor              = "rds.pg.x1.large.2.ha"
   security_group_id   = sbercloud_networking_secgroup.test.id
   subnet_id           = sbercloud_vpc_subnet.test.id
   vpc_id              = sbercloud_vpc.test.id
@@ -363,7 +364,7 @@ resource "sbercloud_rds_instance" "test" {
     port     = 8635
   }
   volume {
-    type = "HIGH"
+    type = "CLOUDSSD"
     size = 50
   }
   backup_strategy {

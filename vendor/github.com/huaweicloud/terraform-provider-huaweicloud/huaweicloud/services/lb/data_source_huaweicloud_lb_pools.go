@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
 
@@ -24,6 +23,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API LB GET /v2/{project_id}/elb/pools
 func DataSourcePools() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: resourcePoolsRead,
@@ -330,8 +330,8 @@ func flattenPoolMembers(resp interface{}) []interface{} {
 
 func flattenPoolPersistence(resp interface{}) []interface{} {
 	var rst []interface{}
-	curJson, err := jmespath.Search("persistence", resp)
-	if err != nil {
+	curJson := utils.PathSearch("session_persistence", resp, nil)
+	if curJson == nil {
 		log.Printf("[ERROR] error parsing persistence from response= %#v", resp)
 		return rst
 	}
@@ -369,7 +369,7 @@ func buildListPoolsQueryParams(d *schema.ResourceData) string {
 		res = fmt.Sprintf("%s&protocol=%v", res, v)
 	}
 	if v, ok := d.GetOk("lb_method"); ok {
-		res = fmt.Sprintf("%s&lb_method=%v", res, v)
+		res = fmt.Sprintf("%s&lb_algorithm=%v", res, v)
 	}
 	if res != "" {
 		res = "?" + res[1:]

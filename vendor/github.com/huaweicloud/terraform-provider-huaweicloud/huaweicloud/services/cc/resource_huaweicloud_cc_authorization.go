@@ -22,6 +22,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API CC POST /v3/{domain_id}/ccaas/authorisations
+// @API CC GET /v3/{domain_id}/ccaas/authorisations
+// @API CC DELETE /v3/{domain_id}/ccaas/authorisations/{id}
+// @API CC PUT /v3/{domain_id}/ccaas/authorisations/{id}
 func ResourceAuthorization() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceAuthorizationCreate,
@@ -127,8 +131,8 @@ func buildCreateAuthorizationBodyParams(d *schema.ResourceData, cfg *config.Conf
 	region := cfg.GetRegion(d)
 	bodyParams := map[string]interface{}{
 		"authorisation": map[string]interface{}{
-			"name":                       utils.ValueIngoreEmpty(d.Get("name")),
-			"description":                utils.ValueIngoreEmpty(d.Get("description")),
+			"name":                       utils.ValueIgnoreEmpty(d.Get("name")),
+			"description":                utils.ValueIgnoreEmpty(d.Get("description")),
 			"instance_type":              d.Get("instance_type"),
 			"instance_id":                d.Get("instance_id"),
 			"project_id":                 cfg.GetProjectID(region),
@@ -242,8 +246,8 @@ func resourceAuthorizationUpdate(ctx context.Context, d *schema.ResourceData, me
 func buildUpdateAuthorizationBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
 		"authorisation": map[string]interface{}{
-			"name":        utils.ValueIngoreEmpty(d.Get("name")),
-			"description": utils.ValueIngoreEmpty(d.Get("description")),
+			"name":        utils.ValueIgnoreEmpty(d.Get("name")),
+			"description": utils.ValueIgnoreEmpty(d.Get("description")),
 		},
 	}
 	return bodyParams

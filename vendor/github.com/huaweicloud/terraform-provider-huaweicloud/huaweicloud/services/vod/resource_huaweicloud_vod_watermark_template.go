@@ -20,6 +20,11 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API VOD POST /v1.0/{project_id}/template/watermark
+// @API VOD POST /v1.0/{project_id}/watermark/status/uploaded
+// @API VOD GET /v1.0/{project_id}/template/watermark
+// @API VOD PUT /v1.0/{project_id}/template/watermark
+// @API VOD DELETE /v1.0/{project_id}/template/watermark
 func ResourceWatermarkTemplate() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceWatermarkTemplateCreate,
@@ -309,7 +314,7 @@ func resourceWatermarkTemplateUpdate(ctx context.Context, d *schema.ResourceData
 
 	updateOpts := vod.UpdateWatermarkTemplateReq{
 		Id:               d.Id(),
-		Name:             utils.String(d.Get("name").(string)),
+		Name:             d.Get("name").(string),
 		ImageProcess:     buildUpdateImageProcessOpts(d.Get("image_process").(string)),
 		Dx:               utils.String(d.Get("horizontal_offset").(string)),
 		Dy:               utils.String(d.Get("vertical_offset").(string)),

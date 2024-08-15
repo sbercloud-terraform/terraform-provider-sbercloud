@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"regexp"
 	"strings"
 	"time"
 
@@ -18,6 +17,7 @@ import (
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/common/tags"
+	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -34,8 +34,13 @@ type dmsError struct {
 // @API RocketMQ GET /v2/{project_id}/instances/{instance_id}
 // @API RocketMQ DELETE /v2/{project_id}/instances/{instance_id}
 // @API RocketMQ POST /v2/{project_id}/rocketmq/{instance_id}/tags/action
-// @API RocketMQ GET /v2/{project_id}/kafka/{instance_id}/tags
+// @API RocketMQ GET /v2/{project_id}/rocketmq/{instance_id}/tags
 // @API RocketMQ POST /v2/{project_id}/instances/{instance_id}/crossvpc/modify
+// @API RocketMQ GET /v2/{project_id}/instances/{instance_id}/tasks
+// @API RocketMQ POST /v2/{engine}/{project_id}/instances/{instance_id}/extend
+// @API RocketMQ PUT /v2/{project_id}/rocketmq/instances/{instance_id}/configs
+// @API RocketMQ GET /v2/{project_id}/rocketmq/instances/{instance_id}/configs
+// @API EIP GET /v1/{project_id}/publicips
 // @API BSS GET /v2/orders/customer-orders/details/{order_id}
 // @API BSS POST /v2/orders/subscriptions/resources/autorenew/{instance_id}
 // @API BSS DELETE /v2/orders/subscriptions/resources/autorenew/{instance_id}
@@ -66,12 +71,6 @@ func ResourceDmsRocketMQInstance() *schema.Resource {
 				Type:        schema.TypeString,
 				Required:    true,
 				Description: `Specifies the name of the DMS RocketMQ instance`,
-				ValidateFunc: validation.All(
-					validation.StringMatch(regexp.MustCompile(`^[A-Za-z-_0-9]*$`),
-						"An instance name starts with a letter and can contain only letters,"+
-							"digits, underscores (_), and hyphens (-)"),
-					validation.StringLenBetween(4, 64),
-				),
 			},
 			"engine_version": {
 				Type:        schema.TypeString,
@@ -80,11 +79,9 @@ func ResourceDmsRocketMQInstance() *schema.Resource {
 				Description: `Specifies the version of the RocketMQ engine.`,
 			},
 			"storage_space": {
-				Type:         schema.TypeInt,
-				Required:     true,
-				ForceNew:     true,
-				Description:  `Specifies the message storage capacity, Unit: GB.`,
-				ValidateFunc: validation.IntBetween(300, 3000),
+				Type:        schema.TypeInt,
+				Required:    true,
+				Description: `Specifies the message storage capacity, Unit: GB.`,
 			},
 			"vpc_id": {
 				Type:        schema.TypeString,
@@ -114,7 +111,6 @@ func ResourceDmsRocketMQInstance() *schema.Resource {
 			"flavor_id": {
 				Type:        schema.TypeString,
 				Required:    true,
-				ForceNew:    true,
 				Description: `Specifies a product ID`,
 			},
 			"storage_spec_code": {
@@ -146,27 +142,23 @@ func ResourceDmsRocketMQInstance() *schema.Resource {
 			"enable_publicip": {
 				Type:        schema.TypeBool,
 				Optional:    true,
-				ForceNew:    true,
 				Description: `Specifies whether to enable public access.`,
 			},
 			"publicip_id": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Computed:    true,
-				ForceNew:    true,
-				Description: `Specifies the ID of the EIP bound to the instance.`,
+				Type:             schema.TypeString,
+				Optional:         true,
+				DiffSuppressFunc: utils.SuppressStringSepratedByCommaDiffs,
+				Description:      `Specifies the ID of the EIP bound to the instance.`,
 			},
 			"broker_num": {
 				Type:        schema.TypeInt,
 				Optional:    true,
-				ForceNew:    true,
 				Description: `Specifies the broker numbers.`,
 			},
 			"enterprise_project_id": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Computed:    true,
-				ForceNew:    true,
 				Description: `Specifies the enterprise project id of the instance.`,
 			},
 			"enable_acl": {
@@ -174,6 +166,24 @@ func ResourceDmsRocketMQInstance() *schema.Resource {
 				Optional:    true,
 				Computed:    true,
 				Description: `Specifies whether access control is enabled.`,
+			},
+			"configs": {
+				Type: schema.TypeSet,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"name": {
+							Type:     schema.TypeString,
+							Required: true,
+						},
+						"value": {
+							Type:     schema.TypeString,
+							Required: true,
+						},
+					},
+				},
+				Optional:    true,
+				Computed:    true,
+				Description: `Specifies the instance configs.`,
 			},
 			"status": {
 				Type:        schema.TypeString,
@@ -370,6 +380,13 @@ func resourceDmsRocketMQInstanceCreate(ctx context.Context, d *schema.ResourceDa
 		}
 	}
 
+	if v := d.Get("configs").(*schema.Set).List(); len(v) > 0 {
+		err := updateRocketmqConfigs(ctx, createRocketmqInstanceClient, d.Timeout(schema.TimeoutCreate), d.Id(), v)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
 	// set tags
 	tagRaw := d.Get("tags").(map[string]interface{})
 	if len(tagRaw) > 0 {
@@ -472,24 +489,24 @@ func rocketMQInstanceCreatingFunc(client *golangsdk.ServiceClient, instanceID st
 func buildCreateRocketmqInstanceBodyParams(d *schema.ResourceData, cfg *config.Config,
 	availableZones []string) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":                  utils.ValueIngoreEmpty(d.Get("name")),
-		"enable_acl":            utils.ValueIngoreEmpty(d.Get("enable_acl")),
-		"description":           utils.ValueIngoreEmpty(d.Get("description")),
+		"name":                  utils.ValueIgnoreEmpty(d.Get("name")),
+		"enable_acl":            utils.ValueIgnoreEmpty(d.Get("enable_acl")),
+		"description":           utils.ValueIgnoreEmpty(d.Get("description")),
 		"engine":                "reliability",
-		"engine_version":        utils.ValueIngoreEmpty(d.Get("engine_version")),
-		"storage_space":         utils.ValueIngoreEmpty(d.Get("storage_space")),
-		"vpc_id":                utils.ValueIngoreEmpty(d.Get("vpc_id")),
-		"subnet_id":             utils.ValueIngoreEmpty(d.Get("subnet_id")),
-		"security_group_id":     utils.ValueIngoreEmpty(d.Get("security_group_id")),
+		"engine_version":        utils.ValueIgnoreEmpty(d.Get("engine_version")),
+		"storage_space":         utils.ValueIgnoreEmpty(d.Get("storage_space")),
+		"vpc_id":                utils.ValueIgnoreEmpty(d.Get("vpc_id")),
+		"subnet_id":             utils.ValueIgnoreEmpty(d.Get("subnet_id")),
+		"security_group_id":     utils.ValueIgnoreEmpty(d.Get("security_group_id")),
 		"available_zones":       availableZones,
-		"product_id":            utils.ValueIngoreEmpty(d.Get("flavor_id")),
-		"ssl_enable":            utils.ValueIngoreEmpty(d.Get("ssl_enable")),
-		"storage_spec_code":     utils.ValueIngoreEmpty(d.Get("storage_spec_code")),
-		"ipv6_enable":           utils.ValueIngoreEmpty(d.Get("ipv6_enable")),
-		"enable_publicip":       utils.ValueIngoreEmpty(d.Get("enable_publicip")),
-		"publicip_id":           utils.ValueIngoreEmpty(d.Get("publicip_id")),
-		"broker_num":            utils.ValueIngoreEmpty(d.Get("broker_num")),
-		"enterprise_project_id": utils.ValueIngoreEmpty(common.GetEnterpriseProjectID(d, cfg)),
+		"product_id":            utils.ValueIgnoreEmpty(d.Get("flavor_id")),
+		"ssl_enable":            utils.ValueIgnoreEmpty(d.Get("ssl_enable")),
+		"storage_spec_code":     utils.ValueIgnoreEmpty(d.Get("storage_spec_code")),
+		"ipv6_enable":           utils.ValueIgnoreEmpty(d.Get("ipv6_enable")),
+		"enable_publicip":       utils.ValueIgnoreEmpty(d.Get("enable_publicip")),
+		"publicip_id":           utils.ValueIgnoreEmpty(d.Get("publicip_id")),
+		"broker_num":            utils.ValueIgnoreEmpty(d.Get("broker_num")),
+		"enterprise_project_id": utils.ValueIgnoreEmpty(common.GetEnterpriseProjectID(d, cfg)),
 	}
 	if chargingMode, ok := d.GetOk("charging_mode"); ok && chargingMode == "prePaid" {
 		bodyParams["bss_param"] = buildCreateRocketmqInstanceBodyBssParams(d)
@@ -504,18 +521,69 @@ func buildCreateRocketmqInstanceBodyBssParams(d *schema.ResourceData) map[string
 	}
 	isAutoPay := true
 	bodyParams := map[string]interface{}{
-		"charging_mode": utils.ValueIngoreEmpty(d.Get("charging_mode")),
-		"period_type":   utils.ValueIngoreEmpty(d.Get("period_unit")),
-		"period_num":    utils.ValueIngoreEmpty(d.Get("period")),
+		"charging_mode": utils.ValueIgnoreEmpty(d.Get("charging_mode")),
+		"period_type":   utils.ValueIgnoreEmpty(d.Get("period_unit")),
+		"period_num":    utils.ValueIgnoreEmpty(d.Get("period")),
 		"is_auto_renew": &autoRenew,
 		"is_auto_pay":   &isAutoPay,
 	}
 	return bodyParams
 }
 
+func updateRocketmqConfigs(ctx context.Context, client *golangsdk.ServiceClient, timeout time.Duration,
+	instanceId string, configs []interface{}) error {
+	updateConfigsHttpUrl := "v2/{project_id}/rocketmq/instances/{instance_id}/configs"
+	updateConfigsPath := client.Endpoint + updateConfigsHttpUrl
+	updateConfigsPath = strings.ReplaceAll(updateConfigsPath, "{project_id}", client.ProjectID)
+	updateConfigsPath = strings.ReplaceAll(updateConfigsPath, "{instance_id}", instanceId)
+
+	updateConfigsOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		OkCodes: []int{
+			204,
+		},
+		JSONBody: map[string]interface{}{
+			"rocketmq_configs": buildRocketmqConfigsRequestBody(configs),
+		},
+	}
+
+	retryFunc := func() (interface{}, bool, error) {
+		_, err := client.Request("PUT", updateConfigsPath, &updateConfigsOpt)
+		retry, err := handleMultiOperationsError(err)
+		return nil, retry, err
+	}
+	_, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     rocketmqInstanceStateRefreshFunc(client, instanceId),
+		WaitTarget:   []string{"RUNNING"},
+		Timeout:      timeout,
+		DelayTimeout: 10 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
+
+	if err != nil {
+		return fmt.Errorf("error updating configs: %s", err)
+	}
+
+	return nil
+}
+
+func buildRocketmqConfigsRequestBody(configs []interface{}) []map[string]string {
+	rst := make([]map[string]string, len(configs))
+	for i, v := range configs {
+		rst[i] = map[string]string{
+			"name":  v.(map[string]interface{})["name"].(string),
+			"value": v.(map[string]interface{})["value"].(string),
+		}
+	}
+	return rst
+}
+
 func resourceDmsRocketMQInstanceUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	region := cfg.GetRegion(d)
+	instanceId := d.Id()
 
 	updateRocketmqInstanceHasChanges := []string{
 		"name",
@@ -523,60 +591,127 @@ func resourceDmsRocketMQInstanceUpdate(ctx context.Context, d *schema.ResourceDa
 		"security_group_id",
 		"retention_policy",
 		"enable_acl",
-		"cross_vpc_accesses",
-		"auto_renew",
-		"tags",
 	}
 
+	// updateRocketmqInstance: update DMS rocketmq instance
+	var (
+		updateRocketmqInstanceHttpUrl = "v2/{project_id}/instances/{instance_id}"
+		updateRocketmqInstanceProduct = "dmsv2"
+	)
+	updateRocketmqInstanceClient, err := cfg.NewServiceClient(updateRocketmqInstanceProduct, region)
+	if err != nil {
+		return diag.Errorf("error creating DMS Client: %s", err)
+	}
+
+	updateRocketmqInstancePath := updateRocketmqInstanceClient.Endpoint + updateRocketmqInstanceHttpUrl
+	updateRocketmqInstancePath = strings.ReplaceAll(updateRocketmqInstancePath, "{project_id}", updateRocketmqInstanceClient.ProjectID)
+	updateRocketmqInstancePath = strings.ReplaceAll(updateRocketmqInstancePath, "{instance_id}", fmt.Sprintf("%v", instanceId))
+	updateRocketmqInstanceOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		OkCodes: []int{
+			204,
+		},
+	}
 	if d.HasChanges(updateRocketmqInstanceHasChanges...) {
-		// updateRocketmqInstance: update DMS rocketmq instance
-		var (
-			updateRocketmqInstanceHttpUrl = "v2/{project_id}/instances/{instance_id}"
-			updateRocketmqInstanceProduct = "dmsv2"
-		)
-		updateRocketmqInstanceClient, err := cfg.NewServiceClient(updateRocketmqInstanceProduct, region)
-		if err != nil {
-			return diag.Errorf("error creating DmsRocketMQInstance Client: %s", err)
-		}
-
-		updateRocketmqInstancePath := updateRocketmqInstanceClient.Endpoint + updateRocketmqInstanceHttpUrl
-		updateRocketmqInstancePath = strings.ReplaceAll(updateRocketmqInstancePath, "{project_id}",
-			updateRocketmqInstanceClient.ProjectID)
-		updateRocketmqInstancePath = strings.ReplaceAll(updateRocketmqInstancePath, "{instance_id}", fmt.Sprintf("%v", d.Id()))
-
-		updateRocketmqInstanceOpt := golangsdk.RequestOpts{
-			KeepResponseBody: true,
-			OkCodes: []int{
-				204,
-			},
-		}
 		updateRocketmqInstanceOpt.JSONBody = utils.RemoveNil(buildUpdateRocketmqInstanceBodyParams(d))
-		_, err = updateRocketmqInstanceClient.Request("PUT", updateRocketmqInstancePath, &updateRocketmqInstanceOpt)
+		retryFunc := func() (interface{}, bool, error) {
+			_, err := updateRocketmqInstanceClient.Request("PUT", updateRocketmqInstancePath, &updateRocketmqInstanceOpt)
+			retry, err := handleMultiOperationsError(err)
+			return nil, retry, err
+		}
+		_, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+			Ctx:          ctx,
+			RetryFunc:    retryFunc,
+			WaitFunc:     rocketmqInstanceStateRefreshFunc(updateRocketmqInstanceClient, d.Id()),
+			WaitTarget:   []string{"RUNNING"},
+			Timeout:      d.Timeout(schema.TimeoutUpdate),
+			DelayTimeout: 10 * time.Second,
+			PollInterval: 10 * time.Second,
+		})
+
 		if err != nil {
-			return diag.Errorf("error updating DmsRocketMQInstance: %s", err)
+			return diag.Errorf("error updating DMS RocketMQ instance: %s", err)
 		}
+	}
 
-		if d.HasChange("cross_vpc_accesses") {
-			if err = updateCrossVpcAccess(ctx, updateRocketmqInstanceClient, d); err != nil {
-				return diag.Errorf("error updating DMS rocketMQ Cross-VPC access information: %s", err)
-			}
+	if d.HasChange("cross_vpc_accesses") {
+		if err = updateCrossVpcAccess(ctx, updateRocketmqInstanceClient, d); err != nil {
+			return diag.Errorf("error updating DMS RocketMQ Cross-VPC access information: %s", err)
 		}
+	}
 
-		if d.HasChange("auto_renew") {
-			bssClient, err := cfg.BssV2Client(cfg.GetRegion(d))
-			if err != nil {
-				return diag.Errorf("error creating BSS V2 client: %s", err)
+	if d.HasChange("auto_renew") {
+		bssClient, err := cfg.BssV2Client(cfg.GetRegion(d))
+		if err != nil {
+			return diag.Errorf("error creating BSS V2 client: %s", err)
+		}
+		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), instanceId); err != nil {
+			return diag.Errorf("error updating the auto-renew of the RocketMQ instance (%s): %s", instanceId, err)
+		}
+	}
+	// update tags
+	if d.HasChange("tags") {
+		tagErr := utils.UpdateResourceTags(updateRocketmqInstanceClient, d, "rocketmq", instanceId)
+		if tagErr != nil {
+			return diag.Errorf("error updating tags of RocketMQ:%s, err:%s", instanceId, tagErr)
+		}
+	}
+
+	// unbind EIP
+	if d.HasChanges("enable_publicip", "publicip_id") {
+		oldIDs, _ := d.GetChange("publicip_id")
+		if len(oldIDs.(string)) > 0 {
+			updateRocketmqInstanceOpt.JSONBody = map[string]interface{}{
+				"enable_publicip": false,
 			}
-			if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), d.Id()); err != nil {
-				return diag.Errorf("error updating the auto-renew of the RocketMQ instance (%s): %s", d.Id(), err)
+			if err = rocketmqBindOrUnbindEIP(ctx, updateRocketmqInstanceClient, d.Timeout(schema.TimeoutUpdate),
+				updateRocketmqInstanceOpt, d.Id(), "unbindInstancePublicIp"); err != nil {
+				return diag.FromErr(err)
 			}
 		}
-		// update tags
-		if d.HasChange("tags") {
-			tagErr := utils.UpdateResourceTags(updateRocketmqInstanceClient, d, "rocketmq", d.Id())
-			if tagErr != nil {
-				return diag.Errorf("error updating tags of RocketMQ:%s, err:%s", d.Id(), tagErr)
+	}
+
+	if d.HasChanges("flavor_id", "broker_num", "storage_space") {
+		err := resizeRocketmqInstance(ctx, updateRocketmqInstanceClient, d)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	// bind EIP
+	if d.HasChanges("enable_publicip", "publicip_id") {
+		newIDs := d.Get("publicip_id")
+		if len(newIDs.(string)) > 0 {
+			updateRocketmqInstanceOpt.JSONBody = map[string]interface{}{
+				"enable_publicip": true,
+				"publicip_id":     newIDs,
 			}
+			if err = rocketmqBindOrUnbindEIP(ctx, updateRocketmqInstanceClient, d.Timeout(schema.TimeoutUpdate),
+				updateRocketmqInstanceOpt, d.Id(), "bindInstancePublicIp"); err != nil {
+				return diag.FromErr(err)
+			}
+		}
+	}
+
+	if d.HasChange("enterprise_project_id") {
+		migrateOpts := enterpriseprojects.MigrateResourceOpts{
+			ResourceId:   instanceId,
+			ResourceType: "rocketmq",
+			RegionId:     region,
+			ProjectId:    cfg.GetProjectID(region),
+		}
+		if err := common.MigrateEnterpriseProject(ctx, cfg, d, migrateOpts); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	if d.HasChange("configs") {
+		oldRaw, newRaw := d.GetChange("configs")
+		oldConfigs, newConfigs := oldRaw.(*schema.Set), newRaw.(*schema.Set)
+		configs := newConfigs.Difference(oldConfigs).List()
+		err := updateRocketmqConfigs(ctx, updateRocketmqInstanceClient, d.Timeout(schema.TimeoutUpdate), d.Id(), configs)
+		if err != nil {
+			return diag.FromErr(err)
 		}
 	}
 
@@ -585,20 +720,61 @@ func resourceDmsRocketMQInstanceUpdate(ctx context.Context, d *schema.ResourceDa
 
 func buildUpdateRocketmqInstanceBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"description":       utils.ValueIngoreEmpty(d.Get("description")),
-		"security_group_id": utils.ValueIngoreEmpty(d.Get("security_group_id")),
+		"description":       utils.ValueIgnoreEmpty(d.Get("description")),
+		"security_group_id": utils.ValueIgnoreEmpty(d.Get("security_group_id")),
 	}
 
 	if d.HasChange("enable_acl") {
-		bodyParams["enable_acl"] = utils.ValueIngoreEmpty(d.Get("enable_acl"))
+		bodyParams["enable_acl"] = utils.ValueIgnoreEmpty(d.Get("enable_acl"))
 	} else if d.HasChange("retention_policy") {
-		bodyParams["enable_acl"] = utils.ValueIngoreEmpty(d.Get("retention_policy"))
+		bodyParams["enable_acl"] = utils.ValueIgnoreEmpty(d.Get("retention_policy"))
 	}
 
 	if d.HasChange("name") {
-		bodyParams["name"] = utils.ValueIngoreEmpty(d.Get("name"))
+		bodyParams["name"] = utils.ValueIgnoreEmpty(d.Get("name"))
 	}
+
 	return bodyParams
+}
+
+func rocketmqBindOrUnbindEIP(ctx context.Context, client *golangsdk.ServiceClient, timeout time.Duration,
+	updateOpt golangsdk.RequestOpts, id, action string) error {
+	updateHttpUrl := "v2/{project_id}/instances/{instance_id}"
+	updatePath := client.Endpoint + updateHttpUrl
+	updatePath = strings.ReplaceAll(updatePath, "{project_id}", client.ProjectID)
+	updatePath = strings.ReplaceAll(updatePath, "{instance_id}", id)
+	retryFunc := func() (interface{}, bool, error) {
+		_, err := client.Request("PUT", updatePath, &updateOpt)
+		retry, err := handleMultiOperationsError(err)
+		return nil, retry, err
+	}
+	_, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     rocketmqInstanceStateRefreshFunc(client, id),
+		WaitTarget:   []string{"RUNNING"},
+		Timeout:      timeout,
+		DelayTimeout: 10 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
+
+	if err != nil {
+		return fmt.Errorf("error updating DMS RocketMQ instance with action(%s): %s", action, err)
+	}
+
+	stateConf := &resource.StateChangeConf{
+		Pending:      []string{"CREATED"},
+		Target:       []string{"SUCCESS"},
+		Refresh:      publicipTaskRefreshFunc(client, id, action),
+		Timeout:      timeout,
+		Delay:        5 * time.Second,
+		PollInterval: 15 * time.Second,
+	}
+	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
+		return fmt.Errorf("error waiting for job(%s) success: %s", action, err)
+	}
+
+	return nil
 }
 
 func resourceDmsRocketMQInstanceRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -665,6 +841,11 @@ func resourceDmsRocketMQInstanceRead(_ context.Context, d *schema.ResourceData, 
 	if utils.PathSearch("charging_mode", getRocketmqInstanceRespBody, 1).(float64) == 0 {
 		chargingMode = "prePaid"
 	}
+	epsID := "all_granted_eps"
+	ipIdList, addressList, err := getPublicipInfoByAddresses(meta, region, epsID, getRocketmqInstanceRespBody)
+	if err != nil {
+		return diag.Errorf("error retrieving public access: %s", err)
+	}
 
 	mErr = multierror.Append(
 		mErr,
@@ -685,8 +866,8 @@ func resourceDmsRocketMQInstanceRead(_ context.Context, d *schema.ResourceData, 
 		d.Set("storage_space", utils.PathSearch("total_storage_space", getRocketmqInstanceRespBody, nil)),
 		d.Set("used_storage_space", utils.PathSearch("used_storage_space", getRocketmqInstanceRespBody, nil)),
 		d.Set("enable_publicip", utils.PathSearch("enable_publicip", getRocketmqInstanceRespBody, nil)),
-		d.Set("publicip_id", utils.PathSearch("publicip_id", getRocketmqInstanceRespBody, nil)),
-		d.Set("publicip_address", utils.PathSearch("publicip_address", getRocketmqInstanceRespBody, nil)),
+		d.Set("publicip_id", strings.Join(ipIdList, ",")),
+		d.Set("publicip_address", strings.Join(addressList, ",")),
 		d.Set("ssl_enable", utils.PathSearch("ssl_enable", getRocketmqInstanceRespBody, nil)),
 		d.Set("storage_spec_code", utils.PathSearch("storage_spec_code", getRocketmqInstanceRespBody, nil)),
 		d.Set("ipv6_enable", utils.PathSearch("ipv6_enable", getRocketmqInstanceRespBody, nil)),
@@ -704,6 +885,18 @@ func resourceDmsRocketMQInstanceRead(_ context.Context, d *schema.ResourceData, 
 		d.Set("charging_mode", chargingMode),
 	)
 
+	// get configs
+	configNames := getConfigsNameList(d.Get("configs").(*schema.Set).List())
+	if len(configNames) > 0 {
+		if configs, err := getRocketmqConfigs(getRocketmqInstanceClient, d.Id(), configNames); err == nil {
+			mErr = multierror.Append(mErr,
+				d.Set("configs", configs),
+			)
+		} else {
+			fmt.Printf("[WARN] fetching configs of RocketMQ failed: %s", err)
+		}
+	}
+
 	// fetch tags
 	if resourceTags, err := tags.Get(getRocketmqInstanceClient, "rocketmq", d.Id()).Extract(); err == nil {
 		tagMap := utils.TagsToMap(resourceTags.Tags)
@@ -713,6 +906,53 @@ func resourceDmsRocketMQInstanceRead(_ context.Context, d *schema.ResourceData, 
 	}
 
 	return diag.FromErr(mErr.ErrorOrNil())
+}
+
+func getConfigsNameList(configs []interface{}) []string {
+	rst := make([]string, len(configs))
+	for i, v := range configs {
+		rst[i] = v.(map[string]interface{})["name"].(string)
+	}
+	return rst
+}
+
+func getRocketmqConfigs(client *golangsdk.ServiceClient, instanceId string, configsName []string) ([]map[string]interface{}, error) {
+	getConfigsHttpUrl := "v2/{project_id}/rocketmq/instances/{instance_id}/configs"
+	getConfigsPath := client.Endpoint + getConfigsHttpUrl
+	getConfigsPath = strings.ReplaceAll(getConfigsPath, "{project_id}", client.ProjectID)
+	getConfigsPath = strings.ReplaceAll(getConfigsPath, "{instance_id}", instanceId)
+	getConfigsOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+	}
+
+	getConfigsResp, err := client.Request("GET", getConfigsPath, &getConfigsOpt)
+	if err != nil {
+		return nil, fmt.Errorf("error getting recoketmq configs: %s", err)
+	}
+
+	getConfigsRespBody, err := utils.FlattenResponse(getConfigsResp)
+	if err != nil {
+		return nil, fmt.Errorf("error flattening recoketmq configs response: %s", err)
+	}
+
+	rocketmqConfigs := utils.PathSearch("rocketmq_configs", getConfigsRespBody, make([]interface{}, 0)).([]interface{})
+	if len(rocketmqConfigs) == 0 {
+		return nil, fmt.Errorf("error getting recoketmq configs: rocketmq_config is not in return")
+	}
+
+	var rst []map[string]interface{}
+	for _, rocketmqConfig := range rocketmqConfigs {
+		name := utils.PathSearch("name", rocketmqConfig, "").(string)
+		if utils.StrSliceContains(configsName, name) {
+			p := map[string]interface{}{
+				"name":  name,
+				"value": utils.PathSearch("value", rocketmqConfig, nil),
+			}
+			rst = append(rst, p)
+		}
+	}
+
+	return rst, nil
 }
 
 func resourceDmsRocketMQInstanceDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -796,4 +1036,146 @@ func rocketmqInstanceStateRefreshFunc(client *golangsdk.ServiceClient, instanceI
 		status := utils.PathSearch("status", respBody, "").(string)
 		return respBody, status, nil
 	}
+}
+
+func publicipTaskRefreshFunc(client *golangsdk.ServiceClient, instanceID, taskName string) resource.StateRefreshFunc {
+	return func() (interface{}, string, error) {
+		// getPublicipTask: get publicip task
+		getPublicipTaskHttpUrl := "v2/{project_id}/instances/{instance_id}/tasks"
+		getPublicipTaskPath := client.Endpoint + getPublicipTaskHttpUrl
+		getPublicipTaskPath = strings.ReplaceAll(getPublicipTaskPath, "{project_id}",
+			client.ProjectID)
+		getPublicipTaskPath = strings.ReplaceAll(getPublicipTaskPath, "{instance_id}", instanceID)
+
+		reqOpt := golangsdk.RequestOpts{
+			KeepResponseBody: true,
+		}
+		getPublicipTaskResp, err := client.Request("GET", getPublicipTaskPath, &reqOpt)
+
+		if err != nil {
+			return nil, "QUERY ERROR", err
+		}
+
+		getPublicipTaskRespBody, err := utils.FlattenResponse(getPublicipTaskResp)
+		if err != nil {
+			return nil, "PARSE ERROR", err
+		}
+
+		task := utils.PathSearch(fmt.Sprintf("tasks|[?name=='%s']|[0]", taskName), getPublicipTaskRespBody, nil)
+		if task == nil {
+			return nil, "NOT FOUND", nil
+		}
+		status := utils.PathSearch("status", task, "").(string)
+		return task, status, nil
+	}
+}
+
+func resizeRocketmqInstance(ctx context.Context, client *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	if d.HasChange("flavor_id") {
+		resizeBodyParams := map[string]interface{}{
+			"oper_type":      "vertical",
+			"new_product_id": d.Get("flavor_id"),
+		}
+
+		if err := doRocketmqInstanceResize(ctx, client, d, resizeBodyParams); err != nil {
+			return err
+		}
+	}
+
+	if d.HasChange("broker_num") {
+		resizeBodyParams := map[string]interface{}{
+			"oper_type":      "horizontal",
+			"new_broker_num": d.Get("broker_num"),
+		}
+		if err := doRocketmqInstanceResize(ctx, client, d, resizeBodyParams); err != nil {
+			return err
+		}
+	}
+
+	if d.HasChange("storage_space") {
+		resizeBodyParams := map[string]interface{}{
+			"oper_type":         "storage",
+			"new_storage_space": d.Get("storage_space"),
+		}
+
+		if err := doRocketmqInstanceResize(ctx, client, d, resizeBodyParams); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func doRocketmqInstanceResize(ctx context.Context, client *golangsdk.ServiceClient, d *schema.ResourceData, bodyParams map[string]interface{}) error {
+	instanceID := d.Id()
+	resizeRocketmqInstanceHttpUrl := "v2/rocketmq/{project_id}/instances/{instance_id}/extend"
+	resizeRocketmqInstancePath := client.Endpoint + resizeRocketmqInstanceHttpUrl
+	resizeRocketmqInstancePath = strings.ReplaceAll(resizeRocketmqInstancePath, "{project_id}", client.ProjectID)
+	resizeRocketmqInstancePath = strings.ReplaceAll(resizeRocketmqInstancePath, "{instance_id}", instanceID)
+
+	resizeRocketmqInstanceOpt := golangsdk.RequestOpts{KeepResponseBody: true}
+	resizeRocketmqInstanceOpt.JSONBody = utils.RemoveNil(bodyParams)
+
+	retryFunc := func() (interface{}, bool, error) {
+		_, err := client.Request("POST", resizeRocketmqInstancePath, &resizeRocketmqInstanceOpt)
+		retry, err := handleMultiOperationsError(err)
+		return nil, retry, err
+	}
+	_, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     rocketmqInstanceStateRefreshFunc(client, instanceID),
+		WaitTarget:   []string{"RUNNING"},
+		Timeout:      d.Timeout(schema.TimeoutUpdate),
+		DelayTimeout: 10 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("error resizing RocketMQ instance: bodyParams: %#v, err: %s", bodyParams, err)
+	}
+
+	stateConf := &resource.StateChangeConf{
+		Pending:      []string{"EXTENDING"},
+		Target:       []string{"RUNNING"},
+		Refresh:      rocketmqInstanceStateRefreshFunc(client, instanceID),
+		Timeout:      d.Timeout(schema.TimeoutUpdate),
+		Delay:        60 * time.Second,
+		PollInterval: 10 * time.Second,
+	}
+	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
+		return fmt.Errorf("error waiting for instance (%s) to resize: %v", instanceID, err)
+	}
+	return nil
+}
+
+// get public access information filtered by addresses from public_broker_address, e.g. "121.37.221.67:10105,139.159.159.46:10106"
+func getPublicipInfoByAddresses(meta interface{}, region, epsID string, resp interface{}) ([]string, []string, error) {
+	publicBrokerAddress := utils.PathSearch("public_broker_address", resp, "").(string)
+	publicNamesrvAddress := utils.PathSearch("public_namesrv_address", resp, "").(string)
+	if publicBrokerAddress == "" || publicNamesrvAddress == "" {
+		return nil, nil, nil
+	}
+
+	cfg := meta.(*config.Config)
+	eipClient, err := cfg.NetworkingV1Client(region)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error creating networking client: %s", err)
+	}
+
+	allAddressPortList := strings.Split(publicBrokerAddress+","+publicNamesrvAddress, ",")
+	addressList := make([]string, len(allAddressPortList))
+	for i, addressPort := range allAddressPortList {
+		addressList[i] = strings.Split(addressPort, ":")[0]
+	}
+	publicips, err := common.GetEipsbyAddresses(eipClient, addressList, epsID)
+	if err != nil {
+		return nil, nil, err
+	}
+	ipIdList := make([]string, len(publicips))
+	ipAddressList := make([]string, len(publicips))
+	for i, ip := range publicips {
+		ipIdList[i] = ip.ID
+		ipAddressList[i] = ip.PublicAddress
+	}
+	return ipIdList, ipAddressList, nil
 }

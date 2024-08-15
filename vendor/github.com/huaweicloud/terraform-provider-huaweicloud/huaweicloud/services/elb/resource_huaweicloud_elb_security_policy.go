@@ -2,13 +2,11 @@ package elb
 
 import (
 	"context"
-	"regexp"
 	"strings"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
@@ -18,6 +16,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API ELB POST /v3/{project_id}/elb/security-policies
+// @API ELB GET /v3/{project_id}/elb/security-policies/{security_policy_id}
+// @API ELB PUT /v3/{project_id}/elb/security-policies/{security_policy_id}
+// @API ELB DELETE /v3/{project_id}/elb/security-policies/{security_policy_id}
 func ResourceSecurityPolicy() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceSecurityPoliciesV3Create,
@@ -48,25 +50,15 @@ func ResourceSecurityPolicy() *schema.Resource {
 				Description: `Specifies the cipher suite list of the security policy.`,
 			},
 			"name": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
-				ValidateFunc: validation.All(
-					validation.StringLenBetween(1, 255),
-					validation.StringMatch(regexp.MustCompile(`^[\x{4E00}-\x{9FFC}A-Za-z-_0-9.]*$`),
-						"the input is invalid"),
-				),
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
 				Description: `Specifies the ELB security policy name.`,
 			},
 			"description": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
-				ValidateFunc: validation.All(
-					validation.StringLenBetween(0, 255),
-					validation.StringMatch(regexp.MustCompile(`^[^<>]+$`),
-						"the input is invalid"),
-				),
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
 				Description: `Specifies the description of the ELB security policy`,
 			},
 			"enterprise_project_id": {
@@ -81,6 +73,14 @@ func ResourceSecurityPolicy() *schema.Resource {
 				Elem:        SecurityPoliciesV3ListenerRefSchema(),
 				Computed:    true,
 				Description: `The listener which the security policy associated with.`,
+			},
+			"created_at": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"updated_at": {
+				Type:     schema.TypeString,
+				Computed: true,
 			},
 		},
 	}
@@ -148,11 +148,11 @@ func buildCreateSecurityPolicyBodyParams(d *schema.ResourceData, cfg *config.Con
 
 func buildCreateSecurityPolicyChildBodyParams(d *schema.ResourceData, cfg *config.Config) map[string]interface{} {
 	return map[string]interface{}{
-		"name":                  utils.ValueIngoreEmpty(d.Get("name")),
-		"description":           utils.ValueIngoreEmpty(d.Get("description")),
-		"enterprise_project_id": utils.ValueIngoreEmpty(common.GetEnterpriseProjectID(d, cfg)),
-		"protocols":             utils.ValueIngoreEmpty(d.Get("protocols")),
-		"ciphers":               utils.ValueIngoreEmpty(d.Get("ciphers")),
+		"name":                  utils.ValueIgnoreEmpty(d.Get("name")),
+		"description":           utils.ValueIgnoreEmpty(d.Get("description")),
+		"enterprise_project_id": utils.ValueIgnoreEmpty(common.GetEnterpriseProjectID(d, cfg)),
+		"protocols":             utils.ValueIgnoreEmpty(d.Get("protocols")),
+		"ciphers":               utils.ValueIgnoreEmpty(d.Get("ciphers")),
 	}
 }
 
@@ -233,6 +233,8 @@ func resourceSecurityPoliciesV3Read(_ context.Context, d *schema.ResourceData, m
 		d.Set("protocols", utils.PathSearch("security_policy.protocols", getSecurityPolicyRespBody, nil)),
 		d.Set("ciphers", utils.PathSearch("security_policy.ciphers", getSecurityPolicyRespBody, nil)),
 		d.Set("listeners", flattenGetSecurityPolicyResponseBodyListenerRef(getSecurityPolicyRespBody)),
+		d.Set("created_at", utils.PathSearch("security_policy.created_at", getSecurityPolicyRespBody, nil)),
+		d.Set("updated_at", utils.PathSearch("security_policy.updated_at", getSecurityPolicyRespBody, nil)),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())
@@ -302,9 +304,9 @@ func buildUpdateSecurityPolicyBodyParams(d *schema.ResourceData, cfg *config.Con
 
 func buildUpdateSecurityPolicyChildBodyParams(d *schema.ResourceData, _ *config.Config) map[string]interface{} {
 	return map[string]interface{}{
-		"name":        utils.ValueIngoreEmpty(d.Get("name")),
-		"description": utils.ValueIngoreEmpty(d.Get("description")),
-		"protocols":   utils.ValueIngoreEmpty(d.Get("protocols")),
-		"ciphers":     utils.ValueIngoreEmpty(d.Get("ciphers")),
+		"name":        utils.ValueIgnoreEmpty(d.Get("name")),
+		"description": utils.ValueIgnoreEmpty(d.Get("description")),
+		"protocols":   utils.ValueIgnoreEmpty(d.Get("protocols")),
+		"ciphers":     utils.ValueIgnoreEmpty(d.Get("ciphers")),
 	}
 }

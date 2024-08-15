@@ -3,131 +3,606 @@ package dws
 import (
 	"fmt"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
+	"strings"
 	"testing"
 
-	"github.com/chnsz/golangsdk"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+
+	"github.com/chnsz/golangsdk"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dws"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
-func TestAccDwsCluster_basic(t *testing.T) {
-	name := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
+func getClusterResourceFunc(cfg *config.Config, state *terraform.ResourceState) (interface{}, error) {
+	region := acceptance.SBC_REGION_NAME
+	// getDwsCluster: Query the DWS cluster.
+	var (
+		getDwsClusterHttpUrl = "v1.0/{project_id}/clusters/{cluster_id}"
+		getDwsClusterProduct = "dws"
+	)
+	getDwsClusterClient, err := cfg.NewServiceClient(getDwsClusterProduct, region)
+	if err != nil {
+		return nil, fmt.Errorf("error creating DWS Client: %s", err)
+	}
+
+	getDwsClusterPath := getDwsClusterClient.Endpoint + getDwsClusterHttpUrl
+	getDwsClusterPath = strings.ReplaceAll(getDwsClusterPath, "{project_id}", getDwsClusterClient.ProjectID)
+	getDwsClusterPath = strings.ReplaceAll(getDwsClusterPath, "{cluster_id}", state.Primary.ID)
+
+	getDwsClusterOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		OkCodes: []int{
+			200,
+		},
+		MoreHeaders: map[string]string{
+			"Content-Type": "application/json;charset=UTF-8",
+		},
+	}
+
+	getDwsClusterResp, err := getDwsClusterClient.Request("GET", getDwsClusterPath, &getDwsClusterOpt)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving DwsCluster: %s", err)
+	}
+
+	getDwsClusterRespBody, err := utils.FlattenResponse(getDwsClusterResp)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving DwsCluster: %s", err)
+	}
+
+	return getDwsClusterRespBody, nil
+}
+
+func TestAccResourceCluster_basicV1(t *testing.T) {
+	var obj interface{}
+
+	resourceName := "sbercloud_dws_cluster.test"
+	name := acceptance.RandomAccResourceName()
+
+	rc := acceptance.InitResourceCheck(
+		resourceName,
+		&obj,
+		getClusterResourceFunc,
+	)
+
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
 		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy:      testAccCheckDwsClusterDestroy,
+		CheckDestroy:      rc.CheckResourceDestroy(),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccDwsCluster_basic(name),
+				Config: testAccDwsCluster_basic(name, 3, dws.PublicBindTypeAuto, "cluster123@!", "bar"),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckDwsClusterExists(),
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(resourceName, "name", name),
+					resource.TestCheckResourceAttr(resourceName, "number_of_node", "3"),
+					resource.TestCheckResourceAttr(resourceName, "logical_cluster_enable", "true"),
+					resource.TestCheckResourceAttr(resourceName, "tags.key", "val"),
+					resource.TestCheckResourceAttr(resourceName, "tags.foo", "bar"),
+				),
+			},
+			{
+				Config: testAccDwsCluster_basic(name, 6, dws.PublicBindTypeAuto, "cluster123@!u", "bar"),
+				Check: resource.ComposeTestCheckFunc(
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(resourceName, "name", name),
+					resource.TestCheckResourceAttr(resourceName, "number_of_node", "6"),
+					resource.TestCheckResourceAttr(resourceName, "logical_cluster_enable", "true"),
+					resource.TestCheckResourceAttr(resourceName, "tags.key", "val"),
+					resource.TestCheckResourceAttr(resourceName, "tags.foo", "bar"),
+				),
+			},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"user_pwd", "number_of_cn", "volume", "endpoints", "logical_cluster_enable"},
+			},
+		},
+	})
+}
+
+func testAccDwsCluster_basic(rName string, numberOfNode int, publicIpBindType, password, tag string) string {
+	baseNetwork := acceptance.TestBaseNetwork(rName)
+
+	return fmt.Sprintf(`
+%s
+
+data "sbercloud_availability_zones" "test" {}
+
+resource "sbercloud_dws_cluster" "test" {
+  name                   = "%s"
+  node_type              = "dwsx2.xlarge.m7n"
+  number_of_node         = %d
+  vpc_id                 = sbercloud_vpc.test.id
+  network_id             = sbercloud_vpc_subnet.test.id
+  security_group_id      = sbercloud_networking_secgroup.test.id
+  availability_zone      = data.sbercloud_availability_zones.test.names[0]
+  user_name              = "test_cluster_admin"
+  user_pwd               = "%s"
+  logical_cluster_enable = true
+
+  public_ip {
+    public_bind_type = "%s"
+  }
+
+  tags = {
+    key = "val"
+    foo = "%s"
+  }
+}
+`, baseNetwork, rName, numberOfNode, password, publicIpBindType, tag)
+}
+
+func TestAccResourceCluster_basicV2(t *testing.T) {
+	var obj interface{}
+
+	resourceName := "sbercloud_dws_cluster.test"
+	name := acceptance.RandomAccResourceName()
+
+	rc := acceptance.InitResourceCheck(
+		resourceName,
+		&obj,
+		getClusterResourceFunc,
+	)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      rc.CheckResourceDestroy(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccDwsCluster_basicV2(name, 3, "cluster123@!", "bar", 100, true),
+				Check: resource.ComposeTestCheckFunc(
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(resourceName, "name", name),
+					resource.TestCheckResourceAttr(resourceName, "number_of_node", "3"),
+					resource.TestCheckResourceAttr(resourceName, "tags.key", "val"),
+					resource.TestCheckResourceAttr(resourceName, "tags.foo", "bar"),
+					resource.TestCheckResourceAttr(resourceName, "volume.0.capacity", "100"),
+					resource.TestCheckResourceAttrSet(resourceName, "version"),
+				),
+			},
+			{
+				Config: testAccDwsCluster_basicV2(name, 6, "cluster123@!u", "cat", 150, false),
+				Check: resource.ComposeTestCheckFunc(
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(resourceName, "name", name),
+					resource.TestCheckResourceAttr(resourceName, "number_of_node", "6"),
+					resource.TestCheckResourceAttr(resourceName, "tags.key", "val"),
+					resource.TestCheckResourceAttr(resourceName, "tags.foo", "cat"),
+					resource.TestCheckResourceAttr(resourceName, "volume.0.capacity", "150"),
+					resource.TestCheckResourceAttrSet(resourceName, "version"),
+				),
+			},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"user_pwd", "number_of_cn", "volume", "endpoints", "lts_enable"},
+			},
+		},
+	})
+}
+func TestAccResourceCluster_basicV2_mutilAZs(t *testing.T) {
+	var obj interface{}
+
+	resourceName := "sbercloud_dws_cluster.test"
+	name := acceptance.RandomAccResourceName()
+
+	rc := acceptance.InitResourceCheck(
+		resourceName,
+		&obj,
+		getClusterResourceFunc,
+	)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck: func() {
+			acceptance.TestAccPreCheck(t)
+			acceptance.TestAccPreCheckMutilAZ(t)
+		},
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      rc.CheckResourceDestroy(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccDwsCluster_basicV2_mutilAZs(name, 3, dws.PublicBindTypeAuto, "cluster123@!", "bar", 100),
+				Check: resource.ComposeTestCheckFunc(
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(resourceName, "name", name),
+					resource.TestCheckResourceAttr(resourceName, "number_of_node", "3"),
+					resource.TestCheckResourceAttr(resourceName, "tags.key", "val"),
+					resource.TestCheckResourceAttr(resourceName, "tags.foo", "bar"),
+					resource.TestCheckResourceAttr(resourceName, "volume.0.capacity", "100"),
+					resource.TestCheckResourceAttr(resourceName, "availability_zone", acceptance.SBC_DWS_MUTIL_AZS),
+					resource.TestCheckResourceAttrSet(resourceName, "version"),
+				),
+			},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"user_pwd", "number_of_cn", "volume", "endpoints"},
+			},
+		},
+	})
+}
+func testAccDwsCluster_basicV2(rName string, numberOfNode int, password, tag string, volumeCap int, ltsEnable bool) string {
+	baseNetwork := acceptance.TestBaseNetwork(rName)
+
+	return fmt.Sprintf(`
+%s
+
+data "sbercloud_availability_zones" "test" {}
+
+data "sbercloud_dws_flavors" "test" {
+  vcpus = 4
+  memory = 32
+  datastore_type = "dws"
+}
+
+resource "sbercloud_dws_cluster" "test" {
+  name              = "%s"
+  node_type         = "dwsx2.xlarge.m7n"
+  number_of_node    = %d
+  vpc_id            = sbercloud_vpc.test.id
+  network_id        = sbercloud_vpc_subnet.test.id
+  security_group_id = sbercloud_networking_secgroup.test.id
+  availability_zone = data.sbercloud_availability_zones.test.names[0]
+  user_name         = "test_cluster_admin"
+  user_pwd          = "%s"
+  version           = data.sbercloud_dws_flavors.test.flavors[0].datastore_version
+  number_of_cn      = 3
+  lts_enable        = %v
+
+  public_ip {
+    public_bind_type = "%s"
+  }
+
+  volume {
+    type     = "SSD"
+    capacity = %d
+  }
+
+  tags = {
+    key = "val"
+    foo = "%s"
+  }
+}
+`, baseNetwork, rName, numberOfNode, password, ltsEnable, dws.PublicBindTypeAuto, volumeCap, tag)
+}
+
+func testAccDwsCluster_basicV2_mutilAZs(rName string, numberOfNode int, publicIpBindType, password, tag string, volumeCap int) string {
+	baseNetwork := acceptance.TestBaseNetwork(rName)
+
+	return fmt.Sprintf(`
+%s
+
+data "sbercloud_dws_flavors" "test" {
+  vcpus = 4
+  memory = 32
+  datastore_type = "dws"
+}
+
+resource "sbercloud_dws_cluster" "test" {
+  name              = "%s"
+  node_type         = "dwsk3.4U16G.4DPU"
+  number_of_node    = %d
+  vpc_id            = sbercloud_vpc.test.id
+  network_id        = sbercloud_vpc_subnet.test.id
+  security_group_id = sbercloud_networking_secgroup.test.id
+  availability_zone = "%s"
+  user_name         = "test_cluster_admin"
+  user_pwd          = "%s"
+  version           = data.sbercloud_dws_flavors.test.flavors[0].datastore_version
+  number_of_cn      = 3
+
+  public_ip {
+    public_bind_type = "%s"
+  }
+
+  volume {
+    type     = "SSD"
+    capacity = %d
+  }
+
+  tags = {
+    key = "val"
+    foo = "%s"
+  }
+}
+`, baseNetwork, rName, numberOfNode, acceptance.SBC_DWS_MUTIL_AZS, password, publicIpBindType, volumeCap, tag)
+}
+
+func TestAccResourceCluster_BindingElb(t *testing.T) {
+	var obj interface{}
+
+	resourceName := "sbercloud_dws_cluster.test"
+	rName := acceptance.RandomAccResourceName()
+
+	rc := acceptance.InitResourceCheck(
+		resourceName,
+		&obj,
+		getClusterResourceFunc,
+	)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      rc.CheckResourceDestroy(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccCluster_bindingElb(rName, dws.PublicBindTypeAuto, "cluster123@!u"),
+				Check: resource.ComposeTestCheckFunc(
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(resourceName, "elb.0.name", rName+"_elb1"),
+				),
+			},
+			{
+				Config: testAccCluster_bindingElb_update(rName, dws.PublicBindTypeAuto, "cluster123@!u"),
+				Check: resource.ComposeTestCheckFunc(
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(resourceName, "elb.0.name", rName+"_elb2"),
+				),
+			},
+			{
+				Config: testAccCluster_bindingElb_null(rName, dws.PublicBindTypeAuto, "cluster123@!u"),
+				Check: resource.ComposeTestCheckFunc(
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(resourceName, "elb.0.name", ""),
+				),
+			},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"user_pwd", "number_of_cn", "volume", "endpoints", "elb_id"},
+			},
+		},
+	})
+}
+
+func testAccCluster_bindingElb(rName, publicIpBindType, password string) string {
+	return fmt.Sprintf(`
+%[1]s
+
+data "sbercloud_dws_flavors" "test" {
+  vcpus          = 4
+  memory         = 32
+  datastore_type = "dws"
+}
+
+resource "sbercloud_dws_cluster" "test" {
+  name              = "%[2]s"
+  node_type         = "dwsx2.xlarge.m7n"
+  number_of_node    = 3
+  vpc_id            = sbercloud_vpc.test.id
+  network_id        = sbercloud_vpc_subnet.test.id
+  security_group_id = sbercloud_networking_secgroup.test.id
+  availability_zone = data.sbercloud_availability_zones.test.names[0]
+  user_name         = "test_cluster_admin"
+  user_pwd          = "%[3]s"
+  version           = data.sbercloud_dws_flavors.test.flavors[0].datastore_version
+  number_of_cn      = 3
+  elb_id            = sbercloud_elb_loadbalancer.test1.id
+
+  public_ip {
+    public_bind_type = "%[4]s"
+  }
+
+  volume {
+    type     = "SSD"
+    capacity = 150
+  }
+
+  tags = {
+    key = "val"
+    foo = "bar"
+  }
+}
+`, testAccElbV3LoadBalancerConfig_basic(rName), rName, password, publicIpBindType)
+}
+
+func testAccCluster_bindingElb_update(rName, publicIpBindType, password string) string {
+	return fmt.Sprintf(`
+%[1]s
+
+data "sbercloud_dws_flavors" "test" {
+  vcpus          = 4
+  memory         = 32
+  datastore_type = "dws"
+}
+
+resource "sbercloud_dws_cluster" "test" {
+  name              = "%[2]s"
+  node_type         = "dwsx2.xlarge.m7n"
+  number_of_node    = 3
+  vpc_id            = sbercloud_vpc.test.id
+  network_id        = sbercloud_vpc_subnet.test.id
+  security_group_id = sbercloud_networking_secgroup.test.id
+  availability_zone = data.sbercloud_availability_zones.test.names[0]
+  user_name         = "test_cluster_admin"
+  user_pwd          = "%[3]s"
+  version           = data.sbercloud_dws_flavors.test.flavors[0].datastore_version
+  number_of_cn      = 3
+  elb_id            = sbercloud_elb_loadbalancer.test2.id
+
+  public_ip {
+    public_bind_type = "%[4]s"
+  }
+
+  volume {
+    type     = "SSD"
+    capacity = 150
+  }
+
+  tags = {
+    key = "val"
+    foo = "bar"
+  }
+}
+`, testAccElbV3LoadBalancerConfig_basic(rName), rName, password, publicIpBindType)
+}
+
+func testAccCluster_bindingElb_null(rName, publicIpBindType, password string) string {
+	return fmt.Sprintf(`
+%[1]s
+
+data "sbercloud_dws_flavors" "test" {
+  vcpus          = 4
+  memory         = 32
+  datastore_type = "dws"
+}
+
+resource "sbercloud_dws_cluster" "test" {
+  name              = "%[2]s"
+  node_type         = "dwsx2.xlarge.m7n"
+  number_of_node    = 3
+  vpc_id            = sbercloud_vpc.test.id
+  network_id        = sbercloud_vpc_subnet.test.id
+  security_group_id = sbercloud_networking_secgroup.test.id
+  availability_zone = data.sbercloud_availability_zones.test.names[0]
+  user_name         = "test_cluster_admin"
+  user_pwd          = "%[3]s"
+  version           = data.sbercloud_dws_flavors.test.flavors[0].datastore_version
+  number_of_cn      = 3
+
+  public_ip {
+    public_bind_type = "%[4]s"
+  }
+
+  volume {
+    type     = "SSD"
+    capacity = 150
+  }
+
+  tags = {
+    key = "val"
+    foo = "bar"
+  }
+}
+`, testAccElbV3LoadBalancerConfig_basic(rName), rName, password, publicIpBindType)
+}
+
+func testAccElbV3LoadBalancerConfig_basic(rName string) string {
+	baseNetwork := acceptance.TestBaseNetwork(rName)
+	return fmt.Sprintf(`
+%[1]s
+
+data "sbercloud_availability_zones" "test" {}
+
+resource "sbercloud_elb_loadbalancer" "test1" {
+  name           = "%[2]s_elb1"
+  vpc_id         = sbercloud_vpc.test.id
+  ipv4_subnet_id = sbercloud_vpc_subnet.test.ipv4_subnet_id
+	
+  availability_zone = [
+    data.sbercloud_availability_zones.test.names[0]
+  ]
+
+  backend_subnets = [
+    sbercloud_vpc_subnet.test.id
+  ]
+
+  //protection_status = "nonProtection"
+
+  tags = {
+    key   = "value"
+    owner = "terraform"
+  }
+}
+resource "sbercloud_elb_loadbalancer" "test2" {
+  name           = "%[2]s_elb2"
+  vpc_id         = sbercloud_vpc.test.id
+  ipv4_subnet_id = sbercloud_vpc_subnet.test.ipv4_subnet_id
+	
+  availability_zone = [
+    data.sbercloud_availability_zones.test.names[0]
+  ]
+
+  backend_subnets = [
+    sbercloud_vpc_subnet.test.id
+  ]
+
+  //protection_status = "nonProtection"
+
+  tags = {
+    key   = "value"
+    owner = "terraform"
+  }
+}
+`, baseNetwork, rName)
+}
+
+func TestAccResourceCluster_updateWithEpsId(t *testing.T) {
+	var obj interface{}
+
+	resourceName := "sbercloud_dws_cluster.test"
+	rName := acceptance.RandomAccResourceName()
+
+	rc := acceptance.InitResourceCheck(
+		resourceName,
+		&obj,
+		getClusterResourceFunc,
+	)
+	srcEPS := acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST
+	destEPS := acceptance.SBC_ENTERPRISE_MIGRATE_PROJECT_ID_TEST
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck: func() {
+			acceptance.TestAccPreCheck(t)
+			acceptance.TestAccPreCheckMigrateEpsID(t)
+		},
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      rc.CheckResourceDestroy(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccCluster_withEpsId(rName, 3, dws.PublicBindTypeAuto, "cluster123@!", srcEPS, "bar"),
+				Check: resource.ComposeTestCheckFunc(
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", srcEPS),
+				),
+			},
+			{
+				Config: testAccCluster_withEpsId(rName, 6, dws.PublicBindTypeAuto, "cluster123@!u", destEPS, "bar"),
+				Check: resource.ComposeTestCheckFunc(
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", destEPS),
 				),
 			},
 		},
 	})
 }
 
-func testAccDwsCluster_basic(name string) string {
+func testAccCluster_withEpsId(rName string, numberOfNode int, publicIpBindType, password, epsId, tag string) string {
+	baseNetwork := acceptance.TestBaseNetwork(rName)
+
 	return fmt.Sprintf(`
+%s
+
 data "sbercloud_availability_zones" "test" {}
 
-resource "sbercloud_vpc" "test" {
-  name = "%s"
-  cidr = "192.168.0.0/16"
-}
+resource "sbercloud_dws_cluster" "test" {
+  name                   = "%s"
+  node_type              = "dwsx2.xlarge.m7n"
+  number_of_node         = %d
+  vpc_id                 = sbercloud_vpc.test.id
+  network_id             = sbercloud_vpc_subnet.test.id
+  security_group_id      = sbercloud_networking_secgroup.test.id
+  availability_zone      = data.sbercloud_availability_zones.test.names[0]
+  user_name              = "test_cluster_admin"
+  user_pwd               = "%s"
+  enterprise_project_id  = "%s"
 
-resource "sbercloud_vpc_subnet" "test" {
-  name          = "%s"
-  cidr          = "192.168.0.0/24"
-  gateway_ip    = "192.168.0.1"
-  primary_dns   = "100.125.1.250"
-  secondary_dns = "100.125.21.250"
-  vpc_id        = sbercloud_vpc.test.id
-}
+  public_ip {
+    public_bind_type = "%s"
+  }
 
-resource "sbercloud_networking_secgroup" "secgroup" {
-  name = "%s"
-  description = "terraform security group"
-}
-
-resource "sbercloud_dws_cluster" "cluster" {
-  node_type = "dwsx2.xlarge.m7n"
-  number_of_node = 3
-  network_id = sbercloud_vpc_subnet.test.id
-  vpc_id = sbercloud_vpc.test.id
-  security_group_id = sbercloud_networking_secgroup.secgroup.id
-  availability_zone = data.sbercloud_availability_zones.test.names[0]
-  name = "%s"
-  user_name = "test_cluster_admin"
-  user_pwd = "cluster123@!"
-
-  timeouts {
-    create = "30m"
-    delete = "30m"
+  tags = {
+    key = "val"
+    foo = "%s"
   }
 }
-	`, name, name, name, name)
-}
-
-func testAccCheckDwsClusterDestroy(s *terraform.State) error {
-	config := acceptance.TestAccProvider.Meta().(*config.Config)
-	client, err := config.DwsV1Client(acceptance.SBC_REGION_NAME)
-	if err != nil {
-		return fmt.Errorf("Error creating sdk client, err=%s", err)
-	}
-
-	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "sbercloud_dws_cluster" {
-			continue
-		}
-
-		url, err := acceptance.ReplaceVarsForTest(rs, "clusters/{id}")
-		if err != nil {
-			return err
-		}
-		url = client.ServiceURL(url)
-
-		_, err = client.Get(
-			url, nil,
-			&golangsdk.RequestOpts{MoreHeaders: map[string]string{"Content-Type": "application/json"}})
-		if err == nil {
-			return fmt.Errorf("sbercloud_dws_cluster still exists at %s", url)
-		}
-	}
-
-	return nil
-}
-
-func testAccCheckDwsClusterExists() resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		config := acceptance.TestAccProvider.Meta().(*config.Config)
-		client, err := config.DwsV1Client(acceptance.SBC_REGION_NAME)
-		if err != nil {
-			return fmt.Errorf("Error creating sdk client, err=%s", err)
-		}
-
-		rs, ok := s.RootModule().Resources["sbercloud_dws_cluster.cluster"]
-		if !ok {
-			return fmt.Errorf("Error checking sbercloud_dws_cluster.cluster exist, err=not found sbercloud_dws_cluster.cluster")
-		}
-
-		url, err := acceptance.ReplaceVarsForTest(rs, "clusters/{id}")
-		if err != nil {
-			return fmt.Errorf("Error checking sbercloud_dws_cluster.cluster exist, err=building url failed: %s", err)
-		}
-		url = client.ServiceURL(url)
-
-		_, err = client.Get(
-			url, nil,
-			&golangsdk.RequestOpts{MoreHeaders: map[string]string{"Content-Type": "application/json"}})
-		if err != nil {
-			if _, ok := err.(golangsdk.ErrDefault404); ok {
-				return fmt.Errorf("sbercloud_dws_cluster.cluster is not exist")
-			}
-			return fmt.Errorf("Error checking sbercloud_dws_cluster.cluster exist, err=send request failed: %s", err)
-		}
-		return nil
-	}
+`, baseNetwork, rName, numberOfNode, password, epsId, publicIpBindType, tag)
 }

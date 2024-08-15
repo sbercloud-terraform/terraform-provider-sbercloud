@@ -23,6 +23,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API RDS GET /v3/{project_id}/instances/{instance_id}/backups/offsite-policy
+// @API RDS PUT /v3/{project_id}/instances/{instance_id}/backups/offsite-policy
+// @API RDS GET /v3/{project_id}/instances
 func ResourceBackupStrategy() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceBackupStrategyCreate,
@@ -168,7 +171,7 @@ func resourceBackupStrategyRead(_ context.Context, d *schema.ResourceData, meta 
 	}
 
 	backupStrategies := policyPara.([]interface{})
-	if len(backupStrategies) == 0 || utils.PathSearch("keep_days", backupStrategies[0], 0).(float64) == 0 {
+	if len(backupStrategies) == 0 || utils.PathSearch("keep_days", backupStrategies[0], float64(0)).(float64) == 0 {
 		return common.CheckDeletedDiag(d, golangsdk.ErrDefault404{}, "")
 	}
 
@@ -231,10 +234,10 @@ func resourceBackupStrategyUpdate(ctx context.Context, d *schema.ResourceData, m
 func buildUpdateBackupStrategyKeepDaysBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
 		"policy_para": map[string]interface{}{
-			"backup_type":            utils.ValueIngoreEmpty(d.Get("backup_type")),
-			"keep_days":              utils.ValueIngoreEmpty(d.Get("keep_days")),
-			"destination_region":     utils.ValueIngoreEmpty(d.Get("destination_region")),
-			"destination_project_id": utils.ValueIngoreEmpty(d.Get("destination_project_id")),
+			"backup_type":            utils.ValueIgnoreEmpty(d.Get("backup_type")),
+			"keep_days":              utils.ValueIgnoreEmpty(d.Get("keep_days")),
+			"destination_region":     utils.ValueIgnoreEmpty(d.Get("destination_region")),
+			"destination_project_id": utils.ValueIgnoreEmpty(d.Get("destination_project_id")),
 		},
 	}
 	return bodyParams
@@ -243,8 +246,8 @@ func buildUpdateBackupStrategyKeepDaysBodyParams(d *schema.ResourceData) map[str
 func buildUpdateBackupStrategyBackupTypeBodyParams(d *schema.ResourceData) map[string]interface{} {
 	params := map[string]interface{}{
 		"backup_type":            "incremental",
-		"destination_region":     utils.ValueIngoreEmpty(d.Get("destination_region")),
-		"destination_project_id": utils.ValueIngoreEmpty(d.Get("destination_project_id")),
+		"destination_region":     utils.ValueIgnoreEmpty(d.Get("destination_region")),
+		"destination_project_id": utils.ValueIgnoreEmpty(d.Get("destination_project_id")),
 	}
 	// If backup_type is changed to auto, it indicates the original value is all, we should close incremental backup,
 	// so we should set keep_days to 0, on the contrary, if backup_type is changed to all, it indicates the original
@@ -287,8 +290,8 @@ func buildDeleteBackupStrategyBodyParams(d *schema.ResourceData) map[string]inte
 		"policy_para": map[string]interface{}{
 			"backup_type":            "all",
 			"keep_days":              0,
-			"destination_region":     utils.ValueIngoreEmpty(d.Get("destination_region")),
-			"destination_project_id": utils.ValueIngoreEmpty(d.Get("destination_project_id")),
+			"destination_region":     utils.ValueIgnoreEmpty(d.Get("destination_region")),
+			"destination_project_id": utils.ValueIgnoreEmpty(d.Get("destination_project_id")),
 		},
 	}
 	return bodyParams

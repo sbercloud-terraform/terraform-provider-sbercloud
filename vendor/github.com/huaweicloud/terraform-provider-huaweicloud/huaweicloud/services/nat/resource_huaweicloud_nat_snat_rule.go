@@ -29,6 +29,11 @@ const (
 	SourceTypeDc  SourceType = 1
 )
 
+// @API NAT POST /v2/{project_id}/snat_rules
+// @API NAT GET /v2/{project_id}/snat_rules/{snat_rule_id}
+// @API NAT PUT /v2/{project_id}/snat_rules/{snat_rule_id}
+// @API NAT DELETE /v2/{project_id}/nat_gateways/{nat_gateway_id}/snat_rules/{snat_rule_id}
+// @API EIP GET /v1/{project_id}/publicips/{publicip_id}
 func ResourcePublicSnatRule() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourcePublicSnatRuleCreate,
@@ -56,9 +61,17 @@ func ResourcePublicSnatRule() *schema.Resource {
 			},
 			"floating_ip_id": {
 				Type:             schema.TypeString,
-				Required:         true,
+				Optional:         true,
+				Computed:         true,
+				ExactlyOneOf:     []string{"floating_ip_id", "global_eip_id"},
 				DiffSuppressFunc: utils.SuppressSnatFiplistDiffs,
 				Description:      "The IDs of floating IPs connected by SNAT rule.",
+			},
+			"global_eip_id": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
+				Description: "The IDs (separated by commas) of global EIPs connected by SNAT rule.",
 			},
 			"nat_gateway_id": {
 				Type:        schema.TypeString,
@@ -101,6 +114,11 @@ func ResourcePublicSnatRule() *schema.Resource {
 				Computed:    true,
 				Description: "The floating IP addresses (separated by commas) connected by SNAT rule.",
 			},
+			"global_eip_address": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "The global EIP addresses (separated by commas) connected by SNAT rule.",
+			},
 			"status": {
 				Type:        schema.TypeString,
 				Computed:    true,
@@ -122,6 +140,7 @@ func buildPublicSnatRuleCreateOpts(d *schema.ResourceData) (snats.CreateOpts, er
 	result := snats.CreateOpts{
 		GatewayId:    d.Get("nat_gateway_id").(string),
 		FloatingIpId: d.Get("floating_ip_id").(string),
+		GlobalEipId:  d.Get("global_eip_id").(string),
 		Cidr:         d.Get("cidr").(string),
 		Description:  d.Get("description").(string),
 	}
@@ -135,7 +154,7 @@ func buildPublicSnatRuleCreateOpts(d *schema.ResourceData) (snats.CreateOpts, er
 
 	sourceType := d.Get("source_type").(int)
 	if sourceType == 1 && subnetId != "" {
-		return result, fmt.Errorf("In the DC (Direct Connect) scenario (source_type is 1), only the parameter 'cidr' " +
+		return result, fmt.Errorf("in the DC (Direct Connect) scenario (source_type is 1), only the parameter 'cidr' " +
 			"is valid, and the parameter 'subnet_id' must be empty")
 	}
 	result.SourceType = sourceType
@@ -207,13 +226,16 @@ func resourcePublicSnatRuleRead(_ context.Context, d *schema.ResourceData, meta 
 
 	resp, err := snats.Get(natClient, d.Id())
 	if err != nil {
-		return common.CheckDeletedDiag(d, err, "Public SNAT rule")
+		// If the SNAT rule does not exist, the response HTTP status code of the details API is 404.
+		return common.CheckDeletedDiag(d, err, "error retrieving SNAT rule")
 	}
 	mErr := multierror.Append(nil,
 		d.Set("region", region),
 		d.Set("nat_gateway_id", resp.GatewayId),
 		d.Set("floating_ip_id", resp.FloatingIpId),
 		d.Set("floating_ip_address", resp.FloatingIpAddress),
+		d.Set("global_eip_id", resp.GlobalEipId),
+		d.Set("global_eip_address", resp.GlobalEipAddress),
 		d.Set("source_type", resp.SourceType),
 		d.Set("subnet_id", resp.NetworkId),
 		d.Set("cidr", resp.Cidr),
@@ -261,6 +283,10 @@ func resourcePublicSnatRuleUpdate(ctx context.Context, d *schema.ResourceData, m
 		opts.FloatingIpAddress = strings.Join(eipAddrs, ",")
 	}
 
+	if d.HasChange("global_eip_id") {
+		opts.GlobalEipId = d.Get("global_eip_id").(string)
+	}
+
 	log.Printf("[DEBUG] The update options of the public SNAT rule is: %#v", opts)
 	_, err = snats.Update(natClient, ruleId, opts)
 	if err != nil {
@@ -295,7 +321,8 @@ func resourcePublicSnatRuleDelete(ctx context.Context, d *schema.ResourceData, m
 	gatewayId := d.Get("nat_gateway_id").(string)
 	err = snats.Delete(client, gatewayId, ruleId)
 	if err != nil {
-		return diag.Errorf("error deleting public SNAT rule (%s): %s", ruleId, err)
+		// If the SNAT rule does not exist, the response HTTP status code of the details API is 404.
+		return common.CheckDeletedDiag(d, err, "error deleting SNAT rule")
 	}
 	stateConf := &resource.StateChangeConf{
 		Pending:      []string{"PENDING"},

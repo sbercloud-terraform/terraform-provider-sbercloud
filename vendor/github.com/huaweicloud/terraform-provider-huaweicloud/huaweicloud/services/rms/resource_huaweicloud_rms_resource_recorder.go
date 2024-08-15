@@ -23,6 +23,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API Config PUT /v1/resource-manager/domains/{domain_id}/tracker-config
+// @API Config GET /v1/resource-manager/domains/{domain_id}/tracker-config
+// @API Config DELETE /v1/resource-manager/domains/{domain_id}/tracker-config
 func ResourceRecorder() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceRecorderUpdate,
@@ -166,8 +169,8 @@ func buildRecorderChannelConfigRequest(d *schema.ResourceData) (map[string]inter
 	}
 
 	bodyParams := map[string]interface{}{
-		"obs": utils.ValueIngoreEmpty(obsOpts),
-		"smn": utils.ValueIngoreEmpty(smnOpts),
+		"obs": utils.ValueIgnoreEmpty(obsOpts),
+		"smn": utils.ValueIgnoreEmpty(smnOpts),
 	}
 	return bodyParams, nil
 }

@@ -19,10 +19,10 @@ import (
 )
 
 // @API CCM POST /v1/private-certificates
-// @API CCM POST /v1/private-certificates/{id}/tags/create
-// @API CCM DELETE /v1/private-certificates/{id}/tags/delete
+// @API CCM POST /v1/private-certificates/{certificate_id}/tags/create
+// @API CCM DELETE /v1/private-certificates/{certificate_id}/tags/delete
 // @API CCM GET /v1/private-certificates/{certificate_id}
-// @API CCM GET /v1/private-certificates/{id}/tags
+// @API CCM GET /v1/private-certificates/{certificate_id}/tags
 // @API CCM DELETE /v1/private-certificates/{certificate_id}
 func ResourceCcmPrivateCertificate() *schema.Resource {
 	return &schema.Resource{
@@ -273,9 +273,9 @@ func resourceCcmPrivateCertificateCreate(ctx context.Context, d *schema.Resource
 	d.SetId(id.(string))
 
 	// deal tags
-	createTagsHttpUrl := "v1/private-certificates/{id}/tags/create"
+	createTagsHttpUrl := "v1/private-certificates/{certificate_id}/tags/create"
 	tags := d.Get("tags").(map[string]interface{})
-	if err := createTags(id.(string), client, tags, createTagsHttpUrl); err != nil {
+	if err := createTags(id.(string), client, tags, createTagsHttpUrl, "{certificate_id}"); err != nil {
 		return diag.FromErr(err)
 	}
 
@@ -289,7 +289,7 @@ func buildCreateCertificateBodyParams(d *schema.ResourceData, cfg *config.Config
 		"signature_algorithm":       d.Get("signature_algorithm"),
 		"distinguished_name":        buildCertDistinguishedName(d.Get("distinguished_name")),
 		"validity":                  buildValidity(d.Get("validity")),
-		"enterprise_project_id":     utils.ValueIngoreEmpty(cfg.GetEnterpriseProjectID(d)),
+		"enterprise_project_id":     utils.ValueIgnoreEmpty(cfg.GetEnterpriseProjectID(d)),
 		"key_usage":                 d.Get("key_usage"),
 		"extended_key_usage":        buildExtendedKeyUsage(d),
 		"customized_extension":      buildCustomizedExtension(d),
@@ -318,7 +318,7 @@ func buildValidity(rawParams interface{}) map[string]interface{} {
 	params := map[string]interface{}{
 		"type":       raw["type"],
 		"value":      raw["value"],
-		"start_from": utils.ValueIngoreEmpty(raw["start_at"]),
+		"start_from": utils.ValueIgnoreEmpty(raw["start_at"]),
 	}
 	return params
 }
@@ -370,16 +370,16 @@ func resourceCcmPrivateCertificateUpdate(_ context.Context, d *schema.ResourceDa
 
 		// remove old tags
 		if len(oMap) > 0 {
-			deleteTagsHttpUrl := "v1/private-certificates/{id}/tags/delete"
-			if err = deleteTags(d.Id(), client, oMap, deleteTagsHttpUrl); err != nil {
+			deleteTagsHttpUrl := "v1/private-certificates/{certificate_id}/tags/delete"
+			if err = deleteTags(d.Id(), client, oMap, deleteTagsHttpUrl, "{certificate_id}"); err != nil {
 				return diag.FromErr(err)
 			}
 		}
 
 		// set new tags
 		if len(nMap) > 0 {
-			createTagsHttpUrl := "v1/private-certificates/{id}/tags/create"
-			if err := createTags(d.Id(), client, nMap, createTagsHttpUrl); err != nil {
+			createTagsHttpUrl := "v1/private-certificates/{certificate_id}/tags/create"
+			if err := createTags(d.Id(), client, nMap, createTagsHttpUrl, "{certificate_id}"); err != nil {
 				return diag.FromErr(err)
 			}
 		}
@@ -417,15 +417,15 @@ func resourceCcmPrivateCertificateRead(_ context.Context, d *schema.ResourceData
 		return diag.FromErr(err)
 	}
 
-	getTagsHttpUrl := "v1/private-certificates/{id}/tags"
-	tags, err := getTags(d.Id(), client, getTagsHttpUrl)
+	getTagsHttpUrl := "v1/private-certificates/{certificate_id}/tags"
+	tags, err := getTags(d.Id(), client, getTagsHttpUrl, "{certificate_id}")
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	created := utils.PathSearch("create_time", getCertificateRespBody, 0).(float64)
-	started := utils.PathSearch("not_before", getCertificateRespBody, 0).(float64)
-	expired := utils.PathSearch("not_after", getCertificateRespBody, 0).(float64)
+	created := utils.PathSearch("create_time", getCertificateRespBody, float64(0)).(float64)
+	started := utils.PathSearch("not_before", getCertificateRespBody, float64(0)).(float64)
+	expired := utils.PathSearch("not_after", getCertificateRespBody, float64(0)).(float64)
 	mErr := multierror.Append(nil,
 		d.Set("region", region),
 		d.Set("distinguished_name", flattenDistinguishedName(getCertificateRespBody)),

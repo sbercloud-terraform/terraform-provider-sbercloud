@@ -23,6 +23,12 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API SecMaster DELETE /v1/{project_id}/workspaces/{workspace_id}/siem/alert-rules
+// @API SecMaster POST /v1/{project_id}/workspaces/{workspace_id}/siem/alert-rules
+// @API SecMaster GET /v1/{project_id}/workspaces/{workspace_id}/siem/alert-rules/{id}
+// @API SecMaster PUT /v1/{project_id}/workspaces/{workspace_id}/siem/alert-rules/{id}
+// @API SecMaster POST /v1/{project_id}/workspaces/{workspace_id}/siem/alert-rules/enable
+// @API SecMaster POST /v1/{project_id}/workspaces/{workspace_id}/siem/alert-rules/disable
 func ResourceAlertRule() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceAlertRuleCreate,
@@ -272,11 +278,11 @@ func buildCreateAlertRuleBodyParams(d *schema.ResourceData) map[string]interface
 		"query":             d.Get("query_rule"),
 		"query_type":        d.Get("query_type"),
 		"schedule":          buildCreateAlertRuleRequestBodySchedule(d.Get("query_plan")),
-		"custom_properties": utils.ValueIngoreEmpty(d.Get("custom_information")),
-		"event_grouping":    utils.ValueIngoreEmpty(d.Get("event_grouping")),
-		"simulation":        utils.ValueIngoreEmpty(d.Get("debugging_alarm")),
+		"custom_properties": utils.ValueIgnoreEmpty(d.Get("custom_information")),
+		"event_grouping":    utils.ValueIgnoreEmpty(d.Get("event_grouping")),
+		"simulation":        utils.ValueIgnoreEmpty(d.Get("debugging_alarm")),
 		"triggers":          buildCreateAlertRuleRequestBodyAlertRuleTrigger(d.Get("triggers")),
-		"suppression":       utils.ValueIngoreEmpty(d.Get("suppression")),
+		"suppression":       utils.ValueIgnoreEmpty(d.Get("suppression")),
 	}
 	return bodyParams
 }
@@ -292,12 +298,12 @@ func buildCreateAlertRuleRequestBodySchedule(rawParams interface{}) map[string]i
 		}
 
 		params := map[string]interface{}{
-			"frequency_interval": utils.ValueIngoreEmpty(raw["query_interval"]),
-			"frequency_unit":     utils.ValueIngoreEmpty(raw["query_interval_unit"]),
-			"period_interval":    utils.ValueIngoreEmpty(raw["time_window"]),
-			"period_unit":        utils.ValueIngoreEmpty(raw["time_window_unit"]),
-			"delay_interval":     utils.ValueIngoreEmpty(raw["execution_delay"]),
-			"overtime_interval":  utils.ValueIngoreEmpty(raw["overtime_interval"]),
+			"frequency_interval": utils.ValueIgnoreEmpty(raw["query_interval"]),
+			"frequency_unit":     utils.ValueIgnoreEmpty(raw["query_interval_unit"]),
+			"period_interval":    utils.ValueIgnoreEmpty(raw["time_window"]),
+			"period_unit":        utils.ValueIgnoreEmpty(raw["time_window_unit"]),
+			"delay_interval":     utils.ValueIgnoreEmpty(raw["execution_delay"]),
+			"overtime_interval":  utils.ValueIgnoreEmpty(raw["overtime_interval"]),
 		}
 		return params
 	}
@@ -314,11 +320,11 @@ func buildCreateAlertRuleRequestBodyAlertRuleTrigger(rawParams interface{}) []ma
 		for i, v := range rawArray {
 			raw := v.(map[string]interface{})
 			rst[i] = map[string]interface{}{
-				"expression":        utils.ValueIngoreEmpty(raw["expression"]),
-				"operator":          utils.ValueIngoreEmpty(raw["operator"]),
-				"accumulated_times": utils.ValueIngoreEmpty(raw["accumulated_times"]),
-				"mode":              utils.ValueIngoreEmpty(raw["mode"]),
-				"severity":          utils.ValueIngoreEmpty(raw["severity"]),
+				"expression":        utils.ValueIgnoreEmpty(raw["expression"]),
+				"operator":          utils.ValueIgnoreEmpty(raw["operator"]),
+				"accumulated_times": utils.ValueIgnoreEmpty(raw["accumulated_times"]),
+				"mode":              utils.ValueIgnoreEmpty(raw["mode"]),
+				"severity":          utils.ValueIgnoreEmpty(raw["severity"]),
 			}
 		}
 		return rst
@@ -383,9 +389,9 @@ func resourceAlertRuleRead(_ context.Context, d *schema.ResourceData, meta inter
 		d.Set("triggers", flattenGetAlertRuleResponseBodyAlertRuleTrigger(getAlertRuleRespBody)),
 		d.Set("suppression", utils.PathSearch("suppression", getAlertRuleRespBody, nil)),
 		d.Set("created_at", utils.FormatTimeStampRFC3339(
-			int64(utils.PathSearch("create_time", getAlertRuleRespBody, 0).(float64))/1000, false)),
+			int64(utils.PathSearch("create_time", getAlertRuleRespBody, float64(0)).(float64))/1000, false)),
 		d.Set("updated_at", utils.FormatTimeStampRFC3339(
-			int64(utils.PathSearch("update_time", getAlertRuleRespBody, 0).(float64))/1000, false)),
+			int64(utils.PathSearch("update_time", getAlertRuleRespBody, float64(0)).(float64))/1000, false)),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())
@@ -530,19 +536,19 @@ func updateAlertStatus(updateAlertRuleClient *golangsdk.ServiceClient, d *schema
 
 func buildUpdateAlertRuleBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"rule_name":         utils.ValueIngoreEmpty(d.Get("name")),
-		"severity":          utils.ValueIngoreEmpty(d.Get("severity")),
-		"alert_type":        utils.ValueIngoreEmpty(d.Get("type")),
-		"description":       utils.ValueIngoreEmpty(d.Get("description")),
-		"status":            utils.ValueIngoreEmpty(d.Get("status")),
-		"query":             utils.ValueIngoreEmpty(d.Get("query_rule")),
-		"query_type":        utils.ValueIngoreEmpty(d.Get("query_type")),
+		"rule_name":         utils.ValueIgnoreEmpty(d.Get("name")),
+		"severity":          utils.ValueIgnoreEmpty(d.Get("severity")),
+		"alert_type":        utils.ValueIgnoreEmpty(d.Get("type")),
+		"description":       utils.ValueIgnoreEmpty(d.Get("description")),
+		"status":            utils.ValueIgnoreEmpty(d.Get("status")),
+		"query":             utils.ValueIgnoreEmpty(d.Get("query_rule")),
+		"query_type":        utils.ValueIgnoreEmpty(d.Get("query_type")),
 		"schedule":          buildUpdateAlertRuleRequestBodySchedule(d.Get("query_plan")),
-		"custom_properties": utils.ValueIngoreEmpty(d.Get("custom_information")),
-		"event_grouping":    utils.ValueIngoreEmpty(d.Get("event_grouping")),
-		"simulation":        utils.ValueIngoreEmpty(d.Get("debugging_alarm")),
+		"custom_properties": utils.ValueIgnoreEmpty(d.Get("custom_information")),
+		"event_grouping":    utils.ValueIgnoreEmpty(d.Get("event_grouping")),
+		"simulation":        utils.ValueIgnoreEmpty(d.Get("debugging_alarm")),
 		"triggers":          buildUpdateAlertRuleRequestBodyAlertRuleTrigger(d.Get("triggers")),
-		"suppression":       utils.ValueIngoreEmpty(d.Get("suppression")),
+		"suppression":       utils.ValueIgnoreEmpty(d.Get("suppression")),
 	}
 	return bodyParams
 }
@@ -558,12 +564,12 @@ func buildUpdateAlertRuleRequestBodySchedule(rawParams interface{}) map[string]i
 		}
 
 		params := map[string]interface{}{
-			"frequency_interval": utils.ValueIngoreEmpty(raw["query_interval"]),
-			"frequency_unit":     utils.ValueIngoreEmpty(raw["query_interval_unit"]),
-			"period_interval":    utils.ValueIngoreEmpty(raw["time_window"]),
-			"period_unit":        utils.ValueIngoreEmpty(raw["time_window_unit"]),
-			"delay_interval":     utils.ValueIngoreEmpty(raw["execution_delay"]),
-			"overtime_interval":  utils.ValueIngoreEmpty(raw["overtime_interval"]),
+			"frequency_interval": utils.ValueIgnoreEmpty(raw["query_interval"]),
+			"frequency_unit":     utils.ValueIgnoreEmpty(raw["query_interval_unit"]),
+			"period_interval":    utils.ValueIgnoreEmpty(raw["time_window"]),
+			"period_unit":        utils.ValueIgnoreEmpty(raw["time_window_unit"]),
+			"delay_interval":     utils.ValueIgnoreEmpty(raw["execution_delay"]),
+			"overtime_interval":  utils.ValueIgnoreEmpty(raw["overtime_interval"]),
 		}
 		return params
 	}
@@ -580,11 +586,11 @@ func buildUpdateAlertRuleRequestBodyAlertRuleTrigger(rawParams interface{}) []ma
 		for i, v := range rawArray {
 			raw := v.(map[string]interface{})
 			rst[i] = map[string]interface{}{
-				"expression":        utils.ValueIngoreEmpty(raw["expression"]),
-				"operator":          utils.ValueIngoreEmpty(raw["operator"]),
-				"accumulated_times": utils.ValueIngoreEmpty(raw["accumulated_times"]),
-				"mode":              utils.ValueIngoreEmpty(raw["mode"]),
-				"severity":          utils.ValueIngoreEmpty(raw["severity"]),
+				"expression":        utils.ValueIgnoreEmpty(raw["expression"]),
+				"operator":          utils.ValueIgnoreEmpty(raw["operator"]),
+				"accumulated_times": utils.ValueIgnoreEmpty(raw["accumulated_times"]),
+				"mode":              utils.ValueIgnoreEmpty(raw["mode"]),
+				"severity":          utils.ValueIgnoreEmpty(raw["severity"]),
 			}
 		}
 		return rst

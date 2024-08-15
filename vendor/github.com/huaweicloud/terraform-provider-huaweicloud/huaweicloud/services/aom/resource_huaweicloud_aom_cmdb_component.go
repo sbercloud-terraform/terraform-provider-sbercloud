@@ -22,6 +22,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API AOM POST /v1/components
+// @API AOM PUT /v1/components/{component_id}
+// @API AOM DELETE /v1/components/{component_id}
+// @API AOM GET /v1/components/{component_id}
 func ResourceCmdbComponent() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceCmdbComponentCreate,
@@ -78,7 +82,7 @@ func buildCreateComponentBodyParams(d *schema.ResourceData) map[string]interface
 		"name":        d.Get("name"),
 		"model_id":    d.Get("model_id"),
 		"model_type":  d.Get("model_type"),
-		"description": utils.ValueIngoreEmpty(d.Get("description")),
+		"description": utils.ValueIgnoreEmpty(d.Get("description")),
 	}
 	return bodyParams
 }
@@ -128,9 +132,9 @@ func resourceCmdbComponentRead(_ context.Context, d *schema.ResourceData, meta i
 		return diag.Errorf("error creating AOM client: %s", err)
 	}
 
-	getComponentHttpUrl := "v1/components/{id}"
+	getComponentHttpUrl := "v1/components/{component_id}"
 	getComponentPath := client.Endpoint + getComponentHttpUrl
-	getComponentPath = strings.ReplaceAll(getComponentPath, "{id}", d.Id())
+	getComponentPath = strings.ReplaceAll(getComponentPath, "{component_id}", d.Id())
 
 	getComponentOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
@@ -200,9 +204,9 @@ func resourceCmdbComponentUpdate(ctx context.Context, d *schema.ResourceData, me
 		return diag.Errorf("error creating AOM client: %s", err)
 	}
 
-	updateComponentHttpUrl := "v1/components/{id}"
+	updateComponentHttpUrl := "v1/components/{component_id}"
 	updateComponentPath := client.Endpoint + updateComponentHttpUrl
-	updateComponentPath = strings.ReplaceAll(updateComponentPath, "{id}", d.Id())
+	updateComponentPath = strings.ReplaceAll(updateComponentPath, "{component_id}", d.Id())
 
 	updateComponentOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
@@ -227,9 +231,9 @@ func resourceCmdbComponentDelete(_ context.Context, d *schema.ResourceData, meta
 		return diag.Errorf("error creating AOM client: %s", err)
 	}
 
-	deleteComponentHttpUrl := "v1/components/{id}"
+	deleteComponentHttpUrl := "v1/components/{component_id}"
 	deleteComponentPath := client.Endpoint + deleteComponentHttpUrl
-	deleteComponentPath = strings.ReplaceAll(deleteComponentPath, "{id}", d.Id())
+	deleteComponentPath = strings.ReplaceAll(deleteComponentPath, "{component_id}", d.Id())
 
 	deleteComponentOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,

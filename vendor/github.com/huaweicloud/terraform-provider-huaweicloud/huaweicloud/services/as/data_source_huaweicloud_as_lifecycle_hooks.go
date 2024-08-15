@@ -11,7 +11,6 @@ import (
 
 	"github.com/chnsz/golangsdk/openstack/autoscaling/v1/lifecyclehooks"
 
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
@@ -90,19 +89,20 @@ func DataSourceLifeCycleHooks() *schema.Resource {
 }
 
 func dataSourceLifeCycleHooksRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	cfg := meta.(*config.Config)
-	region := cfg.GetRegion(d)
+	var (
+		cfg     = meta.(*config.Config)
+		region  = cfg.GetRegion(d)
+		groupID = d.Get("scaling_group_id").(string)
+	)
 
 	client, err := cfg.AutoscalingV1Client(region)
 	if err != nil {
 		return diag.Errorf("error creating AS v1 client: %s", err)
 	}
 
-	groupID := d.Get("scaling_group_id").(string)
-
 	lifecycleHookList, err := lifecyclehooks.List(client, groupID).Extract()
 	if err != nil {
-		return common.CheckDeletedDiag(d, err, "AS lifecycle hooks")
+		return diag.Errorf("error retrieving lifecycle hooks in AS group %s: %s", groupID, err)
 	}
 
 	lifecycleHooks, err := flattenLifecycleHooks(d, lifecycleHookList)
@@ -128,22 +128,27 @@ func dataSourceLifeCycleHooksRead(_ context.Context, d *schema.ResourceData, met
 }
 
 func flattenLifecycleHooks(d *schema.ResourceData, hooks *[]lifecyclehooks.Hook) ([]map[string]interface{}, error) {
+	if hooks == nil {
+		return nil, nil
+	}
+
 	rst := make([]map[string]interface{}, 0, len(*hooks))
 	for _, hook := range *hooks {
+		hookType, ok := convertHookTypeMap[hook.Type]
+		if !ok {
+			return nil, fmt.Errorf("lifecycle hook type (%s) is not in the map (%#v)", hook.Type, convertHookTypeMap)
+		}
+
 		if val, ok := d.GetOk("name"); ok && val.(string) != hook.Name {
 			continue
 		}
-		if val, ok := d.GetOk("type"); ok && val.(string) != hook.Type {
+		if val, ok := d.GetOk("type"); ok && val.(string) != hookType {
 			continue
 		}
 		if val, ok := d.GetOk("default_result"); ok && val.(string) != hook.DefaultResult {
 			continue
 		}
 
-		hookType, ok := convertHookTypeMap[hook.Type]
-		if !ok {
-			return nil, fmt.Errorf("lifecycle hook type (%s) is not in the map (%#v)", hook.Type, convertHookTypeMap)
-		}
 		lifecycleHookMap := map[string]interface{}{
 			"name":                    hook.Name,
 			"type":                    hookType,

@@ -15,6 +15,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API ER GET /v3/{project_id}/enterprise-router/{er_id}/attachments
 func DataSourceAttachments() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: dataSourceAttachmentsRead,
@@ -180,14 +181,15 @@ func flattenAttachments(all []attachments.Attachment) []map[string]interface{} {
 	result := make([]map[string]interface{}, len(all))
 	for i, attachment := range all {
 		result[i] = map[string]interface{}{
-			"id":             attachment.ID,
-			"name":           attachment.Name,
-			"description":    attachment.Description,
-			"status":         attachment.Status,
-			"associated":     attachment.Associated,
-			"resource_id":    attachment.ResourceId,
-			"created_at":     attachment.CreatedAt,
-			"updated_at":     attachment.UpdatedAt,
+			"id":          attachment.ID,
+			"name":        attachment.Name,
+			"description": attachment.Description,
+			"status":      attachment.Status,
+			"associated":  attachment.Associated,
+			"resource_id": attachment.ResourceId,
+			// The time results are not the time in RF3339 format without milliseconds.
+			"created_at":     utils.FormatTimeStampRFC3339(utils.ConvertTimeStrToNanoTimestamp(attachment.CreatedAt)/1000, false),
+			"updated_at":     utils.FormatTimeStampRFC3339(utils.ConvertTimeStrToNanoTimestamp(attachment.UpdatedAt)/1000, false),
 			"tags":           utils.TagsToMap(attachment.Tags),
 			"type":           attachment.ResourceType,
 			"route_table_id": attachment.RouteTableId,

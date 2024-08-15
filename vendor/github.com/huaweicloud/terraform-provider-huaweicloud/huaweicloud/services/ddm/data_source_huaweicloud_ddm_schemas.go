@@ -23,6 +23,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DDM GET /v1/{project_id}/instances/{instance_id}/databases
 func DataSourceDdmSchemas() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: resourceDdmSchemasRead,
@@ -189,7 +190,7 @@ func flattenGetSchemasResponseBodySchema(d *schema.ResourceData, resp interface{
 	if resp == nil {
 		return 0, 0, nil
 	}
-	total = int(utils.PathSearch("total", resp, 0).(float64))
+	total = int(utils.PathSearch("total", resp, float64(0)).(float64))
 	curJson := utils.PathSearch("databases", resp, make([]interface{}, 0))
 	curArray := curJson.([]interface{})
 	rst = make([]interface{}, 0, len(curArray))

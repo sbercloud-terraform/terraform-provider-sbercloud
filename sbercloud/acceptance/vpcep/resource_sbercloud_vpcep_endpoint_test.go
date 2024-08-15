@@ -2,6 +2,7 @@ package vpcep
 
 import (
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -16,7 +17,7 @@ import (
 func TestAccVPCEndpoint_Basic(t *testing.T) {
 	var endpoint endpoints.Endpoint
 
-	rName := acceptance.RandomAccResourceNameWithDash()
+	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(4))
 	resourceName := "sbercloud_vpcep_endpoint.test"
 	rc := acceptance.InitResourceCheck(
 		resourceName,
@@ -117,6 +118,7 @@ resource "sbercloud_compute_instance" "ecs" {
   flavor_id          = data.sbercloud_compute_flavors.test.ids[0]
   security_group_ids = [data.sbercloud_networking_secgroup.test.id]
   availability_zone  = data.sbercloud_availability_zones.test.names[0]
+  system_disk_type = "SSD"
 
   network {
     uuid = data.sbercloud_vpc_subnet.test.id
@@ -192,7 +194,7 @@ data "sbercloud_vpc_subnet" "mynet" {
 }
 
 data "sbercloud_vpcep_public_services" "cloud_service" {
-  service_name = "dis"
+  service_name = ""
 }
 
 resource "sbercloud_vpcep_endpoint" "myendpoint" {

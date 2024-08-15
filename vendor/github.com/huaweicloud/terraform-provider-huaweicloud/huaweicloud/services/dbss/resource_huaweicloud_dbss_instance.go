@@ -19,17 +19,27 @@ import (
 	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
+	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DBSS GET /v1/{project_id}/dbss/audit/instances
+// @API DBSS GET /v1/{project_id}/dbss/audit/jobs/{resource_id}
+// @API DBSS POST /v2/{project_id}/dbss/audit/charge/period/order
+// @API BSS POST /v2/bills/ratings/period-resources/subscribe-rate
+// @API BSS POST /v3/orders/customer-orders/pay
+// @API BSS POST /v2/orders/subscriptions/resources/unsubscribe
+// @API BSS POST /v2/orders/suscriptions/resources/query
+// @API BSS GET /v2/orders/customer-orders/details/{order_id}
 func ResourceInstance() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceInstanceCreate,
 		ReadContext:   resourceInstanceRead,
 		DeleteContext: resourceInstanceDelete,
+		UpdateContext: resourceInstanceUpdate,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
@@ -91,7 +101,6 @@ func ResourceInstance() *schema.Resource {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Default:     "0",
-				ForceNew:    true,
 				Description: `Enterprise project ID.`,
 			},
 			"charging_mode": {
@@ -298,7 +307,7 @@ func buildGetFlavorsBodyParams(d *schema.ResourceData, projectId, region string)
 	params["resource_spec"] = d.Get("resource_spec_code")
 	params["region"] = region
 	params["period_type"] = periodType
-	params["period_num"] = utils.ValueIngoreEmpty(d.Get("period"))
+	params["period_num"] = utils.ValueIgnoreEmpty(d.Get("period"))
 	params["subscription_num"] = "1"
 
 	bodyParams := map[string]interface{}{
@@ -355,19 +364,19 @@ func buildPayOrderBodyParams(orderId string) map[string]interface{} {
 func buildCreateInstanceBodyParams(d *schema.ResourceData, productId string, cfg *config.Config) map[string]interface{} {
 	bodyParams := map[string]interface{}{
 		"region":                cfg.GetRegion(d),
-		"name":                  utils.ValueIngoreEmpty(d.Get("name")),
-		"comment":               utils.ValueIngoreEmpty(d.Get("description")),
-		"availability_zone":     utils.ValueIngoreEmpty(d.Get("availability_zone")),
+		"name":                  utils.ValueIgnoreEmpty(d.Get("name")),
+		"comment":               utils.ValueIgnoreEmpty(d.Get("description")),
+		"availability_zone":     utils.ValueIgnoreEmpty(d.Get("availability_zone")),
 		"cloud_service_type":    "hws.service.type.dbss",
-		"flavor_ref":            utils.ValueIngoreEmpty(d.Get("flavor")),
-		"vpc_id":                utils.ValueIngoreEmpty(d.Get("vpc_id")),
+		"flavor_ref":            utils.ValueIgnoreEmpty(d.Get("flavor")),
+		"vpc_id":                utils.ValueIgnoreEmpty(d.Get("vpc_id")),
 		"nics":                  buildCreateInstanceNicsRequestBody(d),
 		"security_groups":       buildCreateInstanceSecurityGroupsRequestBody(d),
 		"product_infos":         buildCreateInstanceProductInfosRequestBody(d, productId),
 		"subscription_num":      1,
-		"enterprise_project_id": utils.ValueIngoreEmpty(common.GetEnterpriseProjectID(d, cfg)),
+		"enterprise_project_id": utils.ValueIgnoreEmpty(common.GetEnterpriseProjectID(d, cfg)),
 		"tags":                  utils.ExpandResourceTagsMap(d.Get("tags").(map[string]interface{})),
-		"period_num":            utils.ValueIngoreEmpty(d.Get("period")),
+		"period_num":            utils.ValueIgnoreEmpty(d.Get("period")),
 	}
 
 	chargingMode := d.Get("charging_mode").(string)
@@ -394,8 +403,8 @@ func buildCreateInstanceBodyParams(d *schema.ResourceData, productId string, cfg
 func buildCreateInstanceNicsRequestBody(d *schema.ResourceData) []map[string]interface{} {
 	return []map[string]interface{}{
 		{
-			"ip_address": utils.ValueIngoreEmpty(d.Get("ip_address")),
-			"subnet_id":  utils.ValueIngoreEmpty(d.Get("subnet_id")),
+			"ip_address": utils.ValueIgnoreEmpty(d.Get("ip_address")),
+			"subnet_id":  utils.ValueIgnoreEmpty(d.Get("subnet_id")),
 		},
 	}
 }
@@ -403,7 +412,7 @@ func buildCreateInstanceNicsRequestBody(d *schema.ResourceData) []map[string]int
 func buildCreateInstanceSecurityGroupsRequestBody(d *schema.ResourceData) []map[string]interface{} {
 	return []map[string]interface{}{
 		{
-			"id": utils.ValueIngoreEmpty(d.Get("security_group_id")),
+			"id": utils.ValueIgnoreEmpty(d.Get("security_group_id")),
 		},
 	}
 }
@@ -413,8 +422,8 @@ func buildCreateInstanceProductInfosRequestBody(d *schema.ResourceData, productI
 		{
 			"cloud_service_type": "hws.service.type.dbss",
 			"product_id":         productId,
-			"product_spec_desc":  utils.ValueIngoreEmpty(d.Get("resource_spec_code")),
-			"resource_spec_code": utils.ValueIngoreEmpty(d.Get("resource_spec_code")),
+			"product_spec_desc":  utils.ValueIgnoreEmpty(d.Get("resource_spec_code")),
+			"resource_spec_code": utils.ValueIgnoreEmpty(d.Get("resource_spec_code")),
 			"resource_type":      "hws.resource.type.dbss",
 		},
 	}
@@ -565,6 +574,26 @@ func FilterInstances(instances []interface{}, id string) (interface{}, error) {
 	}
 
 	return nil, golangsdk.ErrDefault404{}
+}
+
+func resourceInstanceUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+	instanceId := d.Id()
+
+	if d.HasChange("enterprise_project_id") {
+		migrateOpts := enterpriseprojects.MigrateResourceOpts{
+			ResourceId:   instanceId,
+			ResourceType: "auditInstance",
+			RegionId:     region,
+			ProjectId:    cfg.GetProjectID(region),
+		}
+		if err := common.MigrateEnterpriseProject(ctx, cfg, d, migrateOpts); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	return resourceInstanceRead(ctx, d, meta)
 }
 
 func resourceInstanceDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

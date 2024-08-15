@@ -22,6 +22,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API IdentityStore POST /v1/identity-stores/{identity_store_id}/groups
+// @API IdentityStore DELETE /v1/identity-stores/{identity_store_id}/groups/{group_id}
+// @API IdentityStore GET /v1/identity-stores/{identity_store_id}/groups/{group_id}
+// @API IdentityStore PUT /v1/identity-stores/{identity_store_id}/groups/{group_id}
 func ResourceIdentityCenterGroup() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceIdentityCenterGroupCreate,
@@ -115,8 +119,8 @@ func resourceIdentityCenterGroupCreate(ctx context.Context, d *schema.ResourceDa
 
 func buildCreateIdentityCenterGroupBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"display_name": utils.ValueIngoreEmpty(d.Get("name")),
-		"description":  utils.ValueIngoreEmpty(d.Get("description")),
+		"display_name": utils.ValueIgnoreEmpty(d.Get("name")),
+		"description":  utils.ValueIgnoreEmpty(d.Get("description")),
 	}
 	return bodyParams
 }
@@ -157,8 +161,8 @@ func resourceIdentityCenterGroupRead(_ context.Context, d *schema.ResourceData, 
 		return diag.FromErr(err)
 	}
 
-	createAt := utils.PathSearch("created_at", getIdentityCenterGroupRespBody, 0).(float64)
-	updateAt := utils.PathSearch("updated_at", getIdentityCenterGroupRespBody, 0).(float64)
+	createAt := utils.PathSearch("created_at", getIdentityCenterGroupRespBody, float64(0)).(float64)
+	updateAt := utils.PathSearch("updated_at", getIdentityCenterGroupRespBody, float64(0)).(float64)
 	mErr = multierror.Append(
 		mErr,
 		d.Set("region", region),

@@ -67,9 +67,10 @@ func ResourceWorkLoadQueue() *schema.Resource {
 				},
 			},
 			"logical_cluster_name": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
+				Type:        schema.TypeString,
+				Optional:    true,
+				ForceNew:    true,
+				Description: utils.SchemaDesc("", utils.SchemaDescInput{Internal: true}),
 			},
 		},
 	}
@@ -92,6 +93,7 @@ func resourceWorkLoadQueueCreate(ctx context.Context, d *schema.ResourceData, me
 	createPath = strings.ReplaceAll(createPath, "{project_id}", client.ProjectID)
 	createPath = strings.ReplaceAll(createPath, "{cluster_id}", d.Get("cluster_id").(string))
 	createOpt := golangsdk.RequestOpts{
+		MoreHeaders:      requestOpts.MoreHeaders,
 		KeepResponseBody: true,
 		JSONBody:         utils.RemoveNil(buildCreateWorkloadQueueBodyParams(d)),
 	}
@@ -111,7 +113,7 @@ func buildCreateWorkloadQueueBodyParams(d *schema.ResourceData) map[string]inter
 		"workload_queue": map[string]interface{}{
 			"workload_queue_name":         d.Get("name"),
 			"workload_resource_item_list": buildCreateConfigurationBodyParams(d),
-			"logical_cluster_name":        utils.ValueIngoreEmpty(d.Get("logical_cluster_name")),
+			"logical_cluster_name":        utils.ValueIgnoreEmpty(d.Get("logical_cluster_name")),
 		},
 	}
 }
@@ -152,6 +154,7 @@ func resourceWorkLoadQueueRead(_ context.Context, d *schema.ResourceData, meta i
 	getPath = strings.ReplaceAll(getPath, "{project_id}", getClient.ProjectID)
 	getPath = strings.ReplaceAll(getPath, "{cluster_id}", d.Get("cluster_id").(string))
 	getOpt := golangsdk.RequestOpts{
+		MoreHeaders:      requestOpts.MoreHeaders,
 		KeepResponseBody: true,
 	}
 
@@ -199,6 +202,7 @@ func resourceWorkLoadQueueDelete(_ context.Context, d *schema.ResourceData, meta
 	deletePath = strings.ReplaceAll(deletePath, "{name}", d.Get("name").(string))
 	// Due to API restrictions, the request body must pass in an empty JSON.
 	deleteOpt := golangsdk.RequestOpts{
+		MoreHeaders:      requestOpts.MoreHeaders,
 		KeepResponseBody: true,
 		JSONBody:         json.RawMessage("{}"),
 	}

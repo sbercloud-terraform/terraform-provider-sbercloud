@@ -18,6 +18,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API RocketMQ POST /v2/{project_id}/instances/{instance_id}/groups
+// @API RocketMQ DELETE /v2/{project_id}/instances/{instance_id}/groups/{group}
+// @API RocketMQ GET /v2/{project_id}/instances/{instance_id}/groups/{group}
+// @API RocketMQ PUT /v2/{project_id}/instances/{instance_id}/groups/{group}
 func ResourceDmsRocketMQConsumerGroup() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDmsRocketMQConsumerGroupCreate,
@@ -41,13 +45,6 @@ func ResourceDmsRocketMQConsumerGroup() *schema.Resource {
 				ForceNew:    true,
 				Description: `Specifies the ID of the rocketMQ instance.`,
 			},
-			"brokers": {
-				Type:        schema.TypeList,
-				Elem:        &schema.Schema{Type: schema.TypeString},
-				Required:    true,
-				ForceNew:    true,
-				Description: `Specifies the list of associated brokers of the consumer group.`,
-			},
 			"name": {
 				Type:        schema.TypeString,
 				Required:    true,
@@ -69,8 +66,22 @@ func ResourceDmsRocketMQConsumerGroup() *schema.Resource {
 			"enabled": {
 				Type:        schema.TypeBool,
 				Optional:    true,
-				Computed:    true,
+				Default:     true,
 				Description: `Specifies the consumer group is enabled or not. Default to true.`,
+			},
+			"brokers": {
+				Type:        schema.TypeSet,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Optional:    true,
+				Computed:    true,
+				ForceNew:    true,
+				Description: `Specifies the list of associated brokers of the consumer group.`,
+			},
+			"consume_orderly": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Computed:    true,
+				Description: `Specifies whether to consume orderly.`,
 			},
 			"broadcast": {
 				Type:        schema.TypeBool,
@@ -98,7 +109,7 @@ func resourceDmsRocketMQConsumerGroupCreate(ctx context.Context, d *schema.Resou
 	)
 	createRocketmqConsumerGroupClient, err := cfg.NewServiceClient(createRocketmqConsumerGroupProduct, region)
 	if err != nil {
-		return diag.Errorf("error creating DmsRocketMQConsumerGroup Client: %s", err)
+		return diag.Errorf("error creating DMS client: %s", err)
 	}
 
 	instanceID := d.Get("instance_id").(string)
@@ -109,9 +120,6 @@ func resourceDmsRocketMQConsumerGroupCreate(ctx context.Context, d *schema.Resou
 
 	createRocketmqConsumerGroupOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		OkCodes: []int{
-			200,
-		},
 	}
 	createRocketmqConsumerGroupOpt.JSONBody = utils.RemoveNil(buildCreateRocketmqConsumerGroupBodyParams(d, cfg))
 	createRocketmqConsumerGroupResp, err := createRocketmqConsumerGroupClient.Request("POST",
@@ -136,17 +144,14 @@ func resourceDmsRocketMQConsumerGroupCreate(ctx context.Context, d *schema.Resou
 }
 
 func buildCreateRocketmqConsumerGroupBodyParams(d *schema.ResourceData, _ *config.Config) map[string]interface{} {
-	var enabled interface{} = true
-	if v, ok := d.GetOk("enabled"); ok {
-		enabled = v
-	}
 	bodyParams := map[string]interface{}{
-		"enabled":        enabled,
-		"broadcast":      utils.ValueIngoreEmpty(d.Get("broadcast")),
-		"brokers":        utils.ValueIngoreEmpty(d.Get("brokers")),
-		"name":           utils.ValueIngoreEmpty(d.Get("name")),
-		"retry_max_time": utils.ValueIngoreEmpty(d.Get("retry_max_times")),
-		"group_desc":     utils.ValueIngoreEmpty(d.Get("description")),
+		"enabled":         utils.ValueIgnoreEmpty(d.Get("enabled")),
+		"broadcast":       utils.ValueIgnoreEmpty(d.Get("broadcast")),
+		"brokers":         utils.ValueIgnoreEmpty(d.Get("brokers").(*schema.Set).List()),
+		"name":            utils.ValueIgnoreEmpty(d.Get("name")),
+		"retry_max_time":  utils.ValueIgnoreEmpty(d.Get("retry_max_times")),
+		"group_desc":      utils.ValueIgnoreEmpty(d.Get("description")),
+		"consume_orderly": utils.ValueIgnoreEmpty(d.Get("consume_orderly")),
 	}
 	return bodyParams
 }
@@ -160,6 +165,7 @@ func resourceDmsRocketMQConsumerGroupUpdate(ctx context.Context, d *schema.Resou
 		"broadcast",
 		"retry_max_times",
 		"description",
+		"consume_orderly",
 	}
 
 	if d.HasChanges(updateRocketmqConsumerGroupHasChanges...) {
@@ -170,7 +176,7 @@ func resourceDmsRocketMQConsumerGroupUpdate(ctx context.Context, d *schema.Resou
 		)
 		updateRocketmqConsumerGroupClient, err := cfg.NewServiceClient(updateRocketmqConsumerGroupProduct, region)
 		if err != nil {
-			return diag.Errorf("error creating DmsRocketMQConsumerGroup Client: %s", err)
+			return diag.Errorf("error creating DMS client: %s", err)
 		}
 
 		parts := strings.SplitN(d.Id(), "/", 2)
@@ -204,13 +210,11 @@ func resourceDmsRocketMQConsumerGroupUpdate(ctx context.Context, d *schema.Resou
 
 func buildUpdateRocketmqConsumerGroupBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"broadcast":      utils.ValueIngoreEmpty(d.Get("broadcast")),
-		"retry_max_time": utils.ValueIngoreEmpty(d.Get("retry_max_times")),
-		"group_desc":     utils.ValueIngoreEmpty(d.Get("description")),
-	}
-	enabled := utils.ValueIngoreEmpty(d.Get("enabled"))
-	if enabled != nil {
-		bodyParams["enabled"] = enabled
+		"broadcast":       utils.ValueIgnoreEmpty(d.Get("broadcast")),
+		"retry_max_time":  utils.ValueIgnoreEmpty(d.Get("retry_max_times")),
+		"group_desc":      utils.ValueIgnoreEmpty(d.Get("description")),
+		"consume_orderly": utils.ValueIgnoreEmpty(d.Get("consume_orderly")),
+		"enabled":         utils.ValueIgnoreEmpty(d.Get("enabled")),
 	}
 	return bodyParams
 }
@@ -228,7 +232,7 @@ func resourceDmsRocketMQConsumerGroupRead(_ context.Context, d *schema.ResourceD
 	)
 	getRocketmqConsumerGroupClient, err := cfg.NewServiceClient(getRocketmqConsumerGroupProduct, region)
 	if err != nil {
-		return diag.Errorf("error creating DmsRocketMQConsumerGroup Client: %s", err)
+		return diag.Errorf("error creating DMS client: %s", err)
 	}
 
 	parts := strings.SplitN(d.Id(), "/", 2)
@@ -245,9 +249,6 @@ func resourceDmsRocketMQConsumerGroupRead(_ context.Context, d *schema.ResourceD
 
 	getRocketmqConsumerGroupOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		OkCodes: []int{
-			200,
-		},
 	}
 	getRocketmqConsumerGroupResp, err := getRocketmqConsumerGroupClient.Request("GET", getRocketmqConsumerGroupPath,
 		&getRocketmqConsumerGroupOpt)
@@ -271,6 +272,7 @@ func resourceDmsRocketMQConsumerGroupRead(_ context.Context, d *schema.ResourceD
 		d.Set("name", name),
 		d.Set("retry_max_times", utils.PathSearch("retry_max_time", getRocketmqConsumerGroupRespBody, nil)),
 		d.Set("description", utils.PathSearch("group_desc", getRocketmqConsumerGroupRespBody, nil)),
+		d.Set("consume_orderly", utils.PathSearch("consume_orderly", getRocketmqConsumerGroupRespBody, false)),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())
@@ -287,7 +289,7 @@ func resourceDmsRocketMQConsumerGroupDelete(_ context.Context, d *schema.Resourc
 	)
 	deleteRocketmqConsumerGroupClient, err := cfg.NewServiceClient(deleteRocketmqConsumerGroupProduct, region)
 	if err != nil {
-		return diag.Errorf("error creating DmsRocketMQConsumerGroup Client: %s", err)
+		return diag.Errorf("error creating DMS client: %s", err)
 	}
 
 	parts := strings.SplitN(d.Id(), "/", 2)
@@ -304,9 +306,6 @@ func resourceDmsRocketMQConsumerGroupDelete(_ context.Context, d *schema.Resourc
 
 	deleteRocketmqConsumerGroupOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		OkCodes: []int{
-			204,
-		},
 	}
 	_, err = deleteRocketmqConsumerGroupClient.Request("DELETE", deleteRocketmqConsumerGroupPath, &deleteRocketmqConsumerGroupOpt)
 	if err != nil {

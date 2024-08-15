@@ -23,6 +23,18 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API VPC POST /v1/{project_id}/vpcs
+// @API VPC GET /v1/{project_id}/vpcs/{id}
+// @API VPC PUT /v1/{project_id}/vpcs/{id}
+// @API VPC DELETE /v1/{project_id}/vpcs/{id}
+// @API VPC PUT /v3/{project_id}/vpc/vpcs/{id}/add-extend-cidr
+// @API VPC PUT /v3/{project_id}/vpc/vpcs/{id}/remove-extend-cidr
+// @API VPC GET /v3/{project_id}/vpc/vpcs/{id}
+// @API VPC POST /v2.0/{project_id}/vpcs/{id}/tags/action
+// @API VPC DELETE /v2.0/{project_id}/vpcs/{id}/tags/action
+// @API VPC GET /v2.0/{project_id}/vpcs/{id}/tags
+// @API EPS POST /v1.0/enterprise-projects/{enterprise_project_id}/resources-migrate
+// @API EPS POST /v1.0/enterprise-projects/{enterprise_project_id}/resources/filter
 func ResourceVirtualPrivateCloudV1() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceVirtualPrivateCloudCreate,
@@ -241,7 +253,7 @@ func resourceVirtualPrivateCloudRead(_ context.Context, d *schema.ResourceData, 
 
 	res, err := obtainV3VpcResp(v3Client, d.Id())
 	if err != nil {
-		diag.Errorf("error retrieving VPC (%s) v3 detail: %s", d.Id(), err)
+		return diag.Errorf("error retrieving VPC (%s) v3 detail: %s", d.Id(), err)
 	}
 
 	if val, ok := d.GetOk("secondary_cidr"); ok {

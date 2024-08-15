@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
 )
 
 var (
@@ -38,8 +37,18 @@ var (
 
 	SBC_SWR_SHARING_ACCOUNT = os.Getenv("SBC_SWR_SHARING_ACCOUNT")
 
-	SBC_FGS_TRIGGER_LTS_AGENCY = os.Getenv("SBC_FGS_TRIGGER_LTS_AGENCY")
-	SBC_OBS_BUCKET_NAME        = os.Getenv("SBC_OBS_BUCKET_NAME")
+	SBC_FGS_TRIGGER_LTS_AGENCY             = os.Getenv("SBC_FGS_TRIGGER_LTS_AGENCY")
+	SBC_OBS_BUCKET_NAME                    = os.Getenv("SBC_OBS_BUCKET_NAME")
+	SBC_DWS_MUTIL_AZS                      = os.Getenv("SBC_DWS_MUTIL_AZS")
+	SBC_ENTERPRISE_MIGRATE_PROJECT_ID_TEST = os.Getenv("SBC_ENTERPRISE_MIGRATE_PROJECT_ID_TEST")
+
+	SBC_CHARGING_MODE   = os.Getenv("SBC_CHARGING_MODE")
+	SBC_KMS_ENVIRONMENT = os.Getenv("SBC_KMS_ENVIRONMENT")
+
+	SBC_SHARED_BACKUP_ID     = os.Getenv("SBC_SHARED_BACKUP_ID")
+	SBC_DEST_PROJECT_ID      = os.Getenv("SBC_DEST_PROJECT_ID")
+	SBC_DEST_PROJECT_ID_TEST = os.Getenv("SBC_DEST_PROJECT_ID_TEST")
+	SBC_DEST_REGION          = os.Getenv("SBC_DEST_REGION")
 )
 
 // TestAccProviderFactories is a static map containing only the main provider instance
@@ -212,38 +221,99 @@ func (rc *resourceCheck) CheckResourceDestroy() resource.TestCheckFunc {
 }
 
 // CheckResourceExists check whether resources exist in SberCloud.
+//
+//	func (rc *resourceCheck) CheckResourceExists() resource.TestCheckFunc {
+//		return func(s *terraform.State) error {
+//			rs, ok := s.RootModule().Resources[rc.resourceName]
+//			if !ok {
+//				return fmtp.Errorf("Can not found the resource or data source in state: %s", rc.resourceName)
+//			}
+//			if rs.Primary.ID == "" {
+//				return fmtp.Errorf("No id set for the resource or data source: %s", rc.resourceName)
+//			}
+//			if strings.EqualFold(rc.resourceType, dataSourceTypeCode) {
+//				return nil
+//			}
+//
+//			if rc.getResourceFunc != nil {
+//				conf := TestAccProvider.Meta().(*config.Config)
+//				r, err := rc.getResourceFunc(conf, rs)
+//				if err != nil {
+//					return fmtp.Errorf("checking resource %s %s exists error: %s ",
+//						rc.resourceName, rs.Primary.ID, err)
+//				}
+//				if rc.resourceObject != nil {
+//					b, err := json.Marshal(r)
+//					if err != nil {
+//						return fmtp.Errorf("marshaling resource %s %s error: %s ",
+//							rc.resourceName, rs.Primary.ID, err)
+//					}
+//					json.Unmarshal(b, rc.resourceObject)
+//				} else {
+//					logp.Printf("[WARN] The 'resourceObject' is nil, please set it during initialization.")
+//				}
+//			} else {
+//				return fmtp.Errorf("The 'getResourceFunc' is nil, please set it.")
+//			}
+//
+//			return nil
+//		}
+//	}
+func (rc *resourceCheck) checkResourceExists(s *terraform.State) error {
+	rs, ok := s.RootModule().Resources[rc.resourceName]
+	if !ok {
+		return fmt.Errorf("can not found the resource or data source in state: %s", rc.resourceName)
+	}
+
+	if rs.Primary.ID == "" {
+		return fmt.Errorf("No id set for the resource or data source: %s", rc.resourceName)
+	}
+	if strings.EqualFold(rc.resourceType, dataSourceTypeCode) {
+		return nil
+	}
+
+	if rc.getResourceFunc == nil {
+		return fmt.Errorf("the 'getResourceFunc' is nil, please set it during initialization")
+	}
+
+	conf := TestAccProvider.Meta().(*config.Config)
+	r, err := rc.getResourceFunc(conf, rs)
+	if err != nil {
+		return fmt.Errorf("checking resource %s %s exists error: %s ",
+			rc.resourceName, rs.Primary.ID, err)
+	}
+
+	b, err := json.Marshal(r)
+	if err != nil {
+		return fmt.Errorf("marshaling resource %s %s error: %s ",
+			rc.resourceName, rs.Primary.ID, err)
+	}
+
+	// unmarshal the response body into the resourceObject
+	if rc.resourceObject != nil {
+		return json.Unmarshal(b, rc.resourceObject)
+	}
+
+	return nil
+}
+
+// CheckResourceExists check whether resources exist
 func (rc *resourceCheck) CheckResourceExists() resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		rs, ok := s.RootModule().Resources[rc.resourceName]
-		if !ok {
-			return fmtp.Errorf("Can not found the resource or data source in state: %s", rc.resourceName)
-		}
-		if rs.Primary.ID == "" {
-			return fmtp.Errorf("No id set for the resource or data source: %s", rc.resourceName)
-		}
-		if strings.EqualFold(rc.resourceType, dataSourceTypeCode) {
-			return nil
-		}
+		return rc.checkResourceExists(s)
+	}
+}
 
-		if rc.getResourceFunc != nil {
-			conf := TestAccProvider.Meta().(*config.Config)
-			r, err := rc.getResourceFunc(conf, rs)
+func (rc *resourceCheck) CheckMultiResourcesExists(count int) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		var err error
+		for i := 0; i < count; i++ {
+			rcCopy := *rc
+			rcCopy.resourceName = fmt.Sprintf("%s.%d", rcCopy.resourceName, i)
+			err = rcCopy.checkResourceExists(s)
 			if err != nil {
-				return fmtp.Errorf("checking resource %s %s exists error: %s ",
-					rc.resourceName, rs.Primary.ID, err)
+				return err
 			}
-			if rc.resourceObject != nil {
-				b, err := json.Marshal(r)
-				if err != nil {
-					return fmtp.Errorf("marshaling resource %s %s error: %s ",
-						rc.resourceName, rs.Primary.ID, err)
-				}
-				json.Unmarshal(b, rc.resourceObject)
-			} else {
-				logp.Printf("[WARN] The 'resourceObject' is nil, please set it during initialization.")
-			}
-		} else {
-			return fmtp.Errorf("The 'getResourceFunc' is nil, please set it.")
 		}
 
 		return nil
@@ -258,6 +328,31 @@ func preCheckRequiredEnvVars(t *testing.T) {
 
 func TestAccPreCheck(t *testing.T) {
 	preCheckRequiredEnvVars(t)
+}
+
+func TestAccPreCheckAcceptBackup(t *testing.T) {
+	if SBC_SHARED_BACKUP_ID == "" {
+		t.Skip("SBC_SHARED_BACKUP_ID must be set for CBR backup share acceptance")
+	}
+}
+
+func TestAccPreCheckDestProjectIds(t *testing.T) {
+	if SBC_DEST_PROJECT_ID == "" || SBC_DEST_PROJECT_ID_TEST == "" {
+		t.Skip("SBC_DEST_PROJECT_ID and SBC_DEST_PROJECT_ID_TEST must be set for acceptance test.")
+	}
+}
+
+func TestAccPreCheckReplication(t *testing.T) {
+	if SBC_DEST_REGION == "" || SBC_DEST_PROJECT_ID == "" {
+		t.Skip("Skip the replication policy acceptance tests.")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckChargingMode(t *testing.T) {
+	if SBC_CHARGING_MODE != "prePaid" {
+		t.Skip("This environment does not support prepaid tests")
+	}
 }
 
 func TestAccPreCheckDeprecated(t *testing.T) {
@@ -292,7 +387,6 @@ func TestAccPreCheckOBS(t *testing.T) {
 	}
 }
 
-// lintignore:AT003
 func TestAccPreCheckSWRDomian(t *testing.T) {
 	if SBC_SWR_SHARING_ACCOUNT == "" {
 		t.Skip("SBC_SWR_SHARING_ACCOUNT must be set for swr domian tests, " +
@@ -300,10 +394,15 @@ func TestAccPreCheckSWRDomian(t *testing.T) {
 	}
 }
 
-// lintignore:AT003
 func TestAccPreCheckFgsTrigger(t *testing.T) {
 	if SBC_FGS_TRIGGER_LTS_AGENCY == "" {
 		t.Skip("SBC_FGS_TRIGGER_LTS_AGENCY must be set for FGS trigger acceptance tests")
+	}
+}
+
+func TestAccPreCheckKms(t *testing.T) {
+	if SBC_KMS_ENVIRONMENT == "" {
+		t.Skip("This environment does not support KMS tests")
 	}
 }
 
@@ -323,6 +422,18 @@ func TestAccPreCheckProjectID(t *testing.T) {
 		t.Skip("SBC_PROJECT_ID must be set for acceptance tests")
 	}
 }
+
+func TestAccPreCheckMutilAZ(t *testing.T) {
+	if SBC_DWS_MUTIL_AZS == "" {
+		t.Skip("SBC_DWS_MUTIL_AZS must be set for the acceptance test")
+	}
+}
+func TestAccPreCheckMigrateEpsID(t *testing.T) {
+	if SBC_ENTERPRISE_PROJECT_ID_TEST == "" || SBC_ENTERPRISE_MIGRATE_PROJECT_ID_TEST == "" {
+		t.Skip("The environment variables does not support Migrate Enterprise Project ID for acc tests")
+	}
+}
+
 func RandomAccResourceName() string {
 	return fmt.Sprintf("tf_acc_test_%s", acctest.RandString(5))
 }

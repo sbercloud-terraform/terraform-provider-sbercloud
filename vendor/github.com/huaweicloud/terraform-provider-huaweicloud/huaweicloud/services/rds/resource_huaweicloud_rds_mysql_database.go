@@ -25,6 +25,11 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API RDS POST /v3/{project_id}/instances/{instance_id}/database
+// @API RDS GET /v3/{project_id}/instances
+// @API RDS GET /v3/{project_id}/instances/{instance_id}/database/detail
+// @API RDS POST /v3/{project_id}/instances/{instance_id}/database/update
+// @API RDS DELETE /v3/{project_id}/instances/{instance_id}/database/{db_name}
 func ResourceMysqlDatabase() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceMysqlDatabaseCreate,
@@ -128,9 +133,9 @@ func resourceMysqlDatabaseCreate(ctx context.Context, d *schema.ResourceData, me
 
 func buildCreateMysqlDatabaseBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":          utils.ValueIngoreEmpty(d.Get("name")),
-		"character_set": utils.ValueIngoreEmpty(d.Get("character_set")),
-		"comment":       utils.ValueIngoreEmpty(d.Get("description")),
+		"name":          utils.ValueIgnoreEmpty(d.Get("name")),
+		"character_set": utils.ValueIgnoreEmpty(d.Get("character_set")),
+		"comment":       utils.ValueIgnoreEmpty(d.Get("description")),
 	}
 	return bodyParams
 }
@@ -252,8 +257,8 @@ func resourceMysqlDatabaseUpdate(ctx context.Context, d *schema.ResourceData, me
 
 func buildUpdateMysqlDatabaseBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":    utils.ValueIngoreEmpty(d.Get("name")),
-		"comment": utils.ValueIngoreEmpty(d.Get("description")),
+		"name":    utils.ValueIgnoreEmpty(d.Get("name")),
+		"comment": utils.ValueIgnoreEmpty(d.Get("description")),
 	}
 	return bodyParams
 }

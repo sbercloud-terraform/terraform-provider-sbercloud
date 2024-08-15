@@ -10,7 +10,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/autoscaling/v1/scheduledtasks"
@@ -19,10 +18,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
-var (
-	plannedTaskRecurrencePeriods = []string{"DAILY", "WEEKLY", "MONTHLY"}
-)
-
+// @API AS GET /autoscaling-api/v1/{project_id}/scaling-groups/{groupID}/scheduled-tasks
+// @API AS POST /autoscaling-api/v1/{project_id}/scaling-groups/{groupID}/scheduled-tasks
+// @API AS DELETE /autoscaling-api/v1/{project_id}/scaling-groups/{groupID}/scheduled-tasks/{taskID}
+// @API AS PUT /autoscaling-api/v1/{project_id}/scaling-groups/{groupID}/scheduled-tasks/{taskID}
 func ResourcePlannedTask() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourcePlannedTaskCreate,
@@ -54,71 +53,78 @@ func ResourcePlannedTask() *schema.Resource {
 				Description: "The name of the planned task to create.",
 			},
 			"scheduled_policy": {
-				Type:     schema.TypeList,
-				Required: true,
-				MaxItems: 1,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"launch_time": {
-							Type:        schema.TypeString,
-							Required:    true,
-							Description: "The execution time of planned task.",
-						},
-						"recurrence_type": {
-							Type:         schema.TypeString,
-							Optional:     true,
-							ValidateFunc: validation.StringInSlice(plannedTaskRecurrencePeriods, false),
-							Description:  "The triggering type of planned task",
-						},
-						"recurrence_value": {
-							Type:        schema.TypeString,
-							Optional:    true,
-							Description: "The frequency at which planned task are triggered",
-						},
-						"start_time": {
-							Type:        schema.TypeString,
-							Optional:    true,
-							Description: "The effective start time of planned task.",
-						},
-						"end_time": {
-							Type:        schema.TypeString,
-							Optional:    true,
-							Description: "The effective end time of planned task",
-						},
-					},
-				},
+				Type:        schema.TypeList,
+				Required:    true,
+				MaxItems:    1,
+				Elem:        plannedTaskScheduledPolicySchema(),
 				Description: "The policy of planned task to create.",
 			},
 			"instance_number": {
-				Type:     schema.TypeList,
-				Required: true,
-				MaxItems: 1,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"max": {
-							Type:         schema.TypeString,
-							Optional:     true,
-							Description:  "The maximum number of instances for the scaling group",
-							AtLeastOneOf: []string{"instance_number.0.max", "instance_number.0.min", "instance_number.0.desire"},
-						},
-						"min": {
-							Type:        schema.TypeString,
-							Optional:    true,
-							Description: "The minimum number of instances for the scaling group.",
-						},
-						"desire": {
-							Type:        schema.TypeString,
-							Optional:    true,
-							Description: "The expected number of instances for the scaling group.",
-						},
-					},
-				},
+				Type:        schema.TypeList,
+				Required:    true,
+				MaxItems:    1,
+				Elem:        plannedTaskInstanceNumberSchema(),
 				Description: "The numbers of scaling group instance for planned task to create.",
 			},
 			"created_at": {
 				Type:        schema.TypeString,
 				Computed:    true,
 				Description: "The creation time of the planned task.",
+			},
+		},
+	}
+}
+
+func plannedTaskScheduledPolicySchema() *schema.Resource {
+	return &schema.Resource{
+		Schema: map[string]*schema.Schema{
+			"launch_time": {
+				Type:        schema.TypeString,
+				Required:    true,
+				Description: "The execution time of planned task.",
+			},
+			"recurrence_type": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "The triggering type of planned task",
+			},
+			"recurrence_value": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "The frequency at which planned task are triggered",
+			},
+			"start_time": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "The effective start time of planned task.",
+			},
+			"end_time": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "The effective end time of planned task",
+			},
+		},
+	}
+}
+
+func plannedTaskInstanceNumberSchema() *schema.Resource {
+	return &schema.Resource{
+		Schema: map[string]*schema.Schema{
+			"max": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				Description:  "The maximum number of instances for the scaling group",
+				AtLeastOneOf: []string{"instance_number.0.max", "instance_number.0.min", "instance_number.0.desire"},
+			},
+			"min": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "The minimum number of instances for the scaling group.",
+			},
+			"desire": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "The expected number of instances for the scaling group.",
 			},
 		},
 	}
@@ -157,22 +163,22 @@ func buildPlannedTaskScheduledPolicy(rawScheduledPolicy map[string]interface{}) 
 func buildPlannedTaskInstanceNumber(rawInstanceNumber map[string]interface{}) (scheduledtasks.InstanceNumber, error) {
 	var instanceNumber scheduledtasks.InstanceNumber
 
-	if max, ok := rawInstanceNumber["max"].(string); ok && max != "" {
-		maxInt, err := strconv.Atoi(max)
+	if maxVal, ok := rawInstanceNumber["max"].(string); ok && maxVal != "" {
+		maxInt, err := strconv.Atoi(maxVal)
 		if err != nil {
 			return scheduledtasks.InstanceNumber{}, err
 		}
 		instanceNumber.Max = &maxInt
 	}
-	if min, ok := rawInstanceNumber["min"].(string); ok && min != "" {
-		minInt, err := strconv.Atoi(min)
+	if minVal, ok := rawInstanceNumber["min"].(string); ok && minVal != "" {
+		minInt, err := strconv.Atoi(minVal)
 		if err != nil {
 			return scheduledtasks.InstanceNumber{}, err
 		}
 		instanceNumber.Min = &minInt
 	}
-	if desire, ok := rawInstanceNumber["desire"].(string); ok && desire != "" {
-		desireInt, err := strconv.Atoi(desire)
+	if desireVal, ok := rawInstanceNumber["desire"].(string); ok && desireVal != "" {
+		desireInt, err := strconv.Atoi(desireVal)
 		if err != nil {
 			return scheduledtasks.InstanceNumber{}, err
 		}
@@ -271,7 +277,10 @@ func resourcePlannedTaskRead(_ context.Context, d *schema.ResourceData, meta int
 	)
 	plannedTasksResp, err := scheduledtasks.List(client, listOpts)
 	if err != nil {
-		return common.CheckDeletedDiag(d, err, "AS planned task")
+		// When the group does not exist, the API response body is an empty list.
+		// It seems that `CheckDeletedDiag` here has no practical significance.
+		// In order to avoid unknown problems, this part of the code is retained.
+		return common.CheckDeletedDiag(d, err, "error retrieving AS planned task")
 	}
 
 	var mErr *multierror.Error
@@ -359,7 +368,8 @@ func resourcePlannedTaskDelete(_ context.Context, d *schema.ResourceData, meta i
 		taskId  = d.Id()
 	)
 	if err := scheduledtasks.Delete(asClient, groupID, taskId); err != nil {
-		return diag.Errorf("error deleting AS planned task (%s): %s", taskId, err)
+		// When the group or task does not exist, the response HTTP status code of the delete API is 404.
+		return common.CheckDeletedDiag(d, err, "error deleting AS planned task")
 	}
 
 	return nil

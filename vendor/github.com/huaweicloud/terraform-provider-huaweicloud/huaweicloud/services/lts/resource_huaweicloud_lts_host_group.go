@@ -22,6 +22,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API LTS POST /v3/{project_id}/lts/host-group-list
+// @API LTS DELETE /v3/{project_id}/lts/host-group
+// @API LTS POST /v3/{project_id}/lts/host-group
+// @API LTS PUT /v3/{project_id}/lts/host-group
 func ResourceHostGroup() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceHostGroupCreate,
@@ -117,9 +121,9 @@ func resourceHostGroupCreate(ctx context.Context, d *schema.ResourceData, meta i
 
 func buildCreateHostGroupBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"host_group_name": utils.ValueIngoreEmpty(d.Get("name")),
-		"host_group_type": utils.ValueIngoreEmpty(d.Get("type")),
-		"host_id_list":    utils.ValueIngoreEmpty(d.Get("host_ids").(*schema.Set).List()),
+		"host_group_name": utils.ValueIgnoreEmpty(d.Get("name")),
+		"host_group_type": utils.ValueIgnoreEmpty(d.Get("type")),
+		"host_id_list":    utils.ValueIgnoreEmpty(d.Get("host_ids").(*schema.Set).List()),
 		"host_group_tag":  utils.ExpandResourceTags(d.Get("tags").(map[string]interface{})),
 	}
 	return bodyParams
@@ -177,9 +181,9 @@ func resourceHostGroupRead(_ context.Context, d *schema.ResourceData, meta inter
 		d.Set("host_ids", utils.PathSearch("host_id_list", getHostGroupRespBody, nil)),
 		d.Set("tags", utils.FlattenTagsToMap(utils.PathSearch("host_group_tag", getHostGroupRespBody, nil))),
 		d.Set("created_at", utils.FormatTimeStampRFC3339(
-			int64(utils.PathSearch("create_time", getHostGroupRespBody, 0).(float64))/1000, false)),
+			int64(utils.PathSearch("create_time", getHostGroupRespBody, float64(0)).(float64))/1000, false)),
 		d.Set("updated_at", utils.FormatTimeStampRFC3339(
-			int64(utils.PathSearch("update_time", getHostGroupRespBody, 0).(float64))/1000, false)),
+			int64(utils.PathSearch("update_time", getHostGroupRespBody, float64(0)).(float64))/1000, false)),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())

@@ -1,3 +1,23 @@
+## 1.12.2 (Aug 15, 2024)
+
+FEATURES:
+* **Added Data source:** `sbercloud_cbr_policies`
+* **Added Data source:** `sbercloud_dws_flavors`)
+* **Added Data source:** `sbercloud_images_images`)
+
+* **Updated Resource:** `sbercloud_ecs_compute_instance` Updated tests and docs (changed disk types).
+* **Updated Resource:** `sbercloud_rds_instance` Updated tests and docs (changed disk types).
+* **Updated Resource:** Many resources, their tests and documentation have been updated. New documentation has been added for both new resources and old ones.
+
+* **Removed Resource** `sbercloud_dms_instance` Deprecated
+
+ENHANCEMENTS:
+* Changed tests for RDS, ECS, ELB, LB, DWS, VPC, VPCEP resources and data sources.
+* Upgrade to terraform-provider-huaweicloud `v1.66.3`.
+* Updated dependencies.
+* Added new `cbr` tests.
+
+
 ## 1.12.0 (May 24, 2024)
 
 FEATURES:

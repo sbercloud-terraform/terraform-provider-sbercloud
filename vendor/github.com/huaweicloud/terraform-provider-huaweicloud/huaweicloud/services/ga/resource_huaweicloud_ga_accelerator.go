@@ -27,6 +27,12 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API GA POST /v1/accelerators
+// @API GA GET /v1/accelerators/{accelerator_id}
+// @API GA PUT /v1/accelerators/{accelerator_id}
+// @API GA DELETE /v1/accelerators/{accelerator_id}
+// @API GA POST /v1/{resource_type}/{resource_id}/tags/create
+// @API GA DELETE /v1/{resource_type}/{resource_id}/tags/delete
 func ResourceAccelerator() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceAcceleratorCreate,
@@ -86,7 +92,7 @@ func ResourceAccelerator() *schema.Resource {
 					validation.StringLenBetween(0, 36),
 				),
 			},
-			"tags": common.TagsForceNewSchema(),
+			"tags": common.TagsSchema(),
 
 			"status": {
 				Type:     schema.TypeString,
@@ -252,10 +258,10 @@ func buildCreateAcceleratorBodyParams(d *schema.ResourceData, conf *config.Confi
 
 func buildCreateAcceleratorAcceleratorChildBody(d *schema.ResourceData, conf *config.Config) map[string]interface{} {
 	params := map[string]interface{}{
-		"name":                  utils.ValueIngoreEmpty(d.Get("name")),
+		"name":                  utils.ValueIgnoreEmpty(d.Get("name")),
 		"ip_sets":               buildCreateAcceleratorIpSetsChildBody(d),
-		"description":           utils.ValueIngoreEmpty(d.Get("description")),
-		"enterprise_project_id": utils.ValueIngoreEmpty(common.GetEnterpriseProjectID(d, conf)),
+		"description":           utils.ValueIgnoreEmpty(d.Get("description")),
+		"enterprise_project_id": utils.ValueIgnoreEmpty(common.GetEnterpriseProjectID(d, conf)),
 		"tags":                  utils.ExpandResourceTagsMap(d.Get("tags").(map[string]interface{})),
 	}
 	return params
@@ -269,9 +275,9 @@ func buildCreateAcceleratorIpSetsChildBody(d *schema.ResourceData) []map[string]
 
 	raw := rawParams[0].(map[string]interface{})
 	params := map[string]interface{}{
-		"area":       utils.ValueIngoreEmpty(raw["area"]),
-		"ip_address": utils.ValueIngoreEmpty(raw["ip_address"]),
-		"ip_type":    utils.ValueIngoreEmpty(raw["ip_type"]),
+		"area":       utils.ValueIgnoreEmpty(raw["area"]),
+		"ip_address": utils.ValueIgnoreEmpty(raw["ip_address"]),
+		"ip_type":    utils.ValueIgnoreEmpty(raw["ip_type"]),
 	}
 
 	return []map[string]interface{}{params}
@@ -286,7 +292,7 @@ func createAcceleratorWaitingForStateCompleted(ctx context.Context, d *schema.Re
 			region := config.GetRegion(d)
 			// createAcceleratorWaiting: missing operation notes
 			var (
-				createAcceleratorWaitingHttpUrl = "v1/accelerators/{id}"
+				createAcceleratorWaitingHttpUrl = "v1/accelerators/{accelerator_id}"
 				createAcceleratorWaitingProduct = "ga"
 			)
 			createAcceleratorWaitingClient, err := config.NewServiceClient(createAcceleratorWaitingProduct, region)
@@ -295,7 +301,7 @@ func createAcceleratorWaitingForStateCompleted(ctx context.Context, d *schema.Re
 			}
 
 			createAcceleratorWaitingPath := createAcceleratorWaitingClient.Endpoint + createAcceleratorWaitingHttpUrl
-			createAcceleratorWaitingPath = strings.ReplaceAll(createAcceleratorWaitingPath, "{id}", d.Id())
+			createAcceleratorWaitingPath = strings.ReplaceAll(createAcceleratorWaitingPath, "{accelerator_id}", d.Id())
 
 			createAcceleratorWaitingOpt := golangsdk.RequestOpts{
 				KeepResponseBody: true,
@@ -352,7 +358,7 @@ func resourceAcceleratorRead(_ context.Context, d *schema.ResourceData, meta int
 
 	// getAccelerator: Query the GA accelerator detail
 	var (
-		getAcceleratorHttpUrl = "v1/accelerators/{id}"
+		getAcceleratorHttpUrl = "v1/accelerators/{accelerator_id}"
 		getAcceleratorProduct = "ga"
 	)
 	getAcceleratorClient, err := conf.NewServiceClient(getAcceleratorProduct, region)
@@ -361,7 +367,7 @@ func resourceAcceleratorRead(_ context.Context, d *schema.ResourceData, meta int
 	}
 
 	getAcceleratorPath := getAcceleratorClient.Endpoint + getAcceleratorHttpUrl
-	getAcceleratorPath = strings.ReplaceAll(getAcceleratorPath, "{id}", d.Id())
+	getAcceleratorPath = strings.ReplaceAll(getAcceleratorPath, "{accelerator_id}", d.Id())
 
 	getAcceleratorOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
@@ -454,7 +460,7 @@ func resourceAcceleratorUpdate(ctx context.Context, d *schema.ResourceData, meta
 	if d.HasChanges(updateAcceleratorhasChanges...) {
 		// updateAccelerator: Update the configuration of GA accelerator
 		var (
-			updateAcceleratorHttpUrl = "v1/accelerators/{id}"
+			updateAcceleratorHttpUrl = "v1/accelerators/{accelerator_id}"
 			updateAcceleratorProduct = "ga"
 		)
 		updateAcceleratorClient, err := conf.NewServiceClient(updateAcceleratorProduct, region)
@@ -463,7 +469,7 @@ func resourceAcceleratorUpdate(ctx context.Context, d *schema.ResourceData, meta
 		}
 
 		updateAcceleratorPath := updateAcceleratorClient.Endpoint + updateAcceleratorHttpUrl
-		updateAcceleratorPath = strings.ReplaceAll(updateAcceleratorPath, "{id}", d.Id())
+		updateAcceleratorPath = strings.ReplaceAll(updateAcceleratorPath, "{accelerator_id}", d.Id())
 
 		updateAcceleratorOpt := golangsdk.RequestOpts{
 			KeepResponseBody: true,
@@ -481,7 +487,78 @@ func resourceAcceleratorUpdate(ctx context.Context, d *schema.ResourceData, meta
 			return diag.Errorf("error waiting for the Update of Accelerator (%s) to complete: %s", d.Id(), err)
 		}
 	}
+
+	// update tags
+	if d.HasChange("tags") {
+		client, err := conf.NewServiceClient("ga", region)
+		if err != nil {
+			return diag.Errorf("error creating GA Client: %s", err)
+		}
+
+		oldRaw, newRaw := d.GetChange("tags")
+		oldMap := oldRaw.(map[string]interface{})
+		newMap := newRaw.(map[string]interface{})
+
+		// remove old tags
+		if len(oldMap) > 0 {
+			if err = deleteTags(client, "ga-accelerators", d.Id(), oldMap); err != nil {
+				return diag.FromErr(err)
+			}
+		}
+
+		// set new tags
+		if len(newMap) > 0 {
+			if err := createTags(client, "ga-accelerators", d.Id(), newMap); err != nil {
+				return diag.FromErr(err)
+			}
+		}
+	}
+
 	return resourceAcceleratorRead(ctx, d, meta)
+}
+
+func createTags(createTagsClient *golangsdk.ServiceClient, resourceType, resourceId string, tags map[string]interface{}) error {
+	createTagsHttpUrl := "v1/{resource_type}/{resource_id}/tags/create"
+	createTagsPath := createTagsClient.Endpoint + createTagsHttpUrl
+	createTagsPath = strings.ReplaceAll(createTagsPath, "{resource_type}", resourceType)
+	createTagsPath = strings.ReplaceAll(createTagsPath, "{resource_id}", resourceId)
+	createTagsOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		OkCodes: []int{
+			204,
+		},
+	}
+	createTagsOpt.JSONBody = map[string]interface{}{
+		"tags": utils.ExpandResourceTags(tags),
+	}
+
+	_, err := createTagsClient.Request("POST", createTagsPath, &createTagsOpt)
+	if err != nil {
+		return fmt.Errorf("error creating tags: %s", err)
+	}
+	return nil
+}
+
+func deleteTags(deleteTagsClient *golangsdk.ServiceClient, resourceType, resourceId string, tags map[string]interface{}) error {
+	deleteTagsHttpUrl := "v1/{resource_type}/{resource_id}/tags/delete"
+	deleteTagsPath := deleteTagsClient.Endpoint + deleteTagsHttpUrl
+	deleteTagsPath = strings.ReplaceAll(deleteTagsPath, "{resource_type}", resourceType)
+	deleteTagsPath = strings.ReplaceAll(deleteTagsPath, "{resource_id}", resourceId)
+	deleteTagsOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		OkCodes: []int{
+			204,
+		},
+	}
+	deleteTagsOpt.JSONBody = map[string]interface{}{
+		"tags": utils.ExpandResourceTags(tags),
+	}
+
+	_, err := deleteTagsClient.Request("DELETE", deleteTagsPath, &deleteTagsOpt)
+	if err != nil {
+		return fmt.Errorf("error deleting tags: %s", err)
+	}
+	return nil
 }
 
 func buildUpdateAcceleratorBodyParams(d *schema.ResourceData) map[string]interface{} {
@@ -493,8 +570,8 @@ func buildUpdateAcceleratorBodyParams(d *schema.ResourceData) map[string]interfa
 
 func buildUpdateAcceleratorAcceleratorChildBody(d *schema.ResourceData) map[string]interface{} {
 	params := map[string]interface{}{
-		"name":        utils.ValueIngoreEmpty(d.Get("name")),
-		"description": utils.ValueIngoreEmpty(d.Get("description")),
+		"name":        utils.ValueIgnoreEmpty(d.Get("name")),
+		"description": utils.ValueIgnoreEmpty(d.Get("description")),
 	}
 	return params
 }
@@ -508,7 +585,7 @@ func updateAcceleratorWaitingForStateCompleted(ctx context.Context, d *schema.Re
 			region := config.GetRegion(d)
 			// updateAcceleratorWaiting: missing operation notes
 			var (
-				updateAcceleratorWaitingHttpUrl = "v1/accelerators/{id}"
+				updateAcceleratorWaitingHttpUrl = "v1/accelerators/{accelerator_id}"
 				updateAcceleratorWaitingProduct = "ga"
 			)
 			updateAcceleratorWaitingClient, err := config.NewServiceClient(updateAcceleratorWaitingProduct, region)
@@ -517,7 +594,7 @@ func updateAcceleratorWaitingForStateCompleted(ctx context.Context, d *schema.Re
 			}
 
 			updateAcceleratorWaitingPath := updateAcceleratorWaitingClient.Endpoint + updateAcceleratorWaitingHttpUrl
-			updateAcceleratorWaitingPath = strings.ReplaceAll(updateAcceleratorWaitingPath, "{id}", d.Id())
+			updateAcceleratorWaitingPath = strings.ReplaceAll(updateAcceleratorWaitingPath, "{accelerator_id}", d.Id())
 
 			updateAcceleratorWaitingOpt := golangsdk.RequestOpts{
 				KeepResponseBody: true,
@@ -572,7 +649,7 @@ func resourceAcceleratorDelete(ctx context.Context, d *schema.ResourceData, meta
 
 	// deleteAccelerator: Delete an existing GA Accelerator
 	var (
-		deleteAcceleratorHttpUrl = "v1/accelerators/{id}"
+		deleteAcceleratorHttpUrl = "v1/accelerators/{accelerator_id}"
 		deleteAcceleratorProduct = "ga"
 	)
 	deleteAcceleratorClient, err := conf.NewServiceClient(deleteAcceleratorProduct, region)
@@ -581,7 +658,7 @@ func resourceAcceleratorDelete(ctx context.Context, d *schema.ResourceData, meta
 	}
 
 	deleteAcceleratorPath := deleteAcceleratorClient.Endpoint + deleteAcceleratorHttpUrl
-	deleteAcceleratorPath = strings.ReplaceAll(deleteAcceleratorPath, "{id}", d.Id())
+	deleteAcceleratorPath = strings.ReplaceAll(deleteAcceleratorPath, "{accelerator_id}", d.Id())
 
 	deleteAcceleratorOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
@@ -610,7 +687,7 @@ func deleteAcceleratorWaitingForStateCompleted(ctx context.Context, d *schema.Re
 			region := config.GetRegion(d)
 			// deleteAcceleratorWaiting: missing operation notes
 			var (
-				deleteAcceleratorWaitingHttpUrl = "v1/accelerators/{id}"
+				deleteAcceleratorWaitingHttpUrl = "v1/accelerators/{accelerator_id}"
 				deleteAcceleratorWaitingProduct = "ga"
 			)
 			deleteAcceleratorWaitingClient, err := config.NewServiceClient(deleteAcceleratorWaitingProduct, region)
@@ -619,7 +696,7 @@ func deleteAcceleratorWaitingForStateCompleted(ctx context.Context, d *schema.Re
 			}
 
 			deleteAcceleratorWaitingPath := deleteAcceleratorWaitingClient.Endpoint + deleteAcceleratorWaitingHttpUrl
-			deleteAcceleratorWaitingPath = strings.ReplaceAll(deleteAcceleratorWaitingPath, "{id}", d.Id())
+			deleteAcceleratorWaitingPath = strings.ReplaceAll(deleteAcceleratorWaitingPath, "{accelerator_id}", d.Id())
 
 			deleteAcceleratorWaitingOpt := golangsdk.RequestOpts{
 				KeepResponseBody: true,
@@ -631,7 +708,8 @@ func deleteAcceleratorWaitingForStateCompleted(ctx context.Context, d *schema.Re
 				deleteAcceleratorWaitingPath, &deleteAcceleratorWaitingOpt)
 			if err != nil {
 				if _, ok := err.(golangsdk.ErrDefault404); ok {
-					return deleteAcceleratorWaitingResp, "COMPLETED", nil
+					// When the error code is 404, the value of respBody is nil, and a non-null value is returned to avoid continuing the loop check.
+					return "Resource Not Found", "COMPLETED", nil
 				}
 
 				return nil, "ERROR", err

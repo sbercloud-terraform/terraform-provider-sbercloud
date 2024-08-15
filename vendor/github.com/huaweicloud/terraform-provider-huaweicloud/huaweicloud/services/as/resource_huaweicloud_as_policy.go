@@ -3,27 +3,26 @@ package as
 import (
 	"context"
 	"fmt"
-	"log"
-	"regexp"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
+	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/autoscaling/v1/policies"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
-var (
-	PolicyTypes       = []string{"ALARM", "SCHEDULED", "RECURRENCE"}
-	RecurrencePeriods = []string{"Daily", "Weekly", "Monthly"}
-	PolicyActions     = []string{"ADD", "REMOVE", "SET"}
-)
-
+// @API AS DELETE /autoscaling-api/v1/{project_id}/scaling_policy/{id}
+// @API AS GET /autoscaling-api/v1/{project_id}/scaling_policy/{id}
+// @API AS PUT /autoscaling-api/v1/{project_id}/scaling_policy/{id}
+// @API AS POST /autoscaling-api/v1/{project_id}/scaling_policy
+// @API AS POST /autoscaling-api/v1/{project_id}/scaling_policy/{scaling_policy_id}/action
 func ResourceASPolicy() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceASPolicyCreate,
@@ -44,11 +43,6 @@ func ResourceASPolicy() *schema.Resource {
 			"scaling_policy_name": {
 				Type:     schema.TypeString,
 				Required: true,
-				ValidateFunc: validation.All(
-					validation.StringLenBetween(1, 64),
-					validation.StringMatch(regexp.MustCompile("^[\u4e00-\u9fa50-9a-zA-Z-_]+$"),
-						"only letters, digits, underscores (_), and hyphens (-) are allowed"),
-				),
 			},
 			"scaling_group_id": {
 				Type:     schema.TypeString,
@@ -56,9 +50,8 @@ func ResourceASPolicy() *schema.Resource {
 				ForceNew: true,
 			},
 			"scaling_policy_type": {
-				Type:         schema.TypeString,
-				Required:     true,
-				ValidateFunc: validation.StringInSlice(PolicyTypes, false),
+				Type:     schema.TypeString,
+				Required: true,
 			},
 			"alarm_id": {
 				Type:     schema.TypeString,
@@ -76,10 +69,9 @@ func ResourceASPolicy() *schema.Resource {
 							Required: true,
 						},
 						"recurrence_type": {
-							Type:         schema.TypeString,
-							Optional:     true,
-							Computed:     true,
-							ValidateFunc: validation.StringInSlice(RecurrencePeriods, false),
+							Type:     schema.TypeString,
+							Optional: true,
+							Computed: true,
 						},
 						"recurrence_value": {
 							Type:     schema.TypeString,
@@ -107,10 +99,9 @@ func ResourceASPolicy() *schema.Resource {
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"operation": {
-							Type:         schema.TypeString,
-							Optional:     true,
-							Computed:     true,
-							ValidateFunc: validation.StringInSlice(PolicyActions, false),
+							Type:     schema.TypeString,
+							Optional: true,
+							Computed: true,
 						},
 						"instance_number": {
 							Type:     schema.TypeInt,
@@ -126,10 +117,14 @@ func ResourceASPolicy() *schema.Resource {
 				},
 			},
 			"cool_down_time": {
-				Type:         schema.TypeInt,
-				Optional:     true,
-				Computed:     true,
-				ValidateFunc: validation.IntBetween(0, 86400),
+				Type:     schema.TypeInt,
+				Optional: true,
+				Computed: true,
+			},
+			"action": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
 			},
 			"status": {
 				Type:     schema.TypeString,
@@ -233,13 +228,19 @@ func resourceASPolicyCreate(ctx context.Context, d *schema.ResourceData, meta in
 		createOpts.Action = policyAction
 	}
 
-	log.Printf("[DEBUG] Create AS policy Options: %#v", createOpts)
 	asPolicyId, err := policies.Create(asClient, createOpts).Extract()
 	if err != nil {
 		return diag.Errorf("error creating AS policy: %s", err)
 	}
 
 	d.SetId(asPolicyId)
+
+	if d.Get("action").(string) == "pause" {
+		if err := updateAsPolicyStatus(asClient, d); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
 	return resourceASPolicyRead(ctx, d, meta)
 }
 
@@ -254,10 +255,10 @@ func resourceASPolicyRead(_ context.Context, d *schema.ResourceData, meta interf
 	policyId := d.Id()
 	asPolicy, err := policies.Get(asClient, policyId).Extract()
 	if err != nil {
-		return common.CheckDeletedDiag(d, err, "AS policy")
+		// When the resource does not exist, the response HTTP status code of the details API is 404.
+		return common.CheckDeletedDiag(d, err, "error retrieving AS policy")
 	}
 
-	log.Printf("[DEBUG] Retrieved AS policy %s: %+v", policyId, asPolicy)
 	mErr := multierror.Append(nil,
 		d.Set("region", region),
 		d.Set("scaling_policy_name", asPolicy.Name),
@@ -268,9 +269,20 @@ func resourceASPolicyRead(_ context.Context, d *schema.ResourceData, meta interf
 		d.Set("status", asPolicy.Status),
 		d.Set("scaling_policy_action", flattenPolicyAction(asPolicy.Action)),
 		d.Set("scheduled_policy", flattenSchedulePolicy(asPolicy.SchedulePolicy)),
+		d.Set("action", flattenActionAttribute(asPolicy.Status)),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())
+}
+
+func flattenActionAttribute(status string) string {
+	switch status {
+	case "INSERVICE":
+		return "resume"
+	case "PAUSED":
+		return "pause"
+	}
+	return ""
 }
 
 func flattenPolicyAction(action policies.Action) []map[string]interface{} {
@@ -333,10 +345,15 @@ func resourceASPolicyUpdate(ctx context.Context, d *schema.ResourceData, meta in
 		updateOpts.Action = policyAction
 	}
 
-	log.Printf("[DEBUG] Update AS policy Options: %#v", updateOpts)
 	asPolicyID, err := policies.Update(asClient, d.Id(), updateOpts).Extract()
 	if err != nil {
 		return diag.Errorf("error updating AS policy %s: %s", asPolicyID, err)
+	}
+
+	if d.HasChange("action") {
+		if err := updateAsPolicyStatus(asClient, d); err != nil {
+			return diag.FromErr(err)
+		}
 	}
 
 	return resourceASPolicyRead(ctx, d, meta)
@@ -351,8 +368,36 @@ func resourceASPolicyDelete(_ context.Context, d *schema.ResourceData, meta inte
 	}
 
 	if delErr := policies.Delete(asClient, d.Id()).ExtractErr(); delErr != nil {
-		return diag.Errorf("error deleting AS policy: %s", delErr)
+		// When the resource does not exist, the response HTTP status code of the delete API is 404.
+		return common.CheckDeletedDiag(d, delErr, "error deleting AS policy")
 	}
 
 	return nil
+}
+
+func updateAsPolicyStatus(client *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	updateStatusHttpUrl := "autoscaling-api/v1/{project_id}/scaling_policy/{scaling_policy_id}/action"
+	updateStatusPath := client.Endpoint + updateStatusHttpUrl
+	updateStatusPath = strings.ReplaceAll(updateStatusPath, "{project_id}", client.ProjectID)
+	updateStatusPath = strings.ReplaceAll(updateStatusPath, "{scaling_policy_id}", d.Id())
+
+	updateAsPolicyStatusOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		OkCodes: []int{
+			204,
+		},
+	}
+	updateAsPolicyStatusOpt.JSONBody = utils.RemoveNil(buildUpdateStatusBodyParams(d))
+	_, err := client.Request("POST", updateStatusPath, &updateAsPolicyStatusOpt)
+	if err != nil {
+		return fmt.Errorf("error updating AS policy status: %s", err)
+	}
+	return nil
+}
+
+func buildUpdateStatusBodyParams(d *schema.ResourceData) map[string]interface{} {
+	bodyParams := map[string]interface{}{
+		"action": d.Get("action").(string),
+	}
+	return bodyParams
 }

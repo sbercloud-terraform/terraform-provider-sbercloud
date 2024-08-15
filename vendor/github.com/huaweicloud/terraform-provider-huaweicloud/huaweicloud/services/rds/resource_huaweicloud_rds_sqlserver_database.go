@@ -24,6 +24,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API RDS POST /v3/{project_id}/instances/{instance_id}/database
+// @API RDS GET /v3/{project_id}/instances
+// @API RDS GET /v3/{project_id}/instances/{instance_id}/database/detail
+// @API RDS DELETE /v3/{project_id}/instances/{instance_id}/database/{db_name}
 func ResourceSQLServerDatabase() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceSQLServerDatabaseCreate,
@@ -124,7 +128,7 @@ func resourceSQLServerDatabaseCreate(ctx context.Context, d *schema.ResourceData
 
 func buildCreateSQLServerDatabaseBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name": utils.ValueIngoreEmpty(d.Get("name")),
+		"name": utils.ValueIgnoreEmpty(d.Get("name")),
 	}
 	return bodyParams
 }

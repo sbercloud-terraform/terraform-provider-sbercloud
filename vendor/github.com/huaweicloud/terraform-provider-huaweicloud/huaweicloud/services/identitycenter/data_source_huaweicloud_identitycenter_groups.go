@@ -22,6 +22,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API IdentityCenter GET /v1/identity-stores/{identity_store_id}/groups
 func DataSourceIdentityCenterGroups() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: resourceIdentityCenterGroupsRead,
@@ -156,8 +157,8 @@ func flattenGetIdentityCenterGroupsResponseBodyGroup(resp interface{}) []interfa
 	curArray := curJson.([]interface{})
 	rst := make([]interface{}, 0, len(curArray))
 	for _, v := range curArray {
-		createAt := utils.PathSearch("created_at", v, 0).(float64)
-		updateAt := utils.PathSearch("updated_at", v, 0).(float64)
+		createAt := utils.PathSearch("created_at", v, float64(0)).(float64)
+		updateAt := utils.PathSearch("updated_at", v, float64(0)).(float64)
 		rst = append(rst, map[string]interface{}{
 			"id":          utils.PathSearch("group_id", v, nil),
 			"name":        utils.PathSearch("display_name", v, nil),

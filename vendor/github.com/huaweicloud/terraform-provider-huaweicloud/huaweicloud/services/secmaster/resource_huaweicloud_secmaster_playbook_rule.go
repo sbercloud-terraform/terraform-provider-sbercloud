@@ -27,6 +27,10 @@ const (
 	PlaybookRuleNotExistsCode = "SecMaster.20048004"
 )
 
+// @API SecMaster POST /v1/{project_id}/workspaces/{workspace_id}/soc/playbooks/versions/{version_id}/rules
+// @API SecMaster DELETE /v1/{project_id}/workspaces/{workspace_id}/soc/playbooks/versions/{version_id}/rules/{id}
+// @API SecMaster GET /v1/{project_id}/workspaces/{workspace_id}/soc/playbooks/versions/{version_id}/rules/{id}
+// @API SecMaster PUT /v1/{project_id}/workspaces/{workspace_id}/soc/playbooks/versions/{version_id}/rules/{id}
 func ResourcePlaybookRule() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourcePlaybookRuleCreate,
@@ -220,17 +224,17 @@ func resourcePlaybookRuleCreate(ctx context.Context, d *schema.ResourceData, met
 
 func buildPlaybookRuleBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"expression_type": utils.ValueIngoreEmpty(d.Get("expression_type")),
+		"expression_type": utils.ValueIgnoreEmpty(d.Get("expression_type")),
 		"conditions":      buildPlaybookRuleRequestBodyConditionItem(d.Get("conditions")),
-		"logics":          utils.ValueIngoreEmpty(d.Get("logics")),
-		"cron":            utils.ValueIngoreEmpty(d.Get("cron")),
-		"schedule_type":   utils.ValueIngoreEmpty(d.Get("schedule_type")),
-		"start_type":      utils.ValueIngoreEmpty(d.Get("start_type")),
-		"end_type":        utils.ValueIngoreEmpty(d.Get("end_type")),
-		"end_time":        utils.ValueIngoreEmpty(d.Get("end_time")),
-		"repeat_range":    utils.ValueIngoreEmpty(d.Get("repeat_range")),
-		"only_once":       utils.ValueIngoreEmpty(d.Get("only_once")),
-		"execution_type":  utils.ValueIngoreEmpty(d.Get("execution_type")),
+		"logics":          utils.ValueIgnoreEmpty(d.Get("logics")),
+		"cron":            utils.ValueIgnoreEmpty(d.Get("cron")),
+		"schedule_type":   utils.ValueIgnoreEmpty(d.Get("schedule_type")),
+		"start_type":      utils.ValueIgnoreEmpty(d.Get("start_type")),
+		"end_type":        utils.ValueIgnoreEmpty(d.Get("end_type")),
+		"end_time":        utils.ValueIgnoreEmpty(d.Get("end_time")),
+		"repeat_range":    utils.ValueIgnoreEmpty(d.Get("repeat_range")),
+		"only_once":       utils.ValueIgnoreEmpty(d.Get("only_once")),
+		"execution_type":  utils.ValueIgnoreEmpty(d.Get("execution_type")),
 	}
 	return bodyParams
 }
@@ -245,9 +249,9 @@ func buildPlaybookRuleRequestBodyConditionItem(rawParams interface{}) []map[stri
 		for i, v := range rawArray {
 			raw := v.(map[string]interface{})
 			rst[i] = map[string]interface{}{
-				"name":   utils.ValueIngoreEmpty(raw["name"]),
-				"detail": utils.ValueIngoreEmpty(raw["detail"]),
-				"data":   utils.ValueIngoreEmpty(raw["data"]),
+				"name":   utils.ValueIgnoreEmpty(raw["name"]),
+				"detail": utils.ValueIgnoreEmpty(raw["detail"]),
+				"data":   utils.ValueIgnoreEmpty(raw["data"]),
 			}
 		}
 		return rst

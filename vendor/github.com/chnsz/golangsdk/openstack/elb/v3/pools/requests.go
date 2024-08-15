@@ -117,14 +117,39 @@ type CreateOpts struct {
 
 	// The ID of the VPC where the backend server group works
 	VpcId string `json:"vpc_id,omitempty"`
+
+	// The IP version
+	IpVersion string `json:"ip_version,omitempty"`
+
+	// Whether to enable deletion protection for the load balancer.
+	DeletionProtectionEnable *bool `json:"member_deletion_protection_enable,omitempty"`
+
+	// Whether to enable delayed logout.
+	ConnectionDrain *ConnectionDrain `json:"connection_drain,omitempty"`
+
+	// Backend full offline forwarding configuration.
+	PoolHealth *PoolHealth `json:"pool_health,omitempty"`
 }
 
 type SlowStart struct {
 	// Whether to enable slow start.
-	Enable bool `json:"enable,omitempty"`
+	Enable bool `json:"enable"`
 
 	// Slow start duration, in seconds.
-	Duration int `json:"duration,omitempty"`
+	Duration int `json:"duration"`
+}
+
+type ConnectionDrain struct {
+	// Whether to enable delayed logout.
+	Enable bool `json:"enable"`
+
+	// Delayed logout timeout, in seconds.
+	Timeout int `json:"timeout"`
+}
+
+type PoolHealth struct {
+	// The minimum healthy member count.
+	MinimumHealthyMemberCount int `json:"minimum_healthy_member_count"`
 }
 
 // ToPoolCreateMap builds a request body from CreateOpts.
@@ -192,6 +217,15 @@ type UpdateOpts struct {
 
 	// The ID of the VPC where the backend server group works
 	VpcId string `json:"vpc_id,omitempty"`
+
+	// Whether to enable deletion protection for the load balancer.
+	DeletionProtectionEnable *bool `json:"member_deletion_protection_enable,omitempty"`
+
+	// Whether to enable delayed logout.
+	ConnectionDrain *ConnectionDrain `json:"connection_drain,omitempty"`
+
+	// Backend full offline forwarding configuration.
+	PoolHealth *PoolHealth `json:"pool_health,omitempty"`
 }
 
 // ToPoolUpdateMap builds a request body from UpdateOpts.
@@ -282,7 +316,7 @@ type CreateMemberOpts struct {
 	Address string `json:"address" required:"true"`
 
 	// The port on which to listen for client traffic.
-	ProtocolPort int `json:"protocol_port" required:"true"`
+	ProtocolPort int `json:"protocol_port,omitempty"`
 
 	// Name of the Member.
 	Name string `json:"name,omitempty"`

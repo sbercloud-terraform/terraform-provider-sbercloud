@@ -27,6 +27,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API RDS DELETE /v3/{project_id}/backups/{id}
+// @API RDS GET /v3/{project_id}/backups
+// @API RDS POST /v3/{project_id}/backups
 func ResourceBackup() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceBackupCreate,
@@ -188,9 +191,9 @@ func resourceBackupCreate(ctx context.Context, d *schema.ResourceData, meta inte
 
 func buildCreateBackupBodyParams(d *schema.ResourceData, config *config.Config) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":        utils.ValueIngoreEmpty(d.Get("name")),
-		"instance_id": utils.ValueIngoreEmpty(d.Get("instance_id")),
-		"description": utils.ValueIngoreEmpty(d.Get("description")),
+		"name":        utils.ValueIgnoreEmpty(d.Get("name")),
+		"instance_id": utils.ValueIgnoreEmpty(d.Get("instance_id")),
+		"description": utils.ValueIgnoreEmpty(d.Get("description")),
 		"databases":   buildCreateBackupDatabasesChildBody(d),
 	}
 	return bodyParams
@@ -206,7 +209,7 @@ func buildCreateBackupDatabasesChildBody(d *schema.ResourceData) []map[string]in
 	for i, v := range rawParams {
 		raw := v.(map[string]interface{})
 		params[i] = map[string]interface{}{
-			"name": utils.ValueIngoreEmpty(raw["name"]),
+			"name": utils.ValueIgnoreEmpty(raw["name"]),
 		}
 	}
 
@@ -465,7 +468,8 @@ func deleteBackupWaitingForStateCompleted(ctx context.Context, d *schema.Resourc
 			deleteBackupWaitingResp, err := deleteBackupWaitingClient.Request("GET", deleteBackupWaitingPath, &deleteBackupWaitingOpt)
 			if err != nil {
 				if _, ok := err.(golangsdk.ErrDefault404); ok {
-					return deleteBackupWaitingResp, "COMPLETED", nil
+					// When the error code is 404, the value of respBody is nil, and a non-null value is returned to avoid continuing the loop check.
+					return "Resource Not Found", "COMPLETED", nil
 				}
 
 				return nil, "ERROR", err

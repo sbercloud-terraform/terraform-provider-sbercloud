@@ -25,6 +25,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API ModelArts POST /v1/{project_id}/workspaces
+// @API ModelArts DELETE /v1/{project_id}/workspaces/{id}
+// @API ModelArts GET /v1/{project_id}/workspaces/{id}
+// @API ModelArts PUT /v1/{project_id}/workspaces/{id}
 func ResourceModelartsWorkspace() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceModelartsWorkspaceCreate,
@@ -154,8 +158,8 @@ func buildCreateWorkspaceBodyParams(d *schema.ResourceData, cfg *config.Config) 
 	bodyParams := map[string]interface{}{
 		"name":                  d.Get("name"),
 		"description":           d.Get("description"),
-		"enterprise_project_id": utils.ValueIngoreEmpty(common.GetEnterpriseProjectID(d, cfg)),
-		"auth_type":             utils.ValueIngoreEmpty(d.Get("auth_type")),
+		"enterprise_project_id": utils.ValueIgnoreEmpty(common.GetEnterpriseProjectID(d, cfg)),
+		"auth_type":             utils.ValueIgnoreEmpty(d.Get("auth_type")),
 		"grants":                buildCreateWorkspaceRequestBodyGrants(d.Get("grants")),
 	}
 	return bodyParams
@@ -171,8 +175,8 @@ func buildCreateWorkspaceRequestBodyGrants(rawParams interface{}) []map[string]i
 		for i, v := range rawArray {
 			if raw, ok := v.(map[string]interface{}); ok {
 				rst[i] = map[string]interface{}{
-					"user_id":   utils.ValueIngoreEmpty(raw["user_id"]),
-					"user_name": utils.ValueIngoreEmpty(raw["user_name"]),
+					"user_id":   utils.ValueIgnoreEmpty(raw["user_id"]),
+					"user_name": utils.ValueIgnoreEmpty(raw["user_name"]),
 				}
 			}
 		}
@@ -296,7 +300,7 @@ func buildUpdateWorkspaceBodyParams(d *schema.ResourceData) map[string]interface
 	bodyParams := map[string]interface{}{
 		"name":        d.Get("name"),
 		"description": d.Get("description"),
-		"auth_type":   utils.ValueIngoreEmpty(d.Get("auth_type")),
+		"auth_type":   utils.ValueIgnoreEmpty(d.Get("auth_type")),
 		"grants":      buildUpdateWorkspaceRequestBodyGrants(d.Get("grants")),
 	}
 	return bodyParams
@@ -312,8 +316,8 @@ func buildUpdateWorkspaceRequestBodyGrants(rawParams interface{}) []map[string]i
 		for i, v := range rawArray {
 			if raw, ok := v.(map[string]interface{}); ok {
 				rst[i] = map[string]interface{}{
-					"user_id":   utils.ValueIngoreEmpty(raw["user_id"]),
-					"user_name": utils.ValueIngoreEmpty(raw["user_name"]),
+					"user_id":   utils.ValueIgnoreEmpty(raw["user_id"]),
+					"user_name": utils.ValueIgnoreEmpty(raw["user_name"]),
 				}
 			}
 		}
@@ -390,12 +394,14 @@ func deleteWorkspaceWaitingForStateCompleted(ctx context.Context, d *schema.Reso
 			deleteWorkspaceWaitingResp, err := deleteWorkspaceWaitingClient.Request("GET", deleteWorkspaceWaitingPath, &deleteWorkspaceWaitingOpt)
 			if err != nil {
 				if _, ok := err.(golangsdk.ErrDefault404); ok {
-					return deleteWorkspaceWaitingResp, "COMPLETED", nil
+					// When the error code is 404, the value of respBody is nil, and a non-null value is returned to avoid continuing the loop check.
+					return "Resource Not Found", "COMPLETED", nil
 				}
 
 				err = parseWorkspaceNotFoundError(err)
 				if _, ok := err.(golangsdk.ErrDefault404); ok {
-					return deleteWorkspaceWaitingResp, "COMPLETED", nil
+					// When the error code is 404, the value of respBody is nil, and a non-null value is returned to avoid continuing the loop check.
+					return "Resource Not Found", "COMPLETED", nil
 				}
 				return nil, "ERROR", err
 			}

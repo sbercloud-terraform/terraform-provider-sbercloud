@@ -20,6 +20,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API AOM DELETE /v2/{project_id}/alert/action-rules
+// @API AOM POST /v2/{project_id}/alert/action-rules
+// @API AOM PUT /v2/{project_id}/alert/action-rules
+// @API AOM GET /v2/{project_id}/alert/action-rules/{rule_name}
 func ResourceAlarmActionRule() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceAlarmActionRuleCreate,
@@ -134,11 +138,11 @@ func resourceAlarmActionRuleCreate(ctx context.Context, d *schema.ResourceData, 
 
 func buildAlarmActionRuleBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"rule_name":             utils.ValueIngoreEmpty(d.Get("name")),
-		"desc":                  utils.ValueIngoreEmpty(d.Get("description")),
-		"type":                  utils.ValueIngoreEmpty(d.Get("type")),
+		"rule_name":             utils.ValueIgnoreEmpty(d.Get("name")),
+		"desc":                  utils.ValueIgnoreEmpty(d.Get("description")),
+		"type":                  utils.ValueIgnoreEmpty(d.Get("type")),
 		"smn_topics":            buildAlarmActionRuleRequestBodySmnTopics(d.Get("smn_topics")),
-		"notification_template": utils.ValueIngoreEmpty(d.Get("notification_template")),
+		"notification_template": utils.ValueIgnoreEmpty(d.Get("notification_template")),
 	}
 	return bodyParams
 }
@@ -153,7 +157,7 @@ func buildAlarmActionRuleRequestBodySmnTopics(rawParams interface{}) []map[strin
 		for i, v := range rawArray {
 			raw := v.(map[string]interface{})
 			rst[i] = map[string]interface{}{
-				"topic_urn": utils.ValueIngoreEmpty(raw["topic_urn"]),
+				"topic_urn": utils.ValueIgnoreEmpty(raw["topic_urn"]),
 			}
 
 			if raw["name"] != "" {
@@ -176,7 +180,7 @@ func resourceAlarmActionRuleRead(_ context.Context, d *schema.ResourceData, meta
 
 	// getAlarmActionRule: Query the Alarm Action Rule
 	var (
-		getAlarmActionRuleHttpUrl = "v2/{project_id}/alert/action-rules/{id}"
+		getAlarmActionRuleHttpUrl = "v2/{project_id}/alert/action-rules/{rule_name}"
 		getAlarmActionRuleProduct = "aom"
 	)
 	getAlarmActionRuleClient, err := cfg.NewServiceClient(getAlarmActionRuleProduct, region)
@@ -186,7 +190,7 @@ func resourceAlarmActionRuleRead(_ context.Context, d *schema.ResourceData, meta
 
 	getAlarmActionRulePath := getAlarmActionRuleClient.Endpoint + getAlarmActionRuleHttpUrl
 	getAlarmActionRulePath = strings.ReplaceAll(getAlarmActionRulePath, "{project_id}", getAlarmActionRuleClient.ProjectID)
-	getAlarmActionRulePath = strings.ReplaceAll(getAlarmActionRulePath, "{id}", d.Id())
+	getAlarmActionRulePath = strings.ReplaceAll(getAlarmActionRulePath, "{rule_name}", d.Id())
 
 	getAlarmActionRuleOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,

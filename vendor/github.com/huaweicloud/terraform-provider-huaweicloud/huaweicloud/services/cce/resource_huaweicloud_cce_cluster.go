@@ -27,6 +27,25 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API CCE POST /api/v3/projects/{project_id}/clusters
+// @API CCE GET /api/v3/projects/{project_id}/clusters/{id}
+// @API CCE PUT /api/v3/projects/{project_id}/clusters/{id}
+// @API CCE DELETE /api/v3/projects/{project_id}/clusters/{id}
+// @API CCE GET /api/v3/projects/{project_id}/jobs/{job_id}
+// @API CCE POST /api/v3/projects/{project_id}/clusters/{id}/operation/{action}
+// @API CCE POST /api/v3/projects/{project_id}/clusters/{id}/clustercert
+// @API CCE PUT /api/v3/projects/{project_id}/clusters/{id}/mastereip
+// @API CCE POST /api/v3/projects/{project_id}/clusters/{id}/tags/{action}
+// @API CCE POST /api/v3/projects/{project_id}/clusters/{id}/operation/resize
+// @API BSS GET /V2/orders/customer-orders/details/{order_id}
+// @API BSS POST /v2/orders/suscriptions/resources/query
+// @API BSS POST /v2/orders/subscriptions/resources/autorenew/{id}
+// @API BSS DELETE /v2/orders/subscriptions/resources/autorenew/{id}
+// @API BSS POST /v2/orders/subscriptions/resources/unsubscribe
+// @API EPS POST /v1.0/enterprise-projects/{enterprise_project_id}/resources-migrate
+// @API EPS POST /v1.0/enterprise-projects/{enterprise_project_id}/resources/filter
+// @API AOM POST /svcstg/icmgr/v1/{project_id}/agents
+
 // ResourceCCEClusterV3 defines the CCE cluster resource schema and functions.
 // Deprecated: It's a deprecated function, please refer to the function 'ResourceCluster'.
 func ResourceCCEClusterV3() *schema.Resource {
@@ -85,7 +104,6 @@ func ResourceCluster() *schema.Resource {
 			"flavor_id": {
 				Type:     schema.TypeString,
 				Required: true,
-				ForceNew: true,
 			},
 			"cluster_version": {
 				Type:             schema.TypeString,
@@ -465,12 +483,12 @@ func resourceClusterExtendParams(extendParamsRaw []interface{}) map[string]inter
 
 	if extendParams, ok := extendParamsRaw[0].(map[string]interface{}); ok {
 		res := map[string]interface{}{
-			"clusterAZ":                      utils.ValueIngoreEmpty(extendParams["cluster_az"]),
-			"dssMasterVolumes":               utils.ValueIngoreEmpty(extendParams["dss_master_volumes"]),
-			"alpha.cce/fixPoolMask":          utils.ValueIngoreEmpty(extendParams["fix_pool_mask"]),
-			"decMasterFlavor":                utils.ValueIngoreEmpty(extendParams["dec_master_flavor"]),
-			"dockerUmaskMode":                utils.ValueIngoreEmpty(extendParams["docker_umask_mode"]),
-			"kubernetes.io/cpuManagerPolicy": utils.ValueIngoreEmpty(extendParams["cpu_manager_policy"]),
+			"clusterAZ":                      utils.ValueIgnoreEmpty(extendParams["cluster_az"]),
+			"dssMasterVolumes":               utils.ValueIgnoreEmpty(extendParams["dss_master_volumes"]),
+			"alpha.cce/fixPoolMask":          utils.ValueIgnoreEmpty(extendParams["fix_pool_mask"]),
+			"decMasterFlavor":                utils.ValueIgnoreEmpty(extendParams["dec_master_flavor"]),
+			"dockerUmaskMode":                utils.ValueIgnoreEmpty(extendParams["docker_umask_mode"]),
+			"kubernetes.io/cpuManagerPolicy": utils.ValueIgnoreEmpty(extendParams["cpu_manager_policy"]),
 		}
 
 		return res
@@ -969,6 +987,13 @@ func resourceClusterUpdate(ctx context.Context, d *schema.ResourceData, meta int
 		}
 	}
 
+	if d.HasChange("flavor_id") {
+		err := resourceClusterResize(ctx, cfg, d, cceClient)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
 	if d.HasChange("hibernate") {
 		if d.Get("hibernate").(bool) {
 			err = resourceClusterHibernate(ctx, d, cceClient)
@@ -1158,6 +1183,59 @@ func getClusterIDFromJob(ctx context.Context, client *golangsdk.ServiceClient, j
 		return "", fmt.Errorf("error fetching CCE cluster ID")
 	}
 	return clusterID, nil
+}
+
+func resourceClusterResize(ctx context.Context, cfg *config.Config, d *schema.ResourceData, cceClient *golangsdk.ServiceClient) error {
+	clusterID := d.Id()
+
+	var decMasterFlavor string
+	extendParams := resourceClusterExtendParams(d.Get("extend_params").([]interface{}))
+	if v, ok := extendParams["decMasterFlavor"]; ok {
+		decMasterFlavor = v.(string)
+	}
+
+	opts := clusters.ResizeOpts{
+		FavorResize: d.Get("flavor_id").(string),
+		ExtendParam: &clusters.ResizeExtendParam{
+			DecMasterFlavor: decMasterFlavor,
+		},
+	}
+
+	if d.Get("charging_mode").(string) == "prePaid" {
+		opts.ExtendParam.IsAutoPay = common.GetAutoPay(d)
+	}
+
+	resp, err := clusters.Resize(cceClient, clusterID, opts)
+	if err != nil {
+		return fmt.Errorf("error resizing CCE cluster: %s", err)
+	}
+
+	if resp.OrderID != "" {
+		bssClient, err := cfg.BssV2Client(cfg.GetRegion(d))
+		if err != nil {
+			return fmt.Errorf("error creating BSS v2 client: %s", err)
+		}
+		err = common.WaitOrderComplete(ctx, bssClient, resp.OrderID, d.Timeout(schema.TimeoutUpdate))
+		if err != nil {
+			return err
+		}
+	}
+
+	log.Printf("[DEBUG] Waiting for CCE cluster (%s) to become available", d.Id())
+	stateConf := &resource.StateChangeConf{
+		Pending:      []string{"PENDING"},
+		Target:       []string{"COMPLETED"},
+		Refresh:      clusterStateRefreshFunc(cceClient, d.Id(), []string{"Available"}),
+		Timeout:      d.Timeout(schema.TimeoutUpdate),
+		Delay:        20 * time.Second,
+		PollInterval: 20 * time.Second,
+	}
+
+	_, err = stateConf.WaitForStateContext(ctx)
+	if err != nil {
+		return fmt.Errorf("error resizing CCE cluster: %s", err)
+	}
+	return nil
 }
 
 func resourceClusterHibernate(ctx context.Context, d *schema.ResourceData, cceClient *golangsdk.ServiceClient) error {

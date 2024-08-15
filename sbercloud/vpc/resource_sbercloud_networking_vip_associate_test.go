@@ -121,6 +121,7 @@ resource "sbercloud_compute_instance" "test" {
   flavor_id           = data.sbercloud_compute_flavors.test.ids[0]
   security_group_ids  = [data.sbercloud_networking_secgroup.test.id]
   stop_before_destroy = true
+  system_disk_type    = "SSD"
 
   network {
     uuid              = data.sbercloud_vpc_subnet.test.id

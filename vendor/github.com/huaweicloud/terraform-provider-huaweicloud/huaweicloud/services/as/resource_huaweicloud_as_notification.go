@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
 	"github.com/chnsz/golangsdk"
 
@@ -22,6 +21,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API AS PUT /autoscaling-api/v1/{project_id}/scaling_notification/{scaling_group_id}
+// @API AS GET /autoscaling-api/v1/{project_id}/scaling_notification/{scaling_group_id}
+// @API AS DELETE /autoscaling-api/v1/{project_id}/scaling_notification/{scaling_group_id}/{topic_urn}
 func ResourceAsNotification() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceAsNotificationPut,
@@ -52,14 +54,9 @@ func ResourceAsNotification() *schema.Resource {
 				Description: `Specifies the unique topic URN of the SMN.`,
 			},
 			"events": {
-				Type:     schema.TypeList,
-				Required: true,
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
-					ValidateFunc: validation.StringInSlice([]string{
-						"SCALING_UP", "SCALING_UP_FAIL", "SCALING_DOWN", "SCALING_DOWN_FAIL", "SCALING_GROUP_ABNORMAL",
-					}, false),
-				},
+				Type:        schema.TypeList,
+				Required:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString},
 				Description: `Specifies the topic scene of AS group.`,
 			},
 			"topic_name": {
@@ -72,90 +69,82 @@ func ResourceAsNotification() *schema.Resource {
 }
 
 func resourceAsNotificationPut(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	cfg := meta.(*config.Config)
-	region := cfg.GetRegion(d)
-
-	// putASNotification: put an AS notification.
 	var (
-		putASNotificationHttpUrl = "autoscaling-api/v1/{project_id}/scaling_notification/{scaling_group_id}"
-		putASNotificationProduct = "autoscaling"
+		cfg            = meta.(*config.Config)
+		region         = cfg.GetRegion(d)
+		httpUrl        = "autoscaling-api/v1/{project_id}/scaling_notification/{scaling_group_id}"
+		product        = "autoscaling"
+		scalingGroupID = d.Get("scaling_group_id").(string)
 	)
-	putASNotificationClient, err := cfg.NewServiceClient(putASNotificationProduct, region)
+	client, err := cfg.NewServiceClient(product, region)
 	if err != nil {
-		return diag.Errorf("error creating AutoScaling Client: %s", err)
+		return diag.Errorf("error creating autoscaling client: %s", err)
 	}
 
-	putASNotificationPath := putASNotificationClient.Endpoint + putASNotificationHttpUrl
-	putASNotificationPath = strings.ReplaceAll(putASNotificationPath, "{project_id}",
-		putASNotificationClient.ProjectID)
-	putASNotificationPath = strings.ReplaceAll(putASNotificationPath, "{scaling_group_id}",
-		fmt.Sprintf("%v", d.Get("scaling_group_id")))
-
-	putASNotificationOpt := golangsdk.RequestOpts{
+	putPath := client.Endpoint + httpUrl
+	putPath = strings.ReplaceAll(putPath, "{project_id}", client.ProjectID)
+	putPath = strings.ReplaceAll(putPath, "{scaling_group_id}", scalingGroupID)
+	putOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		OkCodes: []int{
-			200,
-		},
+		JSONBody:         buildCreateOrUpdateASNotificationBodyParams(d),
 	}
-	putASNotificationOpt.JSONBody = buildCreateOrUpdateASNotificationBodyParams(d)
-	_, err = putASNotificationClient.Request("PUT", putASNotificationPath, &putASNotificationOpt)
+
+	_, err = client.Request("PUT", putPath, &putOpt)
 	if err != nil {
 		return diag.Errorf("error creating or updating AS notification: %s", err)
 	}
 
-	topicUrn := d.Get("topic_urn").(string)
-	d.SetId(topicUrn)
+	d.SetId(d.Get("topic_urn").(string))
 	return resourceAsNotificationRead(ctx, d, meta)
 }
 
 func buildCreateOrUpdateASNotificationBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
 		"topic_urn":   d.Get("topic_urn"),
-		"topic_scene": utils.ValueIngoreEmpty(d.Get("events")),
+		"topic_scene": utils.ValueIgnoreEmpty(d.Get("events")),
 	}
 	return bodyParams
 }
 
 func resourceAsNotificationRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	cfg := meta.(*config.Config)
-	region := cfg.GetRegion(d)
-
-	var mErr *multierror.Error
-
-	// getASNotification: Query the AS notification.
 	var (
-		getASNotificationHttpUrl = "autoscaling-api/v1/{project_id}/scaling_notification/{scaling_group_id}"
-		getASNotificationProduct = "autoscaling"
+		cfg            = meta.(*config.Config)
+		region         = cfg.GetRegion(d)
+		mErr           *multierror.Error
+		httpUrl        = "autoscaling-api/v1/{project_id}/scaling_notification/{scaling_group_id}"
+		product        = "autoscaling"
+		scalingGroupID = d.Get("scaling_group_id").(string)
 	)
-	getASNotificationClient, err := cfg.NewServiceClient(getASNotificationProduct, region)
+
+	client, err := cfg.NewServiceClient(product, region)
 	if err != nil {
-		return diag.Errorf("error creating AutoScaling Client: %s", err)
+		return diag.Errorf("error creating autoscaling client: %s", err)
 	}
 
-	getASNotificationPath := getASNotificationClient.Endpoint + getASNotificationHttpUrl
-	getASNotificationPath = strings.ReplaceAll(getASNotificationPath, "{project_id}",
-		getASNotificationClient.ProjectID)
-	getASNotificationPath = strings.ReplaceAll(getASNotificationPath, "{scaling_group_id}",
-		fmt.Sprintf("%v", d.Get("scaling_group_id")))
-
-	getASNotificationOpt := golangsdk.RequestOpts{
+	getPath := client.Endpoint + httpUrl
+	getPath = strings.ReplaceAll(getPath, "{project_id}", client.ProjectID)
+	getPath = strings.ReplaceAll(getPath, "{scaling_group_id}", scalingGroupID)
+	getOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		OkCodes: []int{
-			200,
-		},
-	}
-	getASNotificationResp, err := getASNotificationClient.Request("GET", getASNotificationPath,
-		&getASNotificationOpt)
-	if err != nil {
-		return common.CheckDeletedDiag(d, err, "error retrieving AS notification")
 	}
 
-	getASNotificationRespBody, err := utils.FlattenResponse(getASNotificationResp)
+	getResp, err := client.Request("GET", getPath, &getOpt)
+	if err != nil {
+		// When the group does not exist, the response error information of the detailed API is as follows:
+		// {"error": {"code": "AS.2007","message": "The AS group does not exist."}}.
+		return common.CheckDeletedDiag(d, parseGroupResponseError(err), "error retrieving AS notification")
+	}
+
+	getASNotificationRespBody, err := utils.FlattenResponse(getResp)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
 	notificationMap := filterTargetASNotificationByTopicUrn(getASNotificationRespBody, d.Id())
+	if len(notificationMap) == 0 {
+		return common.CheckDeletedDiag(d, golangsdk.ErrDefault404{}, "")
+	}
+
 	mErr = multierror.Append(
 		mErr,
 		d.Set("region", region),
@@ -186,37 +175,34 @@ func filterTargetASNotificationByTopicUrn(resp interface{}, topicUrn string) map
 }
 
 func resourceAsNotificationDelete(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	cfg := meta.(*config.Config)
-	region := cfg.GetRegion(d)
-
-	// deleteASNotification: Delete the AS notification.
 	var (
-		deleteASNotificationHttpUrl = "autoscaling-api/v1/{project_id}/scaling_notification/{scaling_group_id}" +
-			"/{topic_urn}"
-		deleteASNotificationProduct = "autoscaling"
+		cfg            = meta.(*config.Config)
+		region         = cfg.GetRegion(d)
+		deleteUrl      = "autoscaling-api/v1/{project_id}/scaling_notification/{scaling_group_id}/{topic_urn}"
+		product        = "autoscaling"
+		scalingGroupID = d.Get("scaling_group_id").(string)
 	)
-	deleteASNotificationClient, err := cfg.NewServiceClient(deleteASNotificationProduct, region)
+	client, err := cfg.NewServiceClient(product, region)
 	if err != nil {
-		return diag.Errorf("error creating AutoScaling Client: %s", err)
+		return diag.Errorf("error creating autoscaling client: %s", err)
 	}
 
-	deleteASNotificationPath := deleteASNotificationClient.Endpoint + deleteASNotificationHttpUrl
-	deleteASNotificationPath = strings.ReplaceAll(deleteASNotificationPath, "{project_id}",
-		deleteASNotificationClient.ProjectID)
-	deleteASNotificationPath = strings.ReplaceAll(deleteASNotificationPath, "{scaling_group_id}",
-		fmt.Sprintf("%v", d.Get("scaling_group_id")))
-	deleteASNotificationPath = strings.ReplaceAll(deleteASNotificationPath, "{topic_urn}",
-		fmt.Sprintf("%v", d.Id()))
-
-	deleteASNotificationOpt := golangsdk.RequestOpts{
+	deletePath := client.Endpoint + deleteUrl
+	deletePath = strings.ReplaceAll(deletePath, "{project_id}", client.ProjectID)
+	deletePath = strings.ReplaceAll(deletePath, "{scaling_group_id}", scalingGroupID)
+	deletePath = strings.ReplaceAll(deletePath, "{topic_urn}", d.Id())
+	deleteOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
 		OkCodes: []int{
 			204,
 		},
 	}
-	_, err = deleteASNotificationClient.Request("DELETE", deleteASNotificationPath, &deleteASNotificationOpt)
+	_, err = client.Request("DELETE", deletePath, &deleteOpt)
 	if err != nil {
-		return diag.Errorf("error deleting AS notification: %s", err)
+		// When the group does not exist, the response error message of the delete API is:
+		// {"error": {"code": "AS.2007","message": "The AS group does not exist."}}.
+		// When AS notification does not exist, the response HTTP status code of the delete API is 404
+		return common.CheckDeletedDiag(d, parseGroupResponseError(err), "error deleting AS notification")
 	}
 	return nil
 }

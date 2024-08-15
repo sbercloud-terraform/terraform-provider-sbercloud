@@ -26,9 +26,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
-func DataSourceBackup() *schema.Resource {
+// @API RDS GET /v3/{project_id}/backups
+func DataSourceRdsBackups() *schema.Resource {
 	return &schema.Resource{
-		ReadContext: dsBackupRead,
+		ReadContext: rdsBackupsRead,
 		Schema: map[string]*schema.Schema{
 			"region": {
 				Type:     schema.TypeString,
@@ -70,7 +71,7 @@ func DataSourceBackup() *schema.Resource {
 			},
 			"backups": {
 				Type:        schema.TypeList,
-				Elem:        BackupBackupSchema(),
+				Elem:        BackupsBackupSchema(),
 				Computed:    true,
 				Description: `Backup list. For details, see Data structure of the Backup field.`,
 			},
@@ -78,7 +79,7 @@ func DataSourceBackup() *schema.Resource {
 	}
 }
 
-func BackupBackupSchema() *schema.Resource {
+func BackupsBackupSchema() *schema.Resource {
 	sc := schema.Resource{
 		Schema: map[string]*schema.Schema{
 			"id": {
@@ -128,12 +129,12 @@ func BackupBackupSchema() *schema.Resource {
 			},
 			"datastore": {
 				Type:     schema.TypeList,
-				Elem:     BackupBackupDatastoreSchema(),
+				Elem:     BackupsBackupDatastoreSchema(),
 				Computed: true,
 			},
 			"databases": {
 				Type:        schema.TypeList,
-				Elem:        BackupBackupDatabasesSchema(),
+				Elem:        BackupsBackupDatabasesSchema(),
 				Computed:    true,
 				Description: `Database been backed up.`,
 			},
@@ -142,7 +143,7 @@ func BackupBackupSchema() *schema.Resource {
 	return &sc
 }
 
-func BackupBackupDatastoreSchema() *schema.Resource {
+func BackupsBackupDatastoreSchema() *schema.Resource {
 	sc := schema.Resource{
 		Schema: map[string]*schema.Schema{
 			"type": {
@@ -160,7 +161,7 @@ func BackupBackupDatastoreSchema() *schema.Resource {
 	return &sc
 }
 
-func BackupBackupDatabasesSchema() *schema.Resource {
+func BackupsBackupDatabasesSchema() *schema.Resource {
 	sc := schema.Resource{
 		Schema: map[string]*schema.Schema{
 			"name": {
@@ -173,9 +174,9 @@ func BackupBackupDatabasesSchema() *schema.Resource {
 	return &sc
 }
 
-func dsBackupRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	region := config.GetRegion(d)
+func rdsBackupsRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
 
 	var mErr *multierror.Error
 
@@ -184,16 +185,16 @@ func dsBackupRead(ctx context.Context, d *schema.ResourceData, meta interface{})
 		listBackupsHttpUrl = "v3/{project_id}/backups"
 		listBackupsProduct = "rds"
 	)
-	listBackupsClient, err := config.NewServiceClient(listBackupsProduct, region)
+	listBackupsClient, err := cfg.NewServiceClient(listBackupsProduct, region)
 	if err != nil {
-		return diag.Errorf("error creating Backup Client: %s", err)
+		return diag.Errorf("error creating RDS client: %s", err)
 	}
 
 	listBackupsPath := listBackupsClient.Endpoint + listBackupsHttpUrl
 	listBackupsPath = strings.ReplaceAll(listBackupsPath, "{project_id}", listBackupsClient.ProjectID)
 
-	listBackupsqueryParams := buildListBackupsQueryParams(d)
-	listBackupsPath += listBackupsqueryParams
+	listBackupsQueryParams := buildListBackupsQueryParams(d)
+	listBackupsPath += listBackupsQueryParams
 
 	listBackupsResp, err := pagination.ListAllItems(
 		listBackupsClient,
@@ -215,11 +216,11 @@ func dsBackupRead(ctx context.Context, d *schema.ResourceData, meta interface{})
 		return diag.FromErr(err)
 	}
 
-	uuid, err := uuid.GenerateUUID()
+	dataSourceId, err := uuid.GenerateUUID()
 	if err != nil {
 		return diag.Errorf("unable to generate ID: %s", err)
 	}
-	d.SetId(uuid)
+	d.SetId(dataSourceId)
 
 	mErr = multierror.Append(
 		mErr,

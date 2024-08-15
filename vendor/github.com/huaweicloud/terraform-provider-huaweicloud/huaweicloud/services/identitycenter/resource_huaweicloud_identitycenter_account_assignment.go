@@ -24,6 +24,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API IdentityCenter GET /v1/instances/{instance_id}/account-assignments
+// @API IdentityCenter POST /v1/instances/{instance_id}/account-assignments/create
+// @API IdentityCenter GET /v1/instances/{instance_id}/account-assignments/creation-status/{request_id}
+// @API IdentityCenter POST /v1/instances/{instance_id}/account-assignments/delete
 func ResourceIdentityCenterAccountAssignment() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceAccountAssignmentCreate,
@@ -145,11 +149,11 @@ func resourceAccountAssignmentCreate(ctx context.Context, d *schema.ResourceData
 
 func buildAccountAssignmentBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"permission_set_id": utils.ValueIngoreEmpty(d.Get("permission_set_id")),
-		"principal_id":      utils.ValueIngoreEmpty(d.Get("principal_id")),
-		"principal_type":    utils.ValueIngoreEmpty(d.Get("principal_type")),
-		"target_id":         utils.ValueIngoreEmpty(d.Get("target_id")),
-		"target_type":       utils.ValueIngoreEmpty(d.Get("target_type")),
+		"permission_set_id": utils.ValueIgnoreEmpty(d.Get("permission_set_id")),
+		"principal_id":      utils.ValueIgnoreEmpty(d.Get("principal_id")),
+		"principal_type":    utils.ValueIgnoreEmpty(d.Get("principal_type")),
+		"target_id":         utils.ValueIgnoreEmpty(d.Get("target_id")),
+		"target_type":       utils.ValueIgnoreEmpty(d.Get("target_type")),
 	}
 	return bodyParams
 }

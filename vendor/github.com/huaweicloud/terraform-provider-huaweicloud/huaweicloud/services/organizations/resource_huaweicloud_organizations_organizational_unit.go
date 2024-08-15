@@ -22,6 +22,13 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API Organizations POST /v1/organizations/organizational-units
+// @API Organizations PATCH /v1/organizations/organizational-units/{organizational_unit_id}
+// @API Organizations POST /v1/organizations/{resource_type}/{resource_id}/tags/create
+// @API Organizations POST /v1/organizations/{resource_type}/{resource_id}/tags/delete
+// @API Organizations GET /v1/organizations/organizational-units/{organizational_unit_id}
+// @API Organizations GET /v1/organizations/{resource_type}/{resource_id}/tags
+// @API Organizations DELETE /v1/organizations/organizational-units/{organizational_unit_id}
 func ResourceOrganizationalUnit() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceOrganizationalUnitCreate,
@@ -106,8 +113,8 @@ func resourceOrganizationalUnitCreate(ctx context.Context, d *schema.ResourceDat
 
 func buildCreateOrganizationalUnitBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":      utils.ValueIngoreEmpty(d.Get("name")),
-		"parent_id": utils.ValueIngoreEmpty(d.Get("parent_id")),
+		"name":      utils.ValueIgnoreEmpty(d.Get("name")),
+		"parent_id": utils.ValueIgnoreEmpty(d.Get("parent_id")),
 		"tags":      utils.ExpandResourceTags(d.Get("tags").(map[string]interface{})),
 	}
 	return bodyParams
@@ -218,7 +225,7 @@ func resourceOrganizationalUnitUpdate(ctx context.Context, d *schema.ResourceDat
 
 func buildUpdateOrganizationalUnitBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name": utils.ValueIngoreEmpty(d.Get("name")),
+		"name": utils.ValueIgnoreEmpty(d.Get("name")),
 	}
 	return bodyParams
 }

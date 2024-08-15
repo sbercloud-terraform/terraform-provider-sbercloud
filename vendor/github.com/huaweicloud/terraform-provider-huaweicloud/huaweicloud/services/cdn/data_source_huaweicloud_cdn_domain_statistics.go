@@ -18,11 +18,11 @@ import (
 
 	"github.com/chnsz/golangsdk"
 
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API CDN GET /v1.0/cdn/statistics/domain-location-stats
 func DataSourceStatistics() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: resourceStatisticsRead,
@@ -124,7 +124,7 @@ func resourceStatisticsRead(_ context.Context, d *schema.ResourceData, meta inte
 	domainStatisticsResp, err := domainStatisticsClient.Request("GET", domainStatisticsPath, &domainStatisticsOpt)
 
 	if err != nil {
-		return common.CheckDeletedDiag(d, err, "error retrieving Statistics")
+		return diag.Errorf("error retrieving CDN statistics: %s", err)
 	}
 
 	domainStatisticsRespBody, err := utils.FlattenResponse(domainStatisticsResp)

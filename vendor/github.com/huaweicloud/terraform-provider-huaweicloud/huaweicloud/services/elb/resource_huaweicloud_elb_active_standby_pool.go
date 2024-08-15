@@ -99,6 +99,19 @@ func ResourceActiveStandbyPool() *schema.Resource {
 				ForceNew: true,
 				Computed: true,
 			},
+			"connection_drain_enabled": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
+			},
+			"connection_drain_timeout": {
+				Type:         schema.TypeInt,
+				Optional:     true,
+				ForceNew:     true,
+				Computed:     true,
+				RequiredWith: []string{"connection_drain_enabled"},
+			},
 			"description": {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -106,6 +119,16 @@ func ResourceActiveStandbyPool() *schema.Resource {
 				Computed: true,
 			},
 			"ip_version": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
+			"created_at": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"updated_at": {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
@@ -198,6 +221,12 @@ func activeStandbyHealthMonitorRefSchema() *schema.Resource {
 				Computed: true,
 			},
 			"expected_codes": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
+			},
+			"http_method": {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
@@ -325,6 +354,11 @@ func resourceActiveStandbyPoolRead(_ context.Context, d *schema.ResourceData, me
 		d.Set("vpc_id", utils.PathSearch("pool.vpc_id", getActiveStandbyPoolBody, nil)),
 		d.Set("members", flattenActiveStandbyPoolMembers(getActiveStandbyPoolBody)),
 		d.Set("healthmonitor", flattenActiveStandbyPoolHealthMonitor(getActiveStandbyPoolBody)),
+		d.Set("ip_version", utils.PathSearch("pool.ip_version", getActiveStandbyPoolBody, nil)),
+		d.Set("connection_drain_enabled", utils.PathSearch("pool.connection_drain.enable", getActiveStandbyPoolBody, nil)),
+		d.Set("connection_drain_timeout", utils.PathSearch("pool.connection_drain.timeout", getActiveStandbyPoolBody, nil)),
+		d.Set("created_at", utils.PathSearch("pool.created_at", getActiveStandbyPoolBody, nil)),
+		d.Set("updated_at", utils.PathSearch("pool.updated_at", getActiveStandbyPoolBody, nil)),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())
@@ -410,6 +444,7 @@ func flattenActiveStandbyPoolHealthMonitor(resp interface{}) []interface{} {
 			"max_retries_down": utils.PathSearch("max_retries_down", curJson, nil),
 			"max_retries":      utils.PathSearch("max_retries", curJson, nil),
 			"expected_codes":   utils.PathSearch("expected_codes", curJson, nil),
+			"http_method":      utils.PathSearch("http_method", curJson, nil),
 			"timeout":          utils.PathSearch("timeout", curJson, nil),
 			"delay":            utils.PathSearch("delay", curJson, nil),
 			"id":               utils.PathSearch("id", curJson, nil),
@@ -474,17 +509,19 @@ func resourceElbPoolRefreshFunc(elbClient *golangsdk.ServiceClient, poolID strin
 
 func buildCreateActiveStandbyPoolBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"lb_algorithm":    "ROUND_ROBIN",
-		"protocol":        d.Get("protocol"),
-		"name":            utils.ValueIngoreEmpty(d.Get("name")),
-		"loadbalancer_id": utils.ValueIngoreEmpty(d.Get("loadbalancer_id")),
-		"listener_id":     utils.ValueIngoreEmpty(d.Get("listener_id")),
-		"type":            utils.ValueIngoreEmpty(d.Get("type")),
-		"any_port_enable": utils.ValueIngoreEmpty(d.Get("any_port_enable")),
-		"vpc_id":          utils.ValueIngoreEmpty(d.Get("vpc_id")),
-		"description":     utils.ValueIngoreEmpty(d.Get("description")),
-		"members":         buildActiveStandbyPoolMembers(d.Get("members").(*schema.Set).List()),
-		"healthmonitor":   buildActiveStandbyPoolHealthMonitor(d.Get("healthmonitor")),
+		"lb_algorithm":     "ROUND_ROBIN",
+		"protocol":         d.Get("protocol"),
+		"name":             utils.ValueIgnoreEmpty(d.Get("name")),
+		"loadbalancer_id":  utils.ValueIgnoreEmpty(d.Get("loadbalancer_id")),
+		"listener_id":      utils.ValueIgnoreEmpty(d.Get("listener_id")),
+		"type":             utils.ValueIgnoreEmpty(d.Get("type")),
+		"any_port_enable":  utils.ValueIgnoreEmpty(d.Get("any_port_enable")),
+		"vpc_id":           utils.ValueIgnoreEmpty(d.Get("vpc_id")),
+		"description":      utils.ValueIgnoreEmpty(d.Get("description")),
+		"ip_version":       utils.ValueIgnoreEmpty(d.Get("ip_version")),
+		"members":          buildActiveStandbyPoolMembers(d.Get("members").(*schema.Set).List()),
+		"healthmonitor":    buildActiveStandbyPoolHealthMonitor(d.Get("healthmonitor")),
+		"connection_drain": buildActiveStandbyPoolConnectionDrain(d),
 	}
 	return map[string]interface{}{"pool": bodyParams}
 }
@@ -499,9 +536,9 @@ func buildActiveStandbyPoolMembers(rawMembers []interface{}) []map[string]interf
 			members = append(members, map[string]interface{}{
 				"address":        v["address"],
 				"role":           v["role"],
-				"protocol_port":  utils.ValueIngoreEmpty(v["protocol_port"]),
-				"name":           utils.ValueIngoreEmpty(v["name"]),
-				"subnet_cidr_id": utils.ValueIngoreEmpty(v["subnet_id"]),
+				"protocol_port":  utils.ValueIgnoreEmpty(v["protocol_port"]),
+				"name":           utils.ValueIgnoreEmpty(v["name"]),
+				"subnet_cidr_id": utils.ValueIgnoreEmpty(v["subnet_id"]),
 			})
 		}
 	}
@@ -522,12 +559,24 @@ func buildActiveStandbyPoolHealthMonitor(h interface{}) map[string]interface{} {
 			"max_retries":      raw["max_retries"],
 			"timeout":          raw["timeout"],
 			"type":             raw["type"],
-			"domain_name":      utils.ValueIngoreEmpty(raw["domain_name"]),
-			"expected_codes":   utils.ValueIngoreEmpty(raw["expected_codes"]),
-			"max_retries_down": utils.ValueIngoreEmpty(raw["max_retries_down"]),
-			"monitor_port":     utils.ValueIngoreEmpty(raw["monitor_port"]),
-			"name":             utils.ValueIngoreEmpty(raw["name"]),
-			"url_path":         utils.ValueIngoreEmpty(raw["url_path"]),
+			"domain_name":      utils.ValueIgnoreEmpty(raw["domain_name"]),
+			"expected_codes":   utils.ValueIgnoreEmpty(raw["expected_codes"]),
+			"http_method":      utils.ValueIgnoreEmpty(raw["http_method"]),
+			"max_retries_down": utils.ValueIgnoreEmpty(raw["max_retries_down"]),
+			"monitor_port":     utils.ValueIgnoreEmpty(raw["monitor_port"]),
+			"name":             utils.ValueIgnoreEmpty(raw["name"]),
+			"url_path":         utils.ValueIgnoreEmpty(raw["url_path"]),
+		}
+		return params
+	}
+	return nil
+}
+
+func buildActiveStandbyPoolConnectionDrain(d *schema.ResourceData) map[string]interface{} {
+	if v, ok := d.GetOk("connection_drain_enabled"); ok {
+		params := map[string]interface{}{
+			"enable":  v,
+			"timeout": d.Get("connection_drain_timeout"),
 		}
 		return params
 	}

@@ -150,9 +150,9 @@ func buildCreatePermissionSetBodyParams(d *schema.ResourceData) map[string]inter
 		"name":         d.Get("name"),
 		"parent_id":    d.Get("parent_id"),
 		"manager_id":   d.Get("manager_id"),
-		"manager_name": utils.ValueIngoreEmpty(d.Get("manager_name")),
-		"manager_type": utils.ValueIngoreEmpty(d.Get("manager_type")),
-		"description":  utils.ValueIngoreEmpty(d.Get("description")),
+		"manager_name": utils.ValueIgnoreEmpty(d.Get("manager_name")),
+		"manager_type": utils.ValueIgnoreEmpty(d.Get("manager_type")),
+		"description":  utils.ValueIgnoreEmpty(d.Get("description")),
 	}
 	return bodyParams
 }
@@ -194,8 +194,8 @@ func resourceSecurityPermissionSetRead(_ context.Context, d *schema.ResourceData
 		return diag.Errorf("error retrieving DataArts Security permission set: %s", err)
 	}
 
-	createAt := utils.PathSearch("create_time", getPermissionSetRespBody, 0).(float64)
-	updateAt := utils.PathSearch("update_time", getPermissionSetRespBody, 0).(float64)
+	createAt := utils.PathSearch("create_time", getPermissionSetRespBody, float64(0)).(float64)
+	updateAt := utils.PathSearch("update_time", getPermissionSetRespBody, float64(0)).(float64)
 
 	mErr := multierror.Append(nil,
 		d.Set("region", region),
@@ -255,9 +255,9 @@ func buildUpdatePermissionSetBodyParams(d *schema.ResourceData) map[string]inter
 	bodyParams := map[string]interface{}{
 		"name":         d.Get("name"),
 		"manager_id":   d.Get("manager_id"),
-		"manager_name": utils.ValueIngoreEmpty(d.Get("manager_name")),
-		"manager_type": utils.ValueIngoreEmpty(d.Get("manager_type")),
-		"description":  utils.ValueIngoreEmpty(d.Get("description")),
+		"manager_name": utils.ValueIgnoreEmpty(d.Get("manager_name")),
+		"manager_type": utils.ValueIgnoreEmpty(d.Get("manager_type")),
+		"description":  utils.ValueIgnoreEmpty(d.Get("description")),
 	}
 	return bodyParams
 }

@@ -1,20 +1,23 @@
 package gaussdb
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
 	"github.com/chnsz/golangsdk"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
 )
 
+// @API GaussDBforMySQL GET /v3/{project_id}/flavors/{database_name}
 func DataSourceGaussdbMysqlFlavors() *schema.Resource {
 	return &schema.Resource{
-		Read: dataSourceGaussdbMysqlFlavorsRead,
+		ReadContext: dataSourceGaussdbMysqlFlavorsRead,
 
 		Schema: map[string]*schema.Schema{
 			"region": {
@@ -78,12 +81,14 @@ func DataSourceGaussdbMysqlFlavors() *schema.Resource {
 	}
 }
 
-func dataSourceGaussdbMysqlFlavorsRead(d *schema.ResourceData, meta interface{}) error {
-	config := meta.(*config.Config)
+func dataSourceGaussdbMysqlFlavorsRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cfg := meta.(*config.Config)
 
-	client, err := config.GaussdbV3Client(config.GetRegion(d))
+	var mErr *multierror.Error
+
+	client, err := cfg.GaussdbV3Client(cfg.GetRegion(d))
 	if err != nil {
-		return fmtp.Errorf("Error creating HuaweiCloud GaussDB client: %s", err)
+		return diag.Errorf("error creating GaussDB client: %s", err)
 	}
 
 	link := fmt.Sprintf("flavors/%s?version_name=%s&availability_zone_mode=%s",
@@ -92,7 +97,7 @@ func dataSourceGaussdbMysqlFlavorsRead(d *schema.ResourceData, meta interface{})
 
 	r, err := sendGaussdbMysqlFlavorsListRequest(client, url)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	flavors := make([]interface{}, 0, len(r.([]interface{})))
@@ -111,7 +116,10 @@ func dataSourceGaussdbMysqlFlavorsRead(d *schema.ResourceData, meta interface{})
 	}
 
 	d.SetId("flavors")
-	return d.Set("flavors", flavors)
+	mErr = multierror.Append(mErr,
+		d.Set("flavors", flavors),
+	)
+	return diag.FromErr(mErr.ErrorOrNil())
 }
 
 func sendGaussdbMysqlFlavorsListRequest(client *golangsdk.ServiceClient, url string) (interface{}, error) {
@@ -122,7 +130,7 @@ func sendGaussdbMysqlFlavorsListRequest(client *golangsdk.ServiceClient, url str
 			"X-Language":   "en-us",
 		}})
 	if r.Err != nil {
-		return nil, fmtp.Errorf("Error fetching flavors for gaussdb mysql, error: %s", r.Err)
+		return nil, fmt.Errorf("error fetching flavors for gaussdb mysql, error: %s", r.Err)
 	}
 
 	v := utils.PathSearch("flavors", r.Body, make([]interface{}, 0))

@@ -85,8 +85,8 @@ The following arguments are supported:
 The `volume` block supports:
 
 * `type` - (Required, String, ForceNew) Specifies the volume type. Its value can be any of the following and is case-sensitive:
-    - *ULTRAHIGH* - ultrahigh I/O.
-    - *HIGH* - high I/O.
+    - *ESSD* - ultrahigh I/O.
+    - *CLOUDSSD* - high I/O.
 
   Changing this parameter will create a new resource.
 

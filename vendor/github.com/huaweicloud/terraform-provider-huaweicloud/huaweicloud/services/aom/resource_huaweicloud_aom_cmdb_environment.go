@@ -21,6 +21,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API AOM POST /v1/environments
+// @API AOM DELETE /v1/environments/{environment_id}
+// @API AOM GET /v1/environments/{environment_id}
+// @API AOM PUT /v1/environments/{environment_id}
 func ResourceCmdbEnvironment() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceCmdbEnvironmentCreate,
@@ -85,7 +89,7 @@ func buildCreateEnvironmentBodyParams(d *schema.ResourceData, region string) map
 		"env_name":     d.Get("name"),
 		"env_type":     d.Get("type"),
 		"os_type":      d.Get("os_type"),
-		"description":  utils.ValueIngoreEmpty(d.Get("description")),
+		"description":  utils.ValueIgnoreEmpty(d.Get("description")),
 	}
 	return bodyParams
 }
@@ -137,9 +141,9 @@ func resourceCmdbEnvironmentRead(_ context.Context, d *schema.ResourceData, meta
 		return diag.Errorf("error creating AOM client: %s", err)
 	}
 
-	getEnvironmentHttpUrl := "v1/environments/{id}"
+	getEnvironmentHttpUrl := "v1/environments/{environment_id}"
 	getEnvironmentPath := client.Endpoint + getEnvironmentHttpUrl
-	getEnvironmentPath = strings.ReplaceAll(getEnvironmentPath, "{id}", d.Id())
+	getEnvironmentPath = strings.ReplaceAll(getEnvironmentPath, "{environment_id}", d.Id())
 
 	getEnvironmentOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
@@ -198,9 +202,9 @@ func resourceCmdbEnvironmentUpdate(ctx context.Context, d *schema.ResourceData, 
 		return diag.Errorf("error creating AOM client: %s", err)
 	}
 
-	updateEnvironmentHttpUrl := "v1/environments/{id}"
+	updateEnvironmentHttpUrl := "v1/environments/{environment_id}"
 	updateEnvironmentPath := client.Endpoint + updateEnvironmentHttpUrl
-	updateEnvironmentPath = strings.ReplaceAll(updateEnvironmentPath, "{id}", d.Id())
+	updateEnvironmentPath = strings.ReplaceAll(updateEnvironmentPath, "{environment_id}", d.Id())
 
 	updateEnvironmentOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
@@ -225,9 +229,9 @@ func resourceCmdbEnvironmentDelete(_ context.Context, d *schema.ResourceData, me
 		return diag.Errorf("error creating AOM client: %s", err)
 	}
 
-	deleteEnvironmentHttpUrl := "v1/environments/{id}"
+	deleteEnvironmentHttpUrl := "v1/environments/{environment_id}"
 	deleteEnvironmentPath := client.Endpoint + deleteEnvironmentHttpUrl
-	deleteEnvironmentPath = strings.ReplaceAll(deleteEnvironmentPath, "{id}", d.Id())
+	deleteEnvironmentPath = strings.ReplaceAll(deleteEnvironmentPath, "{environment_id}", d.Id())
 
 	deleteEnvironmentOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,

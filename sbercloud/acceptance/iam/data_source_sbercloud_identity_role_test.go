@@ -1,16 +1,15 @@
 package iam
 
 import (
-	"testing"
-
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
+	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
 func TestAccIdentityRoleDataSource_basic(t *testing.T) {
-	resourceName := "data.sbercloud_identity_role.role_1"
-	dc := acceptance.InitDataSourceCheck(resourceName)
+	dataSourceName := "data.sbercloud_identity_role.role_1"
+	dc := acceptance.InitDataSourceCheck(dataSourceName)
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck: func() {
@@ -23,8 +22,16 @@ func TestAccIdentityRoleDataSource_basic(t *testing.T) {
 				Config: testAccIdentityRoleDataSource_by_name,
 				Check: resource.ComposeTestCheckFunc(
 					dc.CheckResourceExists(),
-					resource.TestCheckResourceAttr(resourceName, "name", "system_all_64"),
-					resource.TestCheckResourceAttr(resourceName, "display_name", "EPS Viewer"),
+					resource.TestCheckResourceAttr(dataSourceName, "name", "system_all_64"),
+					resource.TestCheckResourceAttr(dataSourceName, "display_name", "EPS ReadOnlyAccess"),
+				),
+			},
+			{
+				Config: testAccIdentityRoleDataSource_by_displayname,
+				Check: resource.ComposeTestCheckFunc(
+					dc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(dataSourceName, "name", "kms_adm"),
+					resource.TestCheckResourceAttr(dataSourceName, "display_name", "KMS Administrator"),
 				),
 			},
 		},
@@ -33,7 +40,13 @@ func TestAccIdentityRoleDataSource_basic(t *testing.T) {
 
 const testAccIdentityRoleDataSource_by_name = `
 data "sbercloud_identity_role" "role_1" {
-  # EPS Viewer
+  # OBS ReadOnlyAccess
   name = "system_all_64"
+}
+`
+
+const testAccIdentityRoleDataSource_by_displayname = `
+data "sbercloud_identity_role" "role_1" {
+  display_name = "KMS Administrator"
 }
 `

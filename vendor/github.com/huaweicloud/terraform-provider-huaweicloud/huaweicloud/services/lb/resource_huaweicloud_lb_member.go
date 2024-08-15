@@ -18,6 +18,13 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
 )
 
+// @API ELB POST /v2/{project_id}/elb/pools/{pool_id}/members
+// @API ELB GET /v2/{project_id}/elb/loadbalancers/{loadbalancer_id}
+// @API ELB GET /v2/{project_id}/elb/listeners/{listener_id}
+// @API ELB GET /v2/{project_id}/elb/pools/{pool_id}
+// @API ELB GET /v2/{project_id}/elb/pools/{pool_id}/members/{memeber_id}
+// @API ELB PUT /v2/{project_id}/elb/pools/{pool_id}/members/{memeber_id}
+// @API ELB DELETE /v2/{project_id}/elb/pools/{pool_id}/members/{memeber_id}
 func ResourceMemberV2() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceMemberV2Create,
@@ -88,16 +95,28 @@ func ResourceMemberV2() *schema.Resource {
 				Description: "the IPv4 subnet ID of the subnet in which to access the member",
 			},
 
-			"admin_state_up": {
-				Type:     schema.TypeBool,
-				Default:  true,
-				Optional: true,
-			},
-
 			"pool_id": {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
+			},
+
+			"backend_server_status": {
+				Type:     schema.TypeBool,
+				Computed: true,
+			},
+
+			"operating_status": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+
+			// deprecated
+			"admin_state_up": {
+				Type:        schema.TypeBool,
+				Default:     true,
+				Optional:    true,
+				Description: "schema: Deprecated",
 			},
 		},
 	}
@@ -168,11 +187,12 @@ func resourceMemberV2Read(_ context.Context, d *schema.ResourceData, meta interf
 		d.Set("region", config.GetRegion(d)),
 		d.Set("name", member.Name),
 		d.Set("weight", member.Weight),
-		d.Set("admin_state_up", member.AdminStateUp),
 		d.Set("tenant_id", member.TenantID),
 		d.Set("subnet_id", member.SubnetID),
 		d.Set("address", member.Address),
 		d.Set("protocol_port", member.ProtocolPort),
+		d.Set("operating_status", member.OperatingStatus),
+		d.Set("backend_server_status", member.AdminStateUp),
 	)
 
 	if err = mErr.ErrorOrNil(); err != nil {
@@ -255,6 +275,9 @@ func resourceMemberV2Delete(ctx context.Context, d *schema.ResourceData, meta in
 		}
 		return nil
 	})
+	if err != nil {
+		return diag.Errorf("error deleting member: %s", err)
+	}
 
 	// Wait for LB to become ACTIVE
 	err = waitForLBV2viaPool(ctx, lbClient, poolID, "ACTIVE", timeout)

@@ -22,6 +22,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DCS POST /v2/{project_id}/config-templates
+// @API DCS PUT /v2/{project_id}/config-templates/{template_id}
+// @API DCS GET /v2/{project_id}/config-templates/{template_id}
+// @API DCS DELETE /v2/{project_id}/config-templates/{template_id}
 func ResourceCustomTemplate() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceCustomTemplateCreate,
@@ -96,6 +100,11 @@ func ResourceCustomTemplate() *schema.Resource {
 				Type:        schema.TypeString,
 				Computed:    true,
 				Description: `Indicates the storage type.`,
+			},
+			"created_at": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `Indicates the time when the custom template is created.`,
 			},
 		},
 	}
@@ -269,6 +278,7 @@ func resourceCustomTemplateRead(_ context.Context, d *schema.ResourceData, meta 
 		d.Set("storage_type", utils.PathSearch("storage_type", getCustomTemplateRespBody, nil)),
 		d.Set("description", utils.PathSearch("description", getCustomTemplateRespBody, nil)),
 		d.Set("params", flattenGetCustomTemplateResponseBodyParam(d, getCustomTemplateRespBody)),
+		d.Set("created_at", utils.PathSearch("created_at", getCustomTemplateRespBody, nil)),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())
@@ -374,8 +384,8 @@ func resourceCustomTemplateUpdate(ctx context.Context, d *schema.ResourceData, m
 
 func buildUpdateCustomTemplateBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":        utils.ValueIngoreEmpty(d.Get("name")),
-		"description": utils.ValueIngoreEmpty(d.Get("description")),
+		"name":        utils.ValueIgnoreEmpty(d.Get("name")),
+		"description": utils.ValueIgnoreEmpty(d.Get("description")),
 		"params":      buildUpdateCustomTemplateRequestBodyParam(d.Get("params").(*schema.Set).List()),
 	}
 	return bodyParams

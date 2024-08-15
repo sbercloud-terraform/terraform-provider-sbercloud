@@ -22,6 +22,8 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API IMS DELETE /v1/cloudimages/members
+// @API IMS POST /v1/cloudimages/members
 func ResourceImsImageShare() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceImsImageShareCreate,
@@ -164,7 +166,7 @@ func dealImageMembers(ctx context.Context, d *schema.ResourceData, cfg *config.C
 
 func buildImageMemberBodyParams(imageId string, projectIds []interface{}) map[string]interface{} {
 	imagesParams := []interface{}{
-		utils.ValueIngoreEmpty(imageId),
+		utils.ValueIgnoreEmpty(imageId),
 	}
 	bodyParams := map[string]interface{}{
 		"images":   imagesParams,

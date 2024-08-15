@@ -23,6 +23,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API IdentityCenter POST /v1/instances/{instance_id}/permission-sets
+// @API IdentityCenter DELETE /v1/instances/{instance_id}/permission-sets/{id}
+// @API IdentityCenter GET /v1/instances/{instance_id}/permission-sets/{id}
+// @API IdentityCenter PUT /v1/instances/{instance_id}/permission-sets/{id}
 func ResourcePermissionSet() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourcePermissionSetCreate,
@@ -117,10 +121,10 @@ func resourcePermissionSetCreate(ctx context.Context, d *schema.ResourceData, me
 
 func buildCreatePermissionSetBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":             utils.ValueIngoreEmpty(d.Get("name")),
-		"session_duration": utils.ValueIngoreEmpty(d.Get("session_duration")),
-		"description":      utils.ValueIngoreEmpty(d.Get("description")),
-		"relay_state":      utils.ValueIngoreEmpty(d.Get("relay_state")),
+		"name":             utils.ValueIgnoreEmpty(d.Get("name")),
+		"session_duration": utils.ValueIgnoreEmpty(d.Get("session_duration")),
+		"description":      utils.ValueIgnoreEmpty(d.Get("description")),
+		"relay_state":      utils.ValueIgnoreEmpty(d.Get("relay_state")),
 	}
 	return bodyParams
 }
@@ -162,7 +166,7 @@ func resourcePermissionSetRead(_ context.Context, d *schema.ResourceData, meta i
 		log.Printf("[WARN] failed to get accounts assigned to the permission set %s: %s", psID, err)
 	}
 
-	timeStamp := utils.PathSearch("permission_set.created_date", getPermissionSetRespBody, 0).(float64)
+	timeStamp := utils.PathSearch("permission_set.created_date", getPermissionSetRespBody, float64(0)).(float64)
 	mErr := multierror.Append(nil,
 		d.Set("name", utils.PathSearch("permission_set.name", getPermissionSetRespBody, nil)),
 		d.Set("session_duration", utils.PathSearch("permission_set.session_duration", getPermissionSetRespBody, nil)),
@@ -238,8 +242,8 @@ func resourcePermissionSetUpdate(ctx context.Context, d *schema.ResourceData, me
 
 func buildUpdatePermissionSetBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"session_duration": utils.ValueIngoreEmpty(d.Get("session_duration")),
-		"relay_state":      utils.ValueIngoreEmpty(d.Get("relay_state")),
+		"session_duration": utils.ValueIgnoreEmpty(d.Get("session_duration")),
+		"relay_state":      utils.ValueIgnoreEmpty(d.Get("relay_state")),
 		// the description parameter can be cleared
 		"description": d.Get("description"),
 	}

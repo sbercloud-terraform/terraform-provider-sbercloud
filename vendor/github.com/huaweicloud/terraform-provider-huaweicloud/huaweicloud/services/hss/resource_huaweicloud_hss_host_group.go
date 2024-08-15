@@ -2,9 +2,11 @@ package hss
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -12,6 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
 
@@ -30,6 +33,11 @@ const (
 	ProtectStatusOpened ProtectStatus = "opened"
 )
 
+// @API HSS DELETE /v5/{project_id}/host-management/groups
+// @API HSS GET /v5/{project_id}/host-management/groups
+// @API HSS POST /v5/{project_id}/host-management/groups
+// @API HSS PUT /v5/{project_id}/host-management/groups
+// @API HSS GET /v5/{project_id}/host-management/hosts
 func ResourceHostGroup() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceHostGroupCreate,
@@ -43,7 +51,7 @@ func ResourceHostGroup() *schema.Resource {
 		},
 
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			StateContext: resourceHostGroupImportState,
 		},
 
 		Schema: map[string]*schema.Schema{
@@ -103,15 +111,15 @@ func ResourceHostGroup() *schema.Resource {
 	}
 }
 
-func checkAllHostsAvailable(ctx context.Context, client *hssv5.HssClient, hostIds []string,
+func checkAllHostsAvailable(ctx context.Context, client *hssv5.HssClient, epsId string, hostIDs []string,
 	timeout time.Duration) ([]string, error) {
 	unprotected := make([]string, 0)
-	for _, hostId := range hostIds {
+	for _, hostId := range hostIDs {
 		log.Printf("[DEBUG] Waiting for the host (%s) status to become available.", hostId)
 		stateConf := &resource.StateChangeConf{
 			Pending:      []string{"PENDING"},
 			Target:       []string{"COMPLETED"},
-			Refresh:      hostStatusRefreshFunc(client, hostId),
+			Refresh:      hostStatusRefreshFunc(client, epsId, hostId),
 			Timeout:      timeout,
 			Delay:        30 * time.Second,
 			PollInterval: 30 * time.Second,
@@ -127,12 +135,17 @@ func checkAllHostsAvailable(ctx context.Context, client *hssv5.HssClient, hostId
 	return unprotected, nil
 }
 
-func hostStatusRefreshFunc(client *hssv5.HssClient, hostId string) resource.StateRefreshFunc {
+func hostStatusRefreshFunc(client *hssv5.HssClient, epsId, hostId string) resource.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		var unprotectedHostId string
+		if epsId == "" {
+			epsId = "all_granted_eps"
+		}
+
 		request := hssv5model.ListHostStatusRequest{
-			Refresh: utils.Bool(true),
-			HostId:  utils.String(hostId),
+			EnterpriseProjectId: utils.String(epsId),
+			Refresh:             utils.Bool(true),
+			HostId:              utils.String(hostId),
 		}
 		resp, err := client.ListHostStatus(&request)
 		if err != nil {
@@ -173,7 +186,7 @@ func resourceHostGroupCreate(ctx context.Context, d *schema.ResourceData, meta i
 		}
 	)
 
-	unprotected, err := checkAllHostsAvailable(ctx, client, hostIds, d.Timeout(schema.TimeoutCreate))
+	unprotected, err := checkAllHostsAvailable(ctx, client, epsId, hostIds, d.Timeout(schema.TimeoutCreate))
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -285,6 +298,11 @@ func resourceHostGroupRead(_ context.Context, d *schema.ResourceData, meta inter
 		d.Set("unprotect_host_num", resp.UnprotectHostNum),
 	)
 
+	if len(d.Get("unprotect_host_ids").([]interface{})) == 0 {
+		// The reason for writing an empty array to `unprotect_host_ids` is to avoid unexpected changes
+		mErr = multierror.Append(mErr, d.Set("unprotect_host_ids", make([]string, 0)))
+	}
+
 	if err = mErr.ErrorOrNil(); err != nil {
 		return diag.Errorf("error saving host group fields: %s", err)
 	}
@@ -316,7 +334,7 @@ func resourceHostGroupUpdate(ctx context.Context, d *schema.ResourceData, meta i
 		}
 	)
 
-	unprotected, err := checkAllHostsAvailable(ctx, client, hostIds, d.Timeout(schema.TimeoutUpdate))
+	unprotected, err := checkAllHostsAvailable(ctx, client, epsId, hostIds, d.Timeout(schema.TimeoutUpdate))
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -352,8 +370,65 @@ func resourceHostGroupDelete(_ context.Context, d *schema.ResourceData, meta int
 
 	_, err = client.DeleteHostsGroup(&request)
 	if err != nil {
-		return diag.Errorf("error deleting host group (%s): %s", groupId, err)
+		return common.CheckDeletedDiag(d, parseDeleteHostGroupResponseError(err), "error deleting host group")
 	}
 
 	return nil
+}
+
+// When the host group does not exist, the response code for deleting the API is `400`,
+// and the response body is as follows:
+// {"status_code":400,"request_id":"f17e56c2e92584cfd4614ab467cd6a1b","error_code":"",
+// "error_message":"{\"error_code\":\"00100090\",\"error_description\":\"Failed to load server groups.\"}",
+// "encoded_authorization_message":""}
+func parseDeleteHostGroupResponseError(err error) error {
+	var errObj map[string]interface{}
+	if jsonErr := json.Unmarshal([]byte(err.Error()), &errObj); jsonErr != nil {
+		log.Printf("[WARN] failed to unmarshal error object: %s", jsonErr)
+		return err
+	}
+
+	statusCode, parseStatusCodeErr := jmespath.Search("status_code", errObj)
+	if parseStatusCodeErr != nil || statusCode == nil {
+		log.Printf("[WARN] failed to parse status_code from response body: %s", parseStatusCodeErr)
+		return err
+	}
+
+	if statusCodeFloat, ok := statusCode.(float64); ok && int(statusCodeFloat) == 400 {
+		errorMessage, parseErrorMessageErr := jmespath.Search("error_message", errObj)
+		if parseErrorMessageErr != nil || errorMessage == nil {
+			log.Printf("[WARN] failed to parse error_message: %s", parseErrorMessageErr)
+			return err
+		}
+
+		var errMsgObj map[string]interface{}
+		if errMsgJson := json.Unmarshal([]byte(errorMessage.(string)), &errMsgObj); errMsgJson != nil {
+			log.Printf("[WARN] failed to unmarshal error_message: %s", errMsgJson)
+			return err
+		}
+
+		errorCode, errorCodeErr := jmespath.Search("error_code", errMsgObj)
+		if errorCodeErr != nil || errorCode == nil {
+			log.Printf("[WARN] failed to extract error_code: %s", errorCodeErr)
+			return err
+		}
+
+		if errorCode == "00100090" {
+			return golangsdk.ErrDefault404{}
+		}
+	}
+
+	return err
+}
+
+func resourceHostGroupImportState(_ context.Context, d *schema.ResourceData, _ interface{}) (
+	[]*schema.ResourceData, error) {
+	parts := strings.Split(d.Id(), "/")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid format of import ID, must be <enterprise_project_id>/<id>")
+	}
+
+	d.SetId(parts[1])
+
+	return []*schema.ResourceData{d}, d.Set("enterprise_project_id", parts[0])
 }

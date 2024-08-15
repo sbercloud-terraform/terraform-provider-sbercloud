@@ -3,13 +3,11 @@ package apig
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
 	"github.com/chnsz/golangsdk/openstack/apigw/dedicated/v2/plugins"
 
@@ -19,6 +17,10 @@ import (
 )
 
 // ResourcePlugin defines the provider resource of the APIG plugin.
+// @API APIG DELETE /v2/{project_id}/apigw/instances/{instanceId}/plugins/{plugin_id}
+// @API APIG GET /v2/{project_id}/apigw/instances/{instanceId}/plugins/{plugin_id}
+// @API APIG PUT /v2/{project_id}/apigw/instances/{instanceId}/plugins/{plugin_id}
+// @API APIG POST /v2/{project_id}/apigw/instances/{instanceId}/plugins
 func ResourcePlugin() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourcePluginCreate,
@@ -45,14 +47,8 @@ func ResourcePlugin() *schema.Resource {
 				Description: "The ID of the dedicated instance to which the plugin belongs.",
 			},
 			"name": {
-				Type:     schema.TypeString,
-				Required: true,
-				ValidateFunc: validation.All(
-					validation.StringMatch(regexp.MustCompile(`^[\x{4E00}-\x{9FFC}A-Za-z]([\x{4E00}-\x{9FFC}\w-]*)?$`),
-						"Only Chinese characters, English letters, digits hyphens (-) and underscores (_) are "+
-							"allowed, and must start with an English letter or Chinese character."),
-					validation.StringLenBetween(3, 255),
-				),
+				Type:        schema.TypeString,
+				Required:    true,
 				Description: "The plugin name.",
 			},
 			"type": {
@@ -184,7 +180,7 @@ func resourcePluginDelete(_ context.Context, d *schema.ResourceData, meta interf
 	)
 	err = plugins.Delete(client, instanceId, pluginId)
 	if err != nil {
-		return diag.Errorf("error deleting the plugin (%s): %s", pluginId, err)
+		return common.CheckDeletedDiag(d, err, fmt.Sprintf("error deleting the plugin (%s)", pluginId))
 	}
 	return nil
 }

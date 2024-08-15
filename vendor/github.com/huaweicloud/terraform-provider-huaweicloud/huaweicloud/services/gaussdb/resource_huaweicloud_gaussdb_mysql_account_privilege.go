@@ -24,6 +24,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API GaussDBforMySQL POST /v3/{project_id}/instances/{instance_id}/db-users/privilege
+// @API GaussDBforMySQL GET /v3/{project_id}/jobs
+// @API GaussDBforMySQL GET /v3/{project_id}/instances/{instance_id}/db-users
+// @API GaussDBforMySQL DELETE /v3/{project_id}/instances/{instance_id}/db-users/privilege
 func ResourceGaussDBAccountPrivilege() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceGaussDBAccountPrivilegeCreate,
@@ -246,7 +250,7 @@ func resourceGaussDBAccountPrivilegeRead(_ context.Context, d *schema.ResourceDa
 			account = res
 			break
 		}
-		total := utils.PathSearch("total_count", getGaussDBAccountRespBody, 0).(float64)
+		total := utils.PathSearch("total_count", getGaussDBAccountRespBody, float64(0)).(float64)
 		currentTotal += pageNum
 		if currentTotal == int(total) {
 			break
@@ -367,8 +371,8 @@ func resourceGaussDBAccountPrivilegeDelete(ctx context.Context, d *schema.Resour
 
 func buildDeleteGaussDBAccountPrivilegeBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":      utils.ValueIngoreEmpty(d.Get("account_name")),
-		"host":      utils.ValueIngoreEmpty(d.Get("host")),
+		"name":      utils.ValueIgnoreEmpty(d.Get("account_name")),
+		"host":      utils.ValueIgnoreEmpty(d.Get("host")),
 		"databases": buildCreateGaussDBAccountPrivilegeDatabaseNamesChildBody(d),
 	}
 	params := map[string]interface{}{

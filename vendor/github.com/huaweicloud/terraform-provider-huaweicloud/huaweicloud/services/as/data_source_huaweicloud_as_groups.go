@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
+	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/autoscaling/v1/groups"
 	"github.com/chnsz/golangsdk/openstack/autoscaling/v1/tags"
 
@@ -16,6 +17,8 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/hashcode"
 )
 
+// @API AS GET /autoscaling-api/v1/{project_id}/scaling_group_tag/{id}/tags
+// @API AS GET /autoscaling-api/v1/{project_id}/scaling_group
 func DataSourceASGroups() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: dataSourceASGroupRead,
@@ -102,28 +105,9 @@ func DataSourceASGroups() *schema.Resource {
 							Description: "The cooling duration of the AS group.",
 						},
 						"lbaas_listeners": {
-							Type:     schema.TypeList,
-							Computed: true,
-							Elem: &schema.Resource{
-								Schema: map[string]*schema.Schema{
-									"pool_id": {
-										Type:        schema.TypeString,
-										Computed:    true,
-										Description: "The backend ECS group ID.",
-									},
-									"protocol_port": {
-										Type:        schema.TypeInt,
-										Computed:    true,
-										Description: "The backend protocol ID.",
-									},
-									"weight": {
-										Type:     schema.TypeInt,
-										Computed: true,
-										Description: "The weight, which determines the portion of requests a backend " +
-											"ECS processes compared to other backend ECSs added to the same listener.",
-									},
-								},
-							},
+							Type:        schema.TypeList,
+							Computed:    true,
+							Elem:        groupDataSourceLBaasListenersSchema(),
 							Description: "The enhanced load balancers of the AS group.",
 						},
 						"availability_zones": {
@@ -133,45 +117,15 @@ func DataSourceASGroups() *schema.Resource {
 							Description: "The AZ information of the AS group.",
 						},
 						"networks": {
-							Type:     schema.TypeList,
-							Computed: true,
-							Elem: &schema.Resource{
-								Schema: map[string]*schema.Schema{
-									"id": {
-										Type:        schema.TypeString,
-										Computed:    true,
-										Description: "The subnet ID.",
-									},
-									"ipv6_enable": {
-										Type:        schema.TypeBool,
-										Computed:    true,
-										Description: "Specifies whether to support IPv6 addresses.",
-									},
-									"ipv6_bandwidth_id": {
-										Type:        schema.TypeString,
-										Computed:    true,
-										Description: "The ID of the shared bandwidth of an IPv6 address.",
-									},
-									"source_dest_check": {
-										Type:     schema.TypeBool,
-										Computed: true,
-									},
-								},
-							},
+							Type:        schema.TypeList,
+							Computed:    true,
+							Elem:        groupDataSourceNetworksSchema(),
 							Description: "The network information of the AS group.",
 						},
 						"security_groups": {
-							Type:     schema.TypeList,
-							Computed: true,
-							Elem: &schema.Resource{
-								Schema: map[string]*schema.Schema{
-									"id": {
-										Type:        schema.TypeString,
-										Computed:    true,
-										Description: "The ID of the security group.",
-									},
-								},
-							},
+							Type:        schema.TypeList,
+							Computed:    true,
+							Elem:        groupDataSourceSecurityGroupsSchema(),
 							Description: "The security group information of the AS group.",
 						},
 						"created_at": {
@@ -266,37 +220,144 @@ func DataSourceASGroups() *schema.Resource {
 	}
 }
 
-func dataSourceASGroupRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	conf := meta.(*config.Config)
-	region := conf.GetRegion(d)
-	asClient, err := conf.AutoscalingV1Client(region)
-	if err != nil {
-		return diag.Errorf("error creating autoscaling client: %s", err)
+func groupDataSourceLBaasListenersSchema() *schema.Resource {
+	return &schema.Resource{
+		Schema: map[string]*schema.Schema{
+			"pool_id": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "The backend ECS group ID.",
+			},
+			"protocol_port": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: "The backend protocol ID.",
+			},
+			"weight": {
+				Type:     schema.TypeInt,
+				Computed: true,
+				Description: "The weight, which determines the portion of requests a backend " +
+					"ECS processes compared to other backend ECSs added to the same listener.",
+			},
+		},
+	}
+}
+
+func groupDataSourceNetworksSchema() *schema.Resource {
+	return &schema.Resource{
+		Schema: map[string]*schema.Schema{
+			"id": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "The subnet ID.",
+			},
+			"ipv6_enable": {
+				Type:        schema.TypeBool,
+				Computed:    true,
+				Description: "Specifies whether to support IPv6 addresses.",
+			},
+			"ipv6_bandwidth_id": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "The ID of the shared bandwidth of an IPv6 address.",
+			},
+			"source_dest_check": {
+				Type:     schema.TypeBool,
+				Computed: true,
+			},
+		},
+	}
+}
+
+func groupDataSourceSecurityGroupsSchema() *schema.Resource {
+	return &schema.Resource{
+		Schema: map[string]*schema.Schema{
+			"id": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "The ID of the security group.",
+			},
+		},
+	}
+}
+
+func flattenDataSourceLBaaSListeners(listeners []groups.LBaaSListener) []map[string]interface{} {
+	if len(listeners) == 0 {
+		return nil
 	}
 
-	opts := groups.ListOpts{
-		Name:                d.Get("name").(string),
-		ConfigurationID:     d.Get("scaling_configuration_id").(string),
-		Status:              d.Get("status").(string),
-		EnterpriseProjectID: d.Get("enterprise_project_id").(string),
+	res := make([]map[string]interface{}, len(listeners))
+	for i, item := range listeners {
+		res[i] = map[string]interface{}{
+			"pool_id":       item.PoolID,
+			"protocol_port": item.ProtocolPort,
+			"weight":        item.Weight,
+		}
 	}
-	pages, err := groups.List(asClient, opts).AllPages()
-	if err != nil {
-		return diag.Errorf("error getting AS group list: %s", err)
+	return res
+}
+
+func flattenDataSourceNetworks(networks []groups.Network) []map[string]interface{} {
+	res := make([]map[string]interface{}, len(networks))
+	for i, item := range networks {
+		res[i] = map[string]interface{}{
+			"id":                item.ID,
+			"ipv6_enable":       item.IPv6Enable,
+			"ipv6_bandwidth_id": item.IPv6BandWidth.ID,
+			"source_dest_check": len(item.AllowedAddressPairs) == 0,
+		}
 	}
-	groupList, err := pages.(groups.GroupPage).Extract()
+	return res
+}
+
+func flattenDataSourceSecurityGroups(sgs []groups.SecurityGroup) []map[string]interface{} {
+	res := make([]map[string]interface{}, len(sgs))
+	for i, item := range sgs {
+		res[i] = map[string]interface{}{
+			"id": item.ID,
+		}
+	}
+	return res
+}
+
+// getDataSourceInstancesIDs using to collecting total instance IDs in AS group.
+// When the query API reports an error, only the failure log is printed and the program is not terminated.
+func getDataSourceInstancesIDs(asClient *golangsdk.ServiceClient, groupID string) []string {
+	allIns, err := getInstancesInGroup(asClient, groupID, nil)
 	if err != nil {
-		return diag.Errorf("error extract to AS group list: %s", err)
+		log.Printf("[WARN] Error fetching instances in AS group (%s): %s", groupID, err)
+		return nil
 	}
 
+	allIDs := make([]string, 0, len(allIns))
+	for _, ins := range allIns {
+		if ins.ID != "" {
+			allIDs = append(allIDs, ins.ID)
+		}
+	}
+
+	return allIDs
+}
+
+func getDataSourceGroupTags(asClient *golangsdk.ServiceClient, groupID string) map[string]string {
+	resourceTags, err := tags.Get(asClient, groupID).Extract()
+	if err == nil {
+		tagMap := make(map[string]string)
+		for _, val := range resourceTags.Tags {
+			tagMap[val.Key] = val.Value
+		}
+		return tagMap
+	}
+	log.Printf("[WARN] Error fetching tags of AS group (%s): %s", groupID, err)
+	return nil
+}
+
+func flattenDataSourceGroups(asClient *golangsdk.ServiceClient, groupList []groups.Group) ([]string, []map[string]interface{}) {
 	ids := make([]string, 0, len(groupList))
 	elements := make([]map[string]interface{}, 0, len(groupList))
 	for _, group := range groupList {
 		groupID := group.ID
-		allIns, err := getInstancesInGroup(asClient, groupID, nil)
-		if err != nil {
-			return diag.Errorf("can not get the instances in AS Group %s: %s", groupID, err)
-		}
+
 		groupMap := map[string]interface{}{
 			"scaling_group_name":                 group.Name,
 			"scaling_group_id":                   groupID,
@@ -308,10 +369,10 @@ func dataSourceASGroupRead(_ context.Context, d *schema.ResourceData, meta inter
 			"min_instance_number":                group.MinInstanceNumber,
 			"max_instance_number":                group.MaxInstanceNumber,
 			"cool_down_time":                     group.CoolDownTime,
-			"lbaas_listeners":                    flattenLBaaSListeners(group.LBaaSListeners),
+			"lbaas_listeners":                    flattenDataSourceLBaaSListeners(group.LBaaSListeners),
 			"availability_zones":                 group.AvailableZones,
-			"networks":                           flattenNetworks(group.Networks),
-			"security_groups":                    flattenSecurityGroups(group.SecurityGroups),
+			"networks":                           flattenDataSourceNetworks(group.Networks),
+			"security_groups":                    flattenDataSourceSecurityGroups(group.SecurityGroups),
 			"created_at":                         group.CreateTime,
 			"vpc_id":                             group.VpcID,
 			"detail":                             group.Detail,
@@ -327,23 +388,46 @@ func dataSourceASGroupRead(_ context.Context, d *schema.ResourceData, meta inter
 			"multi_az_scaling_policy":            group.MultiAZPriorityPolicy,
 			"description":                        group.Description,
 			"iam_agency_name":                    group.IamAgencyName,
-			"instances":                          getInstancesIDs(allIns),
-		}
-
-		// save group tags
-		if resourceTags, err := tags.Get(asClient, groupID).Extract(); err == nil {
-			tagMap := make(map[string]string)
-			for _, val := range resourceTags.Tags {
-				tagMap[val.Key] = val.Value
-			}
-			groupMap["tags"] = tagMap
-		} else {
-			log.Printf("[WARN] Error fetching tags of AS group (%s): %s", groupID, err)
+			"instances":                          getDataSourceInstancesIDs(asClient, groupID),
+			"tags":                               getDataSourceGroupTags(asClient, groupID),
 		}
 		elements = append(elements, groupMap)
 		ids = append(ids, groupID)
 	}
+	return ids, elements
+}
 
+func buildDataSourceGroupOpts(d *schema.ResourceData) groups.ListOpts {
+	return groups.ListOpts{
+		Name:                d.Get("name").(string),
+		ConfigurationID:     d.Get("scaling_configuration_id").(string),
+		Status:              d.Get("status").(string),
+		EnterpriseProjectID: d.Get("enterprise_project_id").(string),
+	}
+}
+
+func dataSourceASGroupRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	var (
+		conf   = meta.(*config.Config)
+		region = conf.GetRegion(d)
+		opts   = buildDataSourceGroupOpts(d)
+	)
+
+	asClient, err := conf.AutoscalingV1Client(region)
+	if err != nil {
+		return diag.Errorf("error creating autoscaling client: %s", err)
+	}
+
+	pages, err := groups.List(asClient, opts).AllPages()
+	if err != nil {
+		return diag.Errorf("error getting AS group list: %s", err)
+	}
+	groupList, err := pages.(groups.GroupPage).Extract()
+	if err != nil {
+		return diag.Errorf("error extract to AS group list: %s", err)
+	}
+
+	ids, elements := flattenDataSourceGroups(asClient, groupList)
 	d.SetId(hashcode.Strings(ids))
 	mErr := multierror.Append(nil,
 		d.Set("groups", elements),

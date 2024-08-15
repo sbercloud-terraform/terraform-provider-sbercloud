@@ -23,6 +23,8 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API GaussDBforNoSQL POST /v3/{project_id}/instances/{instance_id}/nodes/{node_id}/public-ip
+// @API GaussDBforNoSQL GET /v3/{project_id}/instances
 func ResourceGaussRedisEipAssociate() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceGaussRedisEipAssociateCreate,
@@ -76,12 +78,12 @@ func resourceGaussRedisEipAssociateCreate(ctx context.Context, d *schema.Resourc
 	)
 	createGaussRedisEipAssociateClient, err := cfg.NewServiceClient(createGaussRedisEipAssociateProduct, region)
 	if err != nil {
-		return diag.Errorf("error creating GaussDB for Redis Client: %s", err)
+		return diag.Errorf("error creating GaussDB for Redis client: %s", err)
 	}
 
 	vpcClient, err := cfg.NetworkingV1Client(region)
 	if err != nil {
-		return diag.Errorf("error creating VPC Client: %s", err)
+		return diag.Errorf("error creating VPC client: %s", err)
 	}
 
 	instanceID := d.Get("instance_id").(string)
@@ -90,7 +92,7 @@ func resourceGaussRedisEipAssociateCreate(ctx context.Context, d *schema.Resourc
 	epsID := "all_granted_eps"
 	publicID, err := common.GetEipIDbyAddress(vpcClient, publicIP, epsID)
 	if err != nil {
-		return diag.Errorf("Unable to get ID of public IP %s: %s", publicIP, err)
+		return diag.Errorf("unable to get ID of public IP %s: %s", publicIP, err)
 	}
 
 	createGaussRedisEipAssociatePath := createGaussRedisEipAssociateClient.Endpoint + createGaussRedisEipAssociateHttpUrl
@@ -223,7 +225,7 @@ func resourceGaussRedisEipAssociateDelete(ctx context.Context, d *schema.Resourc
 	)
 	deleteGaussRedisEipAssociateClient, err := cfg.NewServiceClient(deleteGaussRedisEipAssociateProduct, region)
 	if err != nil {
-		return diag.Errorf("error creating GaussDB for Redis Client: %s", err)
+		return diag.Errorf("error creating GaussDB for Redis client: %s", err)
 	}
 
 	instanceID := d.Get("instance_id").(string)

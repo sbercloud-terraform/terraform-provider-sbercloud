@@ -18,7 +18,7 @@ import (
 // @API Kafka POST /v2/{project_id}/kafka/instances/{instance_id}/group
 // @API Kafka PUT /v2/{engine}/{project_id}/instances/{instance_id}/groups/{group}
 // @API Kafka GET /v2/{project_id}/instances/{instance_id}/groups/{group}
-// @API Kafka DELETE /v2/{project_id}/instances/{instance_id}/groups/batch-delete
+// @API Kafka POST /v2/{project_id}/instances/{instance_id}/groups/batch-delete
 func ResourceDmsKafkaConsumerGroup() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDmsKafkaConsumerGroupCreate,
@@ -69,7 +69,7 @@ func ResourceDmsKafkaConsumerGroup() *schema.Resource {
 				Description: `Indicates the lag number of the consumer group.`,
 			},
 			"created_at": {
-				Type:        schema.TypeInt,
+				Type:        schema.TypeString,
 				Computed:    true,
 				Description: `Indicates the created time of the consumer group.`,
 			},
@@ -117,7 +117,7 @@ func resourceDmsKafkaConsumerGroupCreate(ctx context.Context, d *schema.Resource
 func buildCreateKafkaConsumerGroupBodyParams(d *schema.ResourceData, _ *config.Config) map[string]interface{} {
 	bodyParams := map[string]interface{}{
 		"group_name": d.Get("name"),
-		"group_desc": utils.ValueIngoreEmpty(d.Get("description")),
+		"group_desc": utils.ValueIgnoreEmpty(d.Get("description")),
 	}
 	return bodyParams
 }
@@ -238,9 +238,10 @@ func resourceDmsKafkaConsumerGroupRead(_ context.Context, d *schema.ResourceData
 		d.Set("name", name),
 		d.Set("description", utils.PathSearch("group_desc", groupJson, nil)),
 		d.Set("state", utils.PathSearch("state", groupJson, nil)),
-		d.Set("coordinator_id", utils.PathSearch("coordinator_id", groupJson, nil)),
-		d.Set("lag", utils.PathSearch("lag", groupJson, nil)),
-		d.Set("created_at", utils.PathSearch("createdAt", groupJson, nil)),
+		d.Set("coordinator_id", utils.PathSearch("coordinator_id", groupJson, 0)),
+		d.Set("lag", utils.PathSearch("lag", groupJson, 0)),
+		d.Set("created_at", utils.FormatTimeStampRFC3339(
+			(int64(utils.PathSearch("createdAt", groupJson, float64(0)).(float64)))/1000, false)),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())

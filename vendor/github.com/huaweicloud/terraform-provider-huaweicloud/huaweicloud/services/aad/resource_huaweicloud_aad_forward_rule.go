@@ -19,6 +19,10 @@ import (
 )
 
 // ResourceForwardRule is the imple of huaweicloud_aad_forward_rule
+// @API AAD POST /v1/aad/instances/{instance_id}/{ip}/rules/batch-create
+// @API AAD POST /v1/aad/instances/{instance_id}/{ip}/rules/batch-delete
+// @API AAD PUT /v1/aad/instances/{instance_id}/{ip}/rules/{rule_id}
+// @API AAD GET /v1/aad/instances/{instance_id}/{ip}/rules
 func ResourceForwardRule() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceForwardRuleCreate,
@@ -182,7 +186,7 @@ func resourceForwardRuleUpdate(ctx context.Context, d *schema.ResourceData, meta
 	}
 	err = rules.Update(client, instanceId, advancedIp, ruleId, opts)
 	if err != nil {
-		return diag.Errorf("error updating Advanced Anti-DDoS forward rule (%s): %#v", ruleId, err)
+		return diag.Errorf("error updating Advanced Anti-DDoS forward rule (%s): %v", ruleId, err)
 	}
 	return resourceForwardRuleRead(ctx, d, meta)
 }
@@ -204,7 +208,7 @@ func resourceForwardRuleDelete(_ context.Context, d *schema.ResourceData, meta i
 	}
 	_, err = rules.BatchDelete(client, instanceId, advancedIp, opts)
 	if err != nil {
-		return diag.Errorf("error deleting Advanced Anti-DDoS forward rule (%s): %#v", ruleId, err)
+		return diag.Errorf("error deleting Advanced Anti-DDoS forward rule (%s): %v", ruleId, err)
 	}
 	return nil
 }

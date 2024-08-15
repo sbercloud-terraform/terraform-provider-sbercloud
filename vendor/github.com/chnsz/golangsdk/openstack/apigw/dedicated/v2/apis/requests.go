@@ -103,6 +103,10 @@ type AuthOpt struct {
 
 // Mock is an object which will be build up a mock backend.
 type Mock struct {
+	// The ID of the backend configration.
+	ID string `json:"id,omitempty"`
+	// The custom status code of the mock response.
+	StatusCode int `json:"status_code,omitempty"`
 	// Description about the backend, which can contain a maximum of 255 characters.
 	// Chinese characters must be in UTF-8 or Unicode format.
 	Description *string `json:"remark,omitempty"`
@@ -116,6 +120,8 @@ type Mock struct {
 
 // FuncGraph is an object which will be build up a function graph backend.
 type FuncGraph struct {
+	// The ID of the backend configration.
+	ID string `json:"id,omitempty"`
 	// Function URN.
 	FunctionUrn string `json:"function_urn" required:"true"`
 	// Invocation mode. The valid modes are as following:
@@ -125,6 +131,10 @@ type FuncGraph struct {
 	// Timeout, in ms, which allowed for API Gateway to request the backend service.
 	// The valid value is range from 1 to 600,000.
 	Timeout int `json:"timeout" required:"true"`
+	// The network architecture type of the function.
+	NetworkType string `json:"network_type,omitempty"`
+	// Function alias URN.
+	FunctionAliasUrn string `json:"alias_urn,omitempty"`
 	// Backend custom authorizer ID.
 	AuthorizerId *string `json:"authorizer_id,omitempty"`
 	// Description about the backend, which can contain a maximum of 255 characters.
@@ -133,10 +143,14 @@ type FuncGraph struct {
 	// Function version.
 	// Maximum: 64
 	Version string `json:"version,omitempty"`
+	// The request protocol of the function.
+	RequestProtocol string `json:"req_protocol,omitempty"`
 }
 
 // Web is an object which will be build up a http backend.
 type Web struct {
+	// The ID of the backend configration.
+	ID string `json:"id,omitempty"`
 	// Request method. The valid methods are GET, POST, PUT, DELETE, HEAD, PATCH, OPTIONS and ANY.
 	ReqMethod string `json:"req_method" required:"true"`
 	// Request protocol. The valid protocols are HTTP and HTTPS
@@ -244,6 +258,8 @@ type PolicyMock struct {
 	// Backend name, which consists of 3 to 64 characters and must start with a letter and can contain letters, digits,
 	// and underscores (_).
 	Name string `json:"name" required:"true"`
+	// The custom status code of the mock response.
+	StatusCode int `json:"status_code,omitempty"`
 	// Authorizer ID.
 	AuthorizerId *string `json:"authorizer_id,omitempty"`
 	// Backend parameters.
@@ -269,6 +285,10 @@ type PolicyFuncGraph struct {
 	// The backend name consists of 3 to 64 characters, which must start with a letter and can contain letters, digits,
 	// and underscores (_).
 	Name string `json:"name" required:"true"`
+	// The network architecture type of the function.
+	NetworkType string `json:"network_type,omitempty"`
+	// Function alias URN.
+	FunctionAliasUrn string `json:"alias_urn,omitempty"`
 	// Authorizer ID.
 	AuthorizerId *string `json:"authorizer_id,omitempty"`
 	// Backend parameters.
@@ -278,6 +298,8 @@ type PolicyFuncGraph struct {
 	Timeout int `json:"timeout,omitempty"`
 	// Function version Ensure that the version does not exceed 64 characters.
 	Version string `json:"version,omitempty"`
+	// The request protocol of the function.
+	RequestProtocol string `json:"req_protocol,omitempty"`
 }
 
 // PolicyWeb is an object which will be build up a backend policy of the http.
@@ -365,6 +387,8 @@ type BackendParamBase struct {
 
 // APIConditionBase is an object which will be build up a policy condition.
 type APIConditionBase struct {
+	// The ID of the condition.
+	ID string `json:"id,omitempty"`
 	// Policy type. The valid types are as following:
 	//   param: input parameter
 	//   source: source IP address
@@ -388,6 +412,10 @@ type APIConditionBase struct {
 	//   pattern: regular expression
 	// This parameter is required if the policy type is param, system, cookie and frontend_authorizer.
 	ConditionType string `json:"condition_type,omitempty"`
+	// The ID of the corresponding request parameter.
+	ReqParamId string `json:"req_param_id,omitempty"`
+	// The location of the corresponding request parameter.
+	ReqParamLocation string `json:"req_param_location,omitempty"`
 }
 
 // APIOptsBuilder is an interface which to support request body build of the API creation and updation.

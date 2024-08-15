@@ -20,7 +20,7 @@ type ServiceCatalog struct {
 // multiCatalogKeys is a map of primary and derived catalog keys for services with multiple clients.
 // If we add another version of a service client, don't forget to update it.
 var multiCatalogKeys = map[string][]string{
-	"iam":          {"identity", "iam_no_version"},
+	"iam":          {"identity", "identity_ext", "iam_no_version"},
 	"bss":          {"bssv2"},
 	"ecs":          {"ecsv21", "ecsv11"},
 	"evs":          {"evsv21", "evsv1", "evsv5"},
@@ -29,17 +29,19 @@ var multiCatalogKeys = map[string][]string{
 	"vpc":          {"networkv2", "vpcv3", "fwv2"},
 	"elb":          {"elbv2", "elbv3"},
 	"dns":          {"dns_region", "dnsv21"},
+	"dds":          {"ddsv31"},
 	"kms":          {"kmsv1", "kmsv3"},
 	"mrs":          {"mrsv2"},
 	"nat":          {"natv3"},
-	"rds":          {"rdsv1"},
+	"rds":          {"rdsv1", "rdsv31"},
 	"waf":          {"waf-dedicated"},
 	"geminidb":     {"geminidbv31"},
 	"dataarts":     {"dataarts-dlf"},
-	"dli":          {"dliv2"},
+	"dli":          {"dliv2", "dliv3"},
 	"dcs":          {"dcsv1"},
 	"dis":          {"disv3"},
 	"dms":          {"dmsv2"},
+	"drs":          {"drsv5"},
 	"dws":          {"dwsv2"},
 	"apig":         {"apigv2"},
 	"modelarts":    {"modelartsv2"},
@@ -67,6 +69,13 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		WithOutProjectID: true,
 		Product:          "IAM",
 	},
+	"identity_ext": {
+		Name:             "iam",
+		Version:          "v3-ext",
+		Admin:            true,
+		WithOutProjectID: true,
+		Product:          "IAM",
+	},
 	"iam_no_version": {
 		Name:             "iam",
 		Version:          "",
@@ -74,10 +83,25 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		WithOutProjectID: true,
 		Product:          "IAM",
 	},
+	"accessanalyzer": {
+		Name:             "access-analyzer",
+		Version:          "",
+		Admin:            true,
+		WithOutProjectID: true,
+		Product:          "AccessAnalyzer",
+	},
+
 	// iam is used for huaweicloud IAM APIs
 	"iam": {
 		Name:             "iam",
 		Version:          "v3.0",
+		Admin:            true,
+		WithOutProjectID: true,
+		Product:          "IAM",
+	},
+	"sts": {
+		Name:             "sts",
+		Version:          "",
 		Admin:            true,
 		WithOutProjectID: true,
 		Product:          "IAM",
@@ -208,6 +232,12 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Admin:            true,
 		WithOutProjectID: true,
 		Product:          "UCS",
+	},
+	"asm": {
+		Name:             "asm",
+		Version:          "v1",
+		WithOutProjectID: true,
+		Product:          "ASM",
 	},
 
 	"aom": {
@@ -419,6 +449,11 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Version: "v3",
 		Product: "RDS",
 	},
+	"rdsv31": {
+		Name:    "rds",
+		Version: "v3.1",
+		Product: "RDS",
+	},
 	"ram": {
 		Name:             "ram",
 		Version:          "v1",
@@ -429,6 +464,11 @@ var allServiceCatalog = map[string]ServiceCatalog{
 	"dds": {
 		Name:    "dds",
 		Version: "v3",
+		Product: "DDS",
+	},
+	"ddsv31": {
+		Name:    "dds",
+		Version: "v3.1",
 		Product: "DDS",
 	},
 	"geminidb": {
@@ -454,6 +494,11 @@ var allServiceCatalog = map[string]ServiceCatalog{
 	"drs": {
 		Name:    "drs",
 		Version: "v3",
+		Product: "DRS",
+	},
+	"drsv5": {
+		Name:    "drs",
+		Version: "v5",
 		Product: "DRS",
 	},
 
@@ -604,6 +649,10 @@ var allServiceCatalog = map[string]ServiceCatalog{
 	},
 
 	// catalog for Enterprise Intelligence
+	"cae": {
+		Name:    "cae",
+		Product: "CAE",
+	},
 	"mrs": {
 		Name:    "mrs",
 		Version: "v1.1",
@@ -652,6 +701,11 @@ var allServiceCatalog = map[string]ServiceCatalog{
 	"dliv2": {
 		Name:    "dli",
 		Version: "v2.0",
+		Product: "DLI",
+	},
+	"dliv3": {
+		Name:    "dli",
+		Version: "v3",
 		Product: "DLI",
 	},
 	"dis": {
@@ -913,6 +967,11 @@ func GetServiceEndpoint(c *Config, srv, region string) string {
 	catalog, ok := allServiceCatalog[srv]
 	if !ok {
 		return ""
+	}
+
+	// update the service catalog name if necessary
+	if name := getServiceCatalogNameByRegion(srv, region); name != "" {
+		catalog.Name = name
 	}
 
 	var ep string

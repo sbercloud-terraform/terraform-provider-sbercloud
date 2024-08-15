@@ -24,6 +24,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API CC POST /v3/{domain_id}/gcn/central-network/{central_network_id}/gdgw-attachments
+// @API CC GET /v3/{domain_id}/gcn/central-network/{central_network_id}/gdgw-attachments/{gdgw_attachment_id}
+// @API CC PUT /v3/{domain_id}/gcn/central-network/{central_network_id}/gdgw-attachments/{gdgw_attachment_id}
+// @API CC DELETE /v3/{domain_id}/gcn/central-network/{central_network_id}/attachments/{attachment_id}
 func ResourceCentralNetworkAttachment() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceCentralNetworkAttachmentCreate,
@@ -176,8 +180,8 @@ func buildCreateCentralNetworkAttachmentBodyParams(d *schema.ResourceData) map[s
 			"global_dc_gateway_id":         d.Get("global_dc_gateway_id"),
 			"global_dc_gateway_project_id": d.Get("global_dc_gateway_project_id"),
 			"global_dc_gateway_region_id":  d.Get("global_dc_gateway_region_id"),
-			"description":                  utils.ValueIngoreEmpty(d.Get("description")),
-			"central_network_plane_id":     utils.ValueIngoreEmpty(d.Get("central_network_plane_id")),
+			"description":                  utils.ValueIgnoreEmpty(d.Get("description")),
+			"central_network_plane_id":     utils.ValueIgnoreEmpty(d.Get("central_network_plane_id")),
 		},
 	}
 	return bodyParams
@@ -368,8 +372,8 @@ func resourceCentralNetworkAttachmentUpdate(ctx context.Context, d *schema.Resou
 func buildUpdateCentralNetworkAttachmentBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
 		"central_network_gdgw_attachment": map[string]interface{}{
-			"name":        utils.ValueIngoreEmpty(d.Get("name")),
-			"description": utils.ValueIngoreEmpty(d.Get("description")),
+			"name":        utils.ValueIgnoreEmpty(d.Get("name")),
+			"description": utils.ValueIgnoreEmpty(d.Get("description")),
 		},
 	}
 	return bodyParams

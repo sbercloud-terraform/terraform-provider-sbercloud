@@ -9,9 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 
@@ -19,7 +17,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
@@ -29,11 +26,11 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
-type backupError struct {
-	ErrorCode string `json:"error_code"`
-	ErrorMsg  string `json:"error_msg"`
-}
-
+// @API DDS GET /v3/{project_id}/backups
+// @API DDS POST /v3/{project_id}/backups
+// @API DDS DELETE /v3/{project_id}/backups/{backup_id}
+// @API DDS GET /v3/{project_id}/instances
+// @API DDS GET /v3/{project_id}/jobs
 func ResourceDdsBackup() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDdsBackupCreate,
@@ -65,21 +62,13 @@ func ResourceDdsBackup() *schema.Resource {
 				Required:    true,
 				ForceNew:    true,
 				Description: `Specifies the manual backup name.`,
-				ValidateFunc: validation.All(
-					validation.StringMatch(regexp.MustCompile(`^[A-Za-z-_0-9]*$`),
-						"the value must be 4 to 64 characters in length and start with a letter"+
-							"(from A to Z or from a to z). It is case-sensitive and can contain only letters,"+
-							"digits (from 0 to 9), hyphens (-), and underscores (_)"),
-					validation.StringLenBetween(4, 64),
-				),
 			},
 			"description": {
-				Type:         schema.TypeString,
-				Optional:     true,
-				Computed:     true,
-				ForceNew:     true,
-				Description:  `Specifies the manual backup description`,
-				ValidateFunc: validation.StringLenBetween(0, 256),
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
+				ForceNew:    true,
+				Description: `Specifies the manual backup description.`,
 			},
 			"instance_name": {
 				Type:        schema.TypeString,
@@ -98,16 +87,14 @@ func ResourceDdsBackup() *schema.Resource {
 				Description: `Indicates the backup type.`,
 			},
 			"begin_time": {
-				Type:     schema.TypeString,
-				Computed: true,
-				Description: `Indicates the start time of the backup. The format is yyyy-mm-dd hh:mm:ss.
-The value is in UTC format.`,
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `Indicates the start time of the backup.`,
 			},
 			"end_time": {
-				Type:     schema.TypeString,
-				Computed: true,
-				Description: `Indicates the end time of the backup. The format is yyyy-mm-dd hh:mm:ss.
-The value is in UTC format.`,
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `Indicates the end time of the backup.`,
 			},
 			"status": {
 				Type:        schema.TypeString,
@@ -134,7 +121,7 @@ func BackupDatastoreSchema() *schema.Resource {
 			"version": {
 				Type:        schema.TypeString,
 				Computed:    true,
-				Description: `Indicates the database version. The value can be 4.2, 4.0, or 3.4.`,
+				Description: `Indicates the database version.`,
 			},
 		},
 	}
@@ -152,7 +139,7 @@ func resourceDdsBackupCreate(ctx context.Context, d *schema.ResourceData, meta i
 	)
 	createBackupClient, err := cfg.NewServiceClient(createBackupProduct, region)
 	if err != nil {
-		return diag.Errorf("error creating DDS Client: %s", err)
+		return diag.Errorf("error creating DDS client: %s", err)
 	}
 
 	createBackupPath := createBackupClient.Endpoint + createBackupHttpUrl
@@ -160,67 +147,57 @@ func resourceDdsBackupCreate(ctx context.Context, d *schema.ResourceData, meta i
 
 	createBackupOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		OkCodes: []int{
-			200,
-		},
 	}
 	createBackupOpt.JSONBody = utils.RemoveNil(buildCreateBackupBodyParams(d))
 
-	var createBackupResp *http.Response
 	instanceId := d.Get("instance_id").(string)
-	for {
-		createBackupResp, err = createBackupClient.Request("POST", createBackupPath, &createBackupOpt)
-		if err == nil {
-			break
-		}
-		// if the HTTP response code is 403 and the error code is DBS.201015 or DBS.201014, then it indicates that other
-		// operation is being executed and need to wait
-		if errCode, ok := err.(golangsdk.ErrDefault403); ok {
-			var backupErr backupError
-			err = json.Unmarshal(errCode.Body, &backupErr)
-			if err != nil {
-				return diag.Errorf("error creating DDS backup: error format error: %s", err)
-			}
-			if backupErr.ErrorCode == "DBS.201014" || backupErr.ErrorCode == "DBS.201015" {
-				err = waitForInstanceRunning(ctx, d, cfg, region, instanceId, schema.TimeoutCreate)
-				if err != nil {
-					return diag.FromErr(err)
-				}
-				continue
-			}
-		}
-		return diag.Errorf("error creating DDS Backup: %s", err)
+	retryFunc := func() (interface{}, bool, error) {
+		resp, err := createBackupClient.Request("POST", createBackupPath, &createBackupOpt)
+		retry, err := handleMultiOperationsError(err)
+		return resp, retry, err
+	}
+	r, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     ddsInstanceStateRefreshFunc(createBackupClient, instanceId),
+		WaitTarget:   []string{"normal"},
+		Timeout:      d.Timeout(schema.TimeoutCreate),
+		DelayTimeout: 10 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
+	if err != nil {
+		return diag.Errorf("error creating DDS backup: %s", err)
 	}
 
-	createBackupRespBody, err := utils.FlattenResponse(createBackupResp)
+	createBackupRespBody, err := utils.FlattenResponse(r.(*http.Response))
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	id, err := jmespath.Search("backup_id", createBackupRespBody)
-	if err != nil {
-		return diag.Errorf("error creating DDS backup: ID is not found in API response")
+	id := utils.PathSearch("backup_id", createBackupRespBody, "").(string)
+	if id == "" {
+		return diag.Errorf("error creating DDS backup: backup_id is not found in API response")
 	}
 
-	d.SetId(id.(string))
+	d.SetId(id)
 
-	jobId, err := jmespath.Search("job_id", createBackupRespBody)
-	if err != nil {
+	jobId := utils.PathSearch("job_id", createBackupRespBody, "").(string)
+	if jobId == "" {
 		return diag.Errorf("error creating DDS backup: job_id is not found in API response")
 	}
 
 	stateConf := &resource.StateChangeConf{
 		Pending:      []string{"Running"},
 		Target:       []string{"Completed"},
-		Refresh:      ddsJobStatusRefreshFunc(jobId.(string), region, cfg),
+		Refresh:      ddsJobStatusRefreshFunc(jobId, region, cfg),
 		Timeout:      d.Timeout(schema.TimeoutCreate),
-		Delay:        60 * time.Second,
+		Delay:        10 * time.Second,
 		PollInterval: 10 * time.Second,
 	}
 
 	_, err = stateConf.WaitForStateContext(ctx)
 	if err != nil {
-		return diag.Errorf("error waiting for instance (%s) to become ready: %s", id.(string), err)
+		return diag.Errorf("error waiting for job (%s) to complete: %s", jobId, err)
 	}
 
 	return resourceDdsBackupRead(ctx, d, meta)
@@ -228,74 +205,14 @@ func resourceDdsBackupCreate(ctx context.Context, d *schema.ResourceData, meta i
 
 func buildCreateBackupBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"instance_id": utils.ValueIngoreEmpty(d.Get("instance_id")),
-		"name":        utils.ValueIngoreEmpty(d.Get("name")),
-		"description": utils.ValueIngoreEmpty(d.Get("description")),
+		"instance_id": d.Get("instance_id"),
+		"name":        d.Get("name"),
+		"description": utils.ValueIgnoreEmpty(d.Get("description")),
 	}
 	params := map[string]interface{}{
 		"backup": bodyParams,
 	}
 	return params
-}
-
-func waitForInstanceRunning(ctx context.Context, d *schema.ResourceData, cfg *config.Config, region, instanceID,
-	timeout string) error {
-	stateConf := &resource.StateChangeConf{
-		Pending:      []string{"PENDING"},
-		Target:       []string{"RUNNING"},
-		Refresh:      ddsInstanceStatusRefreshFunc(instanceID, region, cfg),
-		Timeout:      d.Timeout(timeout),
-		PollInterval: 5 * time.Second,
-	}
-
-	_, err := stateConf.WaitForStateContext(ctx)
-	if err != nil {
-		return fmt.Errorf("error waiting for instance (%s) to running: %s", instanceID, err)
-	}
-	return nil
-}
-
-func ddsInstanceStatusRefreshFunc(instanceId, region string, cfg *config.Config) resource.StateRefreshFunc {
-	return func() (interface{}, string, error) {
-		var (
-			getInstanceHttpUrl = "v3/{project_id}/instances"
-			getInstanceProduct = "dds"
-		)
-		getInstanceClient, err := cfg.NewServiceClient(getInstanceProduct, region)
-		if err != nil {
-			return nil, "", fmt.Errorf("error creating DDS client: %s", err)
-		}
-
-		getInstancePath := getInstanceClient.Endpoint + getInstanceHttpUrl
-		getInstancePath = strings.ReplaceAll(getInstancePath, "{project_id}", getInstanceClient.ProjectID)
-
-		getInstancePath += buildGetInstanceQueryParams(instanceId)
-		getInstanceOpt := golangsdk.RequestOpts{
-			KeepResponseBody: true,
-			OkCodes: []int{
-				200,
-			},
-		}
-
-		getInstanceResp, err := getInstanceClient.Request("GET", getInstancePath, &getInstanceOpt)
-		if err != nil {
-			return nil, "", err
-		}
-
-		getInstanceRespBody, err := utils.FlattenResponse(getInstanceResp)
-		if err != nil {
-			return nil, "", err
-		}
-		instances := utils.PathSearch("instances", getInstanceRespBody, make([]interface{}, 0))
-		if len(instances.([]interface{})) == 0 {
-			return nil, "", fmt.Errorf("can not get instance by instance ID %s", instanceId)
-		}
-		actions := utils.PathSearch("actions", instances.([]interface{})[0], make([]interface{}, 0))
-		if len(actions.([]interface{})) == 0 {
-			return getInstanceRespBody, "RUNNING", nil
-		}
-		return getInstanceRespBody, "PENDING", nil
-	}
 }
 
 func ddsJobStatusRefreshFunc(jobId, region string, cfg *config.Config) resource.StateRefreshFunc {
@@ -306,7 +223,7 @@ func ddsJobStatusRefreshFunc(jobId, region string, cfg *config.Config) resource.
 		)
 		getJobStatusClient, err := cfg.NewServiceClient(getJobStatusProduct, region)
 		if err != nil {
-			return nil, "", fmt.Errorf("error creating DDS Client: %s", err)
+			return nil, "", fmt.Errorf("error creating DDS client: %s", err)
 		}
 
 		getJobStatusPath := getJobStatusClient.Endpoint + getJobStatusHttpUrl
@@ -317,21 +234,21 @@ func ddsJobStatusRefreshFunc(jobId, region string, cfg *config.Config) resource.
 
 		getJobStatusOpt := golangsdk.RequestOpts{
 			KeepResponseBody: true,
-			OkCodes: []int{
-				200,
-			},
 		}
 		getJobStatusResp, err := getJobStatusClient.Request("GET", getJobStatusPath, &getJobStatusOpt)
-
 		if err != nil {
 			if errCode, ok := err.(golangsdk.ErrDefault400); ok {
-				var backupErr backupError
-				err = json.Unmarshal(errCode.Body, &backupErr)
-				if err != nil {
-					return nil, "", fmt.Errorf("error get DDS job: error format error: %s", err)
+				var apiError interface{}
+				if jsonErr := json.Unmarshal(errCode.Body, &apiError); jsonErr != nil {
+					return nil, "", fmt.Errorf("error get DDS job: format error: %s", err)
 				}
-				// if the error_code is DBS.200543, it indicates that the job has finished
-				if backupErr.ErrorCode == "DBS.200543" {
+				errorCode := utils.PathSearch("error_code", apiError, "").(string)
+				if errorCode == "" {
+					return nil, "", fmt.Errorf("error parse errorCode from response body: error_code is not " +
+						"found in the response")
+				}
+				// if the error_code is DBS.200543, it indicates that the deleting instance job has finished
+				if errorCode == "DBS.200543" {
 					return getJobStatusResp, "Deleted", nil
 				}
 			}
@@ -343,15 +260,11 @@ func ddsJobStatusRefreshFunc(jobId, region string, cfg *config.Config) resource.
 			return nil, "", err
 		}
 
-		job := utils.PathSearch("job", getJobStatusRespBody, nil)
-		if job == nil {
-			return nil, "", fmt.Errorf("error get job status by job ID %s", jobId)
+		status := utils.PathSearch("job.status", getJobStatusRespBody, "").(string)
+		if status == "" {
+			return nil, "", fmt.Errorf("error get job status by job ID: %s", jobId)
 		}
-		status := utils.PathSearch("status", job, "")
-		if status.(string) == "Failed" {
-			return nil, "", fmt.Errorf("DDS backup job failed, job ID %s", jobId)
-		}
-		return getJobStatusRespBody, status.(string), nil
+		return getJobStatusRespBody, status, nil
 	}
 }
 
@@ -368,26 +281,22 @@ func resourceDdsBackupRead(_ context.Context, d *schema.ResourceData, meta inter
 	)
 	getBackupClient, err := cfg.NewServiceClient(getBackupProduct, region)
 	if err != nil {
-		return diag.Errorf("error creating DDS Client: %s", err)
+		return diag.Errorf("error creating DDS client: %s", err)
 	}
 
 	getBackupPath := getBackupClient.Endpoint + getBackupHttpUrl
 	getBackupPath = strings.ReplaceAll(getBackupPath, "{project_id}", getBackupClient.ProjectID)
 
-	instanceId := d.Get("instance_id").(string)
-	getBackupQueryParams := buildGetBackupQueryParams(instanceId, d.Id())
+	getBackupQueryParams := buildGetBackupQueryParams(d.Id())
 	getBackupPath += getBackupQueryParams
 
 	getBackupOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		OkCodes: []int{
-			200,
-		},
 	}
 	getBackupResp, err := getBackupClient.Request("GET", getBackupPath, &getBackupOpt)
 
 	if err != nil {
-		return common.CheckDeletedDiag(d, err, "error retrieving DDS backup")
+		return common.CheckDeletedDiag(d, parseDdsBackupError(err), "error retrieving DDS backup")
 	}
 
 	getBackupRespBody, err := utils.FlattenResponse(getBackupResp)
@@ -410,7 +319,7 @@ func resourceDdsBackupRead(_ context.Context, d *schema.ResourceData, meta inter
 		d.Set("begin_time", utils.PathSearch("begin_time", backups[0], nil)),
 		d.Set("end_time", utils.PathSearch("end_time", backups[0], nil)),
 		d.Set("status", utils.PathSearch("status", backups[0], nil)),
-		d.Set("size", utils.PathSearch("size", backups[0], nil)),
+		d.Set("size", utils.PathSearch("size", backups[0], 0)),
 		d.Set("description", utils.PathSearch("description", backups[0], nil)),
 	)
 
@@ -421,7 +330,6 @@ func flattenGetBackupResponseDatastore(resp interface{}) []interface{} {
 	var rst []interface{}
 	curJson, err := jmespath.Search("datastore", resp)
 	if err != nil {
-		log.Printf("[ERROR] error parsing datastore from response= %#v", resp)
 		return rst
 	}
 
@@ -434,22 +342,8 @@ func flattenGetBackupResponseDatastore(resp interface{}) []interface{} {
 	return rst
 }
 
-func buildGetBackupQueryParams(instanceId, backupId string) string {
-	res := ""
-	if instanceId != "" {
-		res = fmt.Sprintf("%s&instance_id=%v", res, instanceId)
-	}
-	if backupId != "" {
-		res = fmt.Sprintf("%s&backup_id=%v", res, backupId)
-	}
-	if res != "" {
-		res = "?" + res[1:]
-	}
-	return res
-}
-
-func buildGetInstanceQueryParams(instanceId string) string {
-	return fmt.Sprintf("?id=%v", instanceId)
+func buildGetBackupQueryParams(backupId string) string {
+	return fmt.Sprintf("?backup_id=%s", backupId)
 }
 
 func buildWaitJobQueryParams(jobId string) string {
@@ -467,7 +361,7 @@ func resourceDdsBackupDelete(ctx context.Context, d *schema.ResourceData, meta i
 	)
 	deleteBackupClient, err := cfg.NewServiceClient(deleteBackupProduct, region)
 	if err != nil {
-		return diag.Errorf("error creating DDS Client: %s", err)
+		return diag.Errorf("error creating DDS client: %s", err)
 	}
 
 	deleteBackupPath := deleteBackupClient.Endpoint + deleteBackupHttpUrl
@@ -476,68 +370,77 @@ func resourceDdsBackupDelete(ctx context.Context, d *schema.ResourceData, meta i
 
 	deleteBackupOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		OkCodes: []int{
-			200,
-		},
 	}
 
-	var deleteBackupResp *http.Response
 	instanceId := d.Get("instance_id").(string)
-	for {
-		deleteBackupResp, err = deleteBackupClient.Request("DELETE", deleteBackupPath, &deleteBackupOpt)
-		if err == nil {
-			break
-		}
-		// if the HTTP response code is 403 and the error code is DBS.201208, then it indicates the backup
-		// is in the state of backup and need to wait
-		if errCode, ok := err.(golangsdk.ErrDefault403); ok {
-			var backupErr backupError
-			err = json.Unmarshal(errCode.Body, &backupErr)
-			if err != nil {
-				return diag.Errorf("error deleting DDS backup: error format error: %s", err)
-			}
-			if backupErr.ErrorCode == "DBS.201208" {
-				err = waitForInstanceRunning(ctx, d, cfg, region, instanceId, schema.TimeoutDelete)
-				if err != nil {
-					return diag.FromErr(err)
-				}
-				continue
-			}
-		}
-		return diag.Errorf("error deleting DDS Backup: %s", err)
+	retryFunc := func() (interface{}, bool, error) {
+		resp, err := deleteBackupClient.Request("DELETE", deleteBackupPath, &deleteBackupOpt)
+		retry, err := handleMultiOperationsError(err)
+		return resp, retry, err
+	}
+	r, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     ddsInstanceStateRefreshFunc(deleteBackupClient, instanceId),
+		WaitTarget:   []string{"normal"},
+		Timeout:      d.Timeout(schema.TimeoutDelete),
+		DelayTimeout: 1 * time.Second,
+		PollInterval: 5 * time.Second,
+	})
+	if err != nil {
+		return common.CheckDeletedDiag(d, parseDdsBackupError(err), "error deleting DDS backup")
 	}
 
-	deleteBackupRespBody, err := utils.FlattenResponse(deleteBackupResp)
+	deleteBackupRespBody, err := utils.FlattenResponse(r.(*http.Response))
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	jobId, err := jmespath.Search("job_id", deleteBackupRespBody)
-	if err != nil {
+	jobId := utils.PathSearch("job_id", deleteBackupRespBody, "").(string)
+	if jobId == "" {
 		return diag.Errorf("error deleting DDS backup: job_id is not found in API response")
 	}
 
 	stateConf := &resource.StateChangeConf{
 		Pending:      []string{"Running"},
-		Target:       []string{"Deleted"},
-		Refresh:      ddsJobStatusRefreshFunc(jobId.(string), region, cfg),
+		Target:       []string{"Completed", "Deleted"},
+		Refresh:      ddsJobStatusRefreshFunc(jobId, region, cfg),
 		Timeout:      d.Timeout(schema.TimeoutDelete),
-		Delay:        1 * time.Second,
-		PollInterval: 2 * time.Second,
+		Delay:        10 * time.Second,
+		PollInterval: 10 * time.Second,
 	}
 
 	_, err = stateConf.WaitForStateContext(ctx)
 	if err != nil {
-		return diag.Errorf("error waiting for backup (%s) to be deleted: %s", d.Id(), err)
+		return diag.Errorf("error waiting for job (%s) to be completed: %s", d.Id(), err)
 	}
 
 	return nil
 }
 
+func parseDdsBackupError(err error) error {
+	if errCode, ok := err.(golangsdk.ErrDefault400); ok {
+		var apiError interface{}
+		if jsonErr := json.Unmarshal(errCode.Body, &apiError); jsonErr != nil {
+			return err
+		}
+
+		errorCode, errorCodeErr := jmespath.Search("error_code", apiError)
+		if errorCodeErr != nil {
+			return err
+		}
+
+		if errorCode == "DBS.201502" || errorCode == "DBS.201214" {
+			return golangsdk.ErrDefault404(errCode)
+		}
+	}
+	return err
+}
+
 func backupImportState(_ context.Context, d *schema.ResourceData, _ interface{}) ([]*schema.ResourceData, error) {
 	parts := strings.SplitN(d.Id(), "/", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid format specified for import id, must be <instance_id>/<backup_id>")
+		return nil, fmt.Errorf("invalid format specified for import id, must be <instance_id>/<id>")
 	}
 	instanceId := parts[0]
 	backupId := parts[1]

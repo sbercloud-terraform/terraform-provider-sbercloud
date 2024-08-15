@@ -18,6 +18,10 @@ import (
 )
 
 // ResourceAclPolicy is a provider resource of the APIG ACL policy.
+// @API APIG DELETE /v2/{project_id}/apigw/instances/{instance_id}/acls/{acl_id}
+// @API APIG GET /v2/{project_id}/apigw/instances/{instance_id}/acls/{acl_id}
+// @API APIG PUT /v2/{project_id}/apigw/instances/{instance_id}/acls/{acl_id}
+// @API APIG POST /v2/{project_id}/apigw/instances/{instance_id}/acls
 func ResourceAclPolicy() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceAclPolicyCreate,
@@ -171,7 +175,7 @@ func resourceAclPolicyDelete(_ context.Context, d *schema.ResourceData, meta int
 		policyId   = d.Id()
 	)
 	if err = acls.Delete(client, instanceId, policyId); err != nil {
-		return diag.Errorf("unable to delete the ACL policy (%s): %s", policyId, err)
+		return common.CheckDeletedDiag(d, err, fmt.Sprintf("unable to delete the ACL policy (%s)", policyId))
 	}
 
 	return nil

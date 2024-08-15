@@ -32,7 +32,7 @@ variable "security_group_ids" {
 resource "sbercloud_compute_interface_attach" "test" {
   instance_id        = var.instance_id
   network_id         = var.network_id
-  fixed_ip           = "192.168.10.199"
+  fixed_ip           = "192.168.0.199"
   security_group_ids = var.security_group_ids
 }
 ```

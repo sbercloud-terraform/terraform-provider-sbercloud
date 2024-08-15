@@ -9,8 +9,10 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/customdiff"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/common/tags"
@@ -22,6 +24,22 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API ELB POST /v3/{project_id}/elb/loadbalancers
+// @API ELB POST /v2.0/{project_id}/loadbalancers/{loadbalancer_id}/tags/action
+// @API ELB GET /v3/{project_id}/elb/loadbalancers/{loadbalancer_id}
+// @API ELB GET /v2.0/{project_id}/loadbalancers/{loadbalancer_id}/tags
+// @API ELB PUT /v3/{project_id}/elb/loadbalancers/{loadbalancer_id}
+// @API ELB POST /v3/{project_id}/elb/loadbalancers/{loadbalancer_id}/availability-zone/{batch-add}
+// @API ELB POST /v3/{project_id}/elb/loadbalancers/{loadbalancer_id}/availability-zone/{batch-remove}
+// @API ELB DELETE /v3/{project_id}/elb/loadbalancers/{loadbalancer_id}/force-elb
+// @API ELB DELETE /v3/{project_id}/elb/loadbalancers/{loadbalancer_id}
+// @API EIP DELETE /v1/{project_id}/publicips/{publicip_id}
+// @API ELB POST /v3/{project_id}/elb/loadbalancers/change-charge-mode
+// @API BSS GET /v2/orders/customer-orders/details/{order_id}
+// @API BSS POST /v2/orders/suscriptions/resources/query
+// @API BSS POST /v2/orders/subscriptions/resources/unsubscribe
+// @API BSS POST /v2/orders/subscriptions/resources/autorenew/{instance_id}
+// @API BSS DELETE /v2/orders/subscriptions/resources/autorenew/{instance_id}
 func ResourceLoadBalancerV3() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceLoadBalancerV3Create,
@@ -37,6 +55,30 @@ func ResourceLoadBalancerV3() *schema.Resource {
 			Update: schema.DefaultTimeout(10 * time.Minute),
 			Delete: schema.DefaultTimeout(5 * time.Minute),
 		},
+
+		CustomizeDiff: customdiff.All(
+			customdiff.ValidateChange("charging_mode", func(_ context.Context, old, new, _ any) error {
+				// can only update from postPaid
+				if old.(string) != new.(string) && (old.(string) == "prePaid") {
+					return fmt.Errorf("charging_mode can only be updated from postPaid to prePaid")
+				}
+				return nil
+			}),
+			customdiff.ValidateChange("period_unit", func(_ context.Context, old, new, _ any) error {
+				// can only update from empty
+				if old.(string) != new.(string) && old.(string) != "" {
+					return fmt.Errorf("period_unit can only be updated when changing charging_mode to prePaid")
+				}
+				return nil
+			}),
+			customdiff.ValidateChange("period", func(_ context.Context, old, new, _ any) error {
+				// can only update from empty
+				if old.(int) != new.(int) && old.(int) != 0 {
+					return fmt.Errorf("period can only be updated when changing charging_mode to prePaid")
+				}
+				return nil
+			}),
+		),
 
 		Schema: map[string]*schema.Schema{
 			"region": {
@@ -86,6 +128,12 @@ func ResourceLoadBalancerV3() *schema.Resource {
 			},
 
 			"ipv4_address": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+			},
+
+			"ipv6_address": {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
@@ -201,19 +249,61 @@ func ResourceLoadBalancerV3() *schema.Resource {
 			"tags": common.TagsSchema(),
 
 			// charge info: charging_mode, period_unit, period, auto_renew, auto_pay
-			"charging_mode": common.SchemaChargingMode(nil),
-			"period_unit":   common.SchemaPeriodUnit(nil),
-			"period":        common.SchemaPeriod(nil),
-			"auto_renew":    common.SchemaAutoRenewUpdatable(nil),
-			"auto_pay":      common.SchemaAutoPay(nil),
-
+			"charging_mode": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ValidateFunc: validation.StringInSlice([]string{
+					"prePaid", "postPaid",
+				}, false),
+			},
+			"period_unit": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				RequiredWith: []string{"period"},
+				ValidateFunc: validation.StringInSlice([]string{
+					"month", "year",
+				}, false),
+			},
+			"period": {
+				Type:         schema.TypeInt,
+				Optional:     true,
+				RequiredWith: []string{"period_unit"},
+				ValidateFunc: validation.IntBetween(1, 9),
+			},
+			"auto_renew": common.SchemaAutoRenewUpdatable(nil),
+			"auto_pay":   common.SchemaAutoPay(nil),
 			"enterprise_project_id": {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
 				Computed: true,
 			},
-
+			"deletion_protection_enable": {
+				Type:     schema.TypeBool,
+				Optional: true,
+			},
+			"waf_failure_action": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+			},
+			"charge_mode": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"guaranteed": {
+				Type:     schema.TypeBool,
+				Computed: true,
+			},
+			"created_at": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"updated_at": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
 			"ipv4_port_id": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -233,15 +323,14 @@ func ResourceLoadBalancerV3() *schema.Resource {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
-
-			"ipv6_address": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
 			"autoscaling_enabled": {
 				Type:     schema.TypeBool,
 				Optional: true,
 				Computed: true,
+				Description: utils.SchemaDesc(``,
+					utils.SchemaDescInput{
+						Deprecated: true,
+					}),
 			},
 			"min_l7_flavor_id": {
 				Type:     schema.TypeString,
@@ -250,6 +339,10 @@ func ResourceLoadBalancerV3() *schema.Resource {
 				RequiredWith: []string{
 					"l7_flavor_id",
 				},
+				Description: utils.SchemaDesc(``,
+					utils.SchemaDescInput{
+						Deprecated: true,
+					}),
 			},
 		},
 	}
@@ -262,20 +355,24 @@ func resourceLoadBalancerV3Create(ctx context.Context, d *schema.ResourceData, m
 		return diag.Errorf("error creating ELB client: %s", err)
 	}
 	iPTargetEnable := d.Get("cross_vpc_backend").(bool)
+	deleteProtectionEnable := d.Get("deletion_protection_enable").(bool)
 	createOpts := loadbalancers.CreateOpts{
-		AvailabilityZoneList: utils.ExpandToStringListBySet(d.Get("availability_zone").(*schema.Set)),
-		IPTargetEnable:       &iPTargetEnable,
-		VpcID:                d.Get("vpc_id").(string),
-		VipSubnetID:          d.Get("ipv4_subnet_id").(string),
-		IpV6VipSubnetID:      d.Get("ipv6_network_id").(string),
-		VipAddress:           d.Get("ipv4_address").(string),
-		L4Flavor:             d.Get("l4_flavor_id").(string),
-		L7Flavor:             d.Get("l7_flavor_id").(string),
-		ProtectionStatus:     d.Get("protection_status").(string),
-		ProtectionReason:     d.Get("protection_reason").(string),
-		Name:                 d.Get("name").(string),
-		Description:          d.Get("description").(string),
-		EnterpriseProjectID:  common.GetEnterpriseProjectID(d, cfg),
+		AvailabilityZoneList:     utils.ExpandToStringListBySet(d.Get("availability_zone").(*schema.Set)),
+		IPTargetEnable:           &iPTargetEnable,
+		VpcID:                    d.Get("vpc_id").(string),
+		VipSubnetID:              d.Get("ipv4_subnet_id").(string),
+		IpV6VipSubnetID:          d.Get("ipv6_network_id").(string),
+		VipAddress:               d.Get("ipv4_address").(string),
+		Ipv6VipAddress:           d.Get("ipv6_address").(string),
+		L4Flavor:                 d.Get("l4_flavor_id").(string),
+		L7Flavor:                 d.Get("l7_flavor_id").(string),
+		ProtectionStatus:         d.Get("protection_status").(string),
+		ProtectionReason:         d.Get("protection_reason").(string),
+		Name:                     d.Get("name").(string),
+		Description:              d.Get("description").(string),
+		EnterpriseProjectID:      common.GetEnterpriseProjectID(d, cfg),
+		DeletionProtectionEnable: &deleteProtectionEnable,
+		WafFailureAction:         d.Get("waf_failure_action").(string),
 	}
 
 	if v, ok := d.GetOk("backend_subnets"); ok {
@@ -336,7 +433,7 @@ func resourceLoadBalancerV3Create(ctx context.Context, d *schema.ResourceData, m
 		}
 		err = common.WaitOrderComplete(ctx, bssClient, resp.OrderID, d.Timeout(schema.TimeoutCreate))
 		if err != nil {
-			return diag.Errorf("the order is not completed while creating ELB LoadBalancer (%s): %#v", resp.LoadBalancerID, err)
+			return diag.Errorf("the order is not completed while creating ELB LoadBalancer (%s): %v", resp.LoadBalancerID, err)
 		}
 		resourceId, err := common.WaitOrderResourceComplete(ctx, bssClient, resp.OrderID,
 			d.Timeout(schema.TimeoutCreate))
@@ -421,6 +518,11 @@ func resourceLoadBalancerV3Read(_ context.Context, d *schema.ResourceData, meta 
 		d.Set("backend_subnets", lb.ElbVirsubnetIDs),
 		d.Set("protection_status", lb.ProtectionStatus),
 		d.Set("protection_reason", lb.ProtectionReason),
+		d.Set("charge_mode", lb.ChargeMode),
+		d.Set("guaranteed", lb.Guaranteed),
+		d.Set("created_at", lb.CreatedAt),
+		d.Set("updated_at", lb.UpdatedAt),
+		d.Set("waf_failure_action", lb.WafFailureAction),
 	)
 
 	for _, eip := range lb.Eips {
@@ -469,10 +571,44 @@ func resourceLoadBalancerV3Update(ctx context.Context, d *schema.ResourceData, m
 	if err != nil {
 		return diag.Errorf("error creating ELB client: %s", err)
 	}
+	bssClient, err := cfg.BssV2Client(cfg.GetRegion(d))
+	if err != nil {
+		return diag.Errorf("error creating BSS V2 client: %s", err)
+	}
+
+	// update charging mode first
+	if d.HasChange("charging_mode") {
+		if err := common.ValidatePrePaidChargeInfo(d); err != nil {
+			return diag.FromErr(err)
+		}
+		changeChargingModeOpts := loadbalancers.ChangeChargingModeOpts{
+			LoadBalancerIds: []string{d.Id()},
+			ChargingMode:    "prepaid",
+			PrepaidOptions: loadbalancers.PrepaidOptions{
+				PeriodType: d.Get("period_unit").(string),
+				PeriodNum:  d.Get("period").(int),
+				AutoRenew:  d.Get("auto_renew").(string),
+				AutoPay:    true,
+			},
+		}
+		orderId, err := loadbalancers.ChangeChargingMode(elbClient, changeChargingModeOpts).Extract()
+		if err != nil {
+			return diag.Errorf("error changing charging mode of load-balancer(%s): %s", d.Id(), err)
+		}
+
+		// wait for order complete
+		if err := common.WaitOrderComplete(ctx, bssClient, orderId, d.Timeout(schema.TimeoutUpdate)); err != nil {
+			return diag.FromErr(err)
+		}
+	} else if d.HasChange("auto_renew") {
+		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), d.Id()); err != nil {
+			return diag.Errorf("error updating the auto-renew of the load-balancer (%s): %s", d.Id(), err)
+		}
+	}
 
 	updateLoadBalancerChanges := []string{"name", "description", "cross_vpc_backend", "ipv4_subnet_id", "ipv6_network_id",
-		"ipv6_bandwidth_id", "ipv4_address", "l4_flavor_id", "l7_flavor_id", "autoscaling_enabled", "min_l7_flavor_id",
-		"protection_status", "protection_reason",
+		"ipv6_bandwidth_id", "ipv4_address", "ipv6_address", "l4_flavor_id", "l7_flavor_id", "autoscaling_enabled",
+		"min_l7_flavor_id", "protection_status", "protection_reason", "deletion_protection_enable", "waf_failure_action",
 	}
 
 	if d.HasChanges(updateLoadBalancerChanges...) {
@@ -506,15 +642,6 @@ func resourceLoadBalancerV3Update(ctx context.Context, d *schema.ResourceData, m
 		}
 	}
 
-	if d.HasChange("auto_renew") {
-		bssClient, err := cfg.BssV2Client(cfg.GetRegion(d))
-		if err != nil {
-			return diag.Errorf("error creating BSS V2 client: %s", err)
-		}
-		if err = common.UpdateAutoRenew(bssClient, d.Get("auto_renew").(string), d.Id()); err != nil {
-			return diag.Errorf("error updating the auto-renew of the LoadBalancer (%s): %s", d.Id(), err)
-		}
-	}
 	// update tags
 	if d.HasChange("tags") {
 		elbV2Client, err := cfg.ElbV2Client(cfg.GetRegion(d))
@@ -629,6 +756,9 @@ func buildUpdateLoadBalancerBodyParams(d *schema.ResourceData) loadbalancers.Upd
 	if d.HasChange("ipv4_address") {
 		updateOpts.VipAddress = d.Get("ipv4_address").(string)
 	}
+	if d.HasChange("ipv6_address") {
+		updateOpts.Ipv6VipAddress = d.Get("ipv6_address").(string)
+	}
 	if d.HasChange("l4_flavor_id") {
 		updateOpts.L4Flavor = d.Get("l4_flavor_id").(string)
 	}
@@ -676,9 +806,16 @@ func buildUpdateLoadBalancerBodyParams(d *schema.ResourceData) loadbalancers.Upd
 			updateOpts.AutoScaling.MinL7Flavor = ""
 		}
 	} else if d.HasChange("min_l7_flavor_id") && d.Get("autoscaling_enabled").(bool) {
-		if autoscalingEnabled := d.Get("autoscaling_enabled").(bool); autoscalingEnabled {
-			updateOpts.AutoScaling.MinL7Flavor = d.Get("min_l7_flavor_id").(string)
-		}
+		updateOpts.AutoScaling.MinL7Flavor = d.Get("min_l7_flavor_id").(string)
+	}
+
+	if d.HasChange("waf_failure_action") {
+		updateOpts.WafFailureAction = d.Get("waf_failure_action").(string)
+	}
+
+	if d.HasChange("deletion_protection_enable") {
+		deletionProtectionEnable := d.Get("deletion_protection_enable").(bool)
+		updateOpts.DeletionProtectionEnable = &deletionProtectionEnable
 	}
 
 	log.Printf("[DEBUG] Updating LoadBalancer %s with options: %#v", d.Id(), updateOpts)
@@ -717,7 +854,7 @@ func updateLoadBalancer(ctx context.Context, d *schema.ResourceData, cfg *config
 		}
 		err = common.WaitOrderComplete(ctx, bssClient, resp.OrderID, d.Timeout(schema.TimeoutUpdate))
 		if err != nil {
-			return diag.Errorf("the order is not completed while updating ELB LoadBalancer (%s): %#v",
+			return diag.Errorf("the order is not completed while updating ELB LoadBalancer (%s): %v",
 				resp.LoadBalancerID, err)
 		}
 	} else {

@@ -24,6 +24,11 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// ResourceHostedConnect Due to insufficient test conditions, the current resource has not been tested and verified.
+// @API DC DELETE /v3/{project_id}/dcaas/hosted-connects/{id}
+// @API DC PUT /v3/{project_id}/dcaas/hosted-connects/{id}
+// @API DC GET /v3/{project_id}/dcaas/hosted-connects/{id}
+// @API DC POST /v3/{project_id}/dcaas/hosted-connects
 func ResourceHostedConnect() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceHostedConnectCreate,
@@ -146,13 +151,13 @@ func resourceHostedConnectCreate(ctx context.Context, d *schema.ResourceData, me
 func buildCreateHostedConnectBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
 		"hosted_connect": map[string]interface{}{
-			"name":               utils.ValueIngoreEmpty(d.Get("name")),
-			"description":        utils.ValueIngoreEmpty(d.Get("description")),
+			"name":               utils.ValueIgnoreEmpty(d.Get("name")),
+			"description":        utils.ValueIgnoreEmpty(d.Get("description")),
 			"bandwidth":          d.Get("bandwidth"),
 			"hosting_id":         d.Get("hosting_id"),
 			"vlan":               d.Get("vlan"),
 			"resource_tenant_id": d.Get("resource_tenant_id"),
-			"peer_location":      utils.ValueIngoreEmpty(d.Get("peer_location")),
+			"peer_location":      utils.ValueIgnoreEmpty(d.Get("peer_location")),
 		},
 	}
 	return bodyParams
@@ -323,10 +328,10 @@ func resourceHostedConnectUpdate(ctx context.Context, d *schema.ResourceData, me
 func buildUpdateHostedConnectBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
 		"hosted_connect": map[string]interface{}{
-			"name":          utils.ValueIngoreEmpty(d.Get("name")),
-			"description":   utils.ValueIngoreEmpty(d.Get("description")),
-			"bandwidth":     utils.ValueIngoreEmpty(d.Get("bandwidth")),
-			"peer_location": utils.ValueIngoreEmpty(d.Get("peer_location")),
+			"name":          utils.ValueIgnoreEmpty(d.Get("name")),
+			"description":   utils.ValueIgnoreEmpty(d.Get("description")),
+			"bandwidth":     utils.ValueIgnoreEmpty(d.Get("bandwidth")),
+			"peer_location": utils.ValueIgnoreEmpty(d.Get("peer_location")),
 		},
 	}
 	return bodyParams

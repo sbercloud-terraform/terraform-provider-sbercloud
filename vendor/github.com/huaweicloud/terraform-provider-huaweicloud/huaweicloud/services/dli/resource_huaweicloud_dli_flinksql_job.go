@@ -17,12 +17,24 @@ import (
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/common/tags"
 	"github.com/chnsz/golangsdk/openstack/dli/v1/flinkjob"
+	v3flinkjob "github.com/chnsz/golangsdk/openstack/dli/v3/flinkjob"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DLI POST /v1.0/{project_id}/dli/obs-authorize
+// @API DLI POST /v1.0/{project_id}/streaming/sql-jobs
+// @API DLI POST /v1.0/{project_id}/streaming/jobs/run
+// @API DLI GET /v1.0/{project_id}/streaming/jobs/{job_id}
+// @API DLI PUT /v1.0/{project_id}/streaming/sql-jobs/{job_id}
+// @API DLI POST /v1.0/{project_id}/streaming/jobs/stop
+// @API DLI DELETE /v1.0/{project_id}/streaming/jobs/{job_id}
+// @API DLI GET /v3/{project_id}/dli_flink_job/{resource_id}/tags
+// @API DLI POST /v3/{project_id}/dli_flink_job/{resource_id}/tags/create
+// @API DLI POST /v3/{project_id}/dli_flink_job/{resource_id}/tags/delete
+// @API DLI POST /v3/{project_id}/streaming/jobs/{job_id}/gen-graph
 func ResourceFlinkSqlJob() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceFlinkSqlJobCreate,
@@ -45,7 +57,6 @@ func ResourceFlinkSqlJob() *schema.Resource {
 				Required:     true,
 				ValidateFunc: validation.StringLenBetween(1, 57),
 			},
-
 			"type": {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -188,9 +199,32 @@ func ResourceFlinkSqlJob() *schema.Resource {
 
 			"runtime_config": common.TagsSchema(),
 
-			"tags": common.TagsForceNewSchema(),
-
+			"tags": common.TagsSchema(),
+			"flink_version": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+			"graph_type": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+			"operator_config": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+			"static_estimator": {
+				Type:     schema.TypeBool,
+				Optional: true,
+			},
+			"static_estimator_config": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
 			"status": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"stream_graph": {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
@@ -218,6 +252,7 @@ func resourceFlinkSqlJobCreate(ctx context.Context, d *schema.ResourceData, meta
 
 	opts := flinkjob.CreateSqlJobOpts{
 		Name:                 d.Get("name").(string),
+		FlinkVersion:         d.Get("flink_version").(string),
 		JobType:              d.Get("type").(string),
 		RunMode:              d.Get("run_mode").(string),
 		Desc:                 d.Get("description").(string),
@@ -239,7 +274,6 @@ func resourceFlinkSqlJobCreate(ctx context.Context, d *schema.ResourceData, meta
 		TmSlotNum:            golangsdk.IntToPointer(d.Get("tm_slot_num").(int)),
 		ResumeCheckpoint:     utils.Bool(d.Get("resume_checkpoint").(bool)),
 		ResumeMaxNum:         golangsdk.IntToPointer(d.Get("resume_max_num").(int)),
-		Tags:                 utils.ExpandResourceTags(d.Get("tags").(map[string]interface{})),
 	}
 
 	if mode := d.Get("checkpoint_mode").(string); mode == flinkjob.CheckpointModeAtLeastOnce {
@@ -273,22 +307,67 @@ func resourceFlinkSqlJobCreate(ctx context.Context, d *schema.ResourceData, meta
 		return diag.Errorf("error creating DLI flink job: %s", rst.Message)
 	}
 
-	d.SetId(strconv.Itoa(rst.Job.JobId))
+	jobId := rst.Job.JobId
+	d.SetId(strconv.Itoa(jobId))
 
+	if err = addTagsToResource(config, region, d); err != nil {
+		return diag.FromErr(err)
+	}
+
+	operatorConfig, hasOperatorConfig := d.GetOk("operator_config")
+	staticEstimatorConfig, hasStaticEstimatorConfig := d.GetOk("static_estimator_config")
+	if hasOperatorConfig || hasStaticEstimatorConfig {
+		err = updateJobConfig(client, jobId, operatorConfig.(string), staticEstimatorConfig.(string))
+		if err != nil {
+			return diag.Errorf("error updating DLI flink job (%d): %s", jobId, err)
+		}
+	}
 	// run the flink job
 	_, err = flinkjob.Run(client, flinkjob.RunJobOpts{
-		JobIds:          []int{rst.Job.JobId},
+		JobIds:          []int{jobId},
 		ResumeSavepoint: utils.Bool(false),
 	})
 	if err != nil {
 		return diag.Errorf("error run DLI flink job: %s", err)
 	}
 
-	err = checkFlinkJobRunResult(ctx, client, rst.Job.JobId, d.Timeout(schema.TimeoutCreate))
+	err = checkFlinkJobRunResult(ctx, client, jobId, d.Timeout(schema.TimeoutCreate))
 	if err != nil {
 		return diag.FromErr(err)
 	}
 	return resourceFlinkSqlJobRead(ctx, d, meta)
+}
+
+func updateJobConfig(client *golangsdk.ServiceClient, jobId int, operatorConfig, staticEstimatorConfig string) error {
+	opts := flinkjob.UpdateSqlJobOpts{
+		OperatorConfig:        operatorConfig,
+		StaticEstimatorConfig: staticEstimatorConfig,
+	}
+	resp, err := flinkjob.UpdateSqlJob(client, jobId, opts)
+	if err != nil {
+		return err
+	}
+
+	if !resp.IsSuccess {
+		return fmt.Errorf(resp.Message)
+	}
+	return nil
+}
+
+func addTagsToResource(cfg *config.Config, region string, d *schema.ResourceData) error {
+	if raw, ok := d.GetOk("tags"); ok {
+		v3Client, err := cfg.DliV3Client(region)
+		if err != nil {
+			return fmt.Errorf("error creating DLI v3 client: %s", err)
+		}
+
+		id := d.Id()
+		if err := addTags(v3Client, id, "dli_flink_job", raw.(map[string]interface{})); err != nil {
+			return fmt.Errorf("error setting tags of the flink job (%s): %s", id, err)
+		}
+	}
+
+	return nil
 }
 
 func resourceFlinkSqlJobRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -300,7 +379,7 @@ func resourceFlinkSqlJobRead(ctx context.Context, d *schema.ResourceData, meta i
 	}
 	id, aErr := strconv.Atoi(d.Id())
 	if aErr != nil {
-		return diag.Errorf("the DLI flink job_id must be number. actual id=%s", d.Id())
+		return diag.Errorf("the DLI flink job_id must be number, but the actual ID is '%s'", d.Id())
 	}
 
 	detailRsp, err := flinkjob.Get(client, id)
@@ -314,6 +393,7 @@ func resourceFlinkSqlJobRead(ctx context.Context, d *schema.ResourceData, meta i
 	detail := detailRsp.JobDetail
 	mErr := multierror.Append(
 		d.Set("name", detail.Name),
+		d.Set("flink_version", detail.JobConfig.FlinkVersion),
 		d.Set("type", detail.JobType),
 		d.Set("run_mode", detail.RunMode),
 		d.Set("description", detail.Desc),
@@ -338,10 +418,65 @@ func resourceFlinkSqlJobRead(ctx context.Context, d *schema.ResourceData, meta i
 		d.Set("resume_checkpoint", detail.JobConfig.ResumeCheckpoint),
 		d.Set("resume_max_num", detail.JobConfig.ResumeMaxNum),
 		setRuntimeConfigToState(d, detail.JobConfig.RuntimeConfig),
+		d.Set("operator_config", detail.JobConfig.OperatorConfig),
+		d.Set("static_estimator_config", detail.JobConfig.StaticEstimatorConfig),
 		d.Set("status", detail.Status),
 	)
 
+	if err = setTagsToResource(config, region, d); err != nil {
+		return diag.FromErr(err)
+	}
+
+	_, ok := d.GetOk("graph_type")
+	if d.Get("type").(string) == flinkjob.JobTypeFlinkOpenSourceSql && ok {
+		v3Client, err := config.DliV3Client(region)
+		if err != nil {
+			return diag.Errorf("error creating DLI v3 client: %s", err)
+		}
+
+		jobId := d.Id()
+		streamGraph, err := getSteramGraphById(v3Client, d, jobId)
+		if err != nil {
+			return diag.Errorf("error getting stream graph of flink sql (%s): %s", jobId, err)
+		}
+		mErr = multierror.Append(mErr, d.Set("stream_graph", streamGraph))
+	}
 	return diag.FromErr(mErr.ErrorOrNil())
+}
+
+func setTagsToResource(cfg *config.Config, region string, d *schema.ResourceData) error {
+	v3Client, err := cfg.DliV3Client(region)
+	if err != nil {
+		return fmt.Errorf("error creating DLI v3 client: %s", err)
+	}
+
+	return utils.SetResourceTagsToState(d, v3Client, "dli_flink_job", d.Id())
+}
+
+func getSteramGraphById(client *golangsdk.ServiceClient, d *schema.ResourceData, jobId string) (string, error) {
+	opts := v3flinkjob.StreamGraphOpts{
+		JobId:                 jobId,
+		SqlBody:               d.Get("sql").(string),
+		FlinkVersion:          d.Get("flink_version").(string),
+		CuNumber:              utils.Int(d.Get("cu_number").(int)),
+		ManagerCuNumber:       utils.Int(d.Get("manager_cu_number").(int)),
+		JobType:               flinkjob.JobTypeFlinkOpenSourceSql,
+		GraphType:             d.Get("graph_type").(string),
+		ParallelNumber:        utils.Int(d.Get("parallel_number").(int)),
+		TmCus:                 utils.Int(d.Get("tm_cus").(int)),
+		TmSlotNum:             utils.Int(d.Get("tm_slot_num").(int)),
+		OperatorConfig:        d.Get("operator_config").(string),
+		StaticEstimator:       utils.Bool(d.Get("static_estimator").(bool)),
+		StaticEstimatorConfig: d.Get("static_estimator_config").(string),
+	}
+	resp, err := v3flinkjob.CreateFlinkSqlJobGraph(client, opts)
+	if err != nil {
+		return "", err
+	}
+	if !resp.IsSuccess {
+		return "", fmt.Errorf(resp.Message)
+	}
+	return resp.StreamGraph, nil
 }
 
 // This API is used to cancel a submitted job. If execution of a job completes or fails, this job cannot be canceled.
@@ -355,7 +490,7 @@ func resourceFlinkSqlJobDelete(ctx context.Context, d *schema.ResourceData, meta
 
 	jobId, err := strconv.Atoi(d.Id())
 	if err != nil {
-		return diag.Errorf("the DLI flink job_id must be number. actual id=%s", d.Id())
+		return diag.Errorf("the DLI flink job_id must be number, but the actual ID is '%s'", d.Id())
 	}
 
 	deleteRst, err := flinkjob.Delete(client, jobId)
@@ -363,44 +498,68 @@ func resourceFlinkSqlJobDelete(ctx context.Context, d *schema.ResourceData, meta
 		return diag.Errorf("delete DLI flink job failed. %q:%s", jobId, err)
 	}
 	if deleteRst != nil && !deleteRst.IsSuccess {
-		return diag.Errorf("delete DLI flink job failed. %q", jobId)
+		return diag.Errorf("delete DLI flink job (%d) failed: %s", jobId, deleteRst.Message)
 	}
 
+	return nil
+}
+
+func updateTagsToResource(cfg *config.Config, region string, d *schema.ResourceData) error {
+	if d.HasChange("tags") {
+		v3Client, err := cfg.DliV3Client(region)
+		if err != nil {
+			return fmt.Errorf("error creating DLI v3 client: %s", err)
+		}
+
+		id := d.Id()
+		oldTags, newTags := d.GetChange("tags")
+		err = updateResourceTags(v3Client, id, "dli_flink_job", oldTags, newTags)
+		if err != nil {
+			return fmt.Errorf("error updating tags of the flink job (%s): %s", id, err)
+		}
+	}
 	return nil
 }
 
 func resourceFlinkSqlJobUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := meta.(*config.Config)
 	region := config.GetRegion(d)
-	client, err := config.DliV1Client(region)
-	if err != nil {
-		return diag.Errorf("error creating DLI v1 client, err=%s", err)
-	}
-
-	jobId, err := strconv.Atoi(d.Id())
-	if err != nil {
-		return diag.Errorf("the DLI flink job_id must be number. actual id=%s", d.Id())
-	}
-
-	diagErr := authorizeObsBucket(client, d)
-	if diagErr != nil {
-		return diagErr
-	}
-
-	diagErr = updateFlinkSqlJobInRunning(client, jobId, d)
-	if diagErr != nil {
-		return diagErr
-	}
-
-	diagErr = updateFlinkSqlJobWithStop(ctx, client, jobId, d)
-	if diagErr != nil {
-		return diagErr
-	}
-
-	err = checkFlinkJobRunResult(ctx, client, jobId, d.Timeout(schema.TimeoutUpdate))
-	if err != nil {
+	if err := updateTagsToResource(config, region, d); err != nil {
 		return diag.FromErr(err)
 	}
+
+	if d.HasChangesExcept("tags", "graph_type") {
+		client, err := config.DliV1Client(region)
+		if err != nil {
+			return diag.Errorf("error creating DLI v1 client, err=%s", err)
+		}
+
+		jobId, err := strconv.Atoi(d.Id())
+		if err != nil {
+			return diag.Errorf("the DLI flink job_id must be number, but the actual ID is '%s'", d.Id())
+		}
+
+		diagErr := authorizeObsBucket(client, d)
+		if diagErr != nil {
+			return diagErr
+		}
+
+		diagErr = updateFlinkSqlJobInRunning(client, jobId, d)
+		if diagErr != nil {
+			return diagErr
+		}
+
+		diagErr = updateFlinkSqlJobWithStop(ctx, client, jobId, d)
+		if diagErr != nil {
+			return diagErr
+		}
+
+		err = checkFlinkJobRunResult(ctx, client, jobId, d.Timeout(schema.TimeoutUpdate))
+		if err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
 	return resourceFlinkSqlJobRead(ctx, d, meta)
 }
 
@@ -496,7 +655,7 @@ func authorizeObsBucket(client *golangsdk.ServiceClient, d *schema.ResourceData)
 		}
 
 		if rst != nil && !rst.IsSuccess {
-			return diag.Errorf("DLI Authorization on the following OBS buckets failed= %s", value)
+			return diag.Errorf("DLI Authorization on the following OBS buckets failed: %s", rst.Message)
 		}
 	}
 
@@ -507,7 +666,6 @@ func authorizeObsBucket(client *golangsdk.ServiceClient, d *schema.ResourceData)
 // jobs/savepoint/{job_id}/{yyyy-mm-dd_hH-mm-ss}/.
 func updateFlinkSqlJobWithStop(ctx context.Context, client *golangsdk.ServiceClient, jobId int,
 	d *schema.ResourceData) diag.Diagnostics {
-
 	if d.HasChangesExcept("smn_topic", "restart_when_exception", "resume_checkpoint", "resume_max_num", "obs_bucket") {
 		// 1. stop the job
 		_, err := flinkjob.Stop(client, flinkjob.StopFlinkJobInBatch{
@@ -526,22 +684,25 @@ func updateFlinkSqlJobWithStop(ctx context.Context, client *golangsdk.ServiceCli
 
 		// 2. update job
 		opts := flinkjob.UpdateSqlJobOpts{
-			Name:               d.Get("name").(string),
-			RunMode:            d.Get("run_mode").(string),
-			Desc:               d.Get("description").(string),
-			QueueName:          d.Get("queue_name").(string),
-			SqlBody:            d.Get("sql").(string),
-			CuNumber:           golangsdk.IntToPointer(d.Get("cu_number").(int)),
-			ParallelNumber:     golangsdk.IntToPointer(d.Get("parallel_number").(int)),
-			CheckpointEnabled:  utils.Bool(d.Get("checkpoint_enabled").(bool)),
-			CheckpointInterval: golangsdk.IntToPointer(d.Get("checkpoint_interval").(int)),
-			LogEnabled:         utils.Bool(d.Get("log_enabled").(bool)),
-			IdleStateRetention: golangsdk.IntToPointer(d.Get("idle_state_retention").(int)),
-			DirtyDataStrategy:  d.Get("dirty_data_strategy").(string),
-			UdfJarUrl:          d.Get("udf_jar_url").(string),
-			ManagerCuNumber:    golangsdk.IntToPointer(d.Get("manager_cu_number").(int)),
-			TmCus:              golangsdk.IntToPointer(d.Get("tm_cus").(int)),
-			TmSlotNum:          golangsdk.IntToPointer(d.Get("tm_slot_num").(int)),
+			Name:                  d.Get("name").(string),
+			RunMode:               d.Get("run_mode").(string),
+			Desc:                  d.Get("description").(string),
+			QueueName:             d.Get("queue_name").(string),
+			SqlBody:               d.Get("sql").(string),
+			CuNumber:              golangsdk.IntToPointer(d.Get("cu_number").(int)),
+			ParallelNumber:        golangsdk.IntToPointer(d.Get("parallel_number").(int)),
+			CheckpointEnabled:     utils.Bool(d.Get("checkpoint_enabled").(bool)),
+			CheckpointInterval:    golangsdk.IntToPointer(d.Get("checkpoint_interval").(int)),
+			LogEnabled:            utils.Bool(d.Get("log_enabled").(bool)),
+			IdleStateRetention:    golangsdk.IntToPointer(d.Get("idle_state_retention").(int)),
+			DirtyDataStrategy:     d.Get("dirty_data_strategy").(string),
+			UdfJarUrl:             d.Get("udf_jar_url").(string),
+			ManagerCuNumber:       golangsdk.IntToPointer(d.Get("manager_cu_number").(int)),
+			TmCus:                 golangsdk.IntToPointer(d.Get("tm_cus").(int)),
+			TmSlotNum:             golangsdk.IntToPointer(d.Get("tm_slot_num").(int)),
+			FlinkVersion:          d.Get("flink_version").(string),
+			OperatorConfig:        d.Get("operator_config").(string),
+			StaticEstimatorConfig: d.Get("static_estimator_config").(string),
 		}
 
 		if runtimConfig, ok := d.GetOk("runtime_config"); ok {

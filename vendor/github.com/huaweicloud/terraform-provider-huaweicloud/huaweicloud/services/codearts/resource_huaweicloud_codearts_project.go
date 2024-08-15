@@ -22,6 +22,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API CodeArts POST /v4/project
+// @API CodeArts PUT /v4/projects/{id}
+// @API CodeArts GET /v4/projects/{id}
+// @API CodeArts DELETE /v4/projects/{id}
 func ResourceProject() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceProjectCreate,
@@ -144,12 +148,12 @@ func resourceProjectCreate(ctx context.Context, d *schema.ResourceData, meta int
 
 func buildCreateProjectBodyParams(d *schema.ResourceData, cfg *config.Config) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"project_name":  utils.ValueIngoreEmpty(d.Get("name")),
-		"description":   utils.ValueIngoreEmpty(d.Get("description")),
-		"enterprise_id": utils.ValueIngoreEmpty(common.GetEnterpriseProjectID(d, cfg)),
-		"project_type":  utils.ValueIngoreEmpty(d.Get("type")),
-		"source":        utils.ValueIngoreEmpty(d.Get("source")),
-		"template_id":   utils.ValueIngoreEmpty(d.Get("template_id")),
+		"project_name":  utils.ValueIgnoreEmpty(d.Get("name")),
+		"description":   utils.ValueIgnoreEmpty(d.Get("description")),
+		"enterprise_id": utils.ValueIgnoreEmpty(common.GetEnterpriseProjectID(d, cfg)),
+		"project_type":  utils.ValueIgnoreEmpty(d.Get("type")),
+		"source":        utils.ValueIgnoreEmpty(d.Get("source")),
+		"template_id":   utils.ValueIgnoreEmpty(d.Get("template_id")),
 	}
 	return bodyParams
 }
@@ -244,8 +248,8 @@ func resourceProjectUpdate(ctx context.Context, d *schema.ResourceData, meta int
 
 func buildUpdateProjectBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"project_name": utils.ValueIngoreEmpty(d.Get("name")),
-		"description":  utils.ValueIngoreEmpty(d.Get("description")),
+		"project_name": utils.ValueIgnoreEmpty(d.Get("name")),
+		"description":  utils.ValueIgnoreEmpty(d.Get("description")),
 	}
 	return bodyParams
 }

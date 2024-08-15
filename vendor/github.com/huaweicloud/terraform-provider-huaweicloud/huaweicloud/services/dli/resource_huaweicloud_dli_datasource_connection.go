@@ -24,6 +24,14 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DLI POST /v2.0/{project_id}/datasource/enhanced-connections
+// @API DLI POST /v2.0/{project_id}/datasource/enhanced-connections/{id}/routes
+// @API DLI GET /v2.0/{project_id}/datasource/enhanced-connections/{id}
+// @API DLI PUT /v2.0/{project_id}/datasource/enhanced-connections/{id}
+// @API DLI POST /v2.0/{project_id}/datasource/enhanced-connections/{id}/associate-queue
+// @API DLI POST /v2.0/{project_id}/datasource/enhanced-connections/{id}/disassociate-queue
+// @API DLI DELETE /v2.0/{project_id}/datasource/enhanced-connections/{id}/routes/{name}
+// @API DLI DELETE /v2.0/{project_id}/datasource/enhanced-connections/{id}
 func ResourceDatasourceConnection() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDatasourceConnectionCreate,
@@ -178,6 +186,10 @@ func resourceDatasourceConnectionCreate(ctx context.Context, d *schema.ResourceD
 	if err != nil {
 		return diag.FromErr(err)
 	}
+	if !utils.PathSearch("is_success", createDatasourceConnectionRespBody, true).(bool) {
+		return diag.Errorf("unable to create the enhanced connection: %s",
+			utils.PathSearch("message", createDatasourceConnectionRespBody, "Message Not Found"))
+	}
 
 	id, err := jmespath.Search("connection_id", createDatasourceConnectionRespBody)
 	if err != nil {
@@ -198,10 +210,10 @@ func resourceDatasourceConnectionCreate(ctx context.Context, d *schema.ResourceD
 
 func buildCreateDatasourceConnectionBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":            utils.ValueIngoreEmpty(d.Get("name")),
-		"dest_vpc_id":     utils.ValueIngoreEmpty(d.Get("vpc_id")),
-		"dest_network_id": utils.ValueIngoreEmpty(d.Get("subnet_id")),
-		"routetable_id":   utils.ValueIngoreEmpty(d.Get("route_table_id")),
+		"name":            utils.ValueIgnoreEmpty(d.Get("name")),
+		"dest_vpc_id":     utils.ValueIgnoreEmpty(d.Get("vpc_id")),
+		"dest_network_id": utils.ValueIgnoreEmpty(d.Get("subnet_id")),
+		"routetable_id":   utils.ValueIgnoreEmpty(d.Get("route_table_id")),
 		"queues":          d.Get("queues").(*schema.Set).List(),
 		"hosts":           buildCreateDatasourceConnectionRequestBodyHost(d.Get("hosts")),
 		"tags":            utils.ExpandResourceTags(d.Get("tags").(map[string]interface{})),
@@ -219,13 +231,32 @@ func buildCreateDatasourceConnectionRequestBodyHost(rawParams interface{}) []map
 		for i, v := range rawArray {
 			raw := v.(map[string]interface{})
 			rst[i] = map[string]interface{}{
-				"name": utils.ValueIngoreEmpty(raw["name"]),
-				"ip":   utils.ValueIngoreEmpty(raw["ip"]),
+				"name": utils.ValueIgnoreEmpty(raw["name"]),
+				"ip":   utils.ValueIgnoreEmpty(raw["ip"]),
 			}
 		}
 		return rst
 	}
 	return nil
+}
+
+func getConnectionById(client *golangsdk.ServiceClient, connectionId string) (interface{}, error) {
+	var (
+		httpUrl = "v2.0/{project_id}/datasource/enhanced-connections/{connection_id}"
+	)
+
+	getPath := client.Endpoint + httpUrl
+	getPath = strings.ReplaceAll(getPath, "{project_id}", client.ProjectID)
+	getPath = strings.ReplaceAll(getPath, "{connection_id}", connectionId)
+	getOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+	}
+
+	requestResp, err := client.Request("GET", getPath, &getOpt)
+	if err != nil {
+		return nil, err
+	}
+	return utils.FlattenResponse(requestResp)
 }
 
 func resourceDatasourceConnectionRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -234,35 +265,18 @@ func resourceDatasourceConnectionRead(_ context.Context, d *schema.ResourceData,
 
 	var mErr *multierror.Error
 
-	// getDatasourceConnection: Query the DLI instance
-	var (
-		getDatasourceConnectionHttpUrl = "v2.0/{project_id}/datasource/enhanced-connections/{id}"
-		getDatasourceConnectionProduct = "dli"
-	)
-	getDatasourceConnectionClient, err := cfg.NewServiceClient(getDatasourceConnectionProduct, region)
+	getDatasourceConnectionClient, err := cfg.NewServiceClient("dli", region)
 	if err != nil {
 		return diag.Errorf("error creating DLI Client: %s", err)
 	}
 
-	getDatasourceConnectionPath := getDatasourceConnectionClient.Endpoint + getDatasourceConnectionHttpUrl
-	getDatasourceConnectionPath = strings.ReplaceAll(getDatasourceConnectionPath, "{project_id}", getDatasourceConnectionClient.ProjectID)
-	getDatasourceConnectionPath = strings.ReplaceAll(getDatasourceConnectionPath, "{id}", d.Id())
-
-	getDatasourceConnectionOpt := golangsdk.RequestOpts{
-		KeepResponseBody: true,
-		OkCodes: []int{
-			200,
-		},
-	}
-	getDatasourceConnectionResp, err := getDatasourceConnectionClient.Request("GET", getDatasourceConnectionPath, &getDatasourceConnectionOpt)
-
+	getDatasourceConnectionRespBody, err := getConnectionById(getDatasourceConnectionClient, d.Id())
 	if err != nil {
 		return common.CheckDeletedDiag(d, err, "error retrieving DatasourceConnection")
 	}
-
-	getDatasourceConnectionRespBody, err := utils.FlattenResponse(getDatasourceConnectionResp)
-	if err != nil {
-		return diag.FromErr(err)
+	if !utils.PathSearch("is_success", getDatasourceConnectionRespBody, true).(bool) {
+		return diag.Errorf("unable to query the enhanced connection: %s",
+			utils.PathSearch("message", getDatasourceConnectionRespBody, "Message Not Found"))
 	}
 
 	if utils.PathSearch("status", getDatasourceConnectionRespBody, "") == "DELETED" {
@@ -347,9 +361,17 @@ func resourceDatasourceConnectionUpdate(ctx context.Context, d *schema.ResourceD
 			},
 		}
 		updateDatasourceConnectionHostsOpt.JSONBody = utils.RemoveNil(buildUpdateDatasourceConnectionHostsBodyParams(d, cfg))
-		_, err = updateDatasourceConnectionHostsClient.Request("PUT", updateDatasourceConnectionHostsPath, &updateDatasourceConnectionHostsOpt)
+		resp, err := updateDatasourceConnectionHostsClient.Request("PUT", updateDatasourceConnectionHostsPath, &updateDatasourceConnectionHostsOpt)
 		if err != nil {
 			return diag.Errorf("error updating DatasourceConnection: %s", err)
+		}
+		respBody, err := utils.FlattenResponse(resp)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		if !utils.PathSearch("is_success", respBody, true).(bool) {
+			return diag.Errorf("unable to update the hosts configuration: %s",
+				utils.PathSearch("message", respBody, "Message Not Found"))
 		}
 	}
 
@@ -385,10 +407,18 @@ func resourceDatasourceConnectionUpdate(ctx context.Context, d *schema.ResourceD
 				},
 			}
 			updateDatasourceConnectionQueuesOpt.JSONBody = buildDatasourceConnectionQueuesBodyParams(addRaws)
-			_, err = updateDatasourceConnectionQueuesClient.Request("POST", updateDatasourceConnectionQueuesPath,
+			requestResp, err := updateDatasourceConnectionQueuesClient.Request("POST", updateDatasourceConnectionQueuesPath,
 				&updateDatasourceConnectionQueuesOpt)
 			if err != nil {
 				return diag.Errorf("error updating DatasourceConnection: %s", err)
+			}
+			respBody, err := utils.FlattenResponse(requestResp)
+			if err != nil {
+				return diag.FromErr(err)
+			}
+			if !utils.PathSearch("is_success", respBody, true).(bool) {
+				return diag.Errorf("unable to associate the queues: %s",
+					utils.PathSearch("message", respBody, "Message Not Found"))
 			}
 		}
 
@@ -414,10 +444,18 @@ func resourceDatasourceConnectionUpdate(ctx context.Context, d *schema.ResourceD
 				},
 			}
 			deleteDatasourceConnectionQueuesOpt.JSONBody = buildDatasourceConnectionQueuesBodyParams(delRaws)
-			_, err = deleteDatasourceConnectionQueuesClient.Request("POST", deleteDatasourceConnectionQueuesPath,
+			requestResp, err := deleteDatasourceConnectionQueuesClient.Request("POST", deleteDatasourceConnectionQueuesPath,
 				&deleteDatasourceConnectionQueuesOpt)
 			if err != nil {
 				return diag.Errorf("error updating DatasourceConnection: %s", err)
+			}
+			respBody, err := utils.FlattenResponse(requestResp)
+			if err != nil {
+				return diag.FromErr(err)
+			}
+			if !utils.PathSearch("is_success", respBody, true).(bool) {
+				return diag.Errorf("unable to disassociate the queues: %s",
+					utils.PathSearch("message", respBody, "Message Not Found"))
 			}
 		}
 	}
@@ -472,9 +510,17 @@ func addRoutes(connectionRouteClient *golangsdk.ServiceClient, id string, addRaw
 
 	for _, params := range addRaws.List() {
 		addConnectionRouteOpt.JSONBody = params
-		_, err := connectionRouteClient.Request("POST", addConnectionRoutePath, &addConnectionRouteOpt)
+		requestResp, err := connectionRouteClient.Request("POST", addConnectionRoutePath, &addConnectionRouteOpt)
 		if err != nil {
 			return err
+		}
+		respBody, err := utils.FlattenResponse(requestResp)
+		if err != nil {
+			return err
+		}
+		if !utils.PathSearch("is_success", respBody, true).(bool) {
+			return fmt.Errorf("unable to add the routes: %s",
+				utils.PathSearch("message", respBody, "Message Not Found"))
 		}
 	}
 	return nil
@@ -498,10 +544,18 @@ func removeRoutes(connectionRouteClient *golangsdk.ServiceClient, id string, raw
 				200,
 			},
 		}
-		_, err := connectionRouteClient.Request("DELETE", removeDatasourceConnectionRoutesPath,
+		requestResp, err := connectionRouteClient.Request("DELETE", removeDatasourceConnectionRoutesPath,
 			&removeDatasourceConnectionRoutesOpt)
 		if err != nil {
 			return err
+		}
+		respBody, err := utils.FlattenResponse(requestResp)
+		if err != nil {
+			return err
+		}
+		if !utils.PathSearch("is_success", respBody, true).(bool) {
+			return fmt.Errorf("unable to remove the routes: %s",
+				utils.PathSearch("message", respBody, "Message Not Found"))
 		}
 	}
 	return nil
@@ -531,8 +585,8 @@ func buildUpdateDatasourceConnectionHostsRequestBodyHost(rawParams interface{}) 
 		for i, v := range rawArray {
 			raw := v.(map[string]interface{})
 			rst[i] = map[string]interface{}{
-				"name": utils.ValueIngoreEmpty(raw["name"]),
-				"ip":   utils.ValueIngoreEmpty(raw["ip"]),
+				"name": utils.ValueIgnoreEmpty(raw["name"]),
+				"ip":   utils.ValueIgnoreEmpty(raw["ip"]),
 			}
 		}
 		return rst
@@ -563,9 +617,17 @@ func resourceDatasourceConnectionDelete(_ context.Context, d *schema.ResourceDat
 			200,
 		},
 	}
-	_, err = deleteDatasourceConnectionClient.Request("DELETE", deleteDatasourceConnectionPath, &deleteDatasourceConnectionOpt)
+	requestResp, err := deleteDatasourceConnectionClient.Request("DELETE", deleteDatasourceConnectionPath, &deleteDatasourceConnectionOpt)
 	if err != nil {
 		return diag.Errorf("error deleting DatasourceConnection: %s", err)
+	}
+	respBody, err := utils.FlattenResponse(requestResp)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	if !utils.PathSearch("is_success", respBody, true).(bool) {
+		return diag.Errorf("unable to delete the enhanced connection: %s",
+			utils.PathSearch("message", respBody, "Message Not Found"))
 	}
 
 	return nil

@@ -10,7 +10,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/elb/v3/pools"
@@ -19,6 +18,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
+// @API ELB POST /v3/{project_id}/elb/pools
+// @API ELB GET /v3/{project_id}/elb/pools/{pool_id}
+// @API ELB PUT /v3/{project_id}/elb/pools/{pool_id}
+// @API ELB DELETE /v3/{project_id}/elb/pools/{pool_id}
 func ResourcePoolV3() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourcePoolV3Create,
@@ -46,9 +49,6 @@ func ResourcePoolV3() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
-				ValidateFunc: validation.StringInSlice([]string{
-					"TCP", "UDP", "HTTP", "HTTPS", "QUIC",
-				}, false),
 			},
 			"loadbalancer_id": {
 				Type:         schema.TypeString,
@@ -73,33 +73,24 @@ func ResourcePoolV3() *schema.Resource {
 			"lb_method": {
 				Type:     schema.TypeString,
 				Required: true,
-				ValidateFunc: validation.StringInSlice([]string{
-					"ROUND_ROBIN", "LEAST_CONNECTIONS", "SOURCE_IP", "QUIC_CID",
-				}, false),
 			},
 			"persistence": {
 				Type:     schema.TypeList,
 				Optional: true,
-				ForceNew: true,
+				MaxItems: 1,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"type": {
 							Type:     schema.TypeString,
 							Required: true,
-							ForceNew: true,
-							ValidateFunc: validation.StringInSlice([]string{
-								"SOURCE_IP", "HTTP_COOKIE", "APP_COOKIE",
-							}, false),
 						},
 						"cookie_name": {
 							Type:     schema.TypeString,
 							Optional: true,
-							ForceNew: true,
 						},
 						"timeout": {
 							Type:     schema.TypeInt,
 							Optional: true,
-							ForceNew: true,
 							Computed: true,
 						},
 					},
@@ -140,6 +131,46 @@ func ResourcePoolV3() *schema.Resource {
 			},
 			"ip_version": {
 				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
+			"any_port_enable": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
+			"deletion_protection_enable": {
+				Type:     schema.TypeBool,
+				Optional: true,
+			},
+			"connection_drain_enabled": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Computed: true,
+			},
+			"connection_drain_timeout": {
+				Type:         schema.TypeInt,
+				Optional:     true,
+				Computed:     true,
+				RequiredWith: []string{"connection_drain_enabled"},
+			},
+			"minimum_healthy_member_count": {
+				Type:     schema.TypeInt,
+				Optional: true,
+				Computed: true,
+			},
+			"monitor_id": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"updated_at": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"created_at": {
+				Type:     schema.TypeString,
 				Computed: true,
 			},
 		},
@@ -161,23 +192,41 @@ func resourcePoolV3Create(ctx context.Context, d *schema.ResourceData, meta inte
 		}
 	}
 
+	anyPortEnable := d.Get("any_port_enable").(bool)
+	deletionProtectionEnable := d.Get("deletion_protection_enable").(bool)
 	createOpts := pools.CreateOpts{
-		Name:             d.Get("name").(string),
-		Description:      d.Get("description").(string),
-		Protocol:         d.Get("protocol").(string),
-		LoadbalancerID:   d.Get("loadbalancer_id").(string),
-		ListenerID:       d.Get("listener_id").(string),
-		LBMethod:         d.Get("lb_method").(string),
-		ProtectionStatus: d.Get("protection_status").(string),
-		ProtectionReason: d.Get("protection_reason").(string),
-		Type:             d.Get("type").(string),
-		VpcId:            d.Get("vpc_id").(string),
+		Name:                     d.Get("name").(string),
+		Description:              d.Get("description").(string),
+		Protocol:                 d.Get("protocol").(string),
+		LoadbalancerID:           d.Get("loadbalancer_id").(string),
+		ListenerID:               d.Get("listener_id").(string),
+		LBMethod:                 d.Get("lb_method").(string),
+		ProtectionStatus:         d.Get("protection_status").(string),
+		ProtectionReason:         d.Get("protection_reason").(string),
+		Type:                     d.Get("type").(string),
+		VpcId:                    d.Get("vpc_id").(string),
+		IpVersion:                d.Get("ip_version").(string),
+		AnyPortEnable:            &anyPortEnable,
+		DeletionProtectionEnable: &deletionProtectionEnable,
 	}
 
 	if v, ok := d.GetOk("slow_start_enabled"); ok {
 		createOpts.SlowStart = &pools.SlowStart{
 			Enable:   v.(bool),
 			Duration: d.Get("slow_start_duration").(int),
+		}
+	}
+
+	if v, ok := d.GetOk("connection_drain_enabled"); ok {
+		createOpts.ConnectionDrain = &pools.ConnectionDrain{
+			Enable:  v.(bool),
+			Timeout: d.Get("connection_drain_timeout").(int),
+		}
+	}
+
+	if v, ok := d.GetOk("minimum_healthy_member_count"); ok {
+		createOpts.PoolHealth = &pools.PoolHealth{
+			MinimumHealthyMemberCount: v.(int),
 		}
 	}
 
@@ -230,7 +279,15 @@ func resourcePoolV3Read(_ context.Context, d *schema.ResourceData, meta interfac
 		d.Set("protection_reason", pool.ProtectionReason),
 		d.Set("slow_start_enabled", pool.SlowStart.Enable),
 		d.Set("slow_start_duration", pool.SlowStart.Duration),
+		d.Set("connection_drain_enabled", pool.ConnectionDrain.Enable),
+		d.Set("connection_drain_timeout", pool.ConnectionDrain.Timeout),
+		d.Set("minimum_healthy_member_count", pool.PoolHealth.MinimumHealthyMemberCount),
 		d.Set("ip_version", pool.IpVersion),
+		d.Set("any_port_enable", pool.AnyPortEnable),
+		d.Set("deletion_protection_enable", d.Get("deletion_protection_enable").(bool)),
+		d.Set("monitor_id", pool.MonitorID),
+		d.Set("created_at", pool.CreatedAt),
+		d.Set("updated_at", pool.UpdatedAt),
 	)
 
 	if len(pool.Loadbalancers) != 0 {
@@ -278,9 +335,12 @@ func resourcePoolV3Update(ctx context.Context, d *schema.ResourceData, meta inte
 		updateOpts.Description = &description
 	}
 	if d.HasChange("persistence") {
-		persistence, err := buildPersistence(d.Get("persistence"))
-		if err != nil {
-			return diag.FromErr(err)
+		var persistence pools.SessionPersistence
+		if p, ok := d.GetOk("persistence"); ok {
+			persistence, err = buildPersistence(p)
+			if err != nil {
+				return diag.FromErr(err)
+			}
 		}
 		updateOpts.Persistence = &persistence
 	}
@@ -302,6 +362,21 @@ func resourcePoolV3Update(ctx context.Context, d *schema.ResourceData, meta inte
 			Enable:   d.Get("slow_start_enabled").(bool),
 			Duration: d.Get("slow_start_duration").(int),
 		}
+	}
+	if d.HasChanges("connection_drain_enabled", "connection_drain_timeout") {
+		updateOpts.ConnectionDrain = &pools.ConnectionDrain{
+			Enable:  d.Get("connection_drain_enabled").(bool),
+			Timeout: d.Get("connection_drain_timeout").(int),
+		}
+	}
+	if d.HasChanges("minimum_healthy_member_count") {
+		updateOpts.PoolHealth = &pools.PoolHealth{
+			MinimumHealthyMemberCount: d.Get("minimum_healthy_member_count").(int),
+		}
+	}
+	if d.HasChange("deletion_protection_enable") {
+		deletionProtectionEnable := d.Get("deletion_protection_enable").(bool)
+		updateOpts.DeletionProtectionEnable = &deletionProtectionEnable
 	}
 
 	log.Printf("[DEBUG] Updating pool %s with options: %#v", d.Id(), updateOpts)

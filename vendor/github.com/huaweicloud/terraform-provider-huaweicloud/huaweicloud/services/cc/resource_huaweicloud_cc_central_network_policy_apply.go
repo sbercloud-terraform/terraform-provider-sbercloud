@@ -24,6 +24,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API CC GET /v3/{domain_id}/gcn/central-network/{central_network_id}/policies
+// @API CC DELETE /v3/{domain_id}/gcn/central-network/{central_network_id}/policies/{policy_id}
+// @API CC POST /v3/{domain_id}/gcn/central-network/{central_network_id}/policies/{policy_id}/apply
 func ResourceCentralNetworkPolicyApply() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceCentralNetworkPolicyApplyCreate,
@@ -161,18 +164,12 @@ func centralNetworkPolicyApplyWaitingForStateCompleted(ctx context.Context, d *s
 
 			status := fmt.Sprintf("%v", statusRaw)
 
-			targetStatus := []string{
-				"true",
-			}
-			if utils.StrSliceContains(targetStatus, status) {
-				return applyPolicyRespBody, "COMPLETED", nil
+			if status == "false" {
+				return applyPolicyRespBody, "PENDING", nil
 			}
 
-			pendingStatus := []string{
-				"false",
-			}
-			if utils.StrSliceContains(pendingStatus, status) {
-				return applyPolicyRespBody, "PENDING", nil
+			if status == "true" {
+				return applyPolicyRespBody, "COMPLETED", nil
 			}
 
 			return applyPolicyRespBody, status, nil

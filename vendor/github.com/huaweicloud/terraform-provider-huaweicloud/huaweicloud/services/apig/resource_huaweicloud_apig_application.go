@@ -24,6 +24,14 @@ const (
 	SecretActionReset SecretAction = "RESET"
 )
 
+// @API APIG DELETE /v2/{project_id}/apigw/instances/{instance_id}/apps/{app_id}/app-codes/{app_code_id}
+// @API APIG GET /v2/{project_id}/apigw/instances/{instance_id}/apps/{app_id}/app-codes
+// @API APIG POST /v2/{project_id}/apigw/instances/{instance_id}/apps/{app_id}/app-codes
+// @API APIG DELETE /v2/{project_id}/apigw/instances/{instance_id}/apps/{app_id}
+// @API APIG GET /v2/{project_id}/apigw/instances/{instance_id}/apps/{app_id}
+// @API APIG PUT /v2/{project_id}/apigw/instances/{instance_id}/apps/{app_id}
+// @API APIG POST /v2/{project_id}/apigw/instances/{instance_id}/apps
+// @API APIG PUT /v2/{project_id}/apigw/instances/{instance_id}/apps/secret/{app_id}
 func ResourceApigApplicationV2() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceApplicationCreate,
@@ -323,7 +331,7 @@ func resourceApplicationDelete(_ context.Context, d *schema.ResourceData, meta i
 	)
 	err = applications.Delete(client, instanceId, appId).ExtractErr()
 	if err != nil {
-		return diag.Errorf("error deleting application (%s) from the instance (%s): %s", appId, instanceId, err)
+		return common.CheckDeletedDiag(d, err, fmt.Sprintf("error deleting application (%s) from the instance (%s)", appId, instanceId))
 	}
 
 	return nil

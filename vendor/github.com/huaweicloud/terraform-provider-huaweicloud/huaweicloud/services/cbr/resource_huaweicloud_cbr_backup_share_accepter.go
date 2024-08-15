@@ -14,6 +14,8 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
+// @API CBR PUT /v3/{project_id}/backups/{backup_id}/members/{member_id}
+// @API CBR GET /v3/{project_id}/backups/{backup_id}
 func ResourceBackupShareAccepter() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceBackupShareAccepterCreate,

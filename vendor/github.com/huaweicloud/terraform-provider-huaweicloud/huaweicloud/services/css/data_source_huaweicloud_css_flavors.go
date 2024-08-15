@@ -2,7 +2,9 @@ package css
 
 import (
 	"context"
+	"log"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -12,10 +14,9 @@ import (
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/logp"
 )
 
+// @API CSS GET /v1.0/{project_id}/es-flavors
 func DataSourceCssFlavors() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: dataSourceCssFlavorsRead,
@@ -84,6 +85,10 @@ func DataSourceCssFlavors() *schema.Resource {
 							Type:     schema.TypeString,
 							Computed: true,
 						},
+						"availability_zones": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
 					},
 				},
 			},
@@ -92,22 +97,22 @@ func DataSourceCssFlavors() *schema.Resource {
 }
 
 func dataSourceCssFlavorsRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := meta.(*config.Config)
-	region := config.GetRegion(d)
-	client, err := config.CssV1Client(region)
+	conf := meta.(*config.Config)
+	region := conf.GetRegion(d)
+	client, err := conf.CssV1Client(region)
 	if err != nil {
-		return fmtp.DiagErrorf("Error creating CSS V1 client: %s", err)
+		return diag.Errorf("error creating CSS V1 client: %s", err)
 	}
 
 	flavorsResp, err := cluster.ListFlavors(client)
 	if err != nil {
-		return fmtp.DiagErrorf("Unable to retrieve CSS flavors: %s ", err)
+		return diag.Errorf("unable to retrieve CSS flavors: %s ", err)
 	}
 
 	allFlavors := flatternFlavors(flavorsResp)
 
 	if len(allFlavors) < 1 {
-		return fmtp.DiagErrorf("No data found. Please change your search criteria and try again.")
+		return diag.Errorf("no data found, please change your search criteria and try again")
 	}
 
 	filter := map[string]interface{}{
@@ -127,22 +132,22 @@ func dataSourceCssFlavorsRead(_ context.Context, d *schema.ResourceData, meta in
 
 	filterFlavors, err := utils.FilterSliceWithField(allFlavors, filter)
 	if err != nil {
-		return fmtp.DiagErrorf("filter CSS flavors failed: %s", err)
+		return diag.Errorf("filter CSS flavors failed: %s", err)
 	}
-	logp.Printf("filter %d CSS flavors from %d through options %v", len(filterFlavors), len(allFlavors), filter)
-
-	mErr := d.Set("flavors", buildFlavors(filterFlavors))
-	if mErr != nil {
-		return fmtp.DiagErrorf("set flavors err:%s", mErr)
-	}
+	log.Printf("[DEBUG] filter %d CSS flavors from %d through options %v", len(filterFlavors), len(allFlavors), filter)
 
 	uuid, err := uuid.GenerateUUID()
 	if err != nil {
-		return fmtp.DiagErrorf("unable to generate ID:%s", err)
+		return diag.Errorf("unable to generate ID: %s", err)
 	}
 
 	d.SetId(uuid)
-	return nil
+
+	mErr := multierror.Append(nil,
+		d.Set("region", region),
+		d.Set("flavors", buildFlavors(filterFlavors)),
+	)
+	return diag.FromErr(mErr.ErrorOrNil())
 }
 
 func flatternFlavors(flavors *cluster.EsFlavorsResp) []flavor {
@@ -150,14 +155,15 @@ func flatternFlavors(flavors *cluster.EsFlavorsResp) []flavor {
 	for _, v := range flavors.Versions {
 		for _, f := range v.Flavors {
 			newFlavor := flavor{
-				Type:      v.Type,
-				Version:   v.Version,
-				Name:      f.Name,
-				FlavorId:  f.FlavorId,
-				Region:    f.Region,
-				Ram:       f.Ram,
-				Cpu:       f.Cpu,
-				Diskrange: f.Diskrange,
+				Type:              v.Type,
+				Version:           v.Version,
+				Name:              f.Name,
+				FlavorId:          f.FlavorId,
+				Region:            f.Region,
+				RAM:               f.Ram,
+				CPU:               f.Cpu,
+				Diskrange:         f.Diskrange,
+				AvailabilityZones: f.AvailableAZ,
 			}
 
 			rst = append(rst, newFlavor)
@@ -180,11 +186,12 @@ func buildFlavors(flavors []interface{}) []map[string]interface{} {
 		newFlavor["id"] = f.FlavorId
 		newFlavor["region"] = f.Region
 		newFlavor["name"] = f.Name
-		newFlavor["memory"] = f.Ram
-		newFlavor["vcpus"] = f.Cpu
+		newFlavor["memory"] = f.RAM
+		newFlavor["vcpus"] = f.CPU
 		newFlavor["disk_range"] = f.Diskrange
 		newFlavor["type"] = f.Type
 		newFlavor["version"] = f.Version
+		newFlavor["availability_zones"] = f.AvailabilityZones
 
 		rst = append(rst, newFlavor)
 	}
@@ -193,12 +200,13 @@ func buildFlavors(flavors []interface{}) []map[string]interface{} {
 }
 
 type flavor struct {
-	Ram       int
-	Cpu       int
-	Name      string
-	Region    string
-	Diskrange string
-	FlavorId  string
-	Version   string
-	Type      string
+	RAM               int
+	CPU               int
+	Name              string
+	Region            string
+	Diskrange         string
+	FlavorId          string
+	Version           string
+	Type              string
+	AvailabilityZones string
 }

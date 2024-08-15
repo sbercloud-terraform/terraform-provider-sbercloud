@@ -22,6 +22,12 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API CES POST /v2/{project_id}/resource-groups
+// @API CES GET /v2/{project_id}/resource-groups/{id}
+// @API CES PUT /v2/{project_id}/resource-groups/{id}
+// @API CES POST /v2/{project_id}/resource-groups/{id}/resources/batch-create
+// @API CES POST /v2/{project_id}/resource-groups/{id}/resources/batch-delete
+// @API CES POST /v2/{project_id}/resource-groups/batch-delete
 func ResourceResourceGroup() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceResourceGroupCreate,
@@ -194,11 +200,11 @@ func resourceResourceGroupCreate(ctx context.Context, d *schema.ResourceData, me
 
 func buildCreateResourceGroupBodyParams(d *schema.ResourceData, cfg *config.Config) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"group_name":            utils.ValueIngoreEmpty(d.Get("name")),
-		"type":                  utils.ValueIngoreEmpty(d.Get("type")),
-		"enterprise_project_id": utils.ValueIngoreEmpty(common.GetEnterpriseProjectID(d, cfg)),
-		"tags":                  utils.ValueIngoreEmpty(utils.ExpandResourceTags(d.Get("tags").(map[string]interface{}))),
-		"association_ep_ids":    utils.ValueIngoreEmpty(d.Get("associated_eps_ids")),
+		"group_name":            utils.ValueIgnoreEmpty(d.Get("name")),
+		"type":                  utils.ValueIgnoreEmpty(d.Get("type")),
+		"enterprise_project_id": utils.ValueIgnoreEmpty(common.GetEnterpriseProjectID(d, cfg)),
+		"tags":                  utils.ValueIgnoreEmpty(utils.ExpandResourceTags(d.Get("tags").(map[string]interface{}))),
+		"association_ep_ids":    utils.ValueIgnoreEmpty(d.Get("associated_eps_ids")),
 	}
 	return bodyParams
 }
@@ -220,7 +226,7 @@ func buildBatchCreateResourcesRequestBodyResourcesOpts(rawParams interface{}) []
 		for i, v := range rawArray {
 			raw := v.(map[string]interface{})
 			rst[i] = map[string]interface{}{
-				"namespace":  utils.ValueIngoreEmpty(raw["namespace"]),
+				"namespace":  utils.ValueIgnoreEmpty(raw["namespace"]),
 				"dimensions": buildResourcesOptsDimensionOpts(raw["dimensions"]),
 			}
 		}
@@ -239,8 +245,8 @@ func buildResourcesOptsDimensionOpts(rawParams interface{}) []map[string]interfa
 		for i, v := range rawArray {
 			raw := v.(map[string]interface{})
 			rst[i] = map[string]interface{}{
-				"name":  utils.ValueIngoreEmpty(raw["name"]),
-				"value": utils.ValueIngoreEmpty(raw["value"]),
+				"name":  utils.ValueIgnoreEmpty(raw["name"]),
+				"value": utils.ValueIgnoreEmpty(raw["value"]),
 			}
 		}
 		return rst
@@ -399,8 +405,8 @@ func resourceResourceGroupUpdate(ctx context.Context, d *schema.ResourceData, me
 
 func buildUpdateResourceGroupBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"group_name": utils.ValueIngoreEmpty(d.Get("name")),
-		"tags":       utils.ValueIngoreEmpty(utils.ExpandResourceTags(d.Get("tags").(map[string]interface{}))),
+		"group_name": utils.ValueIgnoreEmpty(d.Get("name")),
+		"tags":       utils.ValueIgnoreEmpty(utils.ExpandResourceTags(d.Get("tags").(map[string]interface{}))),
 	}
 	return bodyParams
 }

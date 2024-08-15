@@ -2,12 +2,10 @@ package dc
 
 import (
 	"context"
-	"regexp"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
 	"github.com/chnsz/golangsdk/openstack/dc/v3/gateways"
 
@@ -16,6 +14,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DC DELETE /v3/{project_id}/dcaas/virtual-gateways/{gatewayId}
+// @API DC GET /v3/{project_id}/dcaas/virtual-gateways/{gatewayId}
+// @API DC PUT /v3/{project_id}/dcaas/virtual-gateways/{gatewayId}
+// @API DC POST /v3/{project_id}/dcaas/virtual-gateways
 func ResourceVirtualGateway() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceVirtualGatewayCreate,
@@ -49,24 +51,13 @@ func ResourceVirtualGateway() *schema.Resource {
 					"usually the CIDR block of the VPC.",
 			},
 			"name": {
-				Type:     schema.TypeString,
-				Required: true,
-				ValidateFunc: validation.All(
-					validation.StringMatch(regexp.MustCompile("^[\u4e00-\u9fa5\\w-.]*$"),
-						"Only chinese and english letters, digits, hyphens (-), underscores (_) and dots (.) are "+
-							"allowed."),
-					validation.StringLenBetween(0, 64),
-				),
+				Type:        schema.TypeString,
+				Required:    true,
 				Description: "The name of the virtual gateway.",
 			},
 			"description": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ValidateFunc: validation.All(
-					validation.StringMatch(regexp.MustCompile(`^[^<>]*$`),
-						"The angle brackets (< and >) are not allowed."),
-					validation.StringLenBetween(0, 128),
-				),
+				Type:        schema.TypeString,
+				Optional:    true,
 				Description: "The description of the virtual gateway.",
 			},
 			"asn": {
@@ -137,7 +128,8 @@ func resourceVirtualGatewayRead(_ context.Context, d *schema.ResourceData, meta 
 	gatewayId := d.Id()
 	resp, err := gateways.Get(client, gatewayId)
 	if err != nil {
-		return common.CheckDeletedDiag(d, err, "virtual gateway")
+		// When the gateway does not exist, the response HTTP status code of the details API is 404.
+		return common.CheckDeletedDiag(d, err, "error retrieving DC virtual gateway")
 	}
 
 	mErr := multierror.Append(nil,
@@ -198,7 +190,8 @@ func resourceVirtualGatewayDelete(_ context.Context, d *schema.ResourceData, met
 	gatewayId := d.Id()
 	err = gateways.Delete(client, gatewayId)
 	if err != nil {
-		return diag.Errorf("error deleting virtual gateway (%s): %s", gatewayId, err)
+		// When the gateway does not exist, the response HTTP status code of the deletion API is 404.
+		return common.CheckDeletedDiag(d, err, "error deleting DC virtual gateway")
 	}
 
 	return nil

@@ -18,6 +18,13 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API ELB POST /v2/{project_id}/elb/listeners
+// @API ELB GET /v2/{project_id}/elb/loadbalancers/{loadbalancer_id}
+// @API ELB POST /v2.0/{project_id}/listeners/{listener_id}/tags/action
+// @API ELB GET /v2/{project_id}/elb/listeners/{listener_id}
+// @API ELB GET /v2.0/{project_id}/listeners/{listener_id}/tags
+// @API ELB PUT /v2/{project_id}/elb/listeners/{listener_id}
+// @API ELB DELETE /v2/{project_id}/elb/listeners/{listener_id}
 func ResourceListener() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceListenerV2Create,

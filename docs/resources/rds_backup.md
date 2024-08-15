@@ -31,7 +31,7 @@ The following arguments are supported:
 
   Changing this parameter will create a new resource.
 
-* `instance_id` - (Required, String, ForceNew) Instance ID.
+* `instance_id` - (Required, String, ForceNew) Instance ID. This resource works only with Postgre SQL databases.
 
   Changing this parameter will create a new resource.
 

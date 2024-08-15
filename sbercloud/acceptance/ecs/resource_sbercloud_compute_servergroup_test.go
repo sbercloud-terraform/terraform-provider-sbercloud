@@ -179,6 +179,7 @@ resource "sbercloud_compute_instance" "instance_1" {
   flavor_id          = data.sbercloud_compute_flavors.test.ids[0]
   security_group_ids = [data.sbercloud_networking_secgroup.test.id]
   availability_zone  = data.sbercloud_availability_zones.test.names[0]
+  system_disk_type   = "SAS"
 
   scheduler_hints {
     group = sbercloud_compute_servergroup.sg_1.id
@@ -206,6 +207,7 @@ resource "sbercloud_compute_instance" "instance_1" {
   flavor_id          = data.sbercloud_compute_flavors.test.ids[0]
   security_group_ids = [data.sbercloud_networking_secgroup.test.id]
   availability_zone  = data.sbercloud_availability_zones.test.names[0]
+  system_disk_type   = "SAS"
 
   network {
     uuid = data.sbercloud_vpc_subnet.test.id

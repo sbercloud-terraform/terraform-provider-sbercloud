@@ -20,6 +20,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API APIG DELETE /v2/{project_id}/apigw/instances/{instance_id}/app-auths/{app_auth_id}
+// @API APIG POST /v2/{project_id}/apigw/instances/{instance_id}/app-auths
+// @API APIG GET /v2/{project_id}/apigw/instances/{instance_id}/app-auths/binded-apis
+// @API APIG GET /v2/{project_id}/apigw/instances/{instance_id}/app-auths/unbinded-apis
 func ResourceAppAuth() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceAppAuthCreate,
@@ -181,9 +185,8 @@ func resourceAppAuthDelete(ctx context.Context, d *schema.ResourceData, meta int
 	}
 
 	apiIds := d.Get("api_ids").(*schema.Set)
-	err = deleteAppAuthFromApis(ctx, client, d, utils.ExpandToStringListBySet(apiIds), d.Timeout(schema.TimeoutDelete))
-	if err != nil {
-		return diag.FromErr(err)
+	if err = deleteAppAuthFromApis(ctx, client, d, utils.ExpandToStringListBySet(apiIds), d.Timeout(schema.TimeoutDelete)); err != nil {
+		return common.CheckDeletedDiag(d, err, "error unbinding APIs from application")
 	}
 	return nil
 }
@@ -242,7 +245,7 @@ func deleteAppAuthFromApis(ctx context.Context, client *golangsdk.ServiceClient,
 	if err != nil {
 		if _, ok := err.(golangsdk.ErrDefault404); ok {
 			log.Println(notFoundErr)
-			return nil
+			return err
 		}
 		return fmt.Errorf("error querying authorized APIs for application (%s) under dedicated instance (%s)", appId, instanceId)
 	}
@@ -259,6 +262,10 @@ func deleteAppAuthFromApis(ctx context.Context, client *golangsdk.ServiceClient,
 		authId := val.ID
 		err = appauths.Delete(client, instanceId, authId)
 		if err != nil {
+			if _, ok := err.(golangsdk.ErrDefault404); ok {
+				log.Printf("[DEBUG] All APIs has been unauthorized from the application (%s)", appId)
+				continue
+			}
 			return fmt.Errorf("error unauthorizing APIs form application (%s) under dedicated instance (%s): %s", appId, instanceId, err)
 		}
 	}
@@ -309,6 +316,11 @@ func unauthApisStateRefreshFunc(client *golangsdk.ServiceClient, instanceId, app
 		}
 		resp, err := appauths.ListAuthorized(client, opts)
 		if err != nil {
+			// The API returns a 404 error, which means that the instance or application has been deleted.
+			// In this case, there's no need to disassociate API, also this action has been completed.
+			if _, ok := err.(golangsdk.ErrDefault404); ok {
+				return "instance_or_application_not_exist", "COMPLETED", nil
+			}
 			return resp, "", err
 		}
 

@@ -121,6 +121,18 @@ type LoadBalancer struct {
 
 	// Autoscaling configuration
 	AutoScaling AutoScaling `json:"autoscaling"`
+
+	// Waf failure action
+	WafFailureAction string `json:"waf_failure_action"`
+
+	// Charge Mode
+	ChargeMode string `json:"charge_mode"`
+
+	// Creation time
+	CreatedAt string `json:"created_at"`
+
+	// Update time
+	UpdatedAt string `json:"updated_at"`
 }
 
 // EipInfo
@@ -198,6 +210,23 @@ func (r GetStatusesResult) Extract() (*StatusTree, error) {
 	}
 	err := r.ExtractInto(&s)
 	return s.Statuses, err
+}
+
+// ChangeResult represents the result of a ChangeChargingMode operation.
+// Call its Extract method to get the order ID.
+type ChangeResult struct {
+	golangsdk.Result
+}
+
+// Extract is a function that accepts a result and extracts the order ID.
+func (r ChangeResult) Extract() (string, error) {
+	var s struct {
+		LoadBalancerIdList []string `json:"loadbalancer_id_list"`
+		EipIdList          []string `json:"eip_id_list"`
+		OrderId            string   `json:"order_id"`
+	}
+	err := r.ExtractInto(&s)
+	return s.OrderId, err
 }
 
 // CreateResult represents the result of a create operation. Call its Extract

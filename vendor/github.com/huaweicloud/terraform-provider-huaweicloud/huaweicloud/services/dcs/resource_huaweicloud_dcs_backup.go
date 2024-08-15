@@ -25,6 +25,9 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API DCS POST /v2/{project_id}/instances/{instance_id}/backups
+// @API DCS GET /v2/{project_id}/instances/{instance_id}/backups
+// @API DCS DELETE /v2/{project_id}/instances/{instance_id}/backups/{backup_id}
 func ResourceDcsBackup() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDcsBackupCreate,
@@ -182,8 +185,8 @@ func resourceDcsBackupCreate(ctx context.Context, d *schema.ResourceData, meta i
 
 func buildCreateBackupBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"remark":        utils.ValueIngoreEmpty(d.Get("description")),
-		"backup_format": utils.ValueIngoreEmpty(d.Get("backup_format")),
+		"remark":        utils.ValueIgnoreEmpty(d.Get("description")),
+		"backup_format": utils.ValueIgnoreEmpty(d.Get("backup_format")),
 	}
 	return bodyParams
 }

@@ -24,6 +24,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API UCS GET /v1/permissions/rules
+// @API UCS POST /v1/permissions/rules
+// @API UCS DELETE /v1/permissions/rules/{id}
+// @API UCS PUT /v1/permissions/rules/{id}
 func ResourcePolicy() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourcePolicyCreate,
@@ -153,7 +157,7 @@ func buildCreatePolicyBodyParams(d *schema.ResourceData) map[string]interface{} 
 
 func buildPolicyMetadataBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name": utils.ValueIngoreEmpty(d.Get("name")),
+		"name": utils.ValueIgnoreEmpty(d.Get("name")),
 	}
 	return bodyParams
 }
@@ -161,8 +165,8 @@ func buildPolicyMetadataBodyParams(d *schema.ResourceData) map[string]interface{
 func buildPolicySpecBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
 		"description": d.Get("description"),
-		"iamuserids":  utils.ValueIngoreEmpty(d.Get("iam_user_ids")),
-		"type":        utils.ValueIngoreEmpty(d.Get("type")),
+		"iamuserids":  utils.ValueIgnoreEmpty(d.Get("iam_user_ids")),
+		"type":        utils.ValueIgnoreEmpty(d.Get("type")),
 	}
 
 	// when the type is admin, develop or readonly, the contents must be empty
@@ -182,8 +186,8 @@ func buildPolicyRequestBodyContent(rawParams interface{}) []map[string]interface
 		for i, v := range rawArray {
 			raw := v.(map[string]interface{})
 			rst[i] = map[string]interface{}{
-				"verbs":     utils.ValueIngoreEmpty(raw["operations"]),
-				"resources": utils.ValueIngoreEmpty(raw["resources"]),
+				"verbs":     utils.ValueIgnoreEmpty(raw["operations"]),
+				"resources": utils.ValueIgnoreEmpty(raw["resources"]),
 			}
 		}
 		return rst

@@ -23,6 +23,12 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API VPN POST /v5/{project_id}/customer-gateways
+// @API VPN DELETE /v5/{project_id}/customer-gateways/{id}
+// @API VPN GET /v5/{project_id}/customer-gateways/{id}
+// @API VPN PUT /v5/{project_id}/customer-gateways/{id}
+// @API VPN POST /v5/{project_id}/{resource_type}/{resource_id}/tags/create
+// @API VPN DELETE /v5/{project_id}/{resource_type}/{resource_id}/tags/delete
 func ResourceCustomerGateway() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceCustomerGatewayCreate,
@@ -50,32 +56,68 @@ func ResourceCustomerGateway() *schema.Resource {
 					validation.StringLenBetween(1, 64),
 				),
 			},
+			"id_value": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Computed: true,
+				Description: utils.SchemaDesc(
+					`The identifier of a customer gateway.`,
+					utils.SchemaDescInput{
+						Required: true,
+					},
+				),
+				ConflictsWith: []string{"ip", "route_mode"},
+			},
 			"ip": {
-				Type:        schema.TypeString,
-				Required:    true,
-				ForceNew:    true,
-				Description: `The IP address of the customer gateway.`,
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+				Description: utils.SchemaDesc(
+					`The IP address of the customer gateway.`,
+					utils.SchemaDescInput{
+						Deprecated: true,
+					}),
+				ConflictsWith: []string{"id_value", "id_type"},
 			},
 			"route_mode": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Default:     "bgp",
-				ForceNew:    true,
-				Description: `The route mode of the customer gateway.`,
+				Type:     schema.TypeString,
+				Optional: true,
+				Default:  "bgp",
+				ForceNew: true,
+				Description: utils.SchemaDesc(
+					`The route mode of the customer gateway.`,
+					utils.SchemaDescInput{
+						Deprecated: true,
+					}),
 				ValidateFunc: validation.StringInSlice([]string{
 					"static", "bgp",
 				}, false),
+				ConflictsWith: []string{"id_value", "id_type"},
 			},
 			"asn": {
 				Type:        schema.TypeInt,
 				Optional:    true,
 				Default:     65000,
 				ForceNew:    true,
-				Description: `The BGP ASN number of the customer gateway, only required when the route_mode is bgp, the default value is 65000.`,
+				Description: `The BGP ASN number of the customer gateway, the default value is 65000.`,
+			},
+			"id_type": {
+				Type:          schema.TypeString,
+				Optional:      true,
+				Default:       "ip",
+				ForceNew:      true,
+				Description:   `The identifier type of a customer gateway.`,
+				ConflictsWith: []string{"ip", "route_mode"},
 			},
 			"certificate_content": {
 				Type:     schema.TypeString,
 				Optional: true,
+			},
+			"tags": common.TagsSchema(),
+			"certificate_id": {
+				Type:     schema.TypeString,
+				Computed: true,
 			},
 			"serial_number": {
 				Type:     schema.TypeString,
@@ -126,7 +168,7 @@ func resourceCustomerGatewayCreate(ctx context.Context, d *schema.ResourceData, 
 	)
 	createCustomerGatewayClient, err := cfg.NewServiceClient(createCustomerGatewayProduct, region)
 	if err != nil {
-		return diag.Errorf("error creating CustomerGateway Client: %s", err)
+		return diag.Errorf("error creating VPN client: %s", err)
 	}
 
 	createCustomerGatewayPath := createCustomerGatewayClient.Endpoint + createCustomerGatewayHttpUrl
@@ -141,7 +183,7 @@ func resourceCustomerGatewayCreate(ctx context.Context, d *schema.ResourceData, 
 	createCustomerGatewayOpt.JSONBody = utils.RemoveNil(buildCreateCustomerGatewayBodyParams(d))
 	createCustomerGatewayResp, err := createCustomerGatewayClient.Request("POST", createCustomerGatewayPath, &createCustomerGatewayOpt)
 	if err != nil {
-		return diag.Errorf("error creating CustomerGateway: %s", err)
+		return diag.Errorf("error creating VPN customer gateway: %s", err)
 	}
 
 	createCustomerGatewayRespBody, err := utils.FlattenResponse(createCustomerGatewayResp)
@@ -151,7 +193,7 @@ func resourceCustomerGatewayCreate(ctx context.Context, d *schema.ResourceData, 
 
 	id, err := jmespath.Search("customer_gateway.id", createCustomerGatewayRespBody)
 	if err != nil {
-		return diag.Errorf("error creating CustomerGateway: ID is not found in API response")
+		return diag.Errorf("error creating VPN customer gateway: ID is not found in API response")
 	}
 	d.SetId(id.(string))
 
@@ -159,19 +201,27 @@ func resourceCustomerGatewayCreate(ctx context.Context, d *schema.ResourceData, 
 }
 
 func buildCreateCustomerGatewayBodyParams(d *schema.ResourceData) map[string]interface{} {
-	bodyParams := map[string]interface{}{
+	return map[string]interface{}{
 		"customer_gateway": buildCreateCustomerGatewayCustomerGatewayChildBody(d),
 	}
-	return bodyParams
 }
 
 func buildCreateCustomerGatewayCustomerGatewayChildBody(d *schema.ResourceData) map[string]interface{} {
+	_, ipOk := d.GetOk("ip")
 	params := map[string]interface{}{
-		"name":       utils.ValueIngoreEmpty(d.Get("name")),
-		"ip":         utils.ValueIngoreEmpty(d.Get("ip")),
-		"bgp_asn":    utils.ValueIngoreEmpty(d.Get("asn")),
-		"route_mode": utils.ValueIngoreEmpty(d.Get("route_mode")),
+		"name":    d.Get("name"),
+		"bgp_asn": utils.ValueIgnoreEmpty(d.Get("asn")),
+		"tags":    utils.ValueIgnoreEmpty(utils.ExpandResourceTags(d.Get("tags").(map[string]interface{}))),
 	}
+
+	if ipOk {
+		params["ip"] = d.Get("ip")
+		params["route_mode"] = utils.ValueIgnoreEmpty(d.Get("route_mode"))
+	} else {
+		params["id_value"] = d.Get("id_value")
+		params["id_type"] = utils.ValueIgnoreEmpty(d.Get("id_type"))
+	}
+
 	if certificateContent, ok := d.GetOk("certificate_content"); ok {
 		params["ca_certificate"] = map[string]interface{}{
 			"content": certificateContent,
@@ -193,7 +243,7 @@ func resourceCustomerGatewayRead(_ context.Context, d *schema.ResourceData, meta
 	)
 	getCustomerGatewayClient, err := cfg.NewServiceClient(getCustomerGatewayProduct, region)
 	if err != nil {
-		return diag.Errorf("error creating CustomerGateway Client: %s", err)
+		return diag.Errorf("error creating VPN client: %s", err)
 	}
 
 	getCustomerGatewayPath := getCustomerGatewayClient.Endpoint + getCustomerGatewayHttpUrl
@@ -209,7 +259,7 @@ func resourceCustomerGatewayRead(_ context.Context, d *schema.ResourceData, meta
 	getCustomerGatewayResp, err := getCustomerGatewayClient.Request("GET", getCustomerGatewayPath, &getCustomerGatewayOpt)
 
 	if err != nil {
-		return common.CheckDeletedDiag(d, err, "error retrieving CustomerGateway")
+		return common.CheckDeletedDiag(d, err, "error retrieving VPN customer gateway")
 	}
 
 	getCustomerGatewayRespBody, err := utils.FlattenResponse(getCustomerGatewayResp)
@@ -221,9 +271,10 @@ func resourceCustomerGatewayRead(_ context.Context, d *schema.ResourceData, meta
 		mErr,
 		d.Set("region", region),
 		d.Set("name", utils.PathSearch("customer_gateway.name", getCustomerGatewayRespBody, nil)),
-		d.Set("ip", utils.PathSearch("customer_gateway.ip", getCustomerGatewayRespBody, nil)),
+		d.Set("id_value", utils.PathSearch("customer_gateway.id_value", getCustomerGatewayRespBody, nil)),
 		d.Set("asn", utils.PathSearch("customer_gateway.bgp_asn", getCustomerGatewayRespBody, nil)),
-		d.Set("route_mode", utils.PathSearch("customer_gateway.route_mode", getCustomerGatewayRespBody, nil)),
+		d.Set("id_type", utils.PathSearch("customer_gateway.id_type", getCustomerGatewayRespBody, nil)),
+		d.Set("certificate_id", utils.PathSearch("customer_gateway.ca_certificate.id", getCustomerGatewayRespBody, nil)),
 		d.Set("serial_number", utils.PathSearch("customer_gateway.ca_certificate.serial_number",
 			getCustomerGatewayRespBody, nil)),
 		d.Set("signature_algorithm", utils.PathSearch("customer_gateway.ca_certificate.signature_algorithm",
@@ -238,6 +289,7 @@ func resourceCustomerGatewayRead(_ context.Context, d *schema.ResourceData, meta
 			getCustomerGatewayRespBody, nil)),
 		d.Set("created_at", utils.PathSearch("customer_gateway.created_at", getCustomerGatewayRespBody, nil)),
 		d.Set("updated_at", utils.PathSearch("customer_gateway.updated_at", getCustomerGatewayRespBody, nil)),
+		d.Set("tags", utils.FlattenTagsToMap(utils.PathSearch("customer_gateway.tags", getCustomerGatewayRespBody, nil))),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())
@@ -246,6 +298,10 @@ func resourceCustomerGatewayRead(_ context.Context, d *schema.ResourceData, meta
 func resourceCustomerGatewayUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	region := cfg.GetRegion(d)
+	updateCustomerGatewayClient, err := cfg.NewServiceClient("vpn", region)
+	if err != nil {
+		return diag.Errorf("error creating VPN client: %s", err)
+	}
 
 	updateCustomerGatewayHasChanges := []string{
 		"name",
@@ -254,14 +310,7 @@ func resourceCustomerGatewayUpdate(ctx context.Context, d *schema.ResourceData, 
 
 	if d.HasChanges(updateCustomerGatewayHasChanges...) {
 		// updateCustomerGateway: Update the configuration of VPN customer gateway
-		var (
-			updateCustomerGatewayHttpUrl = "v5/{project_id}/customer-gateways/{id}"
-			updateCustomerGatewayProduct = "vpn"
-		)
-		updateCustomerGatewayClient, err := cfg.NewServiceClient(updateCustomerGatewayProduct, region)
-		if err != nil {
-			return diag.Errorf("error creating CustomerGateway Client: %s", err)
-		}
+		updateCustomerGatewayHttpUrl := "v5/{project_id}/customer-gateways/{id}"
 
 		updateCustomerGatewayPath := updateCustomerGatewayClient.Endpoint + updateCustomerGatewayHttpUrl
 		updateCustomerGatewayPath = strings.ReplaceAll(updateCustomerGatewayPath, "{project_id}", updateCustomerGatewayClient.ProjectID)
@@ -276,7 +325,15 @@ func resourceCustomerGatewayUpdate(ctx context.Context, d *schema.ResourceData, 
 		updateCustomerGatewayOpt.JSONBody = utils.RemoveNil(buildUpdateCustomerGatewayBodyParams(d))
 		_, err = updateCustomerGatewayClient.Request("PUT", updateCustomerGatewayPath, &updateCustomerGatewayOpt)
 		if err != nil {
-			return diag.Errorf("error updating CustomerGateway: %s", err)
+			return diag.Errorf("error updating VPN customer gateway: %s", err)
+		}
+	}
+
+	// update tags
+	if d.HasChange("tags") {
+		tagErr := updateTags(updateCustomerGatewayClient, d, "customer-gateway", d.Id())
+		if tagErr != nil {
+			return diag.Errorf("error updating tags of VPN customer gateway (%s): %s", d.Id(), tagErr)
 		}
 	}
 	return resourceCustomerGatewayRead(ctx, d, meta)
@@ -291,7 +348,7 @@ func buildUpdateCustomerGatewayBodyParams(d *schema.ResourceData) map[string]int
 
 func buildUpdateCustomerGatewayCustomerGatewayChildBody(d *schema.ResourceData) map[string]interface{} {
 	params := map[string]interface{}{
-		"name": utils.ValueIngoreEmpty(d.Get("name")),
+		"name": utils.ValueIgnoreEmpty(d.Get("name")),
 	}
 	if certificateContent, ok := d.GetOk("certificate_content"); ok {
 		params["ca_certificate"] = map[string]interface{}{
@@ -312,7 +369,7 @@ func resourceCustomerGatewayDelete(_ context.Context, d *schema.ResourceData, me
 	)
 	deleteCustomerGatewayClient, err := cfg.NewServiceClient(deleteCustomerGatewayProduct, region)
 	if err != nil {
-		return diag.Errorf("error creating CustomerGateway Client: %s", err)
+		return diag.Errorf("error creating VPN client: %s", err)
 	}
 
 	deleteCustomerGatewayPath := deleteCustomerGatewayClient.Endpoint + deleteCustomerGatewayHttpUrl
@@ -327,7 +384,7 @@ func resourceCustomerGatewayDelete(_ context.Context, d *schema.ResourceData, me
 	}
 	_, err = deleteCustomerGatewayClient.Request("DELETE", deleteCustomerGatewayPath, &deleteCustomerGatewayOpt)
 	if err != nil {
-		return diag.Errorf("error deleting CustomerGateway: %s", err)
+		return diag.Errorf("error deleting VPN customer gateway: %s", err)
 	}
 
 	return nil

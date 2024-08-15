@@ -15,7 +15,7 @@ type CreateOpts struct {
 	VpcId               string          `json:"vpc_id" required:"true"`
 	SubnetId            string          `json:"subnet_id" required:"true"`
 	SecurityGroupId     string          `json:"security_group_id" required:"true"`
-	Password            string          `json:"password" required:"true"`
+	Password            string          `json:"password,omitempty"`
 	Port                string          `json:"port,omitempty"`
 	DiskEncryptionId    string          `json:"disk_encryption_id,omitempty"`
 	Ssl                 string          `json:"ssl_option,omitempty"`
@@ -50,6 +50,10 @@ type BackupStrategy struct {
 	StartTime string `json:"start_time" required:"true"`
 	KeepDays  *int   `json:"keep_days,omitempty"`
 	Period    string `json:"period,omitempty"`
+}
+
+type BackupPolicyOpts struct {
+	BackupPolicy BackupStrategy `json:"backup_policy" required:"true"`
 }
 
 type ChargeInfo struct {
@@ -179,6 +183,11 @@ type UpdateNodeNumOpts struct {
 	IsAutoPay bool        `json:"is_auto_pay,omitempty"`
 }
 
+type UpdateReplicaSetNodeNumOpts struct {
+	Num       int  `json:"num" required:"true"`
+	IsAutoPay bool `json:"is_auto_pay,omitempty"`
+}
+
 type SpecOpts struct {
 	TargetType     string `json:"target_type,omitempty"`
 	TargetID       string `json:"target_id" required:"true"`
@@ -229,6 +238,10 @@ type PortOpts struct {
 	Port int `json:"port"`
 }
 
+type EnabledOpts struct {
+	Enabled *bool `json:"enabled" required:"true"`
+}
+
 // UpdatePort is a method to update the database access port using given parameters.
 func UpdatePort(c *golangsdk.ServiceClient, instanceId string, port int) (*PortUpdateResp, error) {
 	opts := PortOpts{
@@ -244,4 +257,240 @@ func UpdatePort(c *golangsdk.ServiceClient, instanceId string, port int) (*PortU
 		MoreHeaders: requestOpts.MoreHeaders,
 	})
 	return &r, err
+}
+
+// UpdateSecondsLevelMonitoring is a method to update seconds level monitoring.
+func UpdateSecondsLevelMonitoring(c *golangsdk.ServiceClient, instanceId string, enabled bool) (*EnabledOpts, error) {
+	opts := EnabledOpts{
+		Enabled: &enabled,
+	}
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var r EnabledOpts
+	_, err = c.Put(secondsLevelMonitoringURL(c, instanceId), b, &r, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+		OkCodes: []int{
+			204,
+		},
+	})
+	return &r, err
+}
+
+// GetSecondsLevelMonitoring is a method to get seconds level monitoring.
+func GetSecondsLevelMonitoring(c *golangsdk.ServiceClient, instanceId string) (*EnabledOpts, error) {
+	var r EnabledOpts
+	_, err := c.Get(secondsLevelMonitoringURL(c, instanceId), &r, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return &r, err
+}
+
+// GetReplicaSetName is a method to get the replica set name.
+func GetReplicaSetName(c *golangsdk.ServiceClient, instanceId string) (*ReplicaSetNameOpts, error) {
+	var r ReplicaSetNameOpts
+	_, err := c.Get(replicaSetNameURL(c, instanceId), &r, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return &r, err
+}
+
+// CreateBackupPolicy is a method to create the backup policy.
+func CreateBackupPolicy(c *golangsdk.ServiceClient, instanceId string, backPolicy BackupStrategy) (*BackupPolicyResp, error) {
+	opts := BackupPolicyOpts{
+		BackupPolicy: backPolicy,
+	}
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var r BackupPolicyResp
+	_, err = c.Put(backupPolicyURL(c, instanceId), b, &r, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return &r, err
+}
+
+// GetBackupPolicy is a method to get the backup policy.
+func GetBackupPolicy(c *golangsdk.ServiceClient, instanceId string) (*BackupPolicyResp, error) {
+	var r BackupPolicyResp
+	_, err := c.Get(backupPolicyURL(c, instanceId), &r, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return &r, err
+}
+
+type ReplicaSetNameOpts struct {
+	Name string `json:"name" required:"true"`
+}
+
+type BalancerActiveWindowOpts struct {
+	StartTime string `json:"start_time,omitempty"`
+	StopTime  string `json:"stop_time,omitempty"`
+}
+
+type RestartOpts struct {
+	TargetType string `json:"target_type,omitempty"`
+	TargetId   string `json:"target_id" required:"true"`
+}
+
+type AvailabilityZoneOpts struct {
+	TargetAzs string `json:"target_azs" required:"true"`
+}
+
+type RemarkOpts struct {
+	Remark string `json:"remark"`
+}
+
+type ChangeMaintenanceWindowOpts struct {
+	StartTime string `json:"start_time" required:"true"`
+	EndTime   string `json:"end_time" required:"true"`
+}
+
+type UpdateClientNetworkOpts struct {
+	ClientNetworkRanges *[]string `json:"client_network_ranges" required:"true"`
+}
+
+// UpdateReplicaSetName is a method to update the replica set name.
+func UpdateReplicaSetName(c *golangsdk.ServiceClient, instanceId string, opts ReplicaSetNameOpts) (*CommonResp, error) {
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var r CommonResp
+	_, err = c.Put(replicaSetNameURL(c, instanceId), b, &r, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return &r, err
+}
+
+// UpdateAvailabilityZone is a method to update the AvailabilityZone.
+func UpdateAvailabilityZone(c *golangsdk.ServiceClient, instanceId string, opts AvailabilityZoneOpts) (*AvailabilityZoneResp, error) {
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var r AvailabilityZoneResp
+	_, err = c.Post(availabilityZoneURL(c, instanceId), b, &r, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return &r, err
+}
+
+// UpdateRemark is a method to update the description.
+func UpdateRemark(c *golangsdk.ServiceClient, instanceId string, opts RemarkOpts) error {
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		return err
+	}
+
+	_, err = c.Put(remarkURL(c, instanceId), b, nil, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return err
+}
+
+// UpdateSlowLogStatus is a method to update the slow log status.
+func UpdateSlowLogStatus(c *golangsdk.ServiceClient, instanceId string, slowLogStatus string) error {
+	_, err := c.Put(slowLogStatusURL(c, instanceId, slowLogStatus), nil, nil, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return err
+}
+
+// GetSlowLogStatus is a method to get the slow log status.
+func GetSlowLogStatus(c *golangsdk.ServiceClient, instanceId string) (*SlowLogStatusResp, error) {
+	var r SlowLogStatusResp
+	_, err := c.Get(slowLogStatusURL(c, instanceId, "status"), &r, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return &r, err
+}
+
+func RestartInstance(c *golangsdk.ServiceClient, instanceId string, opts RestartOpts) (*CommonResp, error) {
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var r CommonResp
+	_, err = c.Post(restartURL(c, instanceId), b, &r, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return &r, err
+}
+
+// UpdateMaintenanceWindow is a method to update maintenance time.
+func UpdateMaintenanceWindow(c *golangsdk.ServiceClient, instanceId string, opts ChangeMaintenanceWindowOpts) error {
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		return err
+	}
+
+	_, err = c.Put(maintenanceWindowURL(c, instanceId), b, nil, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+		OkCodes: []int{
+			204,
+		},
+	})
+	return err
+}
+
+// UpdateBalancerSwicth is a method to enable or disable the balancer.
+func UpdateBalancerSwicth(c *golangsdk.ServiceClient, instanceId string, action string) (*CommonResp, error) {
+	var r CommonResp
+	_, err := c.Put(balancerSwitchURL(c, instanceId, action), nil, &r, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return &r, err
+}
+
+// UpdateBalancerActiveWindow is a method to set the balancer active window.
+func UpdateBalancerActiveWindow(c *golangsdk.ServiceClient, instanceId string, opts BalancerActiveWindowOpts) (*CommonResp, error) {
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		return nil, err
+	}
+
+	var r CommonResp
+	_, err = c.Put(balancerActiveWindowURL(c, instanceId), b, &r, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return &r, err
+}
+
+// GetBalancer is a method to get the balancer configuration.
+func GetBalancer(c *golangsdk.ServiceClient, instanceId string) (*BalancerResp, error) {
+	var r BalancerResp
+	_, err := c.Get(balancerURL(c, instanceId), &r, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return &r, err
+}
+
+// GetClientNetWorkRanges is a method to get the client network ranges.
+func GetClientNetWorkRanges(c *golangsdk.ServiceClient, instanceId string) (*UpdateClientNetworkOpts, error) {
+	var r UpdateClientNetworkOpts
+	_, err := c.Get(clientNetworkRangesURL(c, instanceId), &r, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return &r, err
+}
+
+// UpdateClientNetWorkRanges is a method to update client network ranges.
+func UpdateClientNetWorkRanges(c *golangsdk.ServiceClient, instanceId string, opts UpdateClientNetworkOpts) error {
+	b, err := golangsdk.BuildRequestBody(opts, "")
+	if err != nil {
+		return err
+	}
+
+	_, err = c.Post(clientNetworkRangesURL(c, instanceId), b, nil, &golangsdk.RequestOpts{
+		MoreHeaders: requestOpts.MoreHeaders,
+	})
+	return err
 }

@@ -3,28 +3,32 @@ package lts
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
-	"github.com/chnsz/golangsdk/openstack/common/tags"
-	"github.com/chnsz/golangsdk/openstack/lts/huawei/logstreams"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/eps"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
 const EPSTagKey string = "_sys_enterprise_project_id"
 
+// @API LTS POST /v2/{project_id}/groups/{log_group_id}/streams
+// @API LTS GET /v2/{project_id}/groups/{log_group_id}/streams
+// @API LTS DELETE /v2/{project_id}/groups/{log_group_id}/streams/{log_stream_id}
+// @API LTS POST /v1/{project_id}/{resource_type}/{resource_id}/tags/action
 func ResourceLTSStream() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceStreamCreate,
 		ReadContext:   resourceStreamRead,
+		UpdateContext: resourceStreamUpdate,
 		DeleteContext: resourceStreamDelete,
 		Importer: &schema.ResourceImporter{
 			StateContext: resourceStreamImportState,
@@ -55,14 +59,11 @@ func ResourceLTSStream() *schema.Resource {
 			"enterprise_project_id": {
 				Type:     schema.TypeString,
 				Optional: true,
-				ForceNew: true,
 				Computed: true,
+				ForceNew: true,
 			},
-
+			"tags": common.TagsSchema(),
 			// Attributes
-			// tags of stream will be changed when the tags of group has been changed
-			// and the API cannot support updating tags, so we should mark tags as computed.
-			"tags": common.TagsComputedSchema(),
 			"filter_count": {
 				Type:     schema.TypeInt,
 				Computed: true,
@@ -76,111 +77,196 @@ func ResourceLTSStream() *schema.Resource {
 }
 
 func resourceStreamCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	cfg := meta.(*config.Config)
-	client, err := cfg.LtsV2Client(cfg.GetRegion(d))
+	var (
+		cfg     = meta.(*config.Config)
+		region  = cfg.GetRegion(d)
+		httpUrl = "v2/{project_id}/groups/{log_group_id}/streams"
+	)
+
+	client, err := cfg.NewServiceClient("lts", region)
 	if err != nil {
 		return diag.Errorf("error creating LTS client: %s", err)
 	}
+	createPath := client.Endpoint + httpUrl
+	createPath = strings.ReplaceAll(createPath, "{project_id}", client.ProjectID)
+	createPath = strings.ReplaceAll(createPath, "{log_group_id}", d.Get("group_id").(string))
 
-	groupId := d.Get("group_id").(string)
-	createOpts := &logstreams.CreateOpts{
-		LogStreamName: d.Get("stream_name").(string),
-		TTL:           d.Get("ttl_in_days").(int),
+	createOpts := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		MoreHeaders:      map[string]string{"Content-Type": "application/json"},
+		JSONBody:         utils.RemoveNil(buildCreateStreamBodyParams(cfg, d)),
 	}
 
-	if epsID := cfg.GetEnterpriseProjectID(d); epsID != "" {
-		createOpts.Tags = []tags.ResourceTag{
-			{
-				Key:   EPSTagKey,
-				Value: epsID,
-			},
+	requestResp, err := client.Request("POST", createPath, &createOpts)
+	if err != nil {
+		return diag.Errorf("error creating LTS stream: %s", err)
+	}
+
+	respBody, err := utils.FlattenResponse(requestResp)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+
+	id, err := jmespath.Search("log_stream_id", respBody)
+	if err != nil {
+		return diag.Errorf("error creating flow log: ID is not found in API response")
+	}
+
+	d.SetId(id.(string))
+
+	if _, ok := d.GetOk("tags"); ok {
+		streamId := d.Id()
+		err = updateTags(client, "topics", streamId, d)
+		if err != nil {
+			return diag.Errorf("error creating tags of log stream %s: %s", streamId, err)
 		}
 	}
 
-	log.Printf("[DEBUG] Create Options: %#v", createOpts)
-	streamCreate, err := logstreams.Create(client, groupId, createOpts).Extract()
-	if err != nil {
-		return diag.Errorf("error creating log stream: %s", err)
-	}
-
-	d.SetId(streamCreate.ID)
 	return resourceStreamRead(ctx, d, meta)
 }
 
+func buildCreateStreamBodyParams(cfg *config.Config, d *schema.ResourceData) map[string]interface{} {
+	bodyParams := map[string]interface{}{
+		"log_stream_name": d.Get("stream_name"),
+		"ttl_in_days":     utils.ValueIgnoreEmpty(d.Get("ttl_in_days")),
+	}
+
+	userNoPermission := []string{"EPS.0004"}
+	epsId := cfg.GetEnterpriseProjectID(d)
+	if epsId == "" {
+		epsId = "0"
+	}
+	epsInfo, err := getEnterpriseProjectById(cfg, cfg.GetRegion(d), epsId)
+	// If we catch error 403, it means that the user does not have EPS permissions, return immediately.
+	if parsedErr := eps.ParseQueryError403(err, userNoPermission, "No permission, skip the enterprise project query"); parsedErr == nil {
+		// Unable to set enterprise project ID for log stream via parameter 'enterprise_project_id' and
+		// 'tags._sys_enterprise_project_id'. Currently, only parameter 'enterprise_project_name' is available.
+		bodyParams["enterprise_project_name"] = utils.PathSearch("enterprise_project.name", epsInfo, nil)
+	}
+	// If not, insert enterprise project name into bodyParams.
+	return bodyParams
+}
+
+func getEnterpriseProjectById(cfg *config.Config, region, epsId string) (interface{}, error) {
+	client, err := cfg.NewServiceClient("eps", region)
+	if err != nil {
+		return nil, fmt.Errorf("error creating EPS client: %s", err)
+	}
+
+	httpUrl := "v1.0/enterprise-projects/{enterprise_project_id}"
+	getPath := client.Endpoint + httpUrl
+	getPath = strings.ReplaceAll(getPath, "{enterprise_project_id}", epsId)
+
+	getOpts := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		MoreHeaders:      map[string]string{"Content-Type": "application/json"},
+	}
+
+	requestResp, err := client.Request("GET", getPath, &getOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	respBody, err := utils.FlattenResponse(requestResp)
+	if err != nil {
+		return nil, err
+	}
+	return respBody, nil
+}
+
 func resourceStreamRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	cfg := meta.(*config.Config)
-	region := cfg.GetRegion(d)
-	client, err := cfg.LtsV2Client(region)
+	var (
+		cfg      = meta.(*config.Config)
+		region   = cfg.GetRegion(d)
+		httpUrl  = "v2/{project_id}/groups/{log_group_id}/streams"
+		streamId = d.Id()
+	)
+
+	client, err := cfg.NewServiceClient("lts", region)
+	if err != nil {
+		return diag.Errorf("error creating LTS client: %s", err)
+	}
+	getPath := client.Endpoint + httpUrl
+	getPath = strings.ReplaceAll(getPath, "{project_id}", client.ProjectID)
+	getPath = strings.ReplaceAll(getPath, "{log_group_id}", d.Get("group_id").(string))
+
+	getOpts := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		MoreHeaders:      map[string]string{"Content-Type": "application/json"},
+	}
+
+	requestResp, err := client.Request("GET", getPath, &getOpts)
+	if err != nil {
+		return common.CheckDeletedDiag(d, err, "error retrieving log stream")
+	}
+
+	respBody, err := utils.FlattenResponse(requestResp)
+	if err != nil {
+		return diag.Errorf("error parsing the log stream: %s", err)
+	}
+
+	streamResult := utils.PathSearch(fmt.Sprintf("log_streams|[?log_stream_id=='%s']|[0]", streamId), respBody, nil)
+	if streamResult == nil {
+		return common.CheckDeletedDiag(d, err, fmt.Sprintf("unable to find log stream by its ID (%s)", streamId))
+	}
+
+	mErr := multierror.Append(nil,
+		d.Set("region", region),
+		d.Set("stream_name", utils.PathSearch("log_stream_name", streamResult, nil)),
+		d.Set("enterprise_project_id", utils.PathSearch("tag._sys_enterprise_project_id", streamResult, nil)),
+		d.Set("tags", ignoreSysEpsTag(utils.PathSearch("tag", streamResult, make(map[string]interface{})).(map[string]interface{}))),
+		d.Set("filter_count", utils.PathSearch("filter_count", streamResult, nil)),
+		d.Set("created_at", utils.FormatTimeStampRFC3339(int64(utils.PathSearch("creation_time", streamResult, 0).(float64))/1000, false)),
+	)
+	return diag.FromErr(mErr.ErrorOrNil())
+}
+
+func resourceStreamUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	var (
+		cfg      = meta.(*config.Config)
+		region   = cfg.GetRegion(d)
+		streamId = d.Id()
+	)
+	client, err := cfg.NewServiceClient("lts", region)
 	if err != nil {
 		return diag.Errorf("error creating LTS client: %s", err)
 	}
 
-	streamID := d.Id()
-	groupID := d.Get("group_id").(string)
-	streams, err := logstreams.List(client, groupID).Extract()
-	if err != nil {
-		notFoundDiags := diag.Diagnostics{
-			diag.Diagnostic{
-				Severity: diag.Warning,
-				Summary:  "Resource not found",
-				Detail:   fmt.Sprintf("the log group %s is gone and will be removed in Terraform state.", groupID),
-			},
-		}
-
-		if _, ok := err.(golangsdk.ErrDefault404); ok {
-			// 404 indicates the log group is not exist
-			d.SetId("")
-			return notFoundDiags
-		}
-
-		if apiError, ok := err.(golangsdk.ErrDefault400); ok {
-			// "LTS.0201" indicates the log group is not exist
-			if resp, pErr := common.ParseErrorMsg(apiError.Body); pErr == nil && resp.ErrorCode == "LTS.0201" {
-				d.SetId("")
-				return notFoundDiags
-			}
-		}
-
-		return diag.Errorf("error getting log stream %s: %s", streamID, err)
-	}
-
-	for _, stream := range streams.LogStreams {
-		if stream.ID == streamID {
-			log.Printf("[DEBUG] Retrieved log stream %s: %#v", streamID, stream)
-
-			// fetch enterprise_project_id in tags and then delete it in tags
-			epsID := stream.Tags[EPSTagKey]
-			delete(stream.Tags, EPSTagKey)
-
-			mErr := multierror.Append(nil,
-				d.Set("region", region),
-				d.Set("stream_name", stream.Name),
-				d.Set("tags", stream.Tags),
-				d.Set("enterprise_project_id", epsID),
-				d.Set("filter_count", stream.FilterCount),
-				d.Set("created_at", utils.FormatTimeStampRFC3339(stream.CreationTime/1000, false)),
-			)
-			return diag.FromErr(mErr.ErrorOrNil())
+	if d.HasChange("tags") {
+		err = updateTags(client, "topics", streamId, d)
+		if err != nil {
+			return diag.Errorf("error updating tags of log stream (%s): %s", streamId, err)
 		}
 	}
 
-	// can not find the log stream by ID
-	return common.CheckDeletedDiag(d, golangsdk.ErrDefault404{}, "")
+	return resourceStreamRead(ctx, d, meta)
 }
 
 func resourceStreamDelete(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	cfg := meta.(*config.Config)
-	client, err := cfg.LtsV2Client(cfg.GetRegion(d))
+	var (
+		cfg      = meta.(*config.Config)
+		region   = cfg.GetRegion(d)
+		httpUrl  = "v2/{project_id}/groups/{log_group_id}/streams/{log_stream_id}"
+		streamId = d.Id()
+	)
+
+	client, err := cfg.NewServiceClient("lts", region)
 	if err != nil {
 		return diag.Errorf("error creating LTS client: %s", err)
 	}
+	deletePath := client.Endpoint + httpUrl
+	deletePath = strings.ReplaceAll(deletePath, "{project_id}", client.ProjectID)
+	deletePath = strings.ReplaceAll(deletePath, "{log_group_id}", d.Get("group_id").(string))
+	deletePath = strings.ReplaceAll(deletePath, "{log_stream_id}", streamId)
 
-	groupId := d.Get("group_id").(string)
-	err = logstreams.Delete(client, groupId, d.Id()).ExtractErr()
+	deleteOpts := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		MoreHeaders:      map[string]string{"Content-Type": "application/json"},
+	}
+	_, err = client.Request("DELETE", deletePath, &deleteOpts)
 	if err != nil {
 		return common.CheckDeletedDiag(d, err, "error deleting log stream")
 	}
-
 	return nil
 }
 

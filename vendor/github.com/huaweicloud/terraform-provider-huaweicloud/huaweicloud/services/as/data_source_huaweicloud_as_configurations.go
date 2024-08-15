@@ -13,6 +13,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/hashcode"
 )
 
+// @API AS GET /autoscaling-api/v1/{project_id}/scaling_configuration
 func DataSourceASConfigurations() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: dataSourceASConfigurationRead,
@@ -94,19 +95,19 @@ func DataSourceASConfigurations() *schema.Resource {
 									"disk": {
 										Type:        schema.TypeList,
 										Computed:    true,
-										Elem:        ConfigurationDiskSchema(),
+										Elem:        configurationDataSourceDiskSchema(),
 										Description: "The disk group information of the AS configuration.",
 									},
 									"personality": {
 										Type:        schema.TypeList,
 										Computed:    true,
-										Elem:        ConfigurationPersonalitySchema(),
+										Elem:        configurationDataSourcePersonalitySchema(),
 										Description: "The customize personality of the AS configuration.",
 									},
 									"public_ip": {
 										Type:        schema.TypeList,
 										Computed:    true,
-										Elem:        ConfigurationPublicIpSchema(),
+										Elem:        configurationDataSourcePublicIpSchema(),
 										Description: "The EIP of the ECS instance.",
 									},
 									"user_data": {
@@ -135,7 +136,7 @@ func DataSourceASConfigurations() *schema.Resource {
 	}
 }
 
-func ConfigurationDiskSchema() *schema.Resource {
+func configurationDataSourceDiskSchema() *schema.Resource {
 	return &schema.Resource{
 		Schema: map[string]*schema.Schema{
 			"size": {
@@ -162,7 +163,7 @@ func ConfigurationDiskSchema() *schema.Resource {
 	}
 }
 
-func ConfigurationPersonalitySchema() *schema.Resource {
+func configurationDataSourcePersonalitySchema() *schema.Resource {
 	return &schema.Resource{
 		Schema: map[string]*schema.Schema{
 			"path": {
@@ -179,7 +180,7 @@ func ConfigurationPersonalitySchema() *schema.Resource {
 	}
 }
 
-func ConfigurationPublicIpSchema() *schema.Resource {
+func configurationDataSourcePublicIpSchema() *schema.Resource {
 	return &schema.Resource{
 		Schema: map[string]*schema.Schema{
 			"eip": {
@@ -224,47 +225,165 @@ func ConfigurationPublicIpSchema() *schema.Resource {
 	}
 }
 
+func buildDataSourceConfigurationOpts(d *schema.ResourceData) configurations.ListOpts {
+	return configurations.ListOpts{
+		Name:    d.Get("name").(string),
+		ImageID: d.Get("image_id").(string),
+	}
+}
+
 func dataSourceASConfigurationRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	conf := meta.(*config.Config)
-	region := conf.GetRegion(d)
+	var (
+		conf   = meta.(*config.Config)
+		region = conf.GetRegion(d)
+		opts   = buildDataSourceConfigurationOpts(d)
+	)
+
 	asClient, err := conf.AutoscalingV1Client(region)
 	if err != nil {
 		return diag.Errorf("error creating autoscaling client: %s", err)
 	}
 
-	opts := configurations.ListOpts{
-		Name:    d.Get("name").(string),
-		ImageID: d.Get("image_id").(string),
-	}
 	page, err := configurations.List(asClient, opts).AllPages()
 	if err != nil {
-		return diag.Errorf("error getting AS Configuration list: %s", err)
+		return diag.Errorf("error getting AS configuration list: %s", err)
 	}
 
 	configurationList, err := page.(configurations.ConfigurationPage).Extract()
 	if err != nil {
-		return diag.Errorf("error extract to AS Configuration list: %s", err)
+		return diag.Errorf("error extract to AS configuration list: %s", err)
 	}
 
-	ids := make([]string, 0, len(configurationList))
-	elements := make([]map[string]interface{}, 0, len(configurationList))
-	for _, configuration := range configurationList {
-		configurationMap := map[string]interface{}{
-			"scaling_configuration_name": configuration.Name,
-			"instance_config":            flattenInstanceConfig(configuration.InstanceConfig),
-			"status":                     normalizeConfigurationStatus(configuration.ScalingGroupID),
-		}
-		ids = append(ids, configuration.ID)
-		elements = append(elements, configurationMap)
-	}
-
+	ids, elements := flattenDataSourceConfigurations(configurationList)
 	d.SetId(hashcode.Strings(ids))
 	mErr := multierror.Append(nil,
 		d.Set("configurations", elements),
 		d.Set("region", region),
 	)
 	if mErr.ErrorOrNil() != nil {
-		return diag.Errorf("error setting AS Configuration fields: %s", mErr)
+		return diag.Errorf("error setting AS configuration fields: %s", mErr)
 	}
 	return nil
+}
+
+func flattenDataSourceConfigurations(configurationList []configurations.Configuration) ([]string, []map[string]interface{}) {
+	ids := make([]string, 0, len(configurationList))
+	elements := make([]map[string]interface{}, 0, len(configurationList))
+	for _, configuration := range configurationList {
+		configurationMap := map[string]interface{}{
+			"scaling_configuration_name": configuration.Name,
+			"instance_config":            flattenInstanceConfigs(configuration.InstanceConfig),
+			"status":                     normalizeDataSourceConfigurationStatus(configuration.ScalingGroupID),
+		}
+		ids = append(ids, configuration.ID)
+		elements = append(elements, configurationMap)
+	}
+
+	return ids, elements
+}
+
+func flattenInstanceConfigs(instanceConfig configurations.InstanceConfig) []map[string]interface{} {
+	return []map[string]interface{}{
+		{
+			"charging_mode":          normalizeAsConfigurationChargingMode(instanceConfig.MarketType),
+			"instance_id":            instanceConfig.InstanceID,
+			"flavor":                 instanceConfig.FlavorRef,
+			"image":                  instanceConfig.ImageRef,
+			"key_name":               instanceConfig.SSHKey,
+			"flavor_priority_policy": instanceConfig.FlavorPriorityPolicy,
+			"ecs_group_id":           instanceConfig.ServerGroupID,
+			"user_data":              instanceConfig.UserData,
+			"metadata":               instanceConfig.Metadata,
+			"disk":                   flattenAsInstanceDisks(instanceConfig.Disk),
+			"public_ip":              flattenAsInstancePublicIP(instanceConfig.PublicIp.Eip),
+			"security_group_ids":     flattenAsSecurityGroupIDs(instanceConfig.SecurityGroups),
+			"personality":            flattenAsInstancePersonality(instanceConfig.Personality),
+		},
+	}
+}
+
+func normalizeDataSourceConfigurationStatus(groupIDs string) string {
+	if groupIDs != "" {
+		return "Bound"
+	}
+	return "Unbound"
+}
+
+func flattenAsInstanceDisks(disks []configurations.Disk) []map[string]interface{} {
+	if len(disks) == 0 {
+		return nil
+	}
+
+	res := make([]map[string]interface{}, len(disks))
+	for i, item := range disks {
+		res[i] = map[string]interface{}{
+			"volume_type": item.VolumeType,
+			"size":        item.Size,
+			"disk_type":   item.DiskType,
+		}
+
+		if kms, ok := item.Metadata["__system__cmkid"]; ok {
+			res[i]["kms_id"] = kms
+		}
+	}
+	return res
+}
+
+func flattenAsInstancePublicIP(eipObject configurations.Eip) []map[string]interface{} {
+	if eipObject.Type == "" {
+		return nil
+	}
+
+	bwInfo := []map[string]interface{}{
+		{
+			"share_type":    eipObject.Bandwidth.ShareType,
+			"size":          eipObject.Bandwidth.Size,
+			"charging_mode": eipObject.Bandwidth.ChargingMode,
+		},
+	}
+
+	eipInfo := []map[string]interface{}{
+		{
+			"ip_type":   eipObject.Type,
+			"bandwidth": bwInfo,
+		},
+	}
+
+	return []map[string]interface{}{
+		{"eip": eipInfo},
+	}
+}
+
+func flattenAsInstancePersonality(personalities []configurations.Personality) []map[string]interface{} {
+	if len(personalities) == 0 {
+		return nil
+	}
+
+	res := make([]map[string]interface{}, len(personalities))
+	for i, item := range personalities {
+		res[i] = map[string]interface{}{
+			"path":    item.Path,
+			"content": item.Content,
+		}
+	}
+	return res
+}
+
+func flattenAsSecurityGroupIDs(sgs []configurations.SecurityGroup) []string {
+	if len(sgs) == 0 {
+		return nil
+	}
+
+	res := make([]string, len(sgs))
+	for i, item := range sgs {
+		res[i] = item.ID
+	}
+	return res
+}
+
+func normalizeAsConfigurationChargingMode(marketType string) string {
+	if marketType == "" {
+		return "postPaid"
+	}
+	return "spot"
 }

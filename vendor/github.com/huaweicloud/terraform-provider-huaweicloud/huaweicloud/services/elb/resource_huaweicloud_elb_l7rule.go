@@ -19,6 +19,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
+// @API ELB POST /v3/{project_id}/elb/l7policies/{l7policy_id}/rules
+// @API ELB GET /v3/{project_id}/elb/l7policies/{l7policy_id}/rules/{l7rule_id}
+// @API ELB PUT /v3/{project_id}/elb/l7policies/{l7policy_id}/rules/{l7rule_id}
+// @API ELB DELETE /v3/{project_id}/elb/l7policies/{l7policy_id}/rules/{l7rule_id}
 func ResourceL7RuleV3() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceL7RuleV3Create,
@@ -66,6 +70,14 @@ func ResourceL7RuleV3() *schema.Resource {
 				Optional: true,
 				Computed: true,
 				Elem:     l7RuleConditionSchema(),
+			},
+			"created_at": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"updated_at": {
+				Type:     schema.TypeString,
+				Computed: true,
 			},
 		},
 	}
@@ -160,6 +172,8 @@ func resourceL7RuleV3Read(_ context.Context, d *schema.ResourceData, meta interf
 		d.Set("type", l7Rule.RuleType),
 		d.Set("compare_type", l7Rule.CompareType),
 		d.Set("value", l7Rule.Value),
+		d.Set("created_at", l7Rule.CreatedAt),
+		d.Set("updated_at", l7Rule.UpdatedAt),
 	)
 
 	var conditions []map[string]interface{}

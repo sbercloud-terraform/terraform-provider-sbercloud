@@ -21,6 +21,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
+// @API Config POST /v1/resource-manager/domains/{domain_id}/stored-queries
+// @API Config DELETE /v1/resource-manager/domains/{domain_id}/stored-queries/{query_id}
+// @API Config GET /v1/resource-manager/domains/{domain_id}/stored-queries/{query_id}
+// @API Config PUT /v1/resource-manager/domains/{domain_id}/stored-queries/{query_id}
 func ResourceAdvancedQuery() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceAdvancedQueryCreate,
@@ -96,9 +100,9 @@ func resourceAdvancedQueryCreate(ctx context.Context, d *schema.ResourceData, me
 
 func buildCreateAdvancedQueryBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":        utils.ValueIngoreEmpty(d.Get("name")),
-		"expression":  utils.ValueIngoreEmpty(d.Get("expression")),
-		"description": utils.ValueIngoreEmpty(d.Get("description")),
+		"name":        utils.ValueIgnoreEmpty(d.Get("name")),
+		"expression":  utils.ValueIgnoreEmpty(d.Get("expression")),
+		"description": utils.ValueIgnoreEmpty(d.Get("description")),
 	}
 	return bodyParams
 }
@@ -187,9 +191,9 @@ func resourceAdvancedQueryUpdate(ctx context.Context, d *schema.ResourceData, me
 
 func buildUpdateAdvancedQueryBodyParams(d *schema.ResourceData) map[string]interface{} {
 	bodyParams := map[string]interface{}{
-		"name":        utils.ValueIngoreEmpty(d.Get("name")),
-		"expression":  utils.ValueIngoreEmpty(d.Get("expression")),
-		"description": utils.ValueIngoreEmpty(d.Get("description")),
+		"name":        utils.ValueIgnoreEmpty(d.Get("name")),
+		"expression":  utils.ValueIgnoreEmpty(d.Get("expression")),
+		"description": utils.ValueIgnoreEmpty(d.Get("description")),
 	}
 	return bodyParams
 }

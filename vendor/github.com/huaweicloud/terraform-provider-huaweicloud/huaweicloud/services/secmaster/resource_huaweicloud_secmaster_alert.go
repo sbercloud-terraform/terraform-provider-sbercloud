@@ -27,6 +27,10 @@ const (
 	AlertNotExistsCode = "SecMaster.20030005"
 )
 
+// @API SecMaster DELETE /v1/{project_id}/workspaces/{workspace_id}/soc/alerts
+// @API SecMaster POST /v1/{project_id}/workspaces/{workspace_id}/soc/alerts
+// @API SecMaster GET /v1/{project_id}/workspaces/{workspace_id}/soc/alerts/{id}
+// @API SecMaster PUT /v1/{project_id}/workspaces/{workspace_id}/soc/alerts/{id}
 func ResourceAlert() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceAlertCreate,
@@ -248,16 +252,16 @@ func buildCreateAlertBodyParams(d *schema.ResourceData, cfg *config.Config) (map
 		"title":              d.Get("name"),
 		"description":        d.Get("description"),
 		"alert_type":         buildAlertTypeOpts(d.Get("type")),
-		"data_source":        buildAlertDataSourceOpts(d.Get("data_source")),
+		"data_source":        buildAlertDataSourceOpts(d, cfg),
 		"severity":           d.Get("severity"),
 		"handle_status":      d.Get("status"),
 		"ipdrr_phase":        d.Get("stage"),
 		"verification_state": d.Get("verification_status"),
-		"owner":              utils.ValueIngoreEmpty(d.Get("owner")),
-		"simulation":         utils.ValueIngoreEmpty(d.Get("debugging_data")),
-		"labels":             utils.ValueIngoreEmpty(d.Get("labels")),
-		"close_reason":       utils.ValueIngoreEmpty(d.Get("close_reason")),
-		"close_comment":      utils.ValueIngoreEmpty(d.Get("close_comment")),
+		"owner":              utils.ValueIgnoreEmpty(d.Get("owner")),
+		"simulation":         utils.ValueIgnoreEmpty(d.Get("debugging_data")),
+		"labels":             utils.ValueIgnoreEmpty(d.Get("labels")),
+		"close_reason":       utils.ValueIgnoreEmpty(d.Get("close_reason")),
+		"close_comment":      utils.ValueIgnoreEmpty(d.Get("close_comment")),
 		"environment":        buildEnvironmentOpts(d, cfg),
 		"domain_id":          cfg.DomainID,
 		"region_id":          cfg.GetRegion(d),
@@ -298,32 +302,36 @@ func buildAlertTypeOpts(rawParams interface{}) map[string]interface{} {
 		}
 
 		params := map[string]interface{}{
-			"category":   utils.ValueIngoreEmpty(raw["category"]),
-			"alert_type": utils.ValueIngoreEmpty(raw["alert_type"]),
+			"category":   utils.ValueIgnoreEmpty(raw["category"]),
+			"alert_type": utils.ValueIgnoreEmpty(raw["alert_type"]),
 		}
 		return params
 	}
 	return nil
 }
 
-func buildAlertDataSourceOpts(rawParams interface{}) map[string]interface{} {
-	if rawArray, ok := rawParams.([]interface{}); ok {
-		if len(rawArray) == 0 {
-			return nil
-		}
-		raw, ok := rawArray[0].(map[string]interface{})
-		if !ok {
-			return nil
-		}
-
-		params := map[string]interface{}{
-			"product_feature": utils.ValueIngoreEmpty(raw["product_feature"]),
-			"product_name":    utils.ValueIngoreEmpty(raw["product_name"]),
-			"source_type":     utils.ValueIngoreEmpty(raw["source_type"]),
-		}
-		return params
+func buildAlertDataSourceOpts(d *schema.ResourceData, cfg *config.Config) map[string]interface{} {
+	rawArray := d.Get("data_source").([]interface{})
+	if len(rawArray) == 0 {
+		return nil
 	}
-	return nil
+
+	region := cfg.GetRegion(d)
+
+	raw, ok := rawArray[0].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+
+	params := map[string]interface{}{
+		"domain_id":       cfg.DomainID,
+		"project_id":      cfg.GetProjectID(region),
+		"region_id":       region,
+		"product_feature": utils.ValueIgnoreEmpty(raw["product_feature"]),
+		"product_name":    utils.ValueIgnoreEmpty(raw["product_name"]),
+		"source_type":     utils.ValueIgnoreEmpty(raw["source_type"]),
+	}
+	return params
 }
 
 func resourceAlertRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -485,10 +493,10 @@ func buildUpdateAlertBodyParams(d *schema.ResourceData, cfg *config.Config) (map
 		"handle_status":      d.Get("status"),
 		"ipdrr_phase":        d.Get("stage"),
 		"verification_state": d.Get("verification_status"),
-		"owner":              utils.ValueIngoreEmpty(d.Get("owner")),
-		"labels":             utils.ValueIngoreEmpty(d.Get("labels")),
-		"close_reason":       utils.ValueIngoreEmpty(d.Get("close_reason")),
-		"close_comment":      utils.ValueIngoreEmpty(d.Get("close_comment")),
+		"owner":              utils.ValueIgnoreEmpty(d.Get("owner")),
+		"labels":             utils.ValueIgnoreEmpty(d.Get("labels")),
+		"close_reason":       utils.ValueIgnoreEmpty(d.Get("close_reason")),
+		"close_comment":      utils.ValueIgnoreEmpty(d.Get("close_comment")),
 		"domain_id":          cfg.DomainID,
 		"region_id":          cfg.GetRegion(d),
 	}
