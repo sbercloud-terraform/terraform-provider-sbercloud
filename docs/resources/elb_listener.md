@@ -60,6 +60,10 @@ The following arguments are supported:
   backend servers. The default value is false. This parameter is valid only when the protocol is set to *HTTP* or
   *HTTPS*.
 
+* `real_ip` - (Optional, Bool) Specifies whether to transfer the source IP address of the client to backend servers
+  through the HTTP header of the packet. The default value is false. This parameter is valid only when the protocol is
+  set to **HTTP** or **HTTPS**.
+
 * `access_policy` - (Optional, String) Specifies the access policy for the listener. Valid options are *white* and
   *black*.
 

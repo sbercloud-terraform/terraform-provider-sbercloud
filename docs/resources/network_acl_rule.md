@@ -43,7 +43,7 @@ The following arguments are supported:
 * `description` - (Optional, String) Specifies the description for the network ACL rule.
 
 * `protocol` - (Required, String) Specifies the protocol supported by the network ACL rule. Valid values are: *tcp*,
-  *udp*, *icmp* and *any*.
+  *udp* and *icmp*.
 
 * `action` - (Required, String) Specifies the action in the network ACL rule. Currently, the value can be *allow* or
   *deny*.
