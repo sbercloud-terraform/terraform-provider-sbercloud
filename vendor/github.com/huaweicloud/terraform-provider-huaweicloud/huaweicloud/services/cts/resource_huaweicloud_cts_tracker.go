@@ -294,11 +294,14 @@ func resourceCTSTrackerRead(_ context.Context, d *schema.ResourceData, meta inte
 		nil,
 		d.Set("region", region),
 		d.Set("name", ctsTracker.TrackerName),
-		d.Set("lts_enabled", ctsTracker.Lts.IsLtsEnabled),
 		d.Set("organization_enabled", ctsTracker.IsOrganizationTracker),
 		d.Set("validate_file", ctsTracker.IsSupportValidate),
 		d.Set("kms_id", ctsTracker.KmsId),
 	)
+
+	if ctsTracker.Lts != nil {
+		mErr = multierror.Append(mErr, d.Set("lts_enabled", ctsTracker.Lts.IsLtsEnabled))
+	}
 
 	if ctsTracker.AgencyName != nil {
 		mErr = multierror.Append(mErr, d.Set("agency_name", ctsTracker.AgencyName.Value()))
@@ -360,7 +363,7 @@ func resourceCTSTrackerDelete(_ context.Context, d *schema.ResourceData, meta in
 
 		_, err = ctsClient.DeleteTracker(&deleteOpts)
 		if err != nil {
-			return diag.Errorf("error deleting CTS system tracker %s: %s", trackerName, err)
+			return common.CheckDeletedDiag(d, convertExpected403ErrInto404Err(err, "CTS.0013"), "error deleting CTS system tracker")
 		}
 		return nil
 	}
@@ -529,5 +532,14 @@ func updateSystemTrackerStatus(c *client.CtsClient, status string) error {
 	}
 
 	_, err := c.UpdateTracker(&statusReq)
+	return err
+}
+
+func convertExpected403ErrInto404Err(err error, errCode string) error {
+	if responseErr, ok := err.(*sdkerr.ServiceResponseError); ok {
+		if responseErr.StatusCode == http.StatusForbidden && responseErr.ErrorCode == errCode {
+			return golangsdk.ErrDefault404{}
+		}
+	}
 	return err
 }

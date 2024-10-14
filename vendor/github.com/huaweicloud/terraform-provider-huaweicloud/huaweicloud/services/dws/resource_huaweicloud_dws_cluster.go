@@ -23,7 +23,6 @@ import (
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/common/tags"
-	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -35,6 +34,8 @@ const (
 	PublicBindTypeNotUse       = "not_use"
 	PublicBindTypeBindExisting = "bind_existing"
 )
+
+const ClusterIdIllegalErrCode = "DWS.0001"
 
 // @API DWS POST /v1.0/{project_id}/clusters
 // @API DWS GET /v1.0/{project_id}/clusters/{cluster_id}
@@ -51,6 +52,8 @@ const (
 // @API DWS DELETE /v2/{project_id}/clusters/{cluster_id}/elbs/{elb_id}
 // @API DWS POST /v1/{project_id}/clusters/{cluster_id}/lts-logs/enable
 // @API DWS POST /v1/{project_id}/clusters/{cluster_id}/lts-logs/disable
+// @API DWS POST /v2/{project_id}/clusters/{cluster_id}/eips/{eip_id}
+// @API DWS DELETE /v2/{project_id}/clusters/{cluster_id}/eips/{eip_id}
 func ResourceDwsCluster() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDwsClusterCreate,
@@ -127,12 +130,11 @@ func ResourceDwsCluster() *schema.Resource {
 				Description: `The availability zone in which to create the cluster instance. `,
 			},
 			"version": {
-				Type:         schema.TypeString,
-				Optional:     true,
-				Computed:     true,
-				ForceNew:     true,
-				Description:  "schema: Required",
-				RequiredWith: []string{"number_of_cn", "volume"},
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
+				ForceNew:    true,
+				Description: "schema: Required",
 			},
 			"number_of_cn": {
 				Type:        schema.TypeInt,
@@ -173,22 +175,19 @@ func ResourceDwsCluster() *schema.Resource {
 				Elem:     clusterPublicIpSchema(),
 				Optional: true,
 				Computed: true,
-				ForceNew: true,
 			},
 			"volume": {
-				Type:        schema.TypeList,
-				MaxItems:    1,
-				Elem:        clusterVolumeSchema(),
-				Optional:    true,
-				Computed:    true,
-				ForceNew:    true,
-				Description: "schema: Required",
+				Type:     schema.TypeList,
+				MaxItems: 1,
+				Elem:     clusterVolumeSchema(),
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
 			},
 			"tags": {
 				Type:        schema.TypeMap,
 				Elem:        &schema.Schema{Type: schema.TypeString},
 				Optional:    true,
-				Computed:    true,
 				Description: `The key/value pairs to associate with the cluster.`,
 			},
 			"keep_last_manual_snapshot": {
@@ -286,8 +285,14 @@ func clusterPublicIpSchema() *schema.Resource {
 			"eip_id": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Computed:    true,
 				Description: `The EIP ID.`,
+				DiffSuppressFunc: func(_, _, newVal string, d *schema.ResourceData) bool {
+					// If "public_bind_type" is set to "auto_assign", the EIP will be automatically bound, the EIP Will be triggered to change.
+					if v, ok := d.GetOk("public_ip.0.public_bind_type"); ok {
+						return v.(string) == PublicBindTypeAuto && newVal == ""
+					}
+					return false
+				},
 			},
 		},
 	}
@@ -591,7 +596,7 @@ func buildCreateDwsClusterBodyParams(d *schema.ResourceData, cfg *config.Config)
 			"security_group_id":     utils.ValueIgnoreEmpty(d.Get("security_group_id")),
 			"datastore_version":     utils.ValueIgnoreEmpty(d.Get("version")),
 			"dss_pool_id":           utils.ValueIgnoreEmpty(d.Get("dss_pool_id")),
-			"enterprise_project_id": utils.ValueIgnoreEmpty(common.GetEnterpriseProjectID(d, cfg)),
+			"enterprise_project_id": utils.ValueIgnoreEmpty(cfg.GetEnterpriseProjectID(d)),
 			"master_key_id":         utils.ValueIgnoreEmpty(d.Get("kms_key_id")),
 			"public_ip":             buildCreateDwsClusterReqBodyPublicIp(d.Get("public_ip")),
 			"volume":                buildCreateDwsClusterReqBodyVolume(d.Get("volume")),
@@ -615,7 +620,7 @@ func buildCreateDwsClusterBodyParamsV1(d *schema.ResourceData, cfg *config.Confi
 			"vpc_id":                utils.ValueIgnoreEmpty(d.Get("vpc_id")),
 			"subnet_id":             utils.ValueIgnoreEmpty(d.Get("network_id")),
 			"security_group_id":     utils.ValueIgnoreEmpty(d.Get("security_group_id")),
-			"enterprise_project_id": utils.ValueIgnoreEmpty(common.GetEnterpriseProjectID(d, cfg)),
+			"enterprise_project_id": utils.ValueIgnoreEmpty(cfg.GetEnterpriseProjectID(d)),
 			"public_ip":             buildCreateDwsClusterReqBodyPublicIp(d.Get("public_ip")),
 			"tags":                  utils.ExpandResourceTags(d.Get("tags").(map[string]interface{})),
 		},
@@ -1027,13 +1032,13 @@ func resourceDwsClusterUpdate(ctx context.Context, d *schema.ResourceData, meta 
 	}
 
 	if d.HasChange("enterprise_project_id") {
-		migrateOpts := enterpriseprojects.MigrateResourceOpts{
+		migrateOpts := config.MigrateResourceOpts{
 			ResourceId:   clusterId,
 			ResourceType: "dws_clusters",
 			RegionId:     region,
 			ProjectId:    clusterClient.ProjectID,
 		}
-		if err := common.MigrateEnterpriseProject(ctx, cfg, d, migrateOpts); err != nil {
+		if err := cfg.MigrateEnterpriseProject(ctx, d, migrateOpts); err != nil {
 			return diag.FromErr(err)
 		}
 	}
@@ -1046,6 +1051,12 @@ func resourceDwsClusterUpdate(ctx context.Context, d *schema.ResourceData, meta 
 				return common.CheckDeletedDiag(d, err,
 					fmt.Sprintf("error modifying LTS for DWS cluster, the expected LTS enable status is: %v", d.Get("lts_enable").(bool)))
 			}
+		}
+	}
+
+	if d.HasChange("public_ip.0.eip_id") {
+		if err := updateEip(clusterClient, d); err != nil {
+			return diag.FromErr(err)
 		}
 	}
 
@@ -1149,11 +1160,6 @@ func deleteClusterWaitingForCompleted(ctx context.Context, d *schema.ResourceDat
 
 			deleteDwsClusterWaitingResp, err := deleteDwsClusterWaitingClient.Request("GET", deleteDwsClusterWaitingPath, &deleteDwsClusterWaitingOpt)
 			if err != nil {
-				if _, ok := err.(golangsdk.ErrDefault404); ok {
-					// When the error code is 404, the value of respBody is nil, and a non-null value is returned to avoid continuing the loop check.
-					return "Resource Not Found", "COMPLETED", nil
-				}
-
 				err = parseClusterNotFoundError(err)
 				if _, ok := err.(golangsdk.ErrDefault404); ok {
 					// When the error code is 404, the value of respBody is nil, and a non-null value is returned to avoid continuing the loop check.
@@ -1197,29 +1203,6 @@ func deleteClusterWaitingForCompleted(ctx context.Context, d *schema.ResourceDat
 	}
 	_, err := stateConf.WaitForStateContext(ctx)
 	return err
-}
-
-func parseClusterNotFoundError(respErr error) error {
-	var apiErr interface{}
-	if errCode, ok := respErr.(golangsdk.ErrDefault401); ok {
-		pErr := json.Unmarshal(errCode.Body, &apiErr)
-		if pErr != nil {
-			return pErr
-		}
-		errCode, err := jmespath.Search(`errCode`, apiErr)
-		if err != nil {
-			return fmt.Errorf("error parse errorCode from response body: %s", err.Error())
-		}
-
-		if errCode == `DWS.0047` {
-			return golangsdk.ErrDefault404{
-				ErrUnexpectedResponseCode: golangsdk.ErrUnexpectedResponseCode{
-					Body: []byte("the DWS cluster does not exist"),
-				},
-			}
-		}
-	}
-	return respErr
 }
 
 func addClusterTags(client *golangsdk.ServiceClient, clusterId string, rawTags []tags.ResourceTag) error {
@@ -1393,6 +1376,42 @@ func unbindElb(ctx context.Context, d *schema.ResourceData, client *golangsdk.Se
 	return nil
 }
 
+func updateEip(client *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	var (
+		oldEipRaw, newEipRaw = d.GetChange("public_ip.0.eip_id")
+		oldEipId             = oldEipRaw.(string)
+		newEipId             = newEipRaw.(string)
+		clusterId            = d.Id()
+	)
+
+	path := client.Endpoint + "v2/{project_id}/clusters/{cluster_id}/eips/{eip_id}"
+	path = strings.ReplaceAll(path, "{project_id}", client.ProjectID)
+	path = strings.ReplaceAll(path, "{cluster_id}", clusterId)
+	opt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		MoreHeaders: map[string]string{
+			"Content-Type": "application/json",
+		},
+	}
+
+	if oldEipId != "" {
+		unBindEipPath := strings.ReplaceAll(path, "{eip_id}", oldEipId)
+		_, err := client.Request("DELETE", unBindEipPath, &opt)
+		if err != nil {
+			return fmt.Errorf("error unbinding EIP (%s) from DWS instance (%s): %s", oldEipId, clusterId, err)
+		}
+	}
+
+	if newEipId != "" {
+		bindEipPath := strings.ReplaceAll(path, "{eip_id}", newEipId)
+		_, err := client.Request("POST", bindEipPath, &opt)
+		if err != nil {
+			return fmt.Errorf("error binding EIP (%s) to DWS instance (%s): %s", newEipId, clusterId, err)
+		}
+	}
+	return nil
+}
+
 func jobStatusRefreshFunc(client *golangsdk.ServiceClient, jobId string) resource.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		getJobStatusHttpUrl := "v1.0/{project_id}/job/{job_id}"
@@ -1474,6 +1493,27 @@ func parseLtsError(err error) error {
 		if errorCode == "DWS.0015" {
 			return golangsdk.ErrDefault404(errCode400)
 		}
+	}
+	return err
+}
+
+func parseClusterNotFoundError(err error) error {
+	// "DWS.0001": The cluster ID does not exist (non-standard UUID format). Status code is 400.
+	parsedErr := common.ConvertExpected400ErrInto404Err(err, "error_code", ClusterIdIllegalErrCode)
+	if _, ok := parsedErr.(golangsdk.ErrDefault404); ok {
+		return parsedErr
+	}
+
+	parsedErr = common.ConvertExpected401ErrInto404Err(err, "error_code", "DWS.0047")
+	if _, ok := parsedErr.(golangsdk.ErrDefault404); ok {
+		return parsedErr
+	}
+
+	// "DWS.0015": The cluster ID does not exist (standard UUID format). Status code is 403.
+	parsedErr = common.ConvertExpected403ErrInto404Err(err, "error_code", "DWS.0015")
+	// "DWS.3027": The cluster was deleted after it was created. Status code is 404.
+	if _, ok := parsedErr.(golangsdk.ErrDefault404); ok {
+		return parsedErr
 	}
 	return err
 }

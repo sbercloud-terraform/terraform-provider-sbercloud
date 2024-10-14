@@ -1761,6 +1761,24 @@ func resourceApiUpdate(ctx context.Context, d *schema.ResourceData, meta interfa
 	return resourceApiRead(ctx, d, meta)
 }
 
+func deleteApi(client *golangsdk.ServiceClient, instanceId, apiId string) error {
+	httpUrl := "v2/{project_id}/apigw/instances/{instance_id}/apis/{api_id}"
+	unpublishPath := client.Endpoint + httpUrl
+	unpublishPath = strings.ReplaceAll(unpublishPath, "{project_id}", client.ProjectID)
+	unpublishPath = strings.ReplaceAll(unpublishPath, "{instance_id}", instanceId)
+	unpublishPath = strings.ReplaceAll(unpublishPath, "{api_id}", apiId)
+
+	opt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		MoreHeaders: map[string]string{
+			"Content-Type": "application/json",
+		},
+	}
+
+	_, err := client.Request("DELETE", unpublishPath, &opt)
+	return err
+}
+
 func resourceApiDelete(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	client, err := cfg.ApigV2Client(cfg.GetRegion(d))
@@ -1772,7 +1790,7 @@ func resourceApiDelete(_ context.Context, d *schema.ResourceData, meta interface
 		instanceId = d.Get("instance_id").(string)
 		apiId      = d.Id()
 	)
-	if err = apis.Delete(client, instanceId, apiId).ExtractErr(); err != nil {
+	if err = deleteApi(client, instanceId, apiId); err != nil {
 		return diag.Errorf("unable to delete the API (%s): %s", apiId, err)
 	}
 
@@ -1782,17 +1800,22 @@ func resourceApiDelete(_ context.Context, d *schema.ResourceData, meta interface
 // GetApigAPIIdByName is a method to get a specifies API ID from a APIG instance by name.
 func GetApiIdByName(client *golangsdk.ServiceClient, instanceId, name string) (string, error) {
 	opt := apis.ListOpts{
-		Name: name,
+		Name: name, // Fuzzy search (reduce the time cost of the traversal)
 	}
 	pages, err := apis.List(client, instanceId, opt).AllPages()
 	if err != nil {
 		return "", fmt.Errorf("error retrieving APIs: %s", err)
 	}
-	resp, err := apis.ExtractApis(pages)
-	if len(resp) < 1 {
-		return "", fmt.Errorf("unable to find the API (%s) form server: %s", name, err)
+	apiRecords, err := apis.ExtractApis(pages)
+	if err != nil {
+		return "", err
 	}
-	return resp[0].ID, nil
+	for _, apiRecord := range apiRecords {
+		if apiRecord.Name == name {
+			return apiRecord.ID, nil
+		}
+	}
+	return "", fmt.Errorf("unable to find the API (%s) form APIG service", name)
 }
 
 func resourceApiImportState(_ context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData,

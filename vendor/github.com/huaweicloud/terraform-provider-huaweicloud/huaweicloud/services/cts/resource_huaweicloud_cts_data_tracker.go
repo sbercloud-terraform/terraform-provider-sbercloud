@@ -400,9 +400,12 @@ func resourceCTSDataTrackerRead(_ context.Context, d *schema.ResourceData, meta 
 		nil,
 		d.Set("region", region),
 		d.Set("name", ctsTracker.TrackerName),
-		d.Set("lts_enabled", ctsTracker.Lts.IsLtsEnabled),
 		d.Set("validate_file", ctsTracker.IsSupportValidate),
 	)
+
+	if ctsTracker.Lts != nil {
+		mErr = multierror.Append(mErr, d.Set("lts_enabled", ctsTracker.Lts.IsLtsEnabled))
+	}
 
 	if ctsTracker.AgencyName != nil {
 		mErr = multierror.Append(mErr, d.Set("agency_name", ctsTracker.AgencyName.Value()))
@@ -475,7 +478,10 @@ func resourceCTSDataTrackerDelete(_ context.Context, d *schema.ResourceData, met
 
 	_, err = ctsClient.DeleteTracker(&deleteOpts)
 	if err != nil {
-		return diag.Errorf("error deleting CTS data tracker %s: %s", trackerName, err)
+		return common.CheckDeletedDiag(d,
+			convertExpected403ErrInto404Err(err, "CTS.0013"),
+			fmt.Sprintf("error deleting CTS data tracker %s", trackerName),
+		)
 	}
 
 	return nil

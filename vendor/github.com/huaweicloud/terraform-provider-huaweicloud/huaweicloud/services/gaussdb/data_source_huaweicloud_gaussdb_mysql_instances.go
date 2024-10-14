@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -104,7 +105,27 @@ func DataSourceGaussDBMysqlInstances() *schema.Resource {
 							Type:     schema.TypeInt,
 							Computed: true,
 						},
+						"private_dns_name_prefix": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"private_dns_name": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
 						"private_write_ip": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"maintain_begin": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"maintain_end": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"description": {
 							Type:     schema.TypeString,
 							Computed: true,
 						},
@@ -179,6 +200,14 @@ func DataSourceGaussDBMysqlInstances() *schema.Resource {
 									},
 								},
 							},
+						},
+						"created_at": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"updated_at": {
+							Type:     schema.TypeString,
+							Computed: true,
 						},
 					},
 				},
@@ -272,9 +301,22 @@ func dataSourceGaussDBMysqlInstancesRead(_ context.Context, d *schema.ResourceDa
 		instanceToSet["configuration_id"] = instance.ConfigurationId
 		instanceToSet["availability_zone_mode"] = instance.AZMode
 		instanceToSet["master_availability_zone"] = instance.MasterAZ
+		instanceToSet["description"] = instance.Alias
+		instanceToSet["created_at"] = instance.Created
+		instanceToSet["updated_at"] = instance.Updated
 
 		if len(instance.PrivateIps) > 0 {
 			instanceToSet["private_write_ip"] = instance.PrivateIps[0]
+		}
+		if len(instance.PrivateDnsNames) > 0 {
+			instanceToSet["private_dns_name_prefix"] = strings.Split(instance.PrivateDnsNames[0], ".")[0]
+			instanceToSet["private_dns_name"] = instance.PrivateDnsNames[0]
+		}
+
+		maintainWindow := strings.Split(instance.MaintenanceWindow, "-")
+		if len(maintainWindow) == 2 {
+			instanceToSet["maintain_begin"] = maintainWindow[0]
+			instanceToSet["maintain_end"] = maintainWindow[1]
 		}
 
 		flavor := ""

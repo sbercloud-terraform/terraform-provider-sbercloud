@@ -123,6 +123,12 @@ type CreateSpec struct {
 	PodSecurityGroups []PodSecurityGroupSpec `json:"podSecurityGroups,omitempty"`
 	// Node security group configurations
 	CustomSecurityGroups []string `json:"customSecurityGroups,omitempty"`
+	// label (k8s tag) policy on existing nodes
+	LabelPolicyOnExistingNodes string `json:"labelPolicyOnExistingNodes,omitempty"`
+	// tag policy on existing nodes
+	UserTagPolicyOnExistingNodes string `json:"userTagsPolicyOnExistingNodes,omitempty"`
+	// taint policy on existing nodes
+	TaintPolicyOnExistingNodes string `json:"taintPolicyOnExistingNodes,omitempty"`
 }
 
 type PodSecurityGroupSpec struct {
@@ -229,6 +235,8 @@ type UpdateNodeTemplate struct {
 	Partition string `json:"partition,omitempty"`
 	// The initialized conditions
 	InitializedConditions []string `json:"initializedConditions,omitempty"`
+	// The enterprise project ID
+	ServerEnterpriseProjectID string `json:"serverEnterpriseProjectID,omitempty"`
 }
 
 // UpdateSpec describes Node pools update specification
@@ -241,6 +249,12 @@ type UpdateSpec struct {
 	InitialNodeCount *int `json:"initialNodeCount" required:"true"`
 	// Auto scaling parameters
 	Autoscaling AutoscalingSpec `json:"autoscaling"`
+	// label (k8s tag) policy on existing nodes
+	LabelPolicyOnExistingNodes string `json:"labelPolicyOnExistingNodes,omitempty"`
+	// tag policy on existing nodes
+	UserTagPolicyOnExistingNodes string `json:"userTagsPolicyOnExistingNodes,omitempty"`
+	// taint policy on existing nodes
+	TaintPolicyOnExistingNodes string `json:"taintPolicyOnExistingNodes,omitempty"`
 }
 
 // ToNodePoolUpdateMap builds an update body based on UpdateOpts.

@@ -188,6 +188,10 @@ func ResourceWafDomain() *schema.Resource {
 				Type:     schema.TypeInt,
 				Computed: true,
 			},
+			"access_code": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
 			"protocol": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -541,7 +545,8 @@ func resourceWafDomainRead(_ context.Context, d *schema.ResourceData, meta inter
 
 	dm, err := domains.GetWithEpsID(wafClient, d.Id(), cfg.GetEnterpriseProjectID(d)).Extract()
 	if err != nil {
-		return common.CheckDeletedDiag(d, err, "Error obtain WAF domain information")
+		// If the domain does not exist, the response HTTP status code of the details API is 404.
+		return common.CheckDeletedDiag(d, err, "error retrieving WAF domain")
 	}
 
 	// charging_mode not returned by API
@@ -554,6 +559,7 @@ func resourceWafDomainRead(_ context.Context, d *schema.ResourceData, meta inter
 		d.Set("proxy", dm.Proxy),
 		d.Set("protect_status", dm.ProtectStatus),
 		d.Set("access_status", dm.AccessStatus),
+		d.Set("access_code", dm.AccessCode),
 		d.Set("protocol", dm.Protocol),
 		d.Set("server", flattenDomainServerAttrs(dm)),
 		d.Set("custom_page", flattenDomainCustomPage(dm)),
@@ -623,7 +629,8 @@ func resourceWafDomainDelete(_ context.Context, d *schema.ResourceData, meta int
 	}
 	err = domains.Delete(wafClient, d.Id(), delOpts).ExtractErr()
 	if err != nil {
-		return diag.Errorf("error deleting WAF domain: %s", err)
+		// If the domain does not exist, the response HTTP status code of the deletion API is 404.
+		return common.CheckDeletedDiag(d, err, "error deleting WAF domain")
 	}
 
 	return nil
