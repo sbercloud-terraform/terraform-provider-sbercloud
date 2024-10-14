@@ -112,6 +112,11 @@ func snapshotSchema() *schema.Resource {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
+			"metadata": {
+				Type:     schema.TypeMap,
+				Computed: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
+			},
 		},
 	}
 	return &sc
@@ -175,7 +180,7 @@ func datasourceSnapshotsRead(_ context.Context, d *schema.ResourceData, meta int
 
 func buildEVSSnapshotsQueryParams(d *schema.ResourceData, cfg *config.Config) string {
 	res := ""
-	epsId := cfg.DataGetEnterpriseProjectID(d)
+	epsId := cfg.GetEnterpriseProjectID(d, "all_granted_eps")
 	if epsId != "" {
 		res = fmt.Sprintf("%s&enterprise_project_id=%v", res, epsId)
 	}
@@ -227,6 +232,7 @@ func flattenListSnapshotsBody(resp interface{}) []interface{} {
 			"updated_at":   utils.PathSearch("updated_at", v, nil),
 			"volume_id":    utils.PathSearch("volume_id", v, nil),
 			"service_type": utils.PathSearch("service_type", v, nil),
+			"metadata":     utils.PathSearch("metadata", v, nil),
 		})
 	}
 	return rst

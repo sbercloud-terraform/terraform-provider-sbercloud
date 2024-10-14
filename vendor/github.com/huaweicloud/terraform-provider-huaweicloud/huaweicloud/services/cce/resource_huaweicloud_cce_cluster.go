@@ -20,7 +20,6 @@ import (
 	"github.com/chnsz/golangsdk/openstack/cce/v3/clusters"
 	"github.com/chnsz/golangsdk/openstack/cce/v3/nodes"
 	"github.com/chnsz/golangsdk/openstack/common/tags"
-	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -319,18 +318,15 @@ func ResourceCluster() *schema.Resource {
 			"component_configurations": {
 				Type:     schema.TypeList,
 				Optional: true,
-				ForceNew: true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"name": {
 							Type:     schema.TypeString,
 							Required: true,
-							ForceNew: true,
 						},
 						"configurations": {
 							Type:     schema.TypeString,
 							Optional: true,
-							ForceNew: true,
 						},
 					},
 				},
@@ -374,6 +370,10 @@ func ResourceCluster() *schema.Resource {
 				ValidateFunc: validation.StringInSlice([]string{
 					"true", "try", "false",
 				}, true),
+			},
+			"lts_reclaim_policy": {
+				Type:     schema.TypeString,
+				Optional: true,
 			},
 			"status": {
 				Type:     schema.TypeString,
@@ -692,19 +692,25 @@ func resourceClusterCreate(ctx context.Context, d *schema.ResourceData, meta int
 				Mode:                d.Get("authentication_mode").(string),
 				AuthenticatingProxy: authenticating_proxy,
 			},
-			BillingMode:          billingMode,
-			ExtendParam:          buildResourceClusterExtendParams(d, config),
-			KubernetesSvcIPRange: d.Get("service_network_cidr").(string),
-			ClusterTags:          resourceClusterTags(d),
-			CustomSan:            utils.ExpandToStringList(d.Get("custom_san").([]interface{})),
-			IPv6Enable:           d.Get("ipv6_enable").(bool),
-			KubeProxyMode:        d.Get("kube_proxy_mode").(string),
-			SupportIstio:         d.Get("support_istio").(bool),
+			BillingMode:   billingMode,
+			ExtendParam:   buildResourceClusterExtendParams(d, config),
+			ClusterTags:   resourceClusterTags(d),
+			CustomSan:     utils.ExpandToStringList(d.Get("custom_san").([]interface{})),
+			IPv6Enable:    d.Get("ipv6_enable").(bool),
+			KubeProxyMode: d.Get("kube_proxy_mode").(string),
+			SupportIstio:  d.Get("support_istio").(bool),
 		},
 	}
 
 	if _, ok := d.GetOk("enable_distribute_management"); ok {
 		createOpts.Spec.EnableDistMgt = d.Get("enable_distribute_management").(bool)
+	}
+
+	if v, ok := d.GetOk("service_network_cidr"); ok {
+		serviceNetwork := clusters.ServiceNetwork{
+			IPv4Cidr: v.(string),
+		}
+		createOpts.Spec.ServiceNetwork = &serviceNetwork
 	}
 
 	masters, err := resourceClusterMasters(d)
@@ -830,7 +836,7 @@ func resourceClusterRead(_ context.Context, d *schema.ResourceData, meta interfa
 		d.Set("authentication_mode", n.Spec.Authentication.Mode),
 		d.Set("security_group_id", n.Spec.HostNetwork.SecurityGroup),
 		d.Set("enterprise_project_id", n.Spec.ExtendParam["enterpriseProjectId"]),
-		d.Set("service_network_cidr", n.Spec.KubernetesSvcIPRange),
+		d.Set("service_network_cidr", n.Spec.ServiceNetwork.IPv4Cidr),
 		d.Set("billing_mode", n.Spec.BillingMode),
 		d.Set("tags", utils.TagsToMap(n.Spec.ClusterTags)),
 		d.Set("ipv6_enable", n.Spec.IPv6Enable),
@@ -1049,6 +1055,30 @@ func resourceClusterUpdate(ctx context.Context, d *schema.ResourceData, meta int
 		}
 	}
 
+	if d.HasChange("component_configurations") {
+		var (
+			updateClusterConfigurationsHttpUrl = "api/v3/projects/{project_id}/clusters/{cluster_id}/nodepools/master/configuration"
+		)
+
+		updateClusterConfigurationsPath := cceClient.Endpoint + updateClusterConfigurationsHttpUrl
+		updateClusterConfigurationsPath = strings.ReplaceAll(updateClusterConfigurationsPath, "{project_id}", cfg.GetProjectID(region))
+		updateClusterConfigurationsPath = strings.ReplaceAll(updateClusterConfigurationsPath, "{cluster_id}", clusterId)
+
+		updateClusterConfigurationsOpt := golangsdk.RequestOpts{
+			KeepResponseBody: true,
+		}
+
+		bodyParams, err := buildUpdateClusterConfigurationsBodyParams(d)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		updateClusterConfigurationsOpt.JSONBody = bodyParams
+		_, err = cceClient.Request("PUT", updateClusterConfigurationsPath, &updateClusterConfigurationsOpt)
+		if err != nil {
+			return diag.Errorf("error updating CCE cluster configurations: %s", err)
+		}
+	}
+
 	if d.HasChange("auto_renew") {
 		bssClient, err := cfg.BssV2Client(region)
 		if err != nil {
@@ -1060,18 +1090,59 @@ func resourceClusterUpdate(ctx context.Context, d *schema.ResourceData, meta int
 	}
 
 	if d.HasChange("enterprise_project_id") {
-		migrateOpts := enterpriseprojects.MigrateResourceOpts{
+		migrateOpts := config.MigrateResourceOpts{
 			ResourceId:   clusterId,
 			ResourceType: "cce-cluster",
 			RegionId:     region,
 			ProjectId:    cceClient.ProjectID,
 		}
-		if err := common.MigrateEnterpriseProject(ctx, cfg, d, migrateOpts); err != nil {
+		if err := cfg.MigrateEnterpriseProject(ctx, d, migrateOpts); err != nil {
 			return diag.FromErr(err)
 		}
 	}
 
 	return resourceClusterRead(ctx, d, meta)
+}
+
+func buildUpdateClusterConfigurationsBodyParams(d *schema.ResourceData) (map[string]interface{}, error) {
+	configurationsPackages, err := buildConfigurationsPackagesBodyParams(d)
+	if err != nil {
+		return nil, err
+	}
+	bodyParams := map[string]interface{}{
+		"apiVersion": "v3",
+		"kind":       "Configuration",
+		"metadata": map[string]interface{}{
+			"name": "configuration",
+		},
+		"spec": map[string]interface{}{
+			"packages": configurationsPackages,
+		},
+	}
+	return bodyParams, nil
+}
+
+func buildConfigurationsPackagesBodyParams(d *schema.ResourceData) ([]map[string]interface{}, error) {
+	packagesRaw := d.Get("component_configurations").([]interface{})
+	bodyParams := make([]map[string]interface{}, len(packagesRaw))
+	for i, v := range packagesRaw {
+		packageRaw := v.(map[string]interface{})
+		bodyParams[i] = map[string]interface{}{
+			"name": packageRaw["name"],
+		}
+
+		if configurationsRaw := packageRaw["configurations"].(string); configurationsRaw != "" {
+			var configurations interface{}
+			err := json.Unmarshal([]byte(configurationsRaw), &configurations)
+			if err != nil {
+				err = fmt.Errorf("error unmarshalling configurations of %s: %s", packageRaw["name"].(string), err)
+				return nil, err
+			}
+			bodyParams[i]["configurations"] = configurations
+		}
+	}
+
+	return bodyParams, nil
 }
 
 func resourceClusterDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -1105,6 +1176,8 @@ func resourceClusterDelete(ctx context.Context, d *schema.ResourceData, meta int
 			deleteOpts.DeleteSfs = d.Get("delete_sfs").(string)
 			deleteOpts.DeleteSfs30 = d.Get("delete_sfs").(string)
 		}
+
+		deleteOpts.LtsReclaimPolicy = d.Get("lts_reclaim_policy").(string)
 		err = clusters.DeleteWithOpts(cceClient, d.Id(), deleteOpts).ExtractErr()
 		if err != nil {
 			return diag.Errorf("error deleting CCE cluster: %s", err)

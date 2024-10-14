@@ -157,11 +157,14 @@ func resourceDependencyVersionRead(_ context.Context, d *schema.ResourceData, me
 		return common.CheckDeletedDiag(d, err, "FunctionGraph dependency version")
 	}
 
+	// FunctionGraph will store the compressed package content pointed to by the link into the new storage bucket that
+	// provided by FunctionGraph and return a new link value.
+	// If the ReadContext is set this value according to the query result, ForceNew behavior will be triggered the next
+	// time it is applied.
 	mErr := multierror.Append(
 		d.Set("runtime", resp.Runtime),
 		d.Set("name", resp.Name),
 		d.Set("description", resp.Description),
-		d.Set("link", resp.Link),
 		d.Set("etag", resp.Etag),
 		d.Set("size", resp.Size),
 		d.Set("owner", resp.Owner),
@@ -189,7 +192,7 @@ func resourceDependencyVersionDelete(_ context.Context, d *schema.ResourceData, 
 	}
 	err = dependencies.DeleteVersion(client, dependId, version)
 	if err != nil {
-		return diag.Errorf("error deleting custom dependency version: %s", err)
+		return common.CheckDeletedDiag(d, err, "error deleting custom dependency version")
 	}
 	return nil
 }

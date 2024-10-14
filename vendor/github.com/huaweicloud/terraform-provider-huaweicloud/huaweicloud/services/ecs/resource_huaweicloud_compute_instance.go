@@ -18,7 +18,6 @@ import (
 	"github.com/chnsz/golangsdk/openstack/ecs/v1/block_devices"
 	"github.com/chnsz/golangsdk/openstack/ecs/v1/cloudservers"
 	"github.com/chnsz/golangsdk/openstack/ecs/v1/powers"
-	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 	"github.com/chnsz/golangsdk/openstack/evs/v2/cloudvolumes"
 	"github.com/chnsz/golangsdk/openstack/ims/v2/cloudimages"
 	"github.com/chnsz/golangsdk/openstack/networking/v1/ports"
@@ -734,9 +733,8 @@ func resourceComputeInstanceCreate(ctx context.Context, d *schema.ResourceData, 
 	}
 
 	// Update the hostname if necessary.
-	if v, ok := d.GetOk("hostname"); ok {
-		hostname := v.(string)
-		if err := updateInstanceHostname(ecsClient, hostname, d.Id()); err != nil {
+	if _, ok := d.GetOk("hostname"); ok {
+		if err := updateInstanceHostname(ecsClient, d); err != nil {
 			return diag.FromErr(err)
 		}
 
@@ -1114,13 +1112,13 @@ func resourceComputeInstanceUpdate(ctx context.Context, d *schema.ResourceData, 
 	}
 
 	if d.HasChange("enterprise_project_id") {
-		migrateOpts := enterpriseprojects.MigrateResourceOpts{
+		migrateOpts := config.MigrateResourceOpts{
 			ResourceId:   d.Id(),
 			ResourceType: "ecs",
 			RegionId:     region,
 			ProjectId:    ecsClient.ProjectID,
 		}
-		if err := common.MigrateEnterpriseProject(ctx, cfg, d, migrateOpts); err != nil {
+		if err := cfg.MigrateEnterpriseProject(ctx, d, migrateOpts); err != nil {
 			return diag.FromErr(err)
 		}
 	}
@@ -1230,8 +1228,7 @@ func resourceComputeInstanceUpdate(ctx context.Context, d *schema.ResourceData, 
 	}
 	var diags diag.Diagnostics
 	if d.HasChanges("hostname") {
-		hostname := d.Get("hostname").(string)
-		if err := updateInstanceHostname(ecsClient, hostname, serverID); err != nil {
+		if err := updateInstanceHostname(ecsClient, d); err != nil {
 			return diag.FromErr(err)
 		}
 
@@ -1249,9 +1246,13 @@ func resourceComputeInstanceUpdate(ctx context.Context, d *schema.ResourceData, 
 	return diags
 }
 
-func updateInstanceHostname(ecsClient *golangsdk.ServiceClient, hostname, serverID string) error {
+func updateInstanceHostname(ecsClient *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	serverID := d.Id()
+	hostname := d.Get("hostname").(string)
+	userData := []byte(d.Get("user_data").(string))
 	updateOpts := cloudservers.UpdateOpts{
 		Hostname: hostname,
+		UserData: userData,
 	}
 	err := cloudservers.Update(ecsClient, serverID, updateOpts).ExtractErr()
 	if err != nil {

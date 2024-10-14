@@ -27,6 +27,18 @@ func DataSourceEvsVolumesV2() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 			},
+			"volume_id": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+			"name": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+			"volume_type_id": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
 			"availability_zone": {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -163,8 +175,11 @@ func DataSourceEvsVolumesV2() *schema.Resource {
 
 func buildQueryOpts(d *schema.ResourceData, cfg *config.Config) cloudvolumes.ListOpts {
 	result := cloudvolumes.ListOpts{
+		ID:                  d.Get("volume_id").(string),
+		Name:                d.Get("name").(string),
+		VolumeTypeID:        d.Get("volume_type_id").(string),
 		AvailabilityZone:    d.Get("availability_zone").(string),
-		EnterpriseProjectID: cfg.DataGetEnterpriseProjectID(d),
+		EnterpriseProjectID: cfg.GetEnterpriseProjectID(d, "all_granted_eps"),
 		ServerID:            d.Get("server_id").(string),
 		Status:              d.Get("status").(string),
 	}

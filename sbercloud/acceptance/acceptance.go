@@ -68,6 +68,15 @@ var (
 	SBC_NEW_GM_ENC_CERTIFICATE_PRIVATE_KEY = os.Getenv("SBC_NEW_GM_ENC_CERTIFICATE_PRIVATE_KEY")
 	SBC_NEW_GM_CERTIFICATE_CHAIN           = os.Getenv("SBC_NEW_GM_CERTIFICATE_CHAIN")
 	SBC_CODEARTS_RESOURCE_POOL_ID          = os.Getenv("SBC_CODEARTS_RESOURCE_POOL_ID")
+
+	SBC_RDS_INSTANCE_ID = os.Getenv("SBC_RDS_INSTANCE_ID")
+
+	SBC_OBS_ENDPOINT        = os.Getenv("SBC_OBS_ENDPOINT")
+	SBC_SFS_TURBO_BACKUP_ID = os.Getenv("SBC_SFS_TURBO_BACKUP_ID")
+
+	SBC_VPC_ID            = os.Getenv("SBC_VPC_ID")
+	SBC_SUBNET_ID         = os.Getenv("SBC_SUBNET_ID")
+	SBC_SECURITY_GROUP_ID = os.Getenv("SBC_SECURITY_GROUP_ID")
 )
 
 // TestAccProviderFactories is a static map containing only the main provider instance
@@ -347,6 +356,42 @@ func preCheckRequiredEnvVars(t *testing.T) {
 
 func TestAccPreCheck(t *testing.T) {
 	preCheckRequiredEnvVars(t)
+}
+
+func TestAccPreCheckVpcId(t *testing.T) {
+	if SBC_VPC_ID == "" {
+		t.Skip("SBC_VPC_ID must be set for the acceptance test")
+	}
+}
+
+func TestAccPreCheckSubnetId(t *testing.T) {
+	if SBC_SUBNET_ID == "" {
+		t.Skip("SBC_SUBNET_ID must be set for the acceptance test")
+	}
+}
+
+func TestAccPreCheckSecurityGroupId(t *testing.T) {
+	if SBC_SECURITY_GROUP_ID == "" {
+		t.Skip("SBC_SECURITY_GROUP_ID must be set for the acceptance test")
+	}
+}
+
+func TestAccPreCheckRdsInstanceId(t *testing.T) {
+	if SBC_RDS_INSTANCE_ID == "" {
+		t.Skip("SBC_RDS_INSTANCE_ID must be set for RDS acceptance tests")
+	}
+}
+
+func TestAccPreCheckOBSEndpoint(t *testing.T) {
+	if SBC_OBS_ENDPOINT == "" {
+		t.Skip("SBC_OBS_ENDPOINT must be set for the acceptance test")
+	}
+}
+
+func TestAccPrecheckSFSTurboBackupId(t *testing.T) {
+	if SBC_SFS_TURBO_BACKUP_ID == "" {
+		t.Skip("SBC_SFS_TURBO_BACKUP_ID must be set for the acceptance test")
+	}
 }
 
 func TestAccPreCheckAcceptBackup(t *testing.T) {

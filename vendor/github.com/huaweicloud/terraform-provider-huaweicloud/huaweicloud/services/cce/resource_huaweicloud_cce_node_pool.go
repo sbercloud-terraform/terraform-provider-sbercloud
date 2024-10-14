@@ -196,6 +196,42 @@ func ResourceNodePool() *schema.Resource {
 				Computed: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
+			"label_policy_on_existing_nodes": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+			},
+			"tag_policy_on_existing_nodes": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+			},
+			"taint_policy_on_existing_nodes": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+			},
+			"hostname_config": {
+				Type:     schema.TypeList,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+				MaxItems: 1,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"type": {
+							Type:     schema.TypeString,
+							Required: true,
+							ForceNew: true,
+						},
+					},
+				},
+			},
+			"enterprise_project_id": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+			},
 			"current_node_count": {
 				Type:     schema.TypeInt,
 				Computed: true,
@@ -255,7 +291,7 @@ func buildPodSecurityGroups(ids []interface{}) []nodepools.PodSecurityGroupSpec 
 	return groups
 }
 
-func buildNodePoolCreateOpts(d *schema.ResourceData) (*nodepools.CreateOpts, error) {
+func buildNodePoolCreateOpts(d *schema.ResourceData, cfg *config.Config) (*nodepools.CreateOpts, error) {
 	// Validate whether prepaid parameters are configured.
 	billingMode := 0
 	if d.Get("charging_mode").(string) == "prePaid" {
@@ -288,10 +324,12 @@ func buildNodePoolCreateOpts(d *schema.ResourceData) (*nodepools.CreateOpts, err
 						SubnetId: d.Get("subnet_id").(string),
 					},
 				},
-				ExtendParam:           buildExtendParams(d),
-				Taints:                buildResourceNodeTaint(d),
-				UserTags:              utils.ExpandResourceTags(d.Get("tags").(map[string]interface{})),
-				InitializedConditions: utils.ExpandToStringList(d.Get("initialized_conditions").([]interface{})),
+				ExtendParam:               buildExtendParams(d),
+				Taints:                    buildResourceNodeTaint(d),
+				UserTags:                  utils.ExpandResourceTags(d.Get("tags").(map[string]interface{})),
+				InitializedConditions:     utils.ExpandToStringList(d.Get("initialized_conditions").([]interface{})),
+				HostnameConfig:            buildResourceNodeHostnameConfig(d),
+				ServerEnterpriseProjectID: cfg.GetEnterpriseProjectID(d),
 			},
 			Autoscaling: nodepools.AutoscalingSpec{
 				Enable:                d.Get("scall_enable").(bool),
@@ -306,6 +344,9 @@ func buildNodePoolCreateOpts(d *schema.ResourceData) (*nodepools.CreateOpts, err
 			NodeManagement: nodepools.NodeManagementSpec{
 				ServerGroupReference: d.Get("ecs_group_id").(string),
 			},
+			LabelPolicyOnExistingNodes:   d.Get("label_policy_on_existing_nodes").(string),
+			UserTagPolicyOnExistingNodes: d.Get("tag_policy_on_existing_nodes").(string),
+			TaintPolicyOnExistingNodes:   d.Get("taint_policy_on_existing_nodes").(string),
 		},
 	}
 
@@ -347,7 +388,7 @@ func resourceNodePoolCreate(ctx context.Context, d *schema.ResourceData, meta in
 		return diag.Errorf("error waiting for CCE cluster to be available: %s", err)
 	}
 
-	createOpts, err := buildNodePoolCreateOpts(d)
+	createOpts, err := buildNodePoolCreateOpts(d, cfg)
 	if err != nil {
 		return diag.Errorf("error creating CreateOpts structure of 'Create' method for CCE node pool: %s", err)
 	}
@@ -417,6 +458,11 @@ func resourceNodePoolRead(_ context.Context, d *schema.ResourceData, meta interf
 		d.Set("data_volumes", flattenResourceNodeDataVolume(d, s.Spec.NodeTemplate.DataVolumes)),
 		d.Set("root_volume", flattenResourceNodeRootVolume(d, s.Spec.NodeTemplate.RootVolume)),
 		d.Set("initialized_conditions", s.Spec.NodeTemplate.InitializedConditions),
+		d.Set("label_policy_on_existing_nodes", s.Spec.LabelPolicyOnExistingNodes),
+		d.Set("tag_policy_on_existing_nodes", s.Spec.UserTagPolicyOnExistingNodes),
+		d.Set("taint_policy_on_existing_nodes", s.Spec.TaintPolicyOnExistingNodes),
+		d.Set("hostname_config", flattenResourceNodeHostnameConfig(s.Spec.NodeTemplate.HostnameConfig)),
+		d.Set("enterprise_project_id", s.Spec.NodeTemplate.ServerEnterpriseProjectID),
 	)
 
 	if s.Spec.NodeTemplate.BillingMode != 0 {
@@ -441,7 +487,7 @@ func resourceNodePoolRead(_ context.Context, d *schema.ResourceData, meta interf
 	return nil
 }
 
-func buildNodePoolUpdateOpts(d *schema.ResourceData) (*nodepools.UpdateOpts, error) {
+func buildNodePoolUpdateOpts(d *schema.ResourceData, cfg *config.Config) (*nodepools.UpdateOpts, error) {
 	updateOpts := nodepools.UpdateOpts{
 		Metadata: nodepools.UpdateMetaData{
 			Name: d.Get("name").(string),
@@ -456,11 +502,15 @@ func buildNodePoolUpdateOpts(d *schema.ResourceData) (*nodepools.UpdateOpts, err
 				Priority:              d.Get("priority").(int),
 			},
 			NodeTemplate: nodepools.UpdateNodeTemplate{
-				UserTags:              utils.ExpandResourceTags(d.Get("tags").(map[string]interface{})),
-				K8sTags:               buildResourceNodeK8sTags(d),
-				Taints:                buildResourceNodeTaint(d),
-				InitializedConditions: utils.ExpandToStringList(d.Get("initialized_conditions").([]interface{})),
+				UserTags:                  utils.ExpandResourceTags(d.Get("tags").(map[string]interface{})),
+				K8sTags:                   buildResourceNodeK8sTags(d),
+				Taints:                    buildResourceNodeTaint(d),
+				InitializedConditions:     utils.ExpandToStringList(d.Get("initialized_conditions").([]interface{})),
+				ServerEnterpriseProjectID: cfg.GetEnterpriseProjectID(d),
 			},
+			LabelPolicyOnExistingNodes:   d.Get("label_policy_on_existing_nodes").(string),
+			UserTagPolicyOnExistingNodes: d.Get("tag_policy_on_existing_nodes").(string),
+			TaintPolicyOnExistingNodes:   d.Get("taint_policy_on_existing_nodes").(string),
 		},
 	}
 	return &updateOpts, nil
@@ -473,7 +523,7 @@ func resourceNodePoolUpdate(ctx context.Context, d *schema.ResourceData, meta in
 		return diag.Errorf("error creating CCE v3 client: %s", err)
 	}
 
-	updateOpts, err := buildNodePoolUpdateOpts(d)
+	updateOpts, err := buildNodePoolUpdateOpts(d, cfg)
 	if err != nil {
 		return diag.FromErr(err)
 	}

@@ -21,7 +21,6 @@ import (
 	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
-	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -450,9 +449,6 @@ func resourceGatewayCreate(ctx context.Context, d *schema.ResourceData, meta int
 
 	createGatewayOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		OkCodes: []int{
-			201,
-		},
 	}
 	createGatewayOpt.JSONBody = utils.RemoveNil(buildCreateGatewayBodyParams(d, cfg))
 	createGatewayResp, err := createGatewayClient.Request("POST", createGatewayPath, &createGatewayOpt)
@@ -544,7 +540,7 @@ func buildCreateGatewayVpnGatewayChildBody(d *schema.ResourceData, cfg *config.C
 		"availability_zone_ids": utils.ValueIgnoreEmpty(d.Get("availability_zones")),
 		"bgp_asn":               utils.ValueIgnoreEmpty(d.Get("asn")),
 		"connect_subnet":        utils.ValueIgnoreEmpty(d.Get("connect_subnet")),
-		"enterprise_project_id": utils.ValueIgnoreEmpty(common.GetEnterpriseProjectID(d, cfg)),
+		"enterprise_project_id": utils.ValueIgnoreEmpty(cfg.GetEnterpriseProjectID(d)),
 		"flavor":                utils.ValueIgnoreEmpty(d.Get("flavor")),
 		"local_subnets":         utils.ValueIgnoreEmpty(d.Get("local_subnets")),
 		"name":                  utils.ValueIgnoreEmpty(d.Get("name")),
@@ -662,9 +658,6 @@ func createGatewayWaitingForStateCompleted(ctx context.Context, d *schema.Resour
 
 			createGatewayWaitingOpt := golangsdk.RequestOpts{
 				KeepResponseBody: true,
-				OkCodes: []int{
-					200,
-				},
 			}
 			createGatewayWaitingResp, err := createGatewayWaitingClient.Request("GET", createGatewayWaitingPath, &createGatewayWaitingOpt)
 			if err != nil {
@@ -729,9 +722,6 @@ func resourceGatewayRead(_ context.Context, d *schema.ResourceData, meta interfa
 
 	getGatewayOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		OkCodes: []int{
-			200,
-		},
 	}
 	getGatewayResp, err := getGatewayClient.Request("GET", getGatewayPath, &getGatewayOpt)
 
@@ -886,9 +876,6 @@ func resourceGatewayUpdate(ctx context.Context, d *schema.ResourceData, meta int
 
 		updateGatewayOpt := golangsdk.RequestOpts{
 			KeepResponseBody: true,
-			OkCodes: []int{
-				200,
-			},
 		}
 		updateGatewayOpt.JSONBody = utils.RemoveNil(buildUpdateGatewayBodyParams(d))
 		_, err = updateGatewayClient.Request("PUT", updateGatewayPath, &updateGatewayOpt)
@@ -902,13 +889,13 @@ func resourceGatewayUpdate(ctx context.Context, d *schema.ResourceData, meta int
 	}
 
 	if d.HasChange("enterprise_project_id") {
-		migrateOpts := enterpriseprojects.MigrateResourceOpts{
+		migrateOpts := config.MigrateResourceOpts{
 			ResourceId:   gatewayId,
 			ResourceType: "vpn-gateway",
 			RegionId:     region,
 			ProjectId:    updateGatewayClient.ProjectID,
 		}
-		if err := common.MigrateEnterpriseProject(ctx, cfg, d, migrateOpts); err != nil {
+		if err := cfg.MigrateEnterpriseProject(ctx, d, migrateOpts); err != nil {
 			return diag.FromErr(err)
 		}
 	}
@@ -1009,9 +996,6 @@ func updateGatewayWaitingForStateCompleted(ctx context.Context, d *schema.Resour
 
 			updateGatewayWaitingOpt := golangsdk.RequestOpts{
 				KeepResponseBody: true,
-				OkCodes: []int{
-					200,
-				},
 			}
 			updateGatewayWaitingResp, err := updateGatewayWaitingClient.Request("GET", updateGatewayWaitingPath, &updateGatewayWaitingOpt)
 			if err != nil {
@@ -1073,13 +1057,10 @@ func resourceGatewayDelete(ctx context.Context, d *schema.ResourceData, meta int
 
 	deleteGatewayOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		OkCodes: []int{
-			204,
-		},
 	}
 	_, err = deleteGatewayClient.Request("DELETE", deleteGatewayPath, &deleteGatewayOpt)
 	if err != nil {
-		return diag.Errorf("error deleting VPN gateway: %s", err)
+		return common.CheckDeletedDiag(d, err, "error deleting VPN gateway")
 	}
 
 	err = deleteGatewayWaitingForStateCompleted(ctx, d, meta, d.Timeout(schema.TimeoutDelete))
@@ -1112,9 +1093,6 @@ func deleteGatewayWaitingForStateCompleted(ctx context.Context, d *schema.Resour
 
 			deleteGatewayWaitingOpt := golangsdk.RequestOpts{
 				KeepResponseBody: true,
-				OkCodes: []int{
-					200,
-				},
 			}
 			deleteGatewayWaitingResp, err := deleteGatewayWaitingClient.Request("GET", deleteGatewayWaitingPath, &deleteGatewayWaitingOpt)
 			if err != nil {

@@ -2,7 +2,7 @@ package sbercloud
 
 import (
 	"fmt"
-	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance/nat"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
 	"github.com/chnsz/golangsdk"
@@ -72,7 +72,7 @@ func testAccCheckCdmClusterV1Destroy(s *terraform.State) error {
 			continue
 		}
 
-		url, err := sbercloud.replaceVarsForTest(rs, "clusters/{id}")
+		url, err := acceptance.ReplaceVarsForTest(rs, "clusters/{id}")
 		if err != nil {
 			return err
 		}
@@ -104,7 +104,7 @@ func testAccCheckCdmClusterV1Exists() resource.TestCheckFunc {
 			return fmt.Errorf("Error checking sbercloud_cdm_cluster.cluster exist, err=not found this resource")
 		}
 
-		url, err := sbercloud.replaceVarsForTest(rs, "clusters/{id}")
+		url, err := acceptance.ReplaceVarsForTest(rs, "clusters/{id}")
 		if err != nil {
 			return fmt.Errorf("Error checking sbercloud_cdm_cluster.cluster exist, err=building url failed: %s", err)
 		}

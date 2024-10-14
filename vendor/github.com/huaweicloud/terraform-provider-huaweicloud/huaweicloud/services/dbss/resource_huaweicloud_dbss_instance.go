@@ -19,7 +19,6 @@ import (
 	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
-	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -78,6 +77,13 @@ func ResourceInstance() *schema.Resource {
 				Required:    true,
 				ForceNew:    true,
 				Description: `The resource specifications.`,
+			},
+			// The splicing specification of this field lacks documentation. Please refer to the test case before using it.
+			"product_spec_desc": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				ForceNew:    true,
+				Description: `schema: Required; The product specification description in json string format.`,
 			},
 			"vpc_id": {
 				Type:        schema.TypeString,
@@ -374,7 +380,7 @@ func buildCreateInstanceBodyParams(d *schema.ResourceData, productId string, cfg
 		"security_groups":       buildCreateInstanceSecurityGroupsRequestBody(d),
 		"product_infos":         buildCreateInstanceProductInfosRequestBody(d, productId),
 		"subscription_num":      1,
-		"enterprise_project_id": utils.ValueIgnoreEmpty(common.GetEnterpriseProjectID(d, cfg)),
+		"enterprise_project_id": utils.ValueIgnoreEmpty(cfg.GetEnterpriseProjectID(d)),
 		"tags":                  utils.ExpandResourceTagsMap(d.Get("tags").(map[string]interface{})),
 		"period_num":            utils.ValueIgnoreEmpty(d.Get("period")),
 	}
@@ -422,7 +428,7 @@ func buildCreateInstanceProductInfosRequestBody(d *schema.ResourceData, productI
 		{
 			"cloud_service_type": "hws.service.type.dbss",
 			"product_id":         productId,
-			"product_spec_desc":  utils.ValueIgnoreEmpty(d.Get("resource_spec_code")),
+			"product_spec_desc":  utils.ValueIgnoreEmpty(d.Get("product_spec_desc")),
 			"resource_spec_code": utils.ValueIgnoreEmpty(d.Get("resource_spec_code")),
 			"resource_type":      "hws.resource.type.dbss",
 		},
@@ -582,13 +588,13 @@ func resourceInstanceUpdate(ctx context.Context, d *schema.ResourceData, meta in
 	instanceId := d.Id()
 
 	if d.HasChange("enterprise_project_id") {
-		migrateOpts := enterpriseprojects.MigrateResourceOpts{
+		migrateOpts := config.MigrateResourceOpts{
 			ResourceId:   instanceId,
 			ResourceType: "auditInstance",
 			RegionId:     region,
 			ProjectId:    cfg.GetProjectID(region),
 		}
-		if err := common.MigrateEnterpriseProject(ctx, cfg, d, migrateOpts); err != nil {
+		if err := cfg.MigrateEnterpriseProject(ctx, d, migrateOpts); err != nil {
 			return diag.FromErr(err)
 		}
 	}

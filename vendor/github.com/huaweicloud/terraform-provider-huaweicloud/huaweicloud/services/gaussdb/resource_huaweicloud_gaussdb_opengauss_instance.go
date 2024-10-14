@@ -16,7 +16,6 @@ import (
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/bss/v2/orders"
-	"github.com/chnsz/golangsdk/openstack/eps/v1/enterpriseprojects"
 	"github.com/chnsz/golangsdk/openstack/opengauss/v3/backups"
 	"github.com/chnsz/golangsdk/openstack/opengauss/v3/instances"
 
@@ -116,12 +115,9 @@ func ResourceOpenGaussInstance() *schema.Resource {
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"mode": {
-							Type:     schema.TypeString,
-							Required: true,
-							ForceNew: true,
-							ValidateFunc: validation.StringInSlice([]string{
-								string(HaModeDistributed), string(HAModeCentralized),
-							}, true),
+							Type:             schema.TypeString,
+							Required:         true,
+							ForceNew:         true,
 							DiffSuppressFunc: utils.SuppressCaseDiffs,
 						},
 						"replication_mode": {
@@ -844,13 +840,13 @@ func resourceOpenGaussInstanceUpdate(ctx context.Context, d *schema.ResourceData
 	}
 
 	if d.HasChange("enterprise_project_id") {
-		migrateOpts := enterpriseprojects.MigrateResourceOpts{
+		migrateOpts := config.MigrateResourceOpts{
 			ResourceId:   instanceId,
 			ResourceType: "gaussdb",
 			RegionId:     region,
 			ProjectId:    cfg.GetProjectID(region),
 		}
-		if err := common.MigrateEnterpriseProject(ctx, cfg, d, migrateOpts); err != nil {
+		if err := cfg.MigrateEnterpriseProject(ctx, d, migrateOpts); err != nil {
 			return diag.FromErr(err)
 		}
 	}
