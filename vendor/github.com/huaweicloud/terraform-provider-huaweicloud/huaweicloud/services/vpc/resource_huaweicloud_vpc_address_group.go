@@ -3,7 +3,6 @@ package vpc
 import (
 	"context"
 	"log"
-	"regexp"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -49,17 +48,12 @@ func ResourceVpcAddressGroup() *schema.Resource {
 			"name": {
 				Type:     schema.TypeString,
 				Required: true,
-				ValidateFunc: validation.All(
-					validation.StringLenBetween(1, 64),
-					validation.StringMatch(regexp.MustCompile("^[\u4e00-\u9fa50-9a-zA-Z-_\\.]*$"),
-						"only letters, digits, underscores (_), hyphens (-), and dot (.) are allowed"),
-				),
 			},
 			"addresses": {
 				// the addresses will be sorted by cloud
 				Type:     schema.TypeSet,
-				Required: true,
-				MaxItems: 20,
+				Optional: true,
+				Computed: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
 			"ip_version": {
@@ -69,14 +63,27 @@ func ResourceVpcAddressGroup() *schema.Resource {
 				Default:      4,
 				ValidateFunc: validation.IntInSlice([]int{4, 6}),
 			},
+			"ip_extra_set": {
+				// the addresses will be sorted by cloud
+				Type:     schema.TypeSet,
+				Optional: true,
+				Computed: true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"ip": {
+							Type:     schema.TypeString,
+							Required: true,
+						},
+						"remarks": {
+							Type:     schema.TypeString,
+							Optional: true,
+						},
+					},
+				},
+			},
 			"description": {
 				Type:     schema.TypeString,
 				Optional: true,
-				ValidateFunc: validation.All(
-					validation.StringLenBetween(0, 255),
-					validation.StringMatch(regexp.MustCompile("^[^<>]*$"),
-						"The angle brackets (< and >) are not allowed."),
-				),
 			},
 			"max_capacity": {
 				Type:     schema.TypeInt,
@@ -106,15 +113,17 @@ func resourceVpcAddressGroupCreate(ctx context.Context, d *schema.ResourceData, 
 		return diag.Errorf("error creating VPC client: %s", err)
 	}
 
-	ipSet := utils.ExpandToStringListBySet(d.Get("addresses").(*schema.Set))
+	ipSet := buildIpSet(d)
+	ipExtraSet := buildIpExtraSet(d)
 
 	addressGroupBody := &vpc_model.CreateAddressGroupOption{
 		Name:                d.Get("name").(string),
-		IpSet:               &ipSet,
+		IpSet:               ipSet,
 		IpVersion:           int32(d.Get("ip_version").(int)),
 		Description:         utils.StringIgnoreEmpty(d.Get("description").(string)),
 		EnterpriseProjectId: utils.StringIgnoreEmpty(cfg.GetEnterpriseProjectID(d)),
 		MaxCapacity:         utils.Int32IgnoreEmpty(int32(d.Get("max_capacity").(int))),
+		IpExtraSet:          ipExtraSet,
 	}
 
 	createOpts := &vpc_model.CreateAddressGroupRequest{
@@ -131,6 +140,34 @@ func resourceVpcAddressGroupCreate(ctx context.Context, d *schema.ResourceData, 
 
 	d.SetId(response.AddressGroup.Id)
 	return resourceVpcAddressGroupRead(ctx, d, meta)
+}
+
+func buildIpSet(d *schema.ResourceData) *[]string {
+	addresses := utils.ExpandToStringListBySet(d.Get("addresses").(*schema.Set))
+	if len(addresses) == 0 {
+		return nil
+	}
+
+	return &addresses
+}
+
+func buildIpExtraSet(d *schema.ResourceData) *[]vpc_model.IpExtraSetOption {
+	ipExtraSet := d.Get("ip_extra_set").(*schema.Set).List()
+	if len(ipExtraSet) == 0 {
+		return nil
+	}
+
+	res := make([]vpc_model.IpExtraSetOption, len(ipExtraSet))
+	for i, v := range ipExtraSet {
+		ip := v.(map[string]interface{})
+		remarks := ip["remarks"].(string)
+		res[i] = vpc_model.IpExtraSetOption{
+			Ip:      ip["ip"].(string),
+			Remarks: &remarks,
+		}
+	}
+
+	return &res
 }
 
 func resourceVpcAddressGroupRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -158,9 +195,27 @@ func resourceVpcAddressGroupRead(_ context.Context, d *schema.ResourceData, meta
 		d.Set("ip_version", response.AddressGroup.IpVersion),
 		d.Set("max_capacity", response.AddressGroup.MaxCapacity),
 		d.Set("enterprise_project_id", response.AddressGroup.EnterpriseProjectId),
+		d.Set("ip_extra_set", flattenIpExtraSet(response.AddressGroup.IpExtraSet)),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())
+}
+
+func flattenIpExtraSet(ipExtraSet []vpc_model.IpExtraSetRespOption) []map[string]interface{} {
+	if len(ipExtraSet) == 0 {
+		return nil
+	}
+
+	res := make([]map[string]interface{}, len(ipExtraSet))
+
+	for i, v := range ipExtraSet {
+		res[i] = map[string]interface{}{
+			"ip":      v.Ip,
+			"remarks": v.Remarks,
+		}
+	}
+
+	return res
 }
 
 func resourceVpcAddressGroupUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -189,6 +244,10 @@ func resourceVpcAddressGroupUpdate(ctx context.Context, d *schema.ResourceData, 
 			ipSet[i] = value.(string)
 		}
 		addressGroupBody.IpSet = &ipSet
+	}
+
+	if d.HasChange("ip_extra_set") {
+		addressGroupBody.IpExtraSet = buildIpExtraSet(d)
 	}
 
 	if d.HasChange("max_capacity") {

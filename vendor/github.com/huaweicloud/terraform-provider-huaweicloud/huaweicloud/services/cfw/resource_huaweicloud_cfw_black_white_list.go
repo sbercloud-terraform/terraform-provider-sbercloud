@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
 
@@ -127,11 +126,11 @@ func resourceBlackWhiteListCreate(ctx context.Context, d *schema.ResourceData, m
 		return diag.FromErr(err)
 	}
 
-	id, err := jmespath.Search("data.id", createBlackWhiteListRespBody)
-	if err != nil {
+	id := utils.PathSearch("data.id", createBlackWhiteListRespBody, "").(string)
+	if id == "" {
 		return diag.Errorf("error creating black white list: ID is not found in API response")
 	}
-	d.SetId(id.(string))
+	d.SetId(id)
 
 	return resourceBlackWhiteListRead(ctx, d, meta)
 }
@@ -185,7 +184,10 @@ func resourceBlackWhiteListRead(_ context.Context, d *schema.ResourceData, meta 
 		&getBlackWhiteListOpt)
 
 	if err != nil {
-		return common.CheckDeletedDiag(d, err, "error retrieving black white list")
+		return common.CheckDeletedDiag(d,
+			common.ConvertExpected400ErrInto404Err(err, "error_code", "CFW.00200005"),
+			"error retrieving black white list",
+		)
 	}
 
 	getBlackWhiteListRespBody, err := utils.FlattenResponse(getBlackWhiteListResp)
@@ -193,8 +195,8 @@ func resourceBlackWhiteListRead(_ context.Context, d *schema.ResourceData, meta 
 		return diag.FromErr(err)
 	}
 
-	lists, err := jmespath.Search("data.records", getBlackWhiteListRespBody)
-	if err != nil {
+	lists := utils.PathSearch("data.records", getBlackWhiteListRespBody, nil)
+	if lists == nil {
 		return diag.Errorf("error parsing data.records from response= %#v", getBlackWhiteListRespBody)
 	}
 
@@ -320,7 +322,10 @@ func resourceBlackWhiteListDelete(_ context.Context, d *schema.ResourceData, met
 	}
 	_, err = deleteBlackWhiteListClient.Request("DELETE", deleteBlackWhiteListPath, &deleteBlackWhiteListOpt)
 	if err != nil {
-		return diag.Errorf("error deleting black white list: %s", err)
+		return common.CheckDeletedDiag(d,
+			common.ConvertExpected400ErrInto404Err(err, "error_code", "CFW.00200005"),
+			"error deleting black white list",
+		)
 	}
 
 	return nil

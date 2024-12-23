@@ -289,3 +289,53 @@ func (r GetSecondLevelMonitoringResult) Extract() (*SecondLevelMonitoring, error
 	err := r.ExtractInto(&secondLevelMonitoring)
 	return &secondLevelMonitoring, err
 }
+
+type Version struct {
+	UpgradeFlag bool      `json:"upgrade_flag"`
+	Datastore   Datastore `json:"datastore"`
+}
+
+type Datastore struct {
+	CurrentVersion       string `json:"current_version"`
+	CurrentKernelVersion string `json:"current_kernel_version"`
+	LatestVersion        string `json:"latest_version"`
+	LatestKernelVersion  string `json:"latest_kernel_version"`
+}
+
+type GetVersionResult struct {
+	commonResult
+}
+
+func (r GetVersionResult) Extract() (*Version, error) {
+	var version Version
+	err := r.ExtractInto(&version)
+	return &version, err
+}
+
+type UpdateSlowLogShowOriginalSwitchResponse struct {
+	Response string `json:"response"`
+}
+
+type UpdateSlowLogShowOriginalSwitchResult struct {
+	commonResult
+}
+
+func (r UpdateSlowLogShowOriginalSwitchResult) ExtractUpdateSlowLogShowOriginalSwitchResponse() (*UpdateSlowLogShowOriginalSwitchResponse, error) {
+	res := new(UpdateSlowLogShowOriginalSwitchResponse)
+	err := r.ExtractInto(res)
+	return res, err
+}
+
+type SlowLogShowOriginalSwitch struct {
+	OpenSlowLogSwitch string `json:"open_slow_log_switch"`
+}
+
+type GetSlowLogShowOriginalSwitchResult struct {
+	commonResult
+}
+
+func (r GetSlowLogShowOriginalSwitchResult) Extract() (*SlowLogShowOriginalSwitch, error) {
+	var slowLogShowOriginalSwitch SlowLogShowOriginalSwitch
+	err := r.ExtractInto(&slowLogShowOriginalSwitch)
+	return &slowLogShowOriginalSwitch, err
+}

@@ -77,6 +77,12 @@ var (
 	SBC_VPC_ID            = os.Getenv("SBC_VPC_ID")
 	SBC_SUBNET_ID         = os.Getenv("SBC_SUBNET_ID")
 	SBC_SECURITY_GROUP_ID = os.Getenv("SBC_SECURITY_GROUP_ID")
+
+	SBC_DDS_SECOND_LEVEL_MONITORING_ENABLED = os.Getenv("SBC_DDS_SECOND_LEVEL_MONITORING_ENABLED")
+
+	SBC_APIG_DEDICATED_INSTANCE_ID             = os.Getenv("SBC_APIG_DEDICATED_INSTANCE_ID")
+	SBC_APIG_DEDICATED_INSTANCE_USED_SUBNET_ID = os.Getenv("SBC_APIG_DEDICATED_INSTANCE_USED_SUBNET_ID")
+	SBC_FGS_AGENCY_NAME                        = os.Getenv("SBC_FGS_AGENCY_NAME")
 )
 
 // TestAccProviderFactories is a static map containing only the main provider instance
@@ -514,6 +520,42 @@ func TestAccPreCheckCertificateWithoutRootCA(t *testing.T) {
 }
 
 // lintignore:AT003
+func TestAccPreCheckDDSSecondLevelMonitoringEnabled(t *testing.T) {
+	if SBC_DDS_SECOND_LEVEL_MONITORING_ENABLED == "" {
+		t.Skip("SBC_DDS_SECOND_LEVEL_MONITORING_ENABLED must be set for the acceptance test")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckApigSubResourcesRelatedInfo(t *testing.T) {
+	if SBC_APIG_DEDICATED_INSTANCE_ID == "" {
+		t.Skip("Before running APIG acceptance tests, please ensure the env 'HW_APIG_DEDICATED_INSTANCE_ID' has been configured")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckApigChannelRelatedInfo(t *testing.T) {
+	if SBC_APIG_DEDICATED_INSTANCE_USED_SUBNET_ID == "" {
+		t.Skip("Before running APIG acceptance tests, please ensure the env 'HW_APIG_DEDICATED_INSTANCE_USED_SUBNET_ID' has been configured")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckFgsAgency(t *testing.T) {
+	// The agency should be FunctionGraph and authorize these roles:
+	// For the acceptance tests of the async invoke configuration:
+	// + FunctionGraph FullAccess
+	// + DIS Operator
+	// + OBS Administrator
+	// + SMN Administrator
+	// For the acceptance tests of the function trigger and the application:
+	// + LTS Administrator
+	if SBC_FGS_AGENCY_NAME == "" {
+		t.Skip("HW_FGS_AGENCY_NAME must be set for FGS acceptance tests")
+	}
+}
+
+// lintignore:AT003
 func TestAccPreCheckCertificateFull(t *testing.T) {
 	TestAccPreCheckCertificateWithoutRootCA(t)
 	if SBC_CERTIFICATE_ROOT_CA == "" || SBC_NEW_CERTIFICATE_ROOT_CA == "" {
@@ -558,6 +600,20 @@ func RandomCidr() string {
 func RandomCidrAndGatewayIp() (string, string) {
 	seed := acctest.RandIntRange(0, 255)
 	return fmt.Sprintf("172.16.%d.0/24", seed), fmt.Sprintf("172.16.%d.1", seed)
+}
+
+func RandomPassword(customChars ...string) string {
+	var specialChars string
+	if len(customChars) < 1 {
+		specialChars = "~!@#%^*-_=+?"
+	} else {
+		specialChars = customChars[0]
+	}
+	return fmt.Sprintf("%s%s%s%d",
+		acctest.RandStringFromCharSet(2, "ABCDEFGHIJKLMNOPQRSTUVWXZY"),
+		acctest.RandStringFromCharSet(3, acctest.CharSetAlpha),
+		acctest.RandStringFromCharSet(2, specialChars),
+		acctest.RandIntRange(1000, 9999))
 }
 
 func ReplaceVarsForTest(rs *terraform.ResourceState, linkTmpl string) (string, error) {

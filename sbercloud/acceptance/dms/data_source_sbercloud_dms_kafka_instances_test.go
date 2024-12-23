@@ -86,5 +86,5 @@ data "sbercloud_dms_kafka_instances" "query_4" {
 
   status = "RUNNING"
 }
-`, testAccDmsKafkaInstance_basic(rName), fuzzyName)
+`, testAccDmsKafkaTopic_basic(rName), fuzzyName)
 }

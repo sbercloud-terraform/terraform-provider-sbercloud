@@ -34,6 +34,14 @@ func secondLevelMonitoringURL(c *golangsdk.ServiceClient, instanceID string) str
 	return c.ServiceURL("instances", instanceID, "monitor-policy")
 }
 
+func versionURL(c *golangsdk.ServiceClient, instanceID string) string {
+	return c.ServiceURL("instances", instanceID, "database-version")
+}
+
+func slowLogShowOriginalSwitchURL(c *golangsdk.ServiceClient, instanceID string) string {
+	return c.ServiceURL("instances", instanceID, "slowlog/query")
+}
+
 func jobURL(sc *golangsdk.ServiceClient) string {
 	return sc.ServiceURL("jobs")
 }

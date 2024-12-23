@@ -28,7 +28,7 @@ resource "sbercloud_rds_instance" "rds_01" {
   }
 
   volume {
-    type = "HIGH"
+    type = "CLOUDSSD"
     size = 60
   }
 }

@@ -1,11 +1,13 @@
 TEST?=$$(go list ./... |grep -v 'vendor')
-TEST_PARALLELISM?=1
+TEST_PARALLELISM?=2
 GOFMT_FILES?=$$(find . -name '*.go' |grep -v vendor)
 PKG_NAME=sbercloud
 
 default: build
 
 build: fmtcheck
+	go mod tidy
+	go mod vendor
 	go install -ldflags="-X 'github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils.PackageName=$(PKG_NAME)'"
 
 test: fmtcheck

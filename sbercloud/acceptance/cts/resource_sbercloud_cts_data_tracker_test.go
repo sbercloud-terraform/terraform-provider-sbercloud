@@ -18,7 +18,7 @@ func getCTSDataTrackerResourceObj(conf *config.Config, state *terraform.Resource
 		return nil, fmt.Errorf("error creating CTS client: %s", err)
 	}
 
-	name := state.Primary.ID
+	name := state.Primary.Attributes["name"]
 	trackerType := cts.GetListTrackersRequestTrackerTypeEnum().DATA
 	listOpts := &cts.ListTrackersRequest{
 		TrackerName: &name,
@@ -68,6 +68,7 @@ func TestAccCTSDataTracker_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "data_operation.#", "2"),
 					resource.TestCheckResourceAttrPair(resourceName, "data_bucket",
 						"sbercloud_obs_bucket.data_bucket", "bucket"),
+					resource.TestCheckResourceAttrSet(resourceName, "agency_name"),
 				),
 			},
 			{
@@ -81,12 +82,31 @@ func TestAccCTSDataTracker_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "validate_file", "false"),
 					resource.TestCheckResourceAttr(resourceName, "lts_enabled", "false"),
 					resource.TestCheckResourceAttr(resourceName, "status", "enabled"),
+					resource.TestCheckResourceAttr(resourceName, "compress_type", "json"),
+					resource.TestCheckResourceAttr(resourceName, "is_sort_by_service", "false"),
+				),
+			},
+			{
+				Config: testAccCTSDataTracker_disable(rName),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttr(resourceName, "transfer_enabled", "true"),
+					resource.TestCheckResourceAttrPair(resourceName, "bucket_name",
+						"sbercloud_obs_bucket.trans_bucket", "bucket"),
+					resource.TestCheckResourceAttr(resourceName, "file_prefix", "cts"),
+					resource.TestCheckResourceAttr(resourceName, "obs_retention_period", "30"),
+					resource.TestCheckResourceAttr(resourceName, "validate_file", "false"),
+					resource.TestCheckResourceAttr(resourceName, "lts_enabled", "false"),
+					resource.TestCheckResourceAttr(resourceName, "status", "disabled"),
+					resource.TestCheckResourceAttr(resourceName, "compress_type", "json"),
+					resource.TestCheckResourceAttr(resourceName, "is_sort_by_service", "false"),
 				),
 			},
 			{
 				ResourceName:      resourceName,
 				ImportState:       true,
 				ImportStateVerify: true,
+				ImportStateIdFunc: testCTSDataTrackerImportState(resourceName),
 			},
 		},
 	})
@@ -132,6 +152,51 @@ resource "sbercloud_cts_data_tracker" "tracker" {
   file_prefix          = "cts"
   validate_file        = false
   lts_enabled          = false
+  compress_type        = "json"
+  is_sort_by_service   = false
 }
 `, rName)
+}
+
+func testAccCTSDataTracker_disable(rName string) string {
+	return fmt.Sprintf(`
+resource "sbercloud_obs_bucket" "data_bucket" {
+  bucket = "%[1]s-data"
+  acl    = "public-read"
+}
+
+resource "sbercloud_obs_bucket" "trans_bucket" {
+  bucket        = "%[1]s-log"
+  acl           = "private"
+  force_destroy = true
+
+  lifecycle {
+    ignore_changes = [lifecycle_rule]
+  }
+}
+
+resource "sbercloud_cts_data_tracker" "tracker" {
+  name                 = "%[1]s"
+  data_bucket          = sbercloud_obs_bucket.data_bucket.bucket
+  bucket_name          = sbercloud_obs_bucket.trans_bucket.bucket
+  obs_retention_period = 30
+  file_prefix          = "cts"
+  validate_file        = false
+  lts_enabled          = false
+  compress_type        = "json"
+  is_sort_by_service   = false
+  enabled              = false
+}
+`, rName)
+}
+
+func testCTSDataTrackerImportState(resourceName string) resource.ImportStateIdFunc {
+	return func(s *terraform.State) (string, error) {
+		rs, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return "", fmt.Errorf("resource (%s) not found: %s", resourceName, rs)
+		}
+
+		return rs.Primary.Attributes["name"], nil
+	}
 }

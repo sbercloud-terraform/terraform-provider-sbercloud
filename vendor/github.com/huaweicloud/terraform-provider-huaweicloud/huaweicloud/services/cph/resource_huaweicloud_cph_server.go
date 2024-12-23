@@ -8,8 +8,6 @@ package cph
 import (
 	"context"
 	"fmt"
-	"log"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -19,7 +17,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
 
@@ -30,6 +27,7 @@ import (
 
 // @API CPH PUT /v1/{project_id}/cloud-phone/servers/{server_id}
 // @API CPH GET /v1/{project_id}/cloud-phone/servers/{server_id}
+// @API CPH PUT /v1/{project_id}/cloud-phone/servers/open-access
 // @API CPH POST /v2/{project_id}/cloud-phone/servers
 // @API BSS POST /v2/orders/subscriptions/resources/unsubscribe
 func ResourceCphServer() *schema.Resource {
@@ -57,8 +55,6 @@ func ResourceCphServer() *schema.Resource {
 			"name": {
 				Type:     schema.TypeString,
 				Required: true,
-				ValidateFunc: validation.StringMatch(regexp.MustCompile(`^[\x{4E00}-\x{9FFC}A-Za-z-_0-9]*$`),
-					"the input is invalid"),
 				DiffSuppressFunc: func(k, oldValue, newValue string, d *schema.ResourceData) bool {
 					return newValue+"-1" == oldValue
 				},
@@ -129,11 +125,10 @@ func ResourceCphServer() *schema.Resource {
 				}, false),
 			},
 			"period": {
-				Type:         schema.TypeInt,
-				Required:     true,
-				ForceNew:     true,
-				Description:  `The charging period.`,
-				ValidateFunc: validation.IntBetween(1, 9),
+				Type:        schema.TypeInt,
+				Required:    true,
+				ForceNew:    true,
+				Description: `The charging period.`,
 			},
 			"auto_renew": {
 				Type:        schema.TypeString,
@@ -152,7 +147,6 @@ func ResourceCphServer() *schema.Resource {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Computed:    true,
-				ForceNew:    true,
 				Description: `The key pair name, which is used for logging in to the cloud phone through ADB.`,
 			},
 			"enterprise_project_id": {
@@ -169,6 +163,22 @@ func ResourceCphServer() *schema.Resource {
 				Computed:    true,
 				ForceNew:    true,
 				Description: `The application port enabled by the cloud phone.`,
+			},
+			"phone_data_volume": {
+				Type:        schema.TypeList,
+				Elem:        cphPhoneDataVolumeSchema(),
+				Optional:    true,
+				Computed:    true,
+				MaxItems:    1,
+				Description: `The phone data volume.`,
+			},
+			"server_share_data_volume": {
+				Type:        schema.TypeList,
+				Elem:        cphShareDataVolumeSchema(),
+				Optional:    true,
+				Computed:    true,
+				MaxItems:    1,
+				Description: `The server share data volume.`,
 			},
 			"order_id": {
 				Type:        schema.TypeString,
@@ -219,7 +229,6 @@ func cphServerBandWidthSchema() *schema.Resource {
 				Optional:     true,
 				Computed:     true,
 				Description:  `The bandwidth (Mbit/s).`,
-				ValidateFunc: validation.IntBetween(1, 2000),
 				RequiredWith: []string{"bandwidth.0.charge_mode"},
 			},
 			"charge_mode": {
@@ -246,10 +255,9 @@ func cphServerApplicationPortSchema() *schema.Resource {
 				Description: `The application port name, which can contain a maximum of 16 bytes.`,
 			},
 			"listen_port": {
-				Type:         schema.TypeInt,
-				Required:     true,
-				Description:  `The port number, which ranges from 10000 to 50000.`,
-				ValidateFunc: validation.IntBetween(10000, 50000),
+				Type:        schema.TypeInt,
+				Required:    true,
+				Description: `The port number, which ranges from 10000 to 50000.`,
 			},
 			"internet_accessible": {
 				Type:        schema.TypeString,
@@ -273,6 +281,71 @@ func cphServerAddressSchema() *schema.Resource {
 				Type:        schema.TypeString,
 				Computed:    true,
 				Description: `The public IP address of the CPH server.`,
+			},
+		},
+	}
+	return &sc
+}
+
+func cphPhoneDataVolumeSchema() *schema.Resource {
+	sc := schema.Resource{
+		Schema: map[string]*schema.Schema{
+			"volume_type": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				ForceNew:    true,
+				Description: `Specifies the volume type.`,
+			},
+			"volume_size": {
+				Type:        schema.TypeInt,
+				Optional:    true,
+				ForceNew:    true,
+				Description: `Specifies the volume size, the unit is GB.`,
+			},
+			"volume_name": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `The volume name.`,
+			},
+			"volume_id": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `The volume ID.`,
+			},
+			"created_at": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `The creation time.`,
+			},
+			"updated_at": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `The update time.`,
+			},
+		},
+	}
+	return &sc
+}
+
+func cphShareDataVolumeSchema() *schema.Resource {
+	sc := schema.Resource{
+		Schema: map[string]*schema.Schema{
+			"volume_type": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				ForceNew:    true,
+				Description: `Specifies the share volume type.`,
+			},
+			"size": {
+				Type:        schema.TypeInt,
+				Optional:    true,
+				ForceNew:    true,
+				Description: `Specifies the share volume size, the unit is GB.`,
+			},
+			"version": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: `The share volume type.`,
 			},
 		},
 	}
@@ -313,28 +386,28 @@ func resourceCphServerCreate(ctx context.Context, d *schema.ResourceData, meta i
 		return diag.FromErr(err)
 	}
 
-	id, err := jmespath.Search("server_ids[0]", createCphServerRespBody)
-	if err != nil {
-		return diag.Errorf("error creating CPH Server: ID is not found in API response")
+	serverId := utils.PathSearch("server_ids[0]", createCphServerRespBody, "").(string)
+	if serverId == "" {
+		return diag.Errorf("unable to find the CPH Server ID from the API response")
 	}
 
-	d.SetId(id.(string))
+	d.SetId(serverId)
 
 	err = createCphServerWaitingForStateCompleted(ctx, d, meta, d.Timeout(schema.TimeoutCreate))
 	if err != nil {
 		return diag.Errorf("error waiting for the Create of CPH server (%s) to complete: %s", d.Id(), err)
 	}
 
-	orderId, err := jmespath.Search("order_id", createCphServerRespBody)
-	if err != nil {
-		return diag.Errorf("error creating CPH Server: order_id is not found in API response")
+	orderId := utils.PathSearch("order_id", createCphServerRespBody, "").(string)
+	if orderId == "" {
+		return diag.Errorf("unable to find the order ID of the CPH Server from the API response")
 	}
 
 	bssClient, err := cfg.BssV2Client(region)
 	if err != nil {
 		return diag.Errorf("error creating BSS v2 client: %s", err)
 	}
-	err = common.WaitOrderComplete(ctx, bssClient, orderId.(string), d.Timeout(schema.TimeoutCreate))
+	err = common.WaitOrderComplete(ctx, bssClient, orderId, d.Timeout(schema.TimeoutCreate))
 	if err != nil {
 		return diag.Errorf("error waiting for the Create of CPH server (%s) to complete: %s", d.Id(), err)
 	}
@@ -355,11 +428,13 @@ func buildCreateCphServerBodyParams(d *schema.ResourceData, cfg *config.Config) 
 				"subnet_id": utils.ValueIgnoreEmpty(d.Get("subnet_id")),
 			},
 		},
-		"public_ip":         buildCreateCphServerRequestBodyPublicIp(d),
-		"band_width":        buildCreateCphServerRequestBodyBandWidth(d.Get("bandwidth")),
-		"keypair_name":      utils.ValueIgnoreEmpty(d.Get("keypair_name")),
-		"availability_zone": utils.ValueIgnoreEmpty(d.Get("availability_zone")),
-		"ports":             buildCreateCphServerRequestBodyApplicationPort(d.Get("ports")),
+		"public_ip":                buildCreateCphServerRequestBodyPublicIp(d),
+		"band_width":               buildCreateCphServerRequestBodyBandWidth(d.Get("bandwidth")),
+		"keypair_name":             utils.ValueIgnoreEmpty(d.Get("keypair_name")),
+		"availability_zone":        utils.ValueIgnoreEmpty(d.Get("availability_zone")),
+		"ports":                    buildCreateCphServerRequestBodyApplicationPort(d.Get("ports")),
+		"phone_data_volume":        buildCreateCphServerRequestBodyPhoneDataVolume(d.Get("phone_data_volume")),
+		"server_share_data_volume": buildCreateCphServerRequestBodyShareDataVolume(d.Get("server_share_data_volume")),
 	}
 
 	extendParam := map[string]interface{}{
@@ -446,6 +521,40 @@ func buildCreateCphServerRequestBodyApplicationPort(rawParams interface{}) []map
 	return nil
 }
 
+func buildCreateCphServerRequestBodyPhoneDataVolume(rawParams interface{}) map[string]interface{} {
+	if rawArray, ok := rawParams.([]interface{}); ok {
+		if len(rawArray) == 0 {
+			return nil
+		}
+
+		raw := rawArray[0].(map[string]interface{})
+		params := map[string]interface{}{
+			"volume_type": utils.ValueIgnoreEmpty(raw["volume_type"]),
+			"size":        utils.ValueIgnoreEmpty(raw["volume_size"]),
+		}
+		return params
+	}
+
+	return nil
+}
+
+func buildCreateCphServerRequestBodyShareDataVolume(rawParams interface{}) map[string]interface{} {
+	if rawArray, ok := rawParams.([]interface{}); ok {
+		if len(rawArray) == 0 {
+			return nil
+		}
+
+		raw := rawArray[0].(map[string]interface{})
+		params := map[string]interface{}{
+			"volume_type": utils.ValueIgnoreEmpty(raw["volume_type"]),
+			"size":        utils.ValueIgnoreEmpty(raw["size"]),
+		}
+		return params
+	}
+
+	return nil
+}
+
 func createCphServerWaitingForStateCompleted(ctx context.Context, d *schema.ResourceData, meta interface{}, t time.Duration) error {
 	stateConf := &resource.StateChangeConf{
 		Pending: []string{"PENDING"},
@@ -481,12 +590,11 @@ func createCphServerWaitingForStateCompleted(ctx context.Context, d *schema.Reso
 			if err != nil {
 				return nil, "ERROR", err
 			}
-			statusRaw, err := jmespath.Search(`status`, createCphServerRespBody)
-			if err != nil {
-				return nil, "ERROR", fmt.Errorf("error parse %s from response body", `status`)
+			statusRaw := utils.PathSearch(`status`, createCphServerRespBody, nil)
+			if statusRaw == nil {
+				return nil, "ERROR", fmt.Errorf("unable to find the status from the API response")
 			}
-
-			status := fmt.Sprintf("%v", statusRaw)
+			status := fmt.Sprint(statusRaw)
 
 			targetStatus := []string{
 				"5", "8", "10",
@@ -525,7 +633,7 @@ func resourceCphServerRead(_ context.Context, d *schema.ResourceData, meta inter
 	)
 	getCphServerClient, err := cfg.NewServiceClient(getCphServerProduct, region)
 	if err != nil {
-		return diag.Errorf("error creating CPH Client: %s", err)
+		return diag.Errorf("error creating CPH client: %s", err)
 	}
 
 	getCphServerPath := getCphServerClient.Endpoint + getCphServerHttpUrl
@@ -534,14 +642,11 @@ func resourceCphServerRead(_ context.Context, d *schema.ResourceData, meta inter
 
 	getCphServerOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
-		OkCodes: []int{
-			200,
-		},
 	}
 	getCphServerResp, err := getCphServerClient.Request("GET", getCphServerPath, &getCphServerOpt)
 
 	if err != nil {
-		return common.CheckDeletedDiag(d, err, "error retrieving CPH Server")
+		return common.CheckDeletedDiag(d, err, "error retrieving CPH server")
 	}
 
 	getCphServerRespBody, err := utils.FlattenResponse(getCphServerResp)
@@ -551,7 +656,7 @@ func resourceCphServerRead(_ context.Context, d *schema.ResourceData, meta inter
 	statusRaw := utils.PathSearch("status", getCphServerRespBody, nil)
 
 	if fmt.Sprint(statusRaw) == "6" {
-		return common.CheckDeletedDiag(d, golangsdk.ErrDefault404{}, "error retrieving CPH Server")
+		return common.CheckDeletedDiag(d, golangsdk.ErrDefault404{}, "error retrieving CPH server")
 	}
 
 	mErr = multierror.Append(
@@ -570,9 +675,45 @@ func resourceCphServerRead(_ context.Context, d *schema.ResourceData, meta inter
 		d.Set("enterprise_project_id", utils.PathSearch("enterprise_project_id", getCphServerRespBody, nil)),
 		d.Set("status", utils.PathSearch("status", getCphServerRespBody, nil)),
 		d.Set("security_groups", utils.PathSearch("security_groups", getCphServerRespBody, nil)),
+		d.Set("phone_data_volume", flattenPhoneDataVolume(getCphServerRespBody)),
+		d.Set("server_share_data_volume", flattenShareDataVolume(getCphServerRespBody)),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())
+}
+
+func flattenPhoneDataVolume(resp interface{}) []interface{} {
+	if resp == nil {
+		return nil
+	}
+	curJson := utils.PathSearch("volumes", resp, make([]interface{}, 0))
+	curArray := curJson.([]interface{})
+	rst := make([]interface{}, 0, len(curArray))
+	for _, v := range curArray {
+		rst = append(rst, map[string]interface{}{
+			"volume_type": utils.PathSearch("volume_type", v, nil),
+			"volume_size": utils.PathSearch("volume_size", v, nil),
+			"volume_name": utils.PathSearch("volume_name", v, nil),
+			"volume_id":   utils.PathSearch("volume_id", v, nil),
+			"created_at":  utils.PathSearch("create_time", v, nil),
+			"updated_at":  utils.PathSearch("update_time", v, nil),
+		})
+	}
+	return rst
+}
+
+func flattenShareDataVolume(resp interface{}) []map[string]interface{} {
+	shareVolume := utils.PathSearch("share_volume_info", resp, nil)
+	if shareVolume == nil {
+		return nil
+	}
+	return []map[string]interface{}{
+		{
+			"volume_type": utils.PathSearch("volume_type", shareVolume, nil),
+			"size":        utils.PathSearch("size", shareVolume, nil),
+			"version":     utils.PathSearch("version", shareVolume, nil),
+		},
+	}
 }
 
 func flattenGetCphServerResponseBodyAddress(resp interface{}) []interface{} {
@@ -593,18 +734,17 @@ func flattenGetCphServerResponseBodyAddress(resp interface{}) []interface{} {
 
 func flattenGetCphServerResponseBodyBandWidth(resp interface{}) []interface{} {
 	var rst []interface{}
-	curJson, err := jmespath.Search("band_widths[0]", resp)
-	if err != nil {
-		log.Printf("[ERROR] error parsing band_widths from response= %#v", resp)
+	curJson := utils.PathSearch("band_widths[0]", resp, make(map[string]interface{})).(map[string]interface{})
+	if len(curJson) < 1 {
 		return rst
 	}
 
 	rst = []interface{}{
 		map[string]interface{}{
-			"share_type":  fmt.Sprint(utils.PathSearch("band_width_share_type", curJson, nil)),
+			"share_type":  fmt.Sprintf("%v", utils.PathSearch("band_width_share_type", curJson, nil)),
 			"id":          utils.PathSearch("band_width_id", curJson, nil),
 			"size":        utils.PathSearch("band_width_size", curJson, nil),
-			"charge_mode": fmt.Sprint(utils.PathSearch("band_width_charge_mode", curJson, nil)),
+			"charge_mode": fmt.Sprintf("%v", utils.PathSearch("band_width_charge_mode", curJson, nil)),
 		},
 	}
 	return rst
@@ -614,45 +754,25 @@ func resourceCphServerUpdate(ctx context.Context, d *schema.ResourceData, meta i
 	cfg := meta.(*config.Config)
 	region := cfg.GetRegion(d)
 
-	updateCphServerNameChanges := []string{
-		"name",
+	client, err := cfg.NewServiceClient("cph", region)
+	if err != nil {
+		return diag.Errorf("error creating CPH client: %s", err)
 	}
 
-	if d.HasChanges(updateCphServerNameChanges...) {
-		// updateCphServerName: update CPH server name
-		var (
-			updateCphServerNameHttpUrl = "v1/{project_id}/cloud-phone/servers/{server_id}"
-			updateCphServerNameProduct = "cph"
-		)
-		updateCphServerNameClient, err := cfg.NewServiceClient(updateCphServerNameProduct, region)
+	if d.HasChange("name") {
+		err := updateServerName(client, d)
 		if err != nil {
-			return diag.Errorf("error creating CPH Client: %s", err)
+			return diag.FromErr(err)
 		}
+	}
 
-		updateCphServerNamePath := updateCphServerNameClient.Endpoint + updateCphServerNameHttpUrl
-		updateCphServerNamePath = strings.ReplaceAll(updateCphServerNamePath, "{project_id}", updateCphServerNameClient.ProjectID)
-		updateCphServerNamePath = strings.ReplaceAll(updateCphServerNamePath, "{server_id}", d.Id())
-
-		updateCphServerNameOpt := golangsdk.RequestOpts{
-			KeepResponseBody: true,
-			OkCodes: []int{
-				200,
-			},
-		}
-		updateCphServerNameOpt.JSONBody = utils.RemoveNil(buildUpdateCphServerNameBodyParams(d, cfg))
-		_, err = updateCphServerNameClient.Request("PUT", updateCphServerNamePath, &updateCphServerNameOpt)
+	if d.HasChange("keypair_name") {
+		err := updateKeypair(ctx, client, d)
 		if err != nil {
-			return diag.Errorf("error updating CPH Server: %s", err)
+			return diag.FromErr(err)
 		}
 	}
 	return resourceCphServerRead(ctx, d, meta)
-}
-
-func buildUpdateCphServerNameBodyParams(d *schema.ResourceData, _ *config.Config) map[string]interface{} {
-	bodyParams := map[string]interface{}{
-		"server_name": utils.ValueIgnoreEmpty(d.Get("name")),
-	}
-	return bodyParams
 }
 
 func resourceCphServerDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -681,7 +801,7 @@ func deleteCphServerWaitingForStateCompleted(ctx context.Context, d *schema.Reso
 			)
 			getCphServerClient, err := cfg.NewServiceClient(getCphServerProduct, region)
 			if err != nil {
-				return nil, "ERROR", fmt.Errorf("error creating CPH Client: %s", err)
+				return nil, "ERROR", fmt.Errorf("error creating CPH client: %s", err)
 			}
 
 			getCphServerPath := getCphServerClient.Endpoint + getCphServerHttpUrl
@@ -690,9 +810,6 @@ func deleteCphServerWaitingForStateCompleted(ctx context.Context, d *schema.Reso
 
 			getCphServerOpt := golangsdk.RequestOpts{
 				KeepResponseBody: true,
-				OkCodes: []int{
-					200,
-				},
 			}
 			getCphServerResp, err := getCphServerClient.Request("GET", getCphServerPath, &getCphServerOpt)
 
@@ -709,12 +826,11 @@ func deleteCphServerWaitingForStateCompleted(ctx context.Context, d *schema.Reso
 				return nil, "ERROR", err
 			}
 
-			statusRaw, err := jmespath.Search(`status`, getCphServerRespBody)
-			if err != nil {
-				return nil, "ERROR", fmt.Errorf("error parse %s from response body", `status`)
+			statusRaw := utils.PathSearch(`status`, getCphServerRespBody, nil)
+			if statusRaw == nil {
+				return nil, "ERROR", fmt.Errorf("unable to find the status from the API response")
 			}
-
-			status := fmt.Sprintf("%v", statusRaw)
+			status := fmt.Sprint(statusRaw)
 
 			targetStatus := []string{
 				"6",
@@ -731,4 +847,84 @@ func deleteCphServerWaitingForStateCompleted(ctx context.Context, d *schema.Reso
 	}
 	_, err := stateConf.WaitForStateContext(ctx)
 	return err
+}
+
+func updateKeypair(ctx context.Context, client *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	// updateKeypair: update CPH server keypair
+	updateKeypairHttpUrl := "v1/{project_id}/cloud-phone/servers/open-access"
+
+	updateKeypairPath := client.Endpoint + updateKeypairHttpUrl
+	updateKeypairPath = strings.ReplaceAll(updateKeypairPath, "{project_id}", client.ProjectID)
+
+	updateKeypairOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+	}
+	updateKeypairOpt.JSONBody = map[string]interface{}{
+		"servers": []map[string]interface{}{
+			{
+				"server_id":    d.Id(),
+				"keypair_name": d.Get("keypair_name").(string),
+			},
+		},
+	}
+	updateServerKeypairResp, err := client.Request("PUT", updateKeypairPath, &updateKeypairOpt)
+	if err != nil {
+		return fmt.Errorf("error updating CPH server keypair: %s", err)
+	}
+
+	updateServerKeypairRespBody, err := utils.FlattenResponse(updateServerKeypairResp)
+	if err != nil {
+		return fmt.Errorf("error flattening CPH server keypair: %s", err)
+	}
+
+	jobId := utils.PathSearch("jobs|[0].job_id", updateServerKeypairRespBody, "").(string)
+	if jobId == "" {
+		return fmt.Errorf("unable to find the job ID from the API response")
+	}
+
+	err = checkCphJobStatus(ctx, client, jobId, d.Timeout(schema.TimeoutDelete))
+	if err != nil {
+		return fmt.Errorf("error waiting for updating CPH server keypair to be completed: %s", err)
+	}
+
+	return nil
+}
+
+func updateServerName(client *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	// updateCphServerName: update CPH server name
+	updateCphServerNameHttpUrl := "v1/{project_id}/cloud-phone/servers/{server_id}"
+
+	updateCphServerNamePath := client.Endpoint + updateCphServerNameHttpUrl
+	updateCphServerNamePath = strings.ReplaceAll(updateCphServerNamePath, "{project_id}", client.ProjectID)
+	updateCphServerNamePath = strings.ReplaceAll(updateCphServerNamePath, "{server_id}", d.Id())
+
+	updateCphServerNameOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+	}
+	updateCphServerNameOpt.JSONBody = utils.RemoveNil(map[string]interface{}{
+		"server_name": utils.ValueIgnoreEmpty(d.Get("name")),
+	})
+
+	_, err := client.Request("PUT", updateCphServerNamePath, &updateCphServerNameOpt)
+	if err != nil {
+		return fmt.Errorf("error updating CPH server: %s", err)
+	}
+
+	return nil
+}
+
+func checkCphJobStatus(ctx context.Context, client *golangsdk.ServiceClient, id string, timeout time.Duration) error {
+	stateConf := &resource.StateChangeConf{
+		Pending:      []string{"PENDING"},
+		Target:       []string{"COMPLETED"},
+		Refresh:      jobStatusRefreshFunc(client, id),
+		Timeout:      timeout,
+		PollInterval: 10 * timeout,
+		Delay:        10 * time.Second,
+	}
+	_, err := stateConf.WaitForStateContext(ctx)
+	if err != nil {
+		return err
+	}
+	return nil
 }

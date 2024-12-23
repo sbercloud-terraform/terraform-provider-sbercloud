@@ -79,10 +79,9 @@ func ResourceGaussRedisInstanceV3() *schema.Resource {
 				Required: true,
 			},
 			"node_num": {
-				Type:         schema.TypeInt,
-				Optional:     true,
-				Default:      3,
-				ValidateFunc: validation.IntBetween(2, 12),
+				Type:     schema.TypeInt,
+				Optional: true,
+				Default:  3,
 			},
 			"volume_size": {
 				Type:     schema.TypeInt,
@@ -108,6 +107,26 @@ func ResourceGaussRedisInstanceV3() *schema.Resource {
 				Optional: true,
 				Default:  "Cluster",
 				ForceNew: true,
+			},
+			"availability_zone_detail": {
+				Type:     schema.TypeList,
+				Optional: true,
+				ForceNew: true,
+				MaxItems: 1,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"primary_availability_zone": {
+							Type:     schema.TypeString,
+							Required: true,
+							ForceNew: true,
+						},
+						"secondary_availability_zone": {
+							Type:     schema.TypeString,
+							Required: true,
+							ForceNew: true,
+						},
+					},
+				},
 			},
 			"security_group_id": {
 				Type:     schema.TypeString,
@@ -263,7 +282,6 @@ func ResourceGaussRedisInstanceV3() *schema.Resource {
 				Type:         schema.TypeInt,
 				Optional:     true,
 				RequiredWith: []string{"period_unit"},
-				ValidateFunc: validation.IntBetween(1, 9),
 			},
 			"auto_renew": common.SchemaAutoRenewUpdatable(nil),
 			"auto_pay": {
@@ -277,6 +295,20 @@ func ResourceGaussRedisInstanceV3() *schema.Resource {
 			"tags": common.TagsSchema(),
 		},
 	}
+}
+
+func resourceGaussRedisBackupStrategy(d *schema.ResourceData) *instances.BackupStrategyOpt {
+	if _, ok := d.GetOk("backup_strategy"); ok {
+		opt := &instances.BackupStrategyOpt{
+			StartTime: d.Get("backup_strategy.0.start_time").(string),
+		}
+		// The default value of keepdays is 7, but empty value of keepdays will be converted to 0.
+		if v, ok := d.GetOk("backup_strategy.0.keep_days"); ok {
+			opt.KeepDays = strconv.Itoa(v.(int))
+		}
+		return opt
+	}
+	return nil
 }
 
 func resourceGaussRedisDataStore(d *schema.ResourceData) instances.DataStore {
@@ -296,16 +328,16 @@ func resourceGaussRedisDataStore(d *schema.ResourceData) instances.DataStore {
 	return db
 }
 
-func resourceGaussRedisBackupStrategy(d *schema.ResourceData) *instances.BackupStrategyOpt {
-	if _, ok := d.GetOk("backup_strategy"); ok {
-		opt := &instances.BackupStrategyOpt{
-			StartTime: d.Get("backup_strategy.0.start_time").(string),
+func resourceGaussRedisAvailabilityZoneDetail(d *schema.ResourceData) *instances.AvailabilityZoneDetailOpt {
+	if v, ok := d.GetOk("availability_zone_detail"); ok {
+		availabilityZoneDetail := v.([]interface{})[0]
+		if detail, ok := availabilityZoneDetail.(map[string]interface{}); ok {
+			opt := &instances.AvailabilityZoneDetailOpt{
+				PrimaryAvailabilityZone:   detail["primary_availability_zone"].(string),
+				SecondaryAvailabilityZone: detail["secondary_availability_zone"].(string),
+			}
+			return opt
 		}
-		// The default value of keepdays is 7, but empty value of keepdays will be converted to 0.
-		if v, ok := d.GetOk("backup_strategy.0.keep_days"); ok {
-			opt.KeepDays = strconv.Itoa(v.(int))
-		}
-		return opt
 	}
 	return nil
 }
@@ -369,17 +401,18 @@ func resourceGaussRedisInstanceV3Create(ctx context.Context, d *schema.ResourceD
 	}
 
 	createOpts := instances.CreateGeminiDBOpts{
-		Name:                d.Get("name").(string),
-		Region:              region,
-		AvailabilityZone:    d.Get("availability_zone").(string),
-		VpcId:               d.Get("vpc_id").(string),
-		SubnetId:            d.Get("subnet_id").(string),
-		SecurityGroupId:     d.Get("security_group_id").(string),
-		EnterpriseProjectId: cfg.GetEnterpriseProjectID(d),
-		Mode:                d.Get("mode").(string),
-		Flavor:              resourceGaussRedisFlavor(d),
-		DataStore:           resourceGaussRedisDataStore(d),
-		BackupStrategy:      resourceGaussRedisBackupStrategy(d),
+		Name:                   d.Get("name").(string),
+		Region:                 region,
+		AvailabilityZone:       d.Get("availability_zone").(string),
+		AvailabilityZoneDetail: resourceGaussRedisAvailabilityZoneDetail(d),
+		VpcId:                  d.Get("vpc_id").(string),
+		SubnetId:               d.Get("subnet_id").(string),
+		SecurityGroupId:        d.Get("security_group_id").(string),
+		EnterpriseProjectId:    cfg.GetEnterpriseProjectID(d),
+		Mode:                   d.Get("mode").(string),
+		Flavor:                 resourceGaussRedisFlavor(d),
+		DataStore:              resourceGaussRedisDataStore(d),
+		BackupStrategy:         resourceGaussRedisBackupStrategy(d),
 	}
 
 	if port, ok := d.GetOk("port"); ok {

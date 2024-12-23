@@ -25,17 +25,25 @@ func TestAccNetworkingV2VIPAssociate_basic(t *testing.T) {
 			{
 				Config: testAccNetworkingV2VIPAssociateConfig_basic(rName),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttrPair("sbercloud_networking_vip_associate.vip_associate_1",
-						"port_ids.0", "sbercloud_compute_instance.test", "network.0.port"),
-					resource.TestCheckResourceAttrPair("sbercloud_networking_vip_associate.vip_associate_1",
-						"vip_id", "sbercloud_networking_vip.vip_1", "id"),
+					resource.TestCheckResourceAttrPair("sbercloud_networking_vip_associate.vip_associate",
+						"vip_id", "sbercloud_networking_vip.vip", "id"),
+					resource.TestCheckOutput("port_ids_check", "true"),
 				),
 			},
 			{
-				ResourceName:      "sbercloud_networking_vip_associate.vip_associate_1",
+				Config:            testAccNetworkingV2VIPAssociateConfig_config(rName),
+				ResourceName:      "sbercloud_networking_vip_associate.vip_associate",
 				ImportState:       true,
 				ImportStateVerify: true,
 				ImportStateIdFunc: testAccNetworkingV2VIPAssociateImportStateIdFunc(),
+			},
+			{
+				Config: testAccNetworkingV2VIPAssociateConfig_update(rName),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttrPair("sbercloud_networking_vip_associate.vip_associate",
+						"vip_id", "sbercloud_networking_vip.vip", "id"),
+					resource.TestCheckOutput("port_ids_check", "true"),
+				),
 			},
 		},
 	})
@@ -71,11 +79,11 @@ func testAccCheckNetworkingV2VIPAssociateDestroy(s *terraform.State) error {
 
 func testAccNetworkingV2VIPAssociateImportStateIdFunc() resource.ImportStateIdFunc {
 	return func(s *terraform.State) (string, error) {
-		vip, ok := s.RootModule().Resources["sbercloud_networking_vip.vip_1"]
+		vip, ok := s.RootModule().Resources["sbercloud_networking_vip.vip"]
 		if !ok {
 			return "", fmt.Errorf("vip not found: %s", vip)
 		}
-		instance, ok := s.RootModule().Resources["sbercloud_compute_instance.test"]
+		instance, ok := s.RootModule().Resources["sbercloud_compute_instance.test.0"]
 		if !ok {
 			return "", fmt.Errorf("port not found: %s", instance)
 		}
@@ -111,12 +119,13 @@ data "sbercloud_networking_secgroup" "test" {
 }
 `
 
-func testAccComputeInstance_basic(rName string) string {
+func testAccNetworkingV2VIPAssociateConfig_basic(rName string) string {
 	return fmt.Sprintf(`
 %s
 
 resource "sbercloud_compute_instance" "test" {
-  name                = "%s"
+  count               = 1
+  name                = "%s-${count.index}"
   image_id            = data.sbercloud_images_image.test.id
   flavor_id           = data.sbercloud_compute_flavors.test.ids[0]
   security_group_ids  = [data.sbercloud_networking_secgroup.test.id]
@@ -125,26 +134,98 @@ resource "sbercloud_compute_instance" "test" {
 
   network {
     uuid              = data.sbercloud_vpc_subnet.test.id
+    source_dest_check = false
   }
+}
+
+resource "sbercloud_networking_vip" "vip" {
+  network_id = data.sbercloud_vpc_subnet.test.id
+}
+
+resource "sbercloud_networking_vip_associate" "vip_associate" {
+  vip_id   = sbercloud_networking_vip.vip.id
+  port_ids = [sbercloud_compute_instance.test[0].network[0].port]
+}
+
+locals {
+  port_ids_result = [
+    for v in sbercloud_compute_instance.test[*].network[0].port : contains(sbercloud_networking_vip_associate.vip_associate.port_ids, v)]
+}
+
+output "port_ids_check" {
+  value = alltrue(local.port_ids_result)
 }
 `, testAccCompute_data, rName)
 }
 
-func testAccNetworkingV2VIPAssociateConfig_basic(rName string) string {
+func testAccNetworkingV2VIPAssociateConfig_config(rName string) string {
 	return fmt.Sprintf(`
 %s
 
-data "sbercloud_networking_port" "port" {
-  port_id = sbercloud_compute_instance.test.network[0].port
+resource "sbercloud_compute_instance" "test" {
+  count               = 1
+  name                = "%s-${count.index}"
+  image_id            = data.sbercloud_images_image.test.id
+  flavor_id           = data.sbercloud_compute_flavors.test.ids[0]
+  security_group_ids  = [data.sbercloud_networking_secgroup.test.id]
+  stop_before_destroy = true
+  system_disk_type    = "SSD"
+
+  network {
+    uuid              = data.sbercloud_vpc_subnet.test.id
+    source_dest_check = false
+  }
 }
 
-resource "sbercloud_networking_vip" "vip_1" {
+resource "sbercloud_networking_vip" "vip" {
   network_id = data.sbercloud_vpc_subnet.test.id
 }
 
-resource "sbercloud_networking_vip_associate" "vip_associate_1" {
-  vip_id   = sbercloud_networking_vip.vip_1.id
-  port_ids = [sbercloud_compute_instance.test.network[0].port]
+resource "sbercloud_networking_vip_associate" "vip_associate" {
+  vip_id   = sbercloud_networking_vip.vip.id
+  port_ids = [sbercloud_compute_instance.test[0].network[0].port]
 }
-`, testAccComputeInstance_basic(rName))
+`, testAccCompute_data, rName)
+}
+
+func testAccNetworkingV2VIPAssociateConfig_update(rName string) string {
+	return fmt.Sprintf(`
+%s
+
+resource "sbercloud_compute_instance" "test" {
+  count               = 2
+  name                = "%s-${count.index}"
+  image_id            = data.sbercloud_images_image.test.id
+  flavor_id           = data.sbercloud_compute_flavors.test.ids[0]
+  security_group_ids  = [data.sbercloud_networking_secgroup.test.id]
+  stop_before_destroy = true
+  system_disk_type    = "SSD"
+
+  network {
+    uuid              = data.sbercloud_vpc_subnet.test.id
+    source_dest_check = false
+  }
+}
+
+resource "sbercloud_networking_vip" "vip" {
+  network_id = data.sbercloud_vpc_subnet.test.id
+}
+
+resource "sbercloud_networking_vip_associate" "vip_associate" {
+  vip_id   = sbercloud_networking_vip.vip.id
+  port_ids = [
+    sbercloud_compute_instance.test[0].network[0].port,
+    sbercloud_compute_instance.test[1].network[0].port,
+  ]
+}
+
+locals {
+  port_ids_result = [
+    for v in sbercloud_compute_instance.test[*].network[0].port : contains(sbercloud_networking_vip_associate.vip_associate.port_ids, v)]
+}
+
+output "port_ids_check" {
+  value = alltrue(local.port_ids_result)
+}
+`, testAccCompute_data, rName)
 }

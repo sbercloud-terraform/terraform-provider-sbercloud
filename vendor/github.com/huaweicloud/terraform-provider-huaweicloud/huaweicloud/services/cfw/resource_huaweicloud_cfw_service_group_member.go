@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
 
@@ -121,11 +120,11 @@ func resourceServiceGroupMemberCreate(ctx context.Context, d *schema.ResourceDat
 		return diag.FromErr(err)
 	}
 
-	id, err := jmespath.Search("data.items[0].id", createServiceGroupMemberRespBody)
-	if err != nil {
+	id := utils.PathSearch("data.items[0].id", createServiceGroupMemberRespBody, "").(string)
+	if id == "" {
 		return diag.Errorf("error creating ServiceGroupMember: ID is not found in API response")
 	}
-	d.SetId(id.(string))
+	d.SetId(id)
 
 	return resourceServiceGroupMemberRead(ctx, d, meta)
 }
@@ -176,7 +175,10 @@ func resourceServiceGroupMemberRead(_ context.Context, d *schema.ResourceData, m
 		&getServiceGroupMemberOpt)
 
 	if err != nil {
-		return common.CheckDeletedDiag(d, err, "error retrieving ServiceGroupMember")
+		return common.CheckDeletedDiag(d,
+			common.ConvertExpected400ErrInto404Err(err, "error_code", "CFW.00200005"),
+			"error retrieving ServiceGroupMember",
+		)
 	}
 
 	getServiceGroupMemberRespBody, err := utils.FlattenResponse(getServiceGroupMemberResp)
@@ -184,9 +186,9 @@ func resourceServiceGroupMemberRead(_ context.Context, d *schema.ResourceData, m
 		return diag.FromErr(err)
 	}
 
-	members, err := jmespath.Search("data.records", getServiceGroupMemberRespBody)
-	if err != nil {
-		diag.Errorf("error parsing data.records from response= %#v", getServiceGroupMemberRespBody)
+	members := utils.PathSearch("data.records", getServiceGroupMemberRespBody, nil)
+	if members == nil {
+		return diag.Errorf("error parsing data.records from response= %#v", getServiceGroupMemberRespBody)
 	}
 
 	member, err := FilterServiceGroupMembers(members.([]interface{}), d.Id())
@@ -253,7 +255,10 @@ func resourceServiceGroupMemberDelete(_ context.Context, d *schema.ResourceData,
 	_, err = deleteServiceGroupMemberClient.Request("DELETE", deleteServiceGroupMemberPath,
 		&deleteServiceGroupMemberOpt)
 	if err != nil {
-		return diag.Errorf("error deleting ServiceGroupMember: %s", err)
+		return common.CheckDeletedDiag(d,
+			common.ConvertExpected400ErrInto404Err(err, "error_code", "CFW.00200005"),
+			"error deleting ServiceGroupMember",
+		)
 	}
 
 	return nil

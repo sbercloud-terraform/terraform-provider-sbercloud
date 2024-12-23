@@ -16,6 +16,8 @@ import (
 
 func TestAccComputeServerGroup_basic(t *testing.T) {
 	var sg servergroups.ServerGroup
+	var instance cloudservers.CloudServer
+
 	rName := acceptance.RandomAccResourceNameWithDash()
 	resourceName := "sbercloud_compute_servergroup.sg_1"
 
@@ -27,8 +29,24 @@ func TestAccComputeServerGroup_basic(t *testing.T) {
 			{
 				Config: testAccComputeServerGroup_basic(rName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckComputeServerGroupExists(resourceName, &sg),
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					testAccCheckComputeServerGroupExists(resourceName, &sg),
+				),
+			},
+			{
+				Config: testAccComputeServerGroup_members(rName, 0),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckComputeServerGroupExists(resourceName, &sg),
+					testAccCheckComputeInstanceExists("sbercloud_compute_instance.test.0", &instance),
+					testAccCheckComputeInstanceInServerGroup(&instance, &sg),
+				),
+			},
+			{
+				Config: testAccComputeServerGroup_members(rName, 1),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckComputeServerGroupExists(resourceName, &sg),
+					testAccCheckComputeInstanceExists("sbercloud_compute_instance.test.1", &instance),
+					testAccCheckComputeInstanceInServerGroup(&instance, &sg),
 				),
 			},
 			{
@@ -55,7 +73,7 @@ func TestAccComputeServerGroup_scheduler(t *testing.T) {
 				Config: testAccComputeServerGroup_scheduler(rName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckComputeServerGroupExists(resourceName, &sg),
-					testAccCheckComputeInstanceExists("sbercloud_compute_instance.instance_1", &instance),
+					testAccCheckComputeInstanceExists("sbercloud_compute_instance.test", &instance),
 					testAccCheckComputeInstanceInServerGroup(&instance, &sg),
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
 				),
@@ -64,11 +82,8 @@ func TestAccComputeServerGroup_scheduler(t *testing.T) {
 	})
 }
 
-func TestAccComputeServerGroup_members(t *testing.T) {
-	var instance cloudservers.CloudServer
-	var sg servergroups.ServerGroup
+func TestAccComputeServerGroup_concurrency(t *testing.T) {
 	rName := acceptance.RandomAccResourceNameWithDash()
-	resourceName := "sbercloud_compute_servergroup.sg_1"
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
@@ -76,12 +91,10 @@ func TestAccComputeServerGroup_members(t *testing.T) {
 		CheckDestroy:      testAccCheckComputeServerGroupDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccComputeServerGroup_members(rName),
+				Config: testAccComputeServerGroup_concurrency(rName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckComputeServerGroupExists(resourceName, &sg),
-					testAccCheckComputeInstanceExists("sbercloud_compute_instance.instance_1", &instance),
-					testAccCheckComputeInstanceInServerGroup(&instance, &sg),
-					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckOutput("members_attached", "true"),
+					resource.TestCheckOutput("volumes_attached", "true"),
 				),
 			},
 		},
@@ -164,23 +177,49 @@ resource "sbercloud_compute_servergroup" "sg_1" {
 `, rName)
 }
 
+func testAccComputeServerGroup_members(rName string, idx int) string {
+	return fmt.Sprintf(`
+%s
+
+resource "sbercloud_compute_instance" "test" {
+  count = 2
+
+  name               = "%[2]s-${count.index}"
+  image_id           = data.sbercloud_images_image.test.id
+  flavor_id          = data.sbercloud_compute_flavors.test.ids[0]
+  security_group_ids = [data.sbercloud_networking_secgroup.test.id]
+  availability_zone  = data.sbercloud_availability_zones.test.names[0]
+  system_disk_type    = "SSD"	
+
+  network {
+    uuid = data.sbercloud_vpc_subnet.test.id
+  }
+}
+
+resource "sbercloud_compute_servergroup" "sg_1" {
+  name     = "%[2]s"
+  policies = ["anti-affinity"]
+  members  = [sbercloud_compute_instance.test.%d.id]
+}
+`, testAccCompute_data, rName, idx)
+}
+
 func testAccComputeServerGroup_scheduler(rName string) string {
 	return fmt.Sprintf(`
 %s
 
 resource "sbercloud_compute_servergroup" "sg_1" {
-  name     = "%s"
+  name     = "%[2]s"
   policies = ["anti-affinity"]
 }
 
-resource "sbercloud_compute_instance" "instance_1" {
-  name               = "%s"
+resource "sbercloud_compute_instance" "test" {
+  name               = "%[2]s"
   image_id           = data.sbercloud_images_image.test.id
   flavor_id          = data.sbercloud_compute_flavors.test.ids[0]
   security_group_ids = [data.sbercloud_networking_secgroup.test.id]
   availability_zone  = data.sbercloud_availability_zones.test.names[0]
-  system_disk_type   = "SAS"
-
+  system_disk_type    = "SSD"
   scheduler_hints {
     group = sbercloud_compute_servergroup.sg_1.id
   }
@@ -188,30 +227,115 @@ resource "sbercloud_compute_instance" "instance_1" {
     uuid = data.sbercloud_vpc_subnet.test.id
   }
 }
-`, testAccCompute_data, rName, rName)
+`, testAccCompute_data, rName)
 }
 
-func testAccComputeServerGroup_members(rName string) string {
+func testAccComputeServerGroup_concurrency(name string) string {
 	return fmt.Sprintf(`
-%s
+data "sbercloud_availability_zones" "test" {}
 
-resource "sbercloud_compute_servergroup" "sg_1" {
-  name     = "%s"
-  policies = ["anti-affinity"]
-  members  = [sbercloud_compute_instance.instance_1.id]
+data "sbercloud_compute_flavors" "test" {
+  availability_zone = data.sbercloud_availability_zones.test.names[0]
+  performance_type  = "normal"
+  cpu_core_count    = 2
+  memory_size       = 4
 }
 
-resource "sbercloud_compute_instance" "instance_1" {
-  name               = "%s"
-  image_id           = data.sbercloud_images_image.test.id
-  flavor_id          = data.sbercloud_compute_flavors.test.ids[0]
-  security_group_ids = [data.sbercloud_networking_secgroup.test.id]
-  availability_zone  = data.sbercloud_availability_zones.test.names[0]
-  system_disk_type   = "SAS"
+data "sbercloud_images_images" "test" {
+  flavor_id  = data.sbercloud_compute_flavors.test.ids[0]
+  os         = "Ubuntu"
+  visibility = "public"
+}
 
+resource "sbercloud_vpc" "test" {
+  name = "%[1]s"
+  cidr = "192.168.192.0/20"
+}
+
+resource "sbercloud_vpc_subnet" "test" {
+  name       = "%[1]s"
+  vpc_id     = sbercloud_vpc.test.id
+  cidr       = cidrsubnet(sbercloud_vpc.test.cidr, 4, 1)
+  gateway_ip = cidrhost(cidrsubnet(sbercloud_vpc.test.cidr, 4, 1), 1)
+}
+
+resource "sbercloud_networking_secgroup" "test" {
+  name = "%[1]s"
+}
+
+resource "sbercloud_kps_keypair" "test" {
+  name = "%[1]s"
+}
+
+resource "sbercloud_compute_instance" "test" {
+  count = 2
+
+  name               = "%[1]s-${count.index}"
+  flavor_id          = data.sbercloud_compute_flavors.test.ids[0]
+  image_id           = data.sbercloud_images_images.test.images[0].id
+  security_group_ids = [sbercloud_networking_secgroup.test.id]
+  availability_zone  = data.sbercloud_availability_zones.test.names[0]
+  key_pair           = sbercloud_kps_keypair.test.name
+  system_disk_type    = "SSD"
   network {
-    uuid = data.sbercloud_vpc_subnet.test.id
+    uuid = sbercloud_vpc_subnet.test.id
   }
 }
-`, testAccCompute_data, rName, rName)
+
+resource "sbercloud_compute_servergroup" "test" {
+  count = 2
+
+  name     = "%[1]s-${count.index}"
+  policies = ["anti-affinity"]
+
+  members = [
+    sbercloud_compute_instance.test[count.index].id,
+  ]
+
+  # make sure the resource can be applied with "sbercloud_compute_volume_attach" at the same time
+  depends_on = [sbercloud_evs_volume.test]
+}
+
+resource "sbercloud_evs_volume" "test" {
+  count = 4
+
+  name              = "%[1]s-${count.index}"
+  availability_zone = data.sbercloud_availability_zones.test.names[0]
+
+  device_type = "SCSI"
+  volume_type = "SAS"
+  size        = 40
+  multiattach = true
+}
+
+resource "sbercloud_compute_volume_attach" "attach_volumes_to_compute_test_1" {
+  count = 4
+
+  instance_id = sbercloud_compute_instance.test[0].id
+  volume_id   = sbercloud_evs_volume.test[count.index].id
+}
+
+resource "sbercloud_compute_volume_attach" "attach_volumes_to_compute_test_2" {
+  count = 4
+
+  instance_id = sbercloud_compute_instance.test[1].id
+  volume_id   = sbercloud_evs_volume.test[count.index].id
+}
+
+locals {
+  attach_members_1 = sbercloud_compute_servergroup.test[0].members
+  attach_members_2 = sbercloud_compute_servergroup.test[1].members
+
+  attach_devices_1 = [for d in sbercloud_compute_volume_attach.attach_volumes_to_compute_test_1[*].device : d != ""]
+  attach_devices_2 = [for d in sbercloud_compute_volume_attach.attach_volumes_to_compute_test_2[*].device : d != ""]
+}
+
+output "members_attached" {
+  value = length(local.attach_members_1) == 1 && length(local.attach_members_2) == 1
+}
+
+output "volumes_attached" {
+  value = length(local.attach_devices_1) == 4 && length(local.attach_devices_2) == 4
+}
+`, name)
 }

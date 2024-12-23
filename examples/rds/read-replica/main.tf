@@ -36,7 +36,7 @@ resource "sbercloud_rds_instance" "myinstance" {
     password = var.rds_password
   }
   volume {
-    type = "ULTRAHIGH"
+    type = "CLOUDSSD"
     size = 40
   }
 }
@@ -47,7 +47,7 @@ resource "sbercloud_rds_read_replica_instance" "myreplica" {
   primary_instance_id = sbercloud_rds_instance.myinstance.id
   availability_zone   = data.sbercloud_availability_zones.myaz.names[1]
   volume {
-    type = "ULTRAHIGH"
+    type = "CLOUDSSD"
   }
 
   tags = {

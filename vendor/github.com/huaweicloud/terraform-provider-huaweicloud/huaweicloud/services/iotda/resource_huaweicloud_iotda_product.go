@@ -3,7 +3,6 @@ package iotda
 import (
 	"context"
 	"log"
-	"regexp"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -15,12 +14,6 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
-)
-
-const (
-	stringRegxp     = `^[\x{4E00}-\x{9FFC}A-Za-z-_0-9?'#().,&%@!]*$`
-	stringFormatMsg = "Only letters, Chinese characters, digits, hyphens (-), underscores (_) and" +
-		" the following special characters are allowed: ?'#().,&%@!"
 )
 
 // @API IoTDA PUT /v5/iot/{project_id}/products/{product_id}
@@ -44,38 +37,25 @@ func ResourceProduct() *schema.Resource {
 				Computed: true,
 				ForceNew: true,
 			},
-
 			"name": {
 				Type:     schema.TypeString,
 				Required: true,
-				ValidateFunc: validation.All(
-					validation.StringLenBetween(1, 64),
-					validation.StringMatch(regexp.MustCompile(stringRegxp), stringFormatMsg),
-				),
 			},
-
 			"protocol": {
 				Type:     schema.TypeString,
 				Required: true,
 				ValidateFunc: validation.StringInSlice([]string{"MQTT", "CoAP", "HTTP", "HTTPS", "Modbus", "ONVIF",
 					"OPC-UA", "OPC-DA", "Other"}, false),
 			},
-
 			"data_type": {
 				Type:         schema.TypeString,
 				Required:     true,
 				ValidateFunc: validation.StringInSlice([]string{"json", "binary"}, false),
 			},
-
 			"device_type": {
 				Type:     schema.TypeString,
 				Required: true,
-				ValidateFunc: validation.All(
-					validation.StringLenBetween(1, 32),
-					validation.StringMatch(regexp.MustCompile(stringRegxp), stringFormatMsg),
-				),
 			},
-
 			"services": {
 				Type:     schema.TypeList,
 				Required: true,
@@ -85,32 +65,22 @@ func ResourceProduct() *schema.Resource {
 						"id": {
 							Type:     schema.TypeString,
 							Required: true,
-							ValidateFunc: validation.All(
-								validation.StringLenBetween(1, 64),
-								validation.StringMatch(regexp.MustCompile(stringRegxp), stringFormatMsg),
-							),
 						},
-
 						"type": { // keep same with console
 							Type:     schema.TypeString,
 							Optional: true,
 							Computed: true,
-							ValidateFunc: validation.All(
-								validation.StringLenBetween(0, 64),
-								validation.StringMatch(regexp.MustCompile(stringRegxp), stringFormatMsg),
-							),
 						},
-
 						"description": {
 							Type:     schema.TypeString,
 							Optional: true,
 							Computed: true,
-							ValidateFunc: validation.All(
-								validation.StringLenBetween(0, 128),
-								validation.StringMatch(regexp.MustCompile(stringRegxp), stringFormatMsg),
-							),
 						},
-
+						"option": {
+							Type:     schema.TypeString,
+							Optional: true,
+							Computed: true,
+						},
 						"properties": {
 							Type:     schema.TypeList,
 							Optional: true,
@@ -118,7 +88,6 @@ func ResourceProduct() *schema.Resource {
 							MaxItems: 500,
 							Elem:     propertySchema("services.properties"),
 						},
-
 						"commands": {
 							Type:     schema.TypeList,
 							Optional: true,
@@ -129,12 +98,7 @@ func ResourceProduct() *schema.Resource {
 									"name": {
 										Type:     schema.TypeString,
 										Required: true,
-										ValidateFunc: validation.All(
-											validation.StringLenBetween(1, 64),
-											validation.StringMatch(regexp.MustCompile(stringRegxp), stringFormatMsg),
-										),
 									},
-
 									"paras": {
 										Type:     schema.TypeList,
 										Optional: true,
@@ -142,7 +106,6 @@ func ResourceProduct() *schema.Resource {
 										MaxItems: 500,
 										Elem:     propertySchema("services.commands.paras"),
 									},
-
 									"responses": {
 										Type:     schema.TypeList,
 										Optional: true,
@@ -156,53 +119,31 @@ func ResourceProduct() *schema.Resource {
 					},
 				},
 			},
-
 			"manufacturer_name": {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
-				ValidateFunc: validation.All(
-					validation.StringLenBetween(0, 32),
-					validation.StringMatch(regexp.MustCompile(stringRegxp), stringFormatMsg),
-				),
 			},
-
 			"industry": {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
-				ValidateFunc: validation.All(
-					validation.StringLenBetween(0, 64),
-					validation.StringMatch(regexp.MustCompile(stringRegxp), stringFormatMsg),
-				),
 			},
-
 			"description": {
 				Type:     schema.TypeString,
 				Optional: true,
-				ValidateFunc: validation.All(
-					validation.StringLenBetween(0, 128),
-					validation.StringMatch(regexp.MustCompile(stringRegxp), stringFormatMsg),
-				),
 			},
-
 			"space_id": {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
 				Computed: true,
 			},
-
 			"product_id": {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
 				ForceNew: true,
-				ValidateFunc: validation.All(
-					validation.StringLenBetween(0, 32),
-					validation.StringMatch(regexp.MustCompile(`^[A-Za-z-_0-9]*$`),
-						"Only letters, digits, underscores (_) and hyphens (-) are allowed."),
-				),
 			},
 		},
 	}
@@ -215,45 +156,39 @@ func propertySchema(category string) *schema.Resource {
 			"name": {
 				Type:     schema.TypeString,
 				Required: true,
-				ValidateFunc: validation.All(
-					validation.StringLenBetween(1, 64),
-					validation.StringMatch(regexp.MustCompile(stringRegxp), stringFormatMsg),
-				),
 			},
-
 			"type": { // keep same with console
 				Type:     schema.TypeString,
 				Required: true,
 				ValidateFunc: validation.StringInSlice([]string{"int", "decimal", "string", "DateTime",
 					"jsonObject", "string list"}, false),
 			},
-
+			"required": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Default:  false,
+			},
 			"enum_list": {
 				Type:     schema.TypeList,
 				Optional: true,
 				Computed: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
-
 			"min": {
 				Type:     schema.TypeString,
 				Optional: true,
 				Default:  "0",
 			},
-
 			"max": {
 				Type:     schema.TypeString,
 				Optional: true,
 				Default:  "65535",
 			},
-
 			"max_length": {
-				Type:         schema.TypeInt,
-				Optional:     true,
-				Computed:     true,
-				ValidateFunc: validation.IntBetween(0, 2147483647),
+				Type:     schema.TypeInt,
+				Optional: true,
+				Computed: true,
 			},
-
 			"step": {
 				Type:     schema.TypeFloat,
 				Optional: true,
@@ -263,18 +198,16 @@ func propertySchema(category string) *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
-				ValidateFunc: validation.All(
-					validation.StringLenBetween(0, 16),
-				),
 			},
 			"description": {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
-				ValidateFunc: validation.All(
-					validation.StringLenBetween(0, 128),
-					validation.StringMatch(regexp.MustCompile(stringRegxp), stringFormatMsg),
-				),
+			},
+			"default_value": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
 			},
 		},
 	}
@@ -426,6 +359,7 @@ func buildServices(raw []interface{}) *[]model.ServiceCapability {
 			ServiceId:   service["id"].(string),
 			ServiceType: service["type"].(string),
 			Description: utils.StringIgnoreEmpty(service["description"].(string)),
+			Option:      utils.StringIgnoreEmpty(service["option"].(string)),
 			Properties:  buildServiceProperties(service["properties"]),
 			Commands:    buildServiceCommands(service["commands"]),
 		}
@@ -465,6 +399,7 @@ func buildServiceCommandParas(raw interface{}) *[]model.ServiceCommandPara {
 		rst[i] = model.ServiceCommandPara{
 			ParaName:    s["name"].(string),
 			DataType:    s["type"].(string),
+			Required:    utils.Bool(s["required"].(bool)),
 			EnumList:    utils.ExpandToStringListPointer(s["enum_list"].([]interface{})),
 			Min:         utils.String(s["min"].(string)),
 			Max:         utils.String(s["max"].(string)),
@@ -483,9 +418,11 @@ func buildServiceProperties(propertiesRaw interface{}) *[]model.ServiceProperty 
 	rst := make([]model.ServiceProperty, len(properties))
 	for i, v := range properties {
 		s := v.(map[string]interface{})
+		defaultValue := utils.StringToJson(s["default_value"].(string))
 		rst[i] = model.ServiceProperty{
 			PropertyName: s["name"].(string),
 			DataType:     s["type"].(string),
+			Required:     utils.Bool(s["required"].(bool)),
 			EnumList:     utils.ExpandToStringListPointer(s["enum_list"].([]interface{})),
 			Min:          utils.String(s["min"].(string)),
 			Max:          utils.String(s["max"].(string)),
@@ -494,6 +431,9 @@ func buildServiceProperties(propertiesRaw interface{}) *[]model.ServiceProperty 
 			Unit:         utils.StringIgnoreEmpty(s["unit"].(string)),
 			Description:  utils.StringIgnoreEmpty(s["description"].(string)),
 			Method:       s["method"].(string),
+		}
+		if defaultValue != nil {
+			rst[i].DefaultValue = &defaultValue
 		}
 	}
 
@@ -508,6 +448,7 @@ func flattenServices(s *[]model.ServiceCapability) []interface{} {
 				"id":          v.ServiceId,
 				"type":        v.ServiceType,
 				"description": v.Description,
+				"option":      v.Option,
 				"properties":  flattenServiceProperties(v.Properties),
 				"commands":    flattenServiceCommands(v.Commands),
 			}
@@ -523,17 +464,20 @@ func flattenServiceProperties(s *[]model.ServiceProperty) []interface{} {
 	if s != nil {
 		rst := make([]interface{}, len(*s))
 		for i, v := range *s {
+			defaultValue := utils.JsonToString(v.DefaultValue)
 			rst[i] = map[string]interface{}{
-				"name":        v.PropertyName,
-				"type":        v.DataType,
-				"enum_list":   v.EnumList,
-				"min":         v.Min,
-				"max":         v.Max,
-				"max_length":  v.MaxLength,
-				"step":        v.Step,
-				"unit":        v.Unit,
-				"description": v.Description,
-				"method":      v.Method,
+				"name":          v.PropertyName,
+				"type":          v.DataType,
+				"required":      v.Required,
+				"enum_list":     v.EnumList,
+				"min":           v.Min,
+				"max":           v.Max,
+				"max_length":    v.MaxLength,
+				"step":          v.Step,
+				"unit":          v.Unit,
+				"description":   v.Description,
+				"method":        v.Method,
+				"default_value": defaultValue,
 			}
 		}
 
@@ -578,6 +522,7 @@ func flattenServiceCommandParas(s *[]model.ServiceCommandPara) []interface{} {
 			rst[i] = map[string]interface{}{
 				"name":        v.ParaName,
 				"type":        v.DataType,
+				"required":    v.Required,
 				"enum_list":   v.EnumList,
 				"min":         v.Min,
 				"max":         v.Max,

@@ -2,14 +2,12 @@ package dms
 
 import (
 	"context"
-	"regexp"
 	"strings"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
 
@@ -49,11 +47,6 @@ func ResourceDmsRocketMQTopic() *schema.Resource {
 				Required:    true,
 				ForceNew:    true,
 				Description: `Specifies the name of the topic.`,
-				ValidateFunc: validation.All(
-					validation.StringMatch(regexp.MustCompile(`^[A-Za-z|%-_0-9]*$`),
-						"the input is invalid"),
-					validation.StringLenBetween(3, 64),
-				),
 			},
 			"message_type": {
 				Type:        schema.TypeString,
@@ -71,12 +64,11 @@ func ResourceDmsRocketMQTopic() *schema.Resource {
 				Description: "Specifies the list of associated brokers of the topic.",
 			},
 			"queue_num": {
-				Type:         schema.TypeInt,
-				Optional:     true,
-				Computed:     true,
-				ForceNew:     true,
-				Description:  `Specifies the number of queues.`,
-				ValidateFunc: validation.IntBetween(1, 50),
+				Type:        schema.TypeInt,
+				Optional:    true,
+				Computed:    true,
+				ForceNew:    true,
+				Description: `Specifies the number of queues.`,
 			},
 			"queues": {
 				Type:        schema.TypeList,
@@ -183,11 +175,11 @@ func resourceDmsRocketMQTopicCreate(ctx context.Context, d *schema.ResourceData,
 		return diag.FromErr(err)
 	}
 
-	id, err := jmespath.Search("id", createRocketmqTopicRespBody)
-	if err != nil {
-		return diag.Errorf("error creating DmsRocketMQTopic: ID is not found in API response")
+	id := utils.PathSearch("id", createRocketmqTopicRespBody, "").(string)
+	if id == "" {
+		return diag.Errorf("unable to find topic ID from the API response")
 	}
-	d.SetId(instanceID + "/" + id.(string))
+	d.SetId(instanceID + "/" + id)
 
 	return resourceDmsRocketMQTopicUpdate(ctx, d, meta)
 }

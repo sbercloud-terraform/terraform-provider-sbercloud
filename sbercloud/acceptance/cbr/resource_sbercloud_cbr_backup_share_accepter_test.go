@@ -26,7 +26,7 @@ func TestAccBackupShareAccepter_basic(t *testing.T) {
 	var (
 		obj          *backups.BackupResp
 		name         = acceptance.RandomAccResourceName()
-		resourceName = "huaweicloud_cbr_backup_share_accepter.test"
+		resourceName = "sbercloud_cbr_backup_share_accepter.test"
 	)
 
 	rc := acceptance.InitResourceCheck(
@@ -48,7 +48,7 @@ func TestAccBackupShareAccepter_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "backup_id", acceptance.SBC_SHARED_BACKUP_ID),
-					resource.TestCheckResourceAttrPair(resourceName, "vault_id", "huaweicloud_cbr_vault.test", "id"),
+					resource.TestCheckResourceAttrPair(resourceName, "vault_id", "sbercloud_cbr_vault.test", "id"),
 				),
 			},
 			{
@@ -62,7 +62,7 @@ func TestAccBackupShareAccepter_basic(t *testing.T) {
 
 func testAccBackupShareAccepter_basic(name string) string {
 	return fmt.Sprintf(`
-resource "huaweicloud_cbr_vault" "test" {
+resource "sbercloud_cbr_vault" "test" {
   name             = "%[1]s"
   type             = "server"
   consistent_level = "crash_consistent"
@@ -70,9 +70,9 @@ resource "huaweicloud_cbr_vault" "test" {
   size             = 100
 }
 
-resource "huaweicloud_cbr_backup_share_accepter" "test" {
+resource "sbercloud_cbr_backup_share_accepter" "test" {
   backup_id = "%[2]s"
-  vault_id  = huaweicloud_cbr_vault.test.id
+  vault_id  = sbercloud_cbr_vault.test.id
 }
 `, name, acceptance.SBC_SHARED_BACKUP_ID)
 }

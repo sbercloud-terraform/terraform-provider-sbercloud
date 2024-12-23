@@ -18,6 +18,7 @@ import (
 	"github.com/chnsz/golangsdk/openstack/bss/v2/orders"
 	"github.com/chnsz/golangsdk/openstack/common/tags"
 	"github.com/chnsz/golangsdk/openstack/taurusdb/v3/auditlog"
+	"github.com/chnsz/golangsdk/openstack/taurusdb/v3/autoscaling"
 	"github.com/chnsz/golangsdk/openstack/taurusdb/v3/backups"
 	"github.com/chnsz/golangsdk/openstack/taurusdb/v3/configurations"
 	"github.com/chnsz/golangsdk/openstack/taurusdb/v3/instances"
@@ -60,6 +61,9 @@ type ctxType string
 // @API GaussDBforMySQL POST /v3/{project_id}/instances/{instance_id}/proxy/enlarge
 // @API GaussDBforMySQL PUT /v3/{project_id}/configurations/{configuration_id}/apply
 // @API GaussDBforMySQL PUT /v3/{project_id}/instances/{instance_id}/configurations
+// @API GaussDBforMySQL PUT /v3/{project_id}/instances/{instance_id}/auto-scaling/policy
+// @API GaussDBforMySQL POST /v3/{project_id}/instances/{instance_id}/backups/encryption
+// @API GaussDBforMySQL POST /v3/{project_id}/instances/{instance_id}/slowlog/modify
 // @API GaussDBforMySQL GET /v3/{project_id}/instances/{instance_id}
 // @API GaussDBforMySQL GET /v3/{project_id}/instances/{instance_id}/proxy
 // @API GaussDBforMySQL GET /v3/{project_id}/instance/{instance_id}/audit-log/switch-status
@@ -67,7 +71,12 @@ type ctxType string
 // @API GaussDBforMySQL GET /v3/{project_id}/instances/{instance_id}/monitor-policy
 // @API GaussDBforMySQL GET /v3/{project_id}/instances/{instance_id}/tags
 // @API GaussDBforMySQL GET /v3/{project_id}/instances/{instance_id}/configurations
+// @API GaussDBforMySQL GET /v3/{project_id}/instances/{instance_id}/auto-scaling/policy
+// @API GaussDBforMySQL GET /v3/{project_id}/instances/{instance_id}/backups/encryption
+// @API GaussDBforMySQL GET /v3/{project_id}/instances/{instance_id}/database-version
+// @API GaussDBforMySQL GET /v3/{project_id}/instances/{instance_id}/slowlog/query
 // @API GaussDBforMySQL DELETE /v3/{project_id}/instances/{instance_id}
+// @API EPS POST /v1.0/enterprise-projects/{enterprise_project_id}/resources-migrat
 // @API BSS GET /v2/orders/customer-orders/details/{order_id}
 // @API BSS POST /v2/orders/subscriptions/resources/autorenew/{instance_id}
 // @API BSS DELETE /v2/orders/subscriptions/resources/autorenew/{instance_id}
@@ -228,6 +237,11 @@ func ResourceGaussDBInstance() *schema.Resource {
 				Optional:     true,
 				ValidateFunc: validation.StringInSlice([]string{"true", "false"}, false),
 			},
+			"slow_log_show_original_switch": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Computed: true,
+			},
 			"description": {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -293,6 +307,103 @@ func ResourceGaussDBInstance() *schema.Resource {
 				Optional: true,
 				Computed: true,
 			},
+			"auto_scaling": {
+				Type:     schema.TypeList,
+				MaxItems: 1,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"status": {
+							Type:     schema.TypeString,
+							Required: true,
+						},
+						"scaling_strategy": {
+							Type:     schema.TypeList,
+							Required: true,
+							MaxItems: 1,
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{
+									"flavor_switch": {
+										Type:     schema.TypeString,
+										Required: true,
+									},
+									"read_only_switch": {
+										Type:     schema.TypeString,
+										Required: true,
+									},
+								},
+							},
+						},
+						"monitor_cycle": {
+							Type:     schema.TypeInt,
+							Optional: true,
+							Computed: true,
+						},
+						"silence_cycle": {
+							Type:     schema.TypeInt,
+							Optional: true,
+							Computed: true,
+						},
+						"enlarge_threshold": {
+							Type:     schema.TypeInt,
+							Optional: true,
+							Computed: true,
+						},
+						"max_flavor": {
+							Type:     schema.TypeString,
+							Optional: true,
+							Computed: true,
+						},
+						"reduce_enabled": {
+							Type:     schema.TypeBool,
+							Optional: true,
+							Computed: true,
+						},
+						"max_read_only_count": {
+							Type:     schema.TypeInt,
+							Optional: true,
+							Computed: true,
+						},
+						"read_only_weight": {
+							Type:     schema.TypeInt,
+							Optional: true,
+							Computed: true,
+						},
+						"id": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"min_flavor": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"silence_start_at": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"min_read_only_count": {
+							Type:     schema.TypeInt,
+							Computed: true,
+						},
+					},
+				},
+				Optional: true,
+				Computed: true,
+			},
+			"encryption_status": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+			},
+			"encryption_type": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				RequiredWith: []string{"encryption_status"},
+			},
+			"kms_key_id": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				RequiredWith: []string{"encryption_status"},
+			},
 			// charge info: charging_mode, period_unit, period, auto_renew, auto_pay
 			// make ForceNew false here but do nothing in update method!
 			"charging_mode": {
@@ -314,7 +425,6 @@ func ResourceGaussDBInstance() *schema.Resource {
 				Type:         schema.TypeInt,
 				Optional:     true,
 				RequiredWith: []string{"period_unit"},
-				ValidateFunc: validation.IntBetween(1, 9),
 			},
 			"auto_renew": common.SchemaAutoRenewUpdatable(nil),
 			"auto_pay": {
@@ -349,6 +459,18 @@ func ResourceGaussDBInstance() *schema.Resource {
 				Computed: true,
 			},
 			"private_dns_name": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"upgrade_flag": {
+				Type:     schema.TypeBool,
+				Computed: true,
+			},
+			"current_version": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"current_kernel_version": {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
@@ -704,8 +826,26 @@ func resourceGaussDBInstanceCreate(ctx context.Context, d *schema.ResourceData, 
 		}
 	}
 
+	if _, ok := d.GetOk("slow_log_show_original_switch"); ok {
+		if err = updateSlowLogShowOriginalSwitch(client, d); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
 	if _, ok := d.GetOk("description"); ok {
 		if err = updateDescription(client, d); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	if _, ok := d.GetOk("auto_scaling"); ok {
+		if err = updateAutoScaling(ctx, client, d, schema.TimeoutCreate); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	if v, ok := d.GetOk("encryption_status"); ok && v.(string) == "ON" {
+		if err = updateEncryption(client, d); err != nil {
 			return diag.FromErr(err)
 		}
 	}
@@ -847,6 +987,14 @@ func resourceGaussDBInstanceRead(ctx context.Context, d *schema.ResourceData, me
 	mErr = multierror.Append(mErr, setSqlFilter(d, client, instanceID))
 	// set seconds level monitoring
 	mErr = multierror.Append(mErr, setSecondsLevelMonitoring(d, client, instanceID)...)
+	// set auto scaling
+	mErr = multierror.Append(mErr, setAutoScaling(d, client, instanceID))
+	// set backup encryption
+	mErr = multierror.Append(mErr, setEncryption(d, client, instanceID))
+	// set version
+	mErr = multierror.Append(mErr, setVersion(d, client, instanceID)...)
+	// set slow log show original
+	mErr = multierror.Append(mErr, setSlowLogShowOriginalSwitch(d, client, instanceID))
 
 	// save tags
 	if resourceTags, err := tags.Get(client, "instances", d.Id()).Extract(); err == nil {
@@ -1010,6 +1158,68 @@ func setSecondsLevelMonitoring(d *schema.ResourceData, client *golangsdk.Service
 	errs = append(errs, d.Set("seconds_level_monitoring_enabled", resp.MonitorSwitch))
 	errs = append(errs, d.Set("seconds_level_monitoring_period", resp.Period))
 	return errs
+}
+
+func setAutoScaling(d *schema.ResourceData, client *golangsdk.ServiceClient, instanceId string) error {
+	resp, err := autoscaling.Get(client, instanceId).Extract()
+	if err != nil {
+		log.Printf("[WARN] query instance %s auto scaling failed: %s", instanceId, err)
+		return nil
+	}
+
+	autoScaling := map[string]interface{}{
+		"id":     resp.Id,
+		"status": resp.Status,
+		"scaling_strategy": []interface{}{
+			map[string]interface{}{
+				"flavor_switch":    resp.ScalingStrategy.FlavorSwitch,
+				"read_only_switch": resp.ScalingStrategy.ReadOnlySwitch,
+			},
+		},
+		"monitor_cycle":       resp.MonitorCycle,
+		"silence_cycle":       resp.SilenceCycle,
+		"enlarge_threshold":   resp.EnlargeThreshold,
+		"max_flavor":          resp.MaxFavor,
+		"reduce_enabled":      resp.ReduceEnabled,
+		"min_flavor":          resp.MinFlavor,
+		"silence_start_at":    resp.SilenceStartAt,
+		"max_read_only_count": resp.MaxReadOnlyCount,
+		"min_read_only_count": resp.MinReadOnlyCount,
+		"read_only_weight":    resp.ReadOnlyWeight,
+	}
+	return d.Set("auto_scaling", []interface{}{autoScaling})
+}
+
+func setEncryption(d *schema.ResourceData, client *golangsdk.ServiceClient, instanceId string) error {
+	resp, err := backups.GetEncryption(client, instanceId).Extract()
+	if err != nil {
+		log.Printf("[WARN] query instance %s backup encryption failed: %s", instanceId, err)
+		return nil
+	}
+	return d.Set("encryption_status", strings.ToUpper(resp.EncryptionStatus))
+}
+
+func setVersion(d *schema.ResourceData, client *golangsdk.ServiceClient, instanceId string) []error {
+	resp, err := instances.GetVersion(client, instanceId).Extract()
+	if err != nil {
+		log.Printf("[WARN] query instance %s version failed: %s", instanceId, err)
+		return nil
+	}
+	var errs []error
+	errs = append(errs, d.Set("upgrade_flag", resp.UpgradeFlag))
+	errs = append(errs, d.Set("current_version", resp.Datastore.CurrentVersion))
+	errs = append(errs, d.Set("current_kernel_version", resp.Datastore.CurrentKernelVersion))
+	return errs
+}
+
+func setSlowLogShowOriginalSwitch(d *schema.ResourceData, client *golangsdk.ServiceClient, instanceId string) error {
+	resp, err := instances.GetSlowLogShowOriginalSwitch(client, instanceId).Extract()
+	if err != nil {
+		log.Printf("[WARN] query instance %s slow log show original failed: %s", instanceId, err)
+		return nil
+	}
+	slowLogShowOriginalSwitch, _ := strconv.ParseBool(resp.OpenSlowLogSwitch)
+	return d.Set("slow_log_show_original_switch", slowLogShowOriginalSwitch)
 }
 
 func setGaussDBMySQLParameters(ctx context.Context, d *schema.ResourceData, client *golangsdk.ServiceClient) diag.Diagnostics {
@@ -1221,8 +1431,29 @@ func resourceGaussDBInstanceUpdate(ctx context.Context, d *schema.ResourceData, 
 		}
 	}
 
+	if d.HasChange("slow_log_show_original_switch") {
+		err = updateSlowLogShowOriginalSwitch(client, d)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
 	if d.HasChange("description") {
 		err = updateDescription(client, d)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	if d.HasChange("auto_scaling") {
+		err = updateAutoScaling(ctx, client, d, schema.TimeoutUpdate)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	if d.HasChanges("encryption_status", "encryption_type", "kms_key_id") {
+		err = updateEncryption(client, d)
 		if err != nil {
 			return diag.FromErr(err)
 		}
@@ -2081,6 +2312,19 @@ func updateSslOption(ctx context.Context, client *golangsdk.ServiceClient, d *sc
 	return checkGaussDBMySQLJobFinish(ctx, client, job.JobID, d.Timeout(timeout))
 }
 
+func updateSlowLogShowOriginalSwitch(client *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	opts := instances.UpdateSlowLogShowOriginalSwitchOpts{
+		OpenSlowLogSwitch: d.Get("slow_log_show_original_switch").(bool),
+	}
+
+	_, err := instances.UpdateSlowLogShowOriginalSwitch(client, d.Id(), opts).ExtractUpdateSlowLogShowOriginalSwitchResponse()
+	if err != nil {
+		return fmt.Errorf("error updating slow low show original switch for instance %s: %s ", d.Id(), err)
+	}
+
+	return nil
+}
+
 func updateDescription(client *golangsdk.ServiceClient, d *schema.ResourceData) error {
 	updateAliasOpts := instances.UpdateAliasOpts{
 		Alias: d.Get("description").(string),
@@ -2089,6 +2333,64 @@ func updateDescription(client *golangsdk.ServiceClient, d *schema.ResourceData) 
 	_, err := instances.UpdateAlias(client, d.Id(), updateAliasOpts).ExtractUpdateAliasResponse()
 	if err != nil {
 		return fmt.Errorf("error updating description for instance %s: %s ", d.Id(), err)
+	}
+
+	return nil
+}
+
+func updateAutoScaling(ctx context.Context, client *golangsdk.ServiceClient, d *schema.ResourceData, timeout string) error {
+	rawParams := d.Get("auto_scaling").([]interface{})
+	if len(rawParams) == 0 {
+		return nil
+	}
+
+	raw := rawParams[0].(map[string]interface{})
+	updateAutoScalingOpts := autoscaling.UpdateAutoScalingOpts{
+		Status: raw["status"].(string),
+		ScalingStrategy: &autoscaling.ScalingStrategy{
+			FlavorSwitch:   raw["scaling_strategy"].([]interface{})[0].(map[string]interface{})["flavor_switch"].(string),
+			ReadOnlySwitch: raw["scaling_strategy"].([]interface{})[0].(map[string]interface{})["read_only_switch"].(string),
+		},
+		MonitorCycle:     raw["monitor_cycle"].(int),
+		SilenceCycle:     raw["silence_cycle"].(int),
+		EnlargeThreshold: raw["enlarge_threshold"].(int),
+		MaxFlavor:        raw["max_flavor"].(string),
+		ReduceEnabled:    raw["reduce_enabled"].(bool),
+		MaxReadOnlyCount: raw["max_read_only_count"].(int),
+		ReadOnlyWeight:   raw["read_only_weight"].(int),
+	}
+
+	retryFunc := func() (interface{}, bool, error) {
+		res, err := autoscaling.Update(client, d.Id(), updateAutoScalingOpts).ExtractUpdateResponse()
+		retry, err := handleMultiOperationsError(err)
+		return res, retry, err
+	}
+	_, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     GaussDBInstanceStateRefreshFunc(client, d.Id()),
+		WaitTarget:   []string{"ACTIVE"},
+		Timeout:      d.Timeout(timeout),
+		DelayTimeout: 30 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("error updating auto scaling for instance %s: %s ", d.Id(), err)
+	}
+
+	return nil
+}
+
+func updateEncryption(client *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	updateEncryptionOpts := backups.UpdateEncryptionOpts{
+		EncryptionStatus: d.Get("encryption_status").(string),
+		Type:             d.Get("encryption_type").(string),
+		KmsKeyId:         d.Get("kms_key_id").(string),
+	}
+
+	_, err := backups.UpdateEncryption(client, d.Id(), updateEncryptionOpts).Extract()
+	if err != nil {
+		return fmt.Errorf("error updating backup encryption for instance %s: %s ", d.Id(), err)
 	}
 
 	return nil

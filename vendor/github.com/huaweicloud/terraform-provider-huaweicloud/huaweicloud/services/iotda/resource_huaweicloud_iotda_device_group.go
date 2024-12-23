@@ -4,12 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"regexp"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
 	iotdav5 "github.com/huaweicloud/huaweicloud-sdk-go-v3/services/iotda/v5"
 	"github.com/huaweicloud/huaweicloud-sdk-go-v3/services/iotda/v5/model"
@@ -42,39 +40,37 @@ func ResourceDeviceGroup() *schema.Resource {
 				Computed: true,
 				ForceNew: true,
 			},
-
 			"name": {
 				Type:     schema.TypeString,
 				Required: true,
-				ValidateFunc: validation.All(
-					validation.StringLenBetween(1, 64),
-					validation.StringMatch(regexp.MustCompile(`^[A-Za-z-_0-9]*$`),
-						"Only letters, digits, underscores (_) and hyphens (-) are allowed."),
-				),
 			},
-
 			"space_id": {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
 			},
-
 			"description": {
 				Type:     schema.TypeString,
 				Optional: true,
-				ValidateFunc: validation.All(
-					validation.StringLenBetween(0, 64),
-					validation.StringMatch(regexp.MustCompile(stringRegxp), stringFormatMsg),
-				),
 			},
-
 			"parent_group_id": {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
 				ForceNew: true,
 			},
-
+			"type": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
+			"dynamic_group_rule": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
 			"device_ids": {
 				Type:     schema.TypeSet,
 				Optional: true,
@@ -96,10 +92,12 @@ func resourceDeviceGroupCreate(ctx context.Context, d *schema.ResourceData, meta
 
 	createOpts := model.AddDeviceGroupRequest{
 		Body: &model.AddDeviceGroupDto{
-			Name:         utils.String(d.Get("name").(string)),
-			Description:  utils.StringIgnoreEmpty(d.Get("description").(string)),
-			SuperGroupId: utils.StringIgnoreEmpty(d.Get("parent_group_id").(string)),
-			AppId:        utils.String(d.Get("space_id").(string)),
+			Name:             utils.String(d.Get("name").(string)),
+			Description:      utils.StringIgnoreEmpty(d.Get("description").(string)),
+			SuperGroupId:     utils.StringIgnoreEmpty(d.Get("parent_group_id").(string)),
+			AppId:            utils.String(d.Get("space_id").(string)),
+			GroupType:        utils.StringIgnoreEmpty(d.Get("type").(string)),
+			DynamicGroupRule: utils.StringIgnoreEmpty(d.Get("dynamic_group_rule").(string)),
 		},
 	}
 	log.Printf("[DEBUG] Create IoTDA device group params: %#v", createOpts)
@@ -143,6 +141,8 @@ func resourceDeviceGroupRead(_ context.Context, d *schema.ResourceData, meta int
 		d.Set("name", detail.Name),
 		d.Set("description", detail.Description),
 		d.Set("parent_group_id", detail.SuperGroupId),
+		d.Set("type", detail.GroupType),
+		d.Set("dynamic_group_rule", detail.DynamicGroupRule),
 		setDeviceIdsToState(d, client, d.Id()),
 	)
 
@@ -204,11 +204,13 @@ func resourceDeviceGroupDelete(_ context.Context, d *schema.ResourceData, meta i
 		return diag.Errorf("error creating IoTDA v5 client: %s", err)
 	}
 
-	// remove devices
-	addIds := d.Get("device_ids").(*schema.Set)
-	err = deleteDevicesFromGroup(client, d.Id(), addIds)
-	if err != nil {
-		return diag.FromErr(err)
+	// Remove devices from static device group, dynamic device group does not require this operation.
+	if d.Get("type").(string) == "STATIC" {
+		addIds := d.Get("device_ids").(*schema.Set)
+		err = deleteDevicesFromGroup(client, d.Id(), addIds)
+		if err != nil {
+			return diag.FromErr(err)
+		}
 	}
 
 	deleteOpts := &model.DeleteDeviceGroupRequest{

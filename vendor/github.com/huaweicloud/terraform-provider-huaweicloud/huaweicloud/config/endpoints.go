@@ -261,11 +261,6 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Version: "v1",
 		Product: "BMS",
 	},
-	"aos": {
-		Name:    "aos",
-		Version: "v1",
-		Product: "AOS",
-	},
 	"rfs": {
 		Name:    "rfs",
 		Version: "v1",
@@ -413,6 +408,11 @@ var allServiceCatalog = map[string]ServiceCatalog{
 	"workspace": {
 		Name:    "workspace",
 		Version: "v2",
+		Product: "Workspace",
+	},
+	"appstream": {
+		Name:    "appstream",
+		Version: "v1",
 		Product: "Workspace",
 	},
 	"er": {
@@ -574,6 +574,12 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Version:          "v1",
 		WithOutProjectID: true,
 		Product:          "Config",
+	},
+	"rgc": {
+		Name:             "rgc",
+		Version:          "v1",
+		WithOutProjectID: true,
+		Product:          "RGC",
 	},
 	"organizations": {
 		Name:             "organizations",
