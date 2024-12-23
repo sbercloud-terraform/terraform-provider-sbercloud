@@ -15,6 +15,7 @@ import (
 	"github.com/chnsz/golangsdk/openstack/evs/v2/cloudvolumes"
 	"github.com/chnsz/golangsdk/openstack/networking/v2/ports"
 
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
@@ -51,6 +52,7 @@ func DataSourceComputeInstance() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 			},
+			"tags": common.TagsSchema(),
 			"enterprise_project_id": {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -103,12 +105,15 @@ func DataSourceComputeInstance() *schema.Resource {
 			"network":         computedSchemaNetworks(),
 			"volume_attached": computedSchemaVolumeAttached(),
 			"scheduler_hints": computedSchemaSchedulerHints(),
-			"tags": {
-				Type:     schema.TypeMap,
-				Computed: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-			},
 			"status": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"charging_mode": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"expired_time": {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
@@ -210,6 +215,7 @@ func buildListOptsWithoutStatus(d *schema.ResourceData, cfg *config.Config) *clo
 		Name:                d.Get("name").(string),
 		Flavor:              d.Get("flavor_id").(string),
 		IPEqual:             d.Get("fixed_ip_v4").(string),
+		Tags:                buildQueryInstancesTagsOpts(d),
 	}
 
 	return &result
@@ -288,10 +294,21 @@ func setEcsInstanceParams(d *schema.ResourceData, conf *config.Config, ecsClient
 		d.Set("security_group_ids", flattenEcsInstanceSecurityGroupIds(server.SecurityGroups)),
 		d.Set("security_groups", flattenEcsInstanceSecurityGroups(server.SecurityGroups)),
 		d.Set("scheduler_hints", flattenEcsInstanceSchedulerHints(server.OsSchedulerHints)),
+		d.Set("charging_mode", normalizeChargingMode(server.Metadata.ChargingMode)),
 
 		setEcsInstanceNetworks(d, networkingClient, server.Addresses),
 		setEcsInstanceVolumeAttached(d, ecsClient, blockStorageClient, server.VolumeAttached),
 	)
+
+	// Set expired time for prePaid instance
+	if normalizeChargingMode(server.Metadata.ChargingMode) == "prePaid" {
+		expiredTime, err := getPrePaidExpiredTime(d, conf, server.ID)
+		if err != nil {
+			log.Printf("error get prePaid expired time: %s", err)
+		}
+
+		mErr = multierror.Append(mErr, d.Set("expired_time", expiredTime))
+	}
 	return diag.FromErr(mErr.ErrorOrNil())
 }
 

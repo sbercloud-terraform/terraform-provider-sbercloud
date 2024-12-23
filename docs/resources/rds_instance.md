@@ -202,11 +202,10 @@ The following arguments are supported:
 
 * `backup_strategy` - (Optional, List) Specifies the advanced backup policy. Structure is documented below.
 
-* `ha_replication_mode` - (Optional, String) Specifies the replication mode for the standby DB instance.
+* `ha_replication_mode` - (Optional, String) Required for HA instances. Specifies the replication mode for the standby DB instance.
   + For MySQL, the value is **async** or **semisync**.
   + For PostgreSQL, the value is **async** or **sync**.
   + For Microsoft SQL Server, the value is **sync**.
-  + For MariaDB, the value is **async** or **semisync**.
 
   -> **NOTE:** **async** indicates the asynchronous replication mode. **semisync** indicates the semi-synchronous
   replication mode. **sync** indicates the synchronous replication mode.
@@ -341,9 +340,9 @@ The `volume` block supports:
 * `type` - (Required, String, ForceNew) Specifies the volume type. Its value can be any of the following and is
   case-sensitive:
   + **CLOUDSSD**: cloud SSD storage. This storage type is supported only with general-purpose and dedicated DB
-    instances.
-  + **ESSD**: extreme SSD storage.
-  + **ULTRAHIGH** the only storage type for SQLServer
+    instances (MySQL and PostreSQL).
+  + **ESSD**: extreme SSD storage. Supported by: MySQL primary/standby, PostgeSQL (both single and primary/standby).
+  + **ULTRAHIGH** the only storage type for SQLServer, not supported by other DB engines.
 
   Changing this parameter will create a new resource.
 

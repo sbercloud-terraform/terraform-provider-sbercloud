@@ -13,8 +13,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
 
@@ -48,10 +46,9 @@ func ResourceBandwidthPackage() *schema.Resource {
 				ForceNew: true,
 			},
 			"name": {
-				Type:         schema.TypeString,
-				Required:     true,
-				Description:  `The bandwidth package name.`,
-				ValidateFunc: validation.StringLenBetween(1, 64),
+				Type:        schema.TypeString,
+				Required:    true,
+				Description: `The bandwidth package name.`,
 			},
 			"local_area_id": {
 				Type:        schema.TypeString,
@@ -179,11 +176,11 @@ func resourceBandwidthPackageCreate(ctx context.Context, d *schema.ResourceData,
 		return diag.FromErr(err)
 	}
 
-	id, err := jmespath.Search("bandwidth_package.id", createBandwidthPackageRespBody)
-	if err != nil {
+	id := utils.PathSearch("bandwidth_package.id", createBandwidthPackageRespBody, "").(string)
+	if id == "" {
 		return diag.Errorf("error creating bandwidth package: ID is not found in API response")
 	}
-	d.SetId(id.(string))
+	d.SetId(id)
 
 	return resourceBandwidthPackageRead(ctx, d, meta)
 }
@@ -541,7 +538,7 @@ func resourceBandwidthPackageDelete(_ context.Context, d *schema.ResourceData, m
 
 	_, err = deleteBandwidthPackageClient.Request("DELETE", deleteBandwidthPackagePath, &deleteBandwidthPackageOpt)
 	if err != nil {
-		return diag.Errorf("error deleting bandwidth package: %s", err)
+		return common.CheckDeletedDiag(d, err, "error deleting bandwidth package")
 	}
 
 	return nil

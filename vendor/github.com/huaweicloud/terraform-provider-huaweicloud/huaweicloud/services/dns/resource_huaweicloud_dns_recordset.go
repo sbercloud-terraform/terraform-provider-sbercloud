@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
 
@@ -64,6 +63,9 @@ func ResourceDNSRecordset() *schema.Resource {
 				Required: true,
 				Description: `Specifies the name of the record set. The name suffixed with a zone name, which is a
 complete host name ended with a dot.`,
+				DiffSuppressFunc: func(_, oldVal, newVal string, _ *schema.ResourceData) bool {
+					return strings.TrimSuffix(oldVal, ".") == strings.TrimSuffix(newVal, ".")
+				},
 			},
 			"type": {
 				Type:     schema.TypeString,
@@ -81,11 +83,10 @@ complete host name ended with a dot.`,
 				Description: `Specifies an array of DNS records. The value rules vary depending on the record set type.`,
 			},
 			"ttl": {
-				Type:         schema.TypeInt,
-				Optional:     true,
-				Default:      300,
-				ValidateFunc: validation.IntBetween(1, 2147483647),
-				Description:  `Specifies the time to live (TTL) of the record set (in seconds).`,
+				Type:        schema.TypeInt,
+				Optional:    true,
+				Default:     300,
+				Description: `Specifies the time to live (TTL) of the record set (in seconds).`,
 			},
 			"line_id": {
 				Type:        schema.TypeString,
@@ -109,11 +110,10 @@ complete host name ended with a dot.`,
 				Description: `Specifies the description of the record set.`,
 			},
 			"weight": {
-				Type:         schema.TypeInt,
-				Optional:     true,
-				Computed:     true,
-				ValidateFunc: validation.IntBetween(0, 1000),
-				Description:  `Specifies the weight of the record set.`,
+				Type:        schema.TypeInt,
+				Optional:    true,
+				Computed:    true,
+				Description: `Specifies the weight of the record set.`,
 			},
 			"zone_name": {
 				Type:        schema.TypeString,
@@ -201,11 +201,11 @@ func createDNSRecordset(recordsetClient *golangsdk.ServiceClient, d *schema.Reso
 		return err
 	}
 
-	id, err := jmespath.Search("id", createDNSRecordsetRespBody)
-	if err != nil {
-		return fmt.Errorf("error creating DNS recordset: ID is not found in API response")
+	recordSetID := utils.PathSearch("id", createDNSRecordsetRespBody, "").(string)
+	if recordSetID == "" {
+		return fmt.Errorf("unable to find the DNS recordset ID from the API response")
 	}
-	d.SetId(fmt.Sprintf("%s/%s", zoneID, id))
+	d.SetId(fmt.Sprintf("%s/%s", zoneID, recordSetID))
 	return nil
 }
 

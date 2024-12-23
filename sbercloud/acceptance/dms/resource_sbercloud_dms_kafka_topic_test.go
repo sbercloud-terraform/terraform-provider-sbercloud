@@ -3,47 +3,89 @@ package dms
 import (
 	"fmt"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
+	"regexp"
 	"testing"
 
-	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/dms/v2/kafka/topics"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
+func getDmsKafkaTopicFunc(c *config.Config, state *terraform.ResourceState) (interface{}, error) {
+	client, err := c.DmsV2Client(acceptance.SBC_REGION_NAME)
+	if err != nil {
+		return nil, fmt.Errorf("error creating DMS client(V2): %s", err)
+	}
+	instanceID := state.Primary.Attributes["instance_id"]
+	allTopics, err := topics.List(client, instanceID).Extract()
+	if err != nil {
+		return nil, fmt.Errorf("Error listing DMS kafka topics in %s, error: %s", instanceID, err)
+	}
+
+	topicID := state.Primary.ID
+	for _, item := range allTopics {
+		if item.Name == topicID {
+			return item, nil
+		}
+	}
+
+	return nil, fmt.Errorf("can not found dms kafka topic instance")
+}
+
 func TestAccDmsKafkaTopic_basic(t *testing.T) {
 	var kafkaTopic topics.Topic
-	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
+	rName := acceptance.RandomAccResourceNameWithDash()
 	resourceName := "sbercloud_dms_kafka_topic.topic"
+
+	rc := acceptance.InitResourceCheck(
+		resourceName,
+		&kafkaTopic,
+		getDmsKafkaTopicFunc,
+	)
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
 		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy:      testAccCheckDmsKafkaTopicDestroy,
+		CheckDestroy:      rc.CheckResourceDestroy(),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccDmsKafkaTopic_basic(rName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckDmsKafkaTopicExists(resourceName, &kafkaTopic),
+					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
 					resource.TestCheckResourceAttr(resourceName, "partitions", "10"),
 					resource.TestCheckResourceAttr(resourceName, "replicas", "3"),
 					resource.TestCheckResourceAttr(resourceName, "aging_time", "36"),
 					resource.TestCheckResourceAttr(resourceName, "sync_replication", "false"),
 					resource.TestCheckResourceAttr(resourceName, "sync_flushing", "false"),
+					resource.TestCheckResourceAttr(resourceName, "description", "test"),
+					resource.TestCheckResourceAttrSet(resourceName, "policies_only"),
+					resource.TestCheckResourceAttrSet(resourceName, "configs.#"),
+					resource.TestCheckResourceAttrSet(resourceName, "type"),
+					resource.TestMatchResourceAttr(resourceName, "created_at",
+						regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}?(Z|([+-]\d{2}:\d{2}))$`)),
 				),
 			},
 			{
-				Config: testAccDmsKafkaTopic_update(rName),
+				Config: testAccDmsKafkaTopic_update_part1(rName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckDmsKafkaTopicExists(resourceName, &kafkaTopic),
+					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
 					resource.TestCheckResourceAttr(resourceName, "partitions", "20"),
 					resource.TestCheckResourceAttr(resourceName, "replicas", "3"),
 					resource.TestCheckResourceAttr(resourceName, "aging_time", "72"),
-					resource.TestCheckResourceAttr(resourceName, "sync_replication", "false"),
+				),
+			},
+			{
+				Config: testAccDmsKafkaTopic_update_part2(rName),
+				Check: resource.ComposeTestCheckFunc(
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttr(resourceName, "partitions", "20"),
+					resource.TestCheckResourceAttr(resourceName, "replicas", "3"),
+					resource.TestCheckResourceAttr(resourceName, "aging_time", "72"),
+					resource.TestCheckResourceAttr(resourceName, "sync_replication", "true"),
 					resource.TestCheckResourceAttr(resourceName, "sync_flushing", "true"),
 				),
 			},
@@ -55,72 +97,6 @@ func TestAccDmsKafkaTopic_basic(t *testing.T) {
 			},
 		},
 	})
-}
-
-func testAccCheckDmsKafkaTopicDestroy(s *terraform.State) error {
-	config := acceptance.TestAccProvider.Meta().(*config.Config)
-	dmsClient, err := config.DmsV2Client(acceptance.SBC_REGION_NAME)
-	if err != nil {
-		return fmt.Errorf("Error creating SberCloud DMS client: %s", err)
-	}
-
-	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "sbercloud_dms_kafka_topic" {
-			continue
-		}
-
-		instanceID := rs.Primary.Attributes["instance_id"]
-		allTopics, err := topics.List(dmsClient, instanceID).Extract()
-		if err != nil {
-			if _, ok := err.(golangsdk.ErrDefault404); ok {
-				return nil
-			}
-			return fmt.Errorf("Error listing DMS kafka topics in %s, err: %s", instanceID, err)
-		}
-
-		topicID := rs.Primary.ID
-		for _, item := range allTopics {
-			if item.Name == topicID {
-				return fmt.Errorf("The DMS kafka topic %s still exists", topicID)
-			}
-		}
-	}
-	return nil
-}
-
-func testAccCheckDmsKafkaTopicExists(n string, topic *topics.Topic) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		rs, ok := s.RootModule().Resources[n]
-		if !ok {
-			return fmt.Errorf("Not found: %s", n)
-		}
-
-		if rs.Primary.ID == "" {
-			return fmt.Errorf("No ID is set")
-		}
-
-		config := acceptance.TestAccProvider.Meta().(*config.Config)
-		dmsClient, err := config.DmsV2Client(acceptance.SBC_REGION_NAME)
-		if err != nil {
-			return fmt.Errorf("Error creating SberCloud DMS client: %s", err)
-		}
-
-		instanceID := rs.Primary.Attributes["instance_id"]
-		allTopics, err := topics.List(dmsClient, instanceID).Extract()
-		if err != nil {
-			return fmt.Errorf("Error listing DMS kafka topics in %s, err: %s", instanceID, err)
-		}
-
-		topicID := rs.Primary.ID
-		for _, item := range allTopics {
-			if item.Name == topicID {
-				*topic = item
-				return nil
-			}
-		}
-
-		return fmt.Errorf("The DMS kafka topic %s not found", topicID)
-	}
 }
 
 // testAccKafkaTopicImportStateFunc is used to import the resource
@@ -148,20 +124,116 @@ resource "sbercloud_dms_kafka_topic" "topic" {
   name        = "%s"
   partitions  = 10
   aging_time  = 36
+  description = "test"
 }
 `, testAccDmsKafkaInstance_basic(rName), rName)
 }
 
-func testAccDmsKafkaTopic_update(rName string) string {
+func testAccDmsKafkaTopic_update_part1(rName string) string {
 	return fmt.Sprintf(`
 %s
 
 resource "sbercloud_dms_kafka_topic" "topic" {
-  instance_id   = sbercloud_dms_kafka_instance.test.id
-  name          = "%s"
-  partitions    = 20
-  aging_time    = 72
-  sync_flushing = true
+  instance_id = sbercloud_dms_kafka_instance.test.id
+  name        = "%s"
+  partitions  = 20
+  aging_time  = 72
 }
-`, testAccDmsKafkaInstance_basic(rName), rName)
+`, testAccDmsKafkaTopic_basic(rName), rName)
+}
+
+func testAccDmsKafkaTopic_update_part2(rName string) string {
+	return fmt.Sprintf(`
+%s
+
+resource "sbercloud_dms_kafka_topic" "topic" {
+  instance_id      = sbercloud_dms_kafka_instance.test.id
+  name             = "%s"
+  partitions       = 20
+  aging_time       = 72
+  sync_flushing    = true
+  sync_replication = true
+
+  configs {
+    name  = "max.message.bytes"
+    value = "10000000"
+  }
+
+  configs {
+    name  = "message.timestamp.type"
+    value = "LogAppendTime"
+  }
+}
+`, testAccDmsKafkaTopic_basic(rName), rName)
+}
+
+func TestAccDmsKafkaTopic_test_update_partition(t *testing.T) {
+	var kafkaTopic topics.Topic
+	rName := acceptance.RandomAccResourceNameWithDash()
+	resourceName := "sbercloud_dms_kafka_topic.topic"
+
+	rc := acceptance.InitResourceCheck(
+		resourceName,
+		&kafkaTopic,
+		getDmsKafkaTopicFunc,
+	)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      rc.CheckResourceDestroy(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccDmsKafkaTopic_testUpdatePartitionsBasic(rName, 3),
+				Check: resource.ComposeTestCheckFunc(
+					rc.CheckResourceExists(),
+				),
+			},
+			{
+				Config: testAccDmsKafkaTopic_testUpdatePartitionsBasic(rName, 5),
+				Check: resource.ComposeTestCheckFunc(
+					rc.CheckResourceExists(),
+				),
+			},
+			{
+				Config:      testAccDmsKafkaTopic_testError(rName, 3),
+				ExpectError: regexp.MustCompile(`only support to add partitions`),
+			},
+			{
+				Config: testAccDmsKafkaTopic_testError(rName, 7),
+				Check: resource.ComposeTestCheckFunc(
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttr(resourceName, "partitions", "7"),
+				),
+			},
+		},
+	})
+}
+
+func testAccDmsKafkaTopic_testUpdatePartitionsBasic(rName string, partitions int) string {
+	return fmt.Sprintf(`
+%s
+
+resource "sbercloud_dms_kafka_topic" "topic" {
+  instance_id = sbercloud_dms_kafka_instance.test.id
+  name        = "%s"
+  partitions  = %v
+  replicas    = 1
+}
+`, testAccDmsKafkaTopic_basic(rName), rName, partitions)
+}
+
+func testAccDmsKafkaTopic_testError(rName string, partitions int) string {
+	return fmt.Sprintf(`
+%s
+
+resource "sbercloud_dms_kafka_topic" "topic" {
+  instance_id           = sbercloud_dms_kafka_instance.test.id
+  name                  = "%s"
+  partitions            = %v
+  replicas              = 1
+  new_partition_brokers = [0]
+}
+`, testAccDmsKafkaTopic_basic(rName), rName, partitions)
 }

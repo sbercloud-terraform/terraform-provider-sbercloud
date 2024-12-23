@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -21,10 +22,12 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
-// @API VPCEP DELETE /v1/{project_id}/vpc-endpoints/{vpc_endpoint_id}
+// @API VPCEP POST /v1/{project_id}/vpc-endpoints
 // @API VPCEP GET /v1/{project_id}/vpc-endpoints/{vpc_endpoint_id}
 // @API VPCEP PUT /v1/{project_id}/vpc-endpoints/{vpc_endpoint_id}
-// @API VPCEP POST /v1/{project_id}/vpc-endpoints
+// @API VPCEP DELETE /v1/{project_id}/vpc-endpoints/{vpc_endpoint_id}
+// @API VPCEP PUT /v1/{project_id}/vpc-endpoints/{vpc_endpoint_id}/policy
+// @API VPCEP PUT /v1/{project_id}/vpc-endpoints/{vpc_endpoint_id}/routetables
 // @API VPCEP POST /v1/{project_id}/{resource_type}/{resource_id}/tags/action
 func ResourceVPCEndpoint() *schema.Resource {
 	return &schema.Resource{
@@ -85,7 +88,6 @@ func ResourceVPCEndpoint() *schema.Resource {
 			"routetables": {
 				Type:     schema.TypeSet,
 				Optional: true,
-				ForceNew: true,
 				Computed: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
@@ -109,11 +111,28 @@ func ResourceVPCEndpoint() *schema.Resource {
 					return equal
 				},
 			},
-			// Field `policy_document` was not tested due to insufficient testing conditions.
+			// Deprecated
+			// The field type provided in the API document is different from the actual returned type.
+			// As a result, an error is reported when the resource is imported.
 			"policy_document": {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
+				Description: utils.SchemaDesc(
+					`Specifies the endpoint policy information`, utils.SchemaDescInput{Deprecated: true},
+				),
+			},
+			"ip_version": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
+			"ipv6_address": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
 			},
 			"tags": common.TagsSchema(),
 			"status": {
@@ -173,11 +192,12 @@ func resourceVPCEndpointCreate(ctx context.Context, d *schema.ResourceData, meta
 		SubnetID:        d.Get("network_id").(string),
 		PortIP:          d.Get("ip_address").(string),
 		Description:     d.Get("description").(string),
+		IPVersion:       d.Get("ip_version").(string),
+		IPv6Address:     d.Get("ipv6_address").(string),
 		EnableDNS:       utils.Bool(d.Get("enable_dns").(bool)),
 		EnableWhitelist: utils.Bool(enableACL),
 		Tags:            utils.ExpandResourceTags(d.Get("tags").(map[string]interface{})),
 		PolicyStatement: policyStatementOpts,
-		PolicyDocument:  d.Get("policy_document").(string),
 	}
 
 	routeTables := d.Get("routetables").(*schema.Set)
@@ -250,7 +270,8 @@ func resourceVPCEndpointRead(_ context.Context, d *schema.ResourceData, meta int
 		d.Set("packet_id", ep.MarkerID),
 		d.Set("tags", utils.TagsToMap(ep.Tags)),
 		d.Set("policy_statement", string(policyStatements)),
-		d.Set("policy_document", ep.PolicyDocument),
+		d.Set("ip_version", ep.IpVersion),
+		d.Set("ipv6_address", ep.Ipv6Address),
 	)
 
 	// if the VPC endpoint type is interface, the field is used and need to be set
@@ -304,7 +325,7 @@ func resourceVPCEndpointUpdate(ctx context.Context, d *schema.ResourceData, meta
 			return diag.Errorf("error updating tags of VPC endpoint %s: %s", d.Id(), tagErr)
 		}
 	}
-	if d.HasChanges("policy_statement", "policy_document") {
+	if d.HasChanges("policy_statement") {
 		policyStatementOpts, err := buildPolicyStatement(d)
 		if err != nil {
 			return diag.FromErr(err)
@@ -312,7 +333,6 @@ func resourceVPCEndpointUpdate(ctx context.Context, d *schema.ResourceData, meta
 
 		updatePolicyOpts := endpoints.UpdatePolicyOpts{
 			PolicyStatement: policyStatementOpts,
-			PolicyDocument:  d.Get("policy_document").(string),
 		}
 		_, err = endpoints.UpdatePolicy(vpcepClient, updatePolicyOpts, d.Id()).Extract()
 		if err != nil {
@@ -320,7 +340,38 @@ func resourceVPCEndpointUpdate(ctx context.Context, d *schema.ResourceData, meta
 		}
 	}
 
+	// binding or unbinding routetables
+	if d.HasChanges("routetables") {
+		routeTables := utils.ExpandToStringListBySet(d.Get("routetables").(*schema.Set))
+		err = updateRouteTables(d, vpcepClient, routeTables)
+		if err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
 	return resourceVPCEndpointRead(ctx, d, meta)
+}
+
+func updateRouteTables(d *schema.ResourceData, client *golangsdk.ServiceClient, routeTables []string) error {
+	routeTablesHttpUrl := "v1/{project_id}/vpc-endpoints/{vpc_endpoint_id}/routetables"
+	routeTablesPath := client.Endpoint + routeTablesHttpUrl
+	routeTablesPath = strings.ReplaceAll(routeTablesPath, "{project_id}", client.ProjectID)
+	routeTablesPath = strings.ReplaceAll(routeTablesPath, "{vpc_endpoint_id}", d.Id())
+
+	routeTablesOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+	}
+
+	routeTablesOpt.JSONBody = utils.RemoveNil(map[string]interface{}{
+		"routetables": routeTables,
+	})
+
+	_, err := client.Request("PUT", routeTablesPath, &routeTablesOpt)
+	if err != nil {
+		return fmt.Errorf("error updating routetables: %s", err)
+	}
+
+	return nil
 }
 
 func resourceVPCEndpointDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

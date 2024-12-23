@@ -17,7 +17,7 @@ import (
 func TestAccElbV3Certificate_basic(t *testing.T) {
 	var c certificates.Certificate
 	name := fmt.Sprintf("tf-cert-%s", acctest.RandString(5))
-	resourceName := "sbercloud_elb_certificate.test"
+	resourceName := "sbercloud_elb_certificate.server"
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
@@ -30,18 +30,23 @@ func TestAccElbV3Certificate_basic(t *testing.T) {
 					testAccCheckElbV3CertificateExists(resourceName, &c),
 					resource.TestCheckResourceAttr(resourceName, "name", name),
 					resource.TestCheckResourceAttr(resourceName, "type", "server"),
+					resource.TestCheckResourceAttr(resourceName, "domain", "www.elb.com"),
+					resource.TestCheckResourceAttr(resourceName, "description", "terraform test certificate"),
 				),
 			},
 			{
 				Config: testAccElbV3CertificateConfig_update(name),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "name", fmt.Sprintf("%s_updated", name)),
+					resource.TestCheckResourceAttr(resourceName, "domain", "www.elbupdate.com"),
+					resource.TestCheckResourceAttr(resourceName, "description", "terraform test certificate update"),
 				),
 			},
 			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"private_key"},
 			},
 		},
 	})
@@ -50,7 +55,7 @@ func TestAccElbV3Certificate_basic(t *testing.T) {
 func TestAccElbV3Certificate_client(t *testing.T) {
 	var c certificates.Certificate
 	name := fmt.Sprintf("tf-cert-%s", acctest.RandString(5))
-	resourceName := "sbercloud_elb_certificate.test"
+	resourceName := "sbercloud_elb_certificate.client"
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
@@ -148,7 +153,7 @@ func testAccCheckElbV3CertificateExists(
 
 func testAccElbV3CertificateConfig_basic(name string) string {
 	return fmt.Sprintf(`
-resource "sbercloud_elb_certificate" "test" {
+resource "sbercloud_elb_certificate" "server" {
   name        = "%s"
   description = "terraform test certificate"
   domain      = "www.elb.com"
@@ -212,10 +217,10 @@ EOT
 
 func testAccElbV3CertificateConfig_update(name string) string {
 	return fmt.Sprintf(`
-resource "sbercloud_elb_certificate" "test" {
+resource "sbercloud_elb_certificate" "server" {
   name        = "%s_updated"
-  description = "terraform test certificate"
-  domain      = "www.elb.com"
+  description = "terraform test certificate update"
+  domain      = "www.elbupdate.com"
   private_key = <<EOT
 -----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEAwZ5UJULAjWr7p6FVwGRQRjFN2s8tZ/6LC3X82fajpVsYqF1x
@@ -276,7 +281,7 @@ EOT
 
 func testAccElbV3CertificateConfig_client(name string) string {
 	return fmt.Sprintf(`
-resource "sbercloud_elb_certificate" "test" {
+resource "sbercloud_elb_certificate" "client" {
   name        = "%s"
   description = "terraform CA certificate"
   type        = "client"

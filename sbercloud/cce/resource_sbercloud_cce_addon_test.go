@@ -184,7 +184,7 @@ func testAccCCEAddonV3_basic(rName string) string {
 
 resource "sbercloud_cce_addon" "test" {
   cluster_id    = sbercloud_cce_cluster.test.id
-  version       = "1.3.2"
+  version       = "1.3.68"
   template_name = "metrics-server"
   depends_on    = [sbercloud_cce_node.test]
 }
@@ -222,13 +222,13 @@ resource "sbercloud_cce_node_pool" "test" {
 data "sbercloud_cce_addon_template" "test" {
   cluster_id = sbercloud_cce_cluster.test.id
   name       = "autoscaler"
-  version    = "1.25.21"
+  version    = "1.30.18"
 }
 
 resource "sbercloud_cce_addon" "test" {
   cluster_id    = sbercloud_cce_cluster.test.id
   template_name = "autoscaler"
-  version       = "1.25.21"
+  version       = "1.30.18"
 
    values {
     basic       = jsondecode(data.sbercloud_cce_addon_template.test.spec).basic

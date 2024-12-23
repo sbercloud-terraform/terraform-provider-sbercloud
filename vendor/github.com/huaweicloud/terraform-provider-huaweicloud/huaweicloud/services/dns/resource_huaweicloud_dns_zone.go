@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -59,6 +60,9 @@ func ResourceDNSZone() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
+				DiffSuppressFunc: func(_, oldVal, newVal string, _ *schema.ResourceData) bool {
+					return strings.TrimSuffix(oldVal, ".") == strings.TrimSuffix(newVal, ".")
+				},
 			},
 			"email": {
 				Type:     schema.TypeString,
@@ -73,15 +77,13 @@ func ResourceDNSZone() *schema.Resource {
 				ValidateFunc: validation.StringInSlice([]string{"public", "private"}, false),
 			},
 			"ttl": {
-				Type:         schema.TypeInt,
-				Optional:     true,
-				Default:      300,
-				ValidateFunc: validation.IntBetween(1, 2147483647),
+				Type:     schema.TypeInt,
+				Optional: true,
+				Default:  300,
 			},
 			"description": {
-				Type:         schema.TypeString,
-				Optional:     true,
-				ValidateFunc: validation.StringLenBetween(0, 255),
+				Type:     schema.TypeString,
+				Optional: true,
 			},
 			"router": {
 				Type:     schema.TypeSet,

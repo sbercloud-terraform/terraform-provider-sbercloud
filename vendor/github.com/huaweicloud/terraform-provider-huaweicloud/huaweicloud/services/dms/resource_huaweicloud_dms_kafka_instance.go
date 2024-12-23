@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/common/tags"
@@ -110,18 +109,6 @@ func ResourceDmsKafkaInstance() *schema.Resource {
 				Optional: true,
 				Computed: true,
 				ForceNew: true,
-			},
-			"manager_user": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
-				ForceNew: true,
-			},
-			"manager_password": {
-				Type:      schema.TypeString,
-				Optional:  true,
-				Sensitive: true,
-				ForceNew:  true,
 			},
 			"availability_zones": {
 				Type:        schema.TypeSet,
@@ -303,10 +290,6 @@ func ResourceDmsKafkaInstance() *schema.Resource {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
-			"management_connect_address": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
 			"extend_times": {
 				Type:     schema.TypeInt,
 				Computed: true,
@@ -363,6 +346,24 @@ func ResourceDmsKafkaInstance() *schema.Resource {
 			"ssl_two_way_enable": {
 				Type:     schema.TypeBool,
 				Computed: true,
+			},
+			"manager_user": {
+				Type:       schema.TypeString,
+				Optional:   true,
+				ForceNew:   true,
+				Deprecated: "Deprecated",
+			},
+			"manager_password": {
+				Type:       schema.TypeString,
+				Optional:   true,
+				Sensitive:  true,
+				ForceNew:   true,
+				Deprecated: "Deprecated",
+			},
+			"management_connect_address": {
+				Type:       schema.TypeString,
+				Computed:   true,
+				Deprecated: "Deprecated",
 			},
 			// Typo, it is only kept in the code, will not be shown in the docs.
 			"manegement_connect_address": {
@@ -897,9 +898,9 @@ func kafkaInstanceCreatingFunc(client *golangsdk.ServiceClient, instanceID strin
 	return func() (interface{}, string, error) {
 		res := instances.Get(client, instanceID)
 		if res.Err != nil {
-			actualCode, err := jmespath.Search("Actual", res.Err)
-			if err != nil {
-				return nil, "", err
+			actualCode := utils.PathSearch("Actual", res.Err, 0).(int)
+			if actualCode == 0 {
+				return nil, "", fmt.Errorf("unable to find status code from the API response")
 			}
 			if actualCode == 404 {
 				return res, "EMPTY", nil
@@ -1034,7 +1035,6 @@ func resourceDmsKafkaInstanceRead(ctx context.Context, d *schema.ResourceData, m
 		d.Set("available_zones", availableZoneIDs),
 		d.Set("availability_zones", availableZoneCodes),
 		d.Set("broker_num", v.BrokerNum),
-		d.Set("manager_user", v.KafkaManagerUser),
 		d.Set("maintain_begin", v.MaintainBegin),
 		d.Set("maintain_end", v.MaintainEnd),
 		d.Set("enable_public_ip", v.EnablePublicIP),
@@ -1245,7 +1245,7 @@ func resourceDmsKafkaInstanceUpdate(ctx context.Context, d *schema.ResourceData,
 		stateConf := &resource.StateChangeConf{
 			Pending:      []string{"CREATED"},
 			Target:       []string{"SUCCESS"},
-			Refresh:      autoTopicTaskRefreshFunc(client, d.Id(), "kafkaConfigModify"),
+			Refresh:      filterTaskRefreshFunc(client, d.Id(), "kafkaConfigModify"),
 			Timeout:      d.Timeout(schema.TimeoutUpdate),
 			Delay:        1 * time.Second,
 			PollInterval: 5 * time.Second,
@@ -1648,46 +1648,42 @@ func handleMultiOperationsError(err error) (bool, error) {
 			return false, fmt.Errorf("unmarshal the response body failed: %s", jsonErr)
 		}
 
-		errorCode, errorCodeErr := jmespath.Search("error_code", apiError)
-		if errorCodeErr != nil {
-			return false, fmt.Errorf("error parse errorCode from response body: %s", errorCodeErr)
+		errorCode := utils.PathSearch("error_code", apiError, "").(string)
+		if errorCode == "" {
+			return false, fmt.Errorf("unable to find error code from the API response")
 		}
 
 		// CBC.99003651: unsubscribe fail, another operation is being performed
-		if errorCode.(string) == "DMS.00400026" || errorCode == "CBC.99003651" {
+		if errorCode == "DMS.00400026" || errorCode == "CBC.99003651" {
 			return true, err
 		}
 	}
 	return false, err
 }
 
-func autoTopicTaskRefreshFunc(client *golangsdk.ServiceClient, instanceID string, taskName string) resource.StateRefreshFunc {
+func filterTaskRefreshFunc(client *golangsdk.ServiceClient, instanceID string, taskName string) resource.StateRefreshFunc {
 	return func() (interface{}, string, error) {
 		// getAutoTopicTask: query automatic topic task
-		getAutoTopicTaskHttpUrl := "v2/{project_id}/instances/{instance_id}/tasks"
-		getAutoTopicTaskPath := client.Endpoint + getAutoTopicTaskHttpUrl
-		getAutoTopicTaskPath = strings.ReplaceAll(getAutoTopicTaskPath, "{project_id}",
+		getTasksHttpUrl := "v2/{project_id}/instances/{instance_id}/tasks"
+		getTasksPath := client.Endpoint + getTasksHttpUrl
+		getTasksPath = strings.ReplaceAll(getTasksPath, "{project_id}",
 			client.ProjectID)
-		getAutoTopicTaskPath = strings.ReplaceAll(getAutoTopicTaskPath, "{instance_id}", instanceID)
-
-		getAutoTopicTaskPathOpt := golangsdk.RequestOpts{
+		getTasksPath = strings.ReplaceAll(getTasksPath, "{instance_id}", instanceID)
+		getTasksPathOpt := golangsdk.RequestOpts{
 			KeepResponseBody: true,
 		}
-		getAutoTopicTaskPathResp, err := client.Request("GET", getAutoTopicTaskPath,
-			&getAutoTopicTaskPathOpt)
-
+		getAutoTopicTaskPathResp, err := client.Request("GET", getTasksPath, &getTasksPathOpt)
 		if err != nil {
 			return nil, "QUERY ERROR", err
 		}
-
-		getAutoTopicTaskRespBody, err := utils.FlattenResponse(getAutoTopicTaskPathResp)
+		getTasksRespBody, err := utils.FlattenResponse(getAutoTopicTaskPathResp)
 		if err != nil {
 			return nil, "PARSE ERROR", err
 		}
 
-		task := utils.PathSearch(fmt.Sprintf("tasks|[?name=='%s']|[0]", taskName), getAutoTopicTaskRespBody, nil)
+		task := utils.PathSearch(fmt.Sprintf("tasks|[?name=='%s']|[0]", taskName), getTasksRespBody, nil)
 		if task == nil {
-			return nil, "NIL ERROR", fmt.Errorf("failed to find the task of the automatic topic")
+			return nil, "NIL ERROR", fmt.Errorf("failed to find the task of the name(%s)", taskName)
 		}
 
 		status := utils.PathSearch("status", task, nil)

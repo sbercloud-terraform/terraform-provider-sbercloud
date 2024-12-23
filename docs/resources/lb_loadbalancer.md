@@ -23,7 +23,7 @@ resource "sbercloud_lb_loadbalancer" "lb_1" {
   vip_subnet_id = "d9415786-5f1a-428b-b35f-2f1523e146d2"
 }
 
-resource "sbercloud_vpc_eip_associate" "eip_1" {
+resource "sbercloud_networking_eip_associate" "eip_1" {
   public_ip = "1.2.3.4"
   port_id   = sbercloud_lb_loadbalancer.lb_1.vip_port_id
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"regexp"
 	"strings"
 
 	"github.com/hashicorp/go-multierror"
@@ -60,9 +59,6 @@ func ResourceIdentityProvider() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
-				ValidateFunc: validation.StringMatch(regexp.MustCompile(`^[\w-]{1,64}$`),
-					"The maximum length is 64 characters. "+
-						"Only letters, digits, underscores (_), and hyphens (-) are allowed"),
 			},
 			"protocol": {
 				Type:         schema.TypeString,
@@ -125,7 +121,6 @@ func ResourceIdentityProvider() *schema.Resource {
 						"scopes": {
 							Type:     schema.TypeList,
 							Optional: true,
-							MaxItems: 10,
 							Computed: true,
 							Elem:     &schema.Schema{Type: schema.TypeString},
 						},
@@ -315,7 +310,7 @@ func createProtocol(client *golangsdk.ServiceClient, d *schema.ResourceData) err
 func getDefaultConversionOpts() *mappings.MappingOption {
 	localRules := []mappings.LocalRule{
 		{
-			User: mappings.LocalRuleVal{
+			User: &mappings.LocalRuleVal{
 				Name: "FederationUser",
 			},
 		},
@@ -416,10 +411,11 @@ func flattenConversionRulesAttr(conversions *mappings.IdentityMapping) []interfa
 	for _, v := range conversions.Rules {
 		localRules := make([]map[string]interface{}, 0, len(v.Local))
 		for _, localRule := range v.Local {
-			username := localRule.User.Name
-			r := map[string]interface{}{
-				"username": username,
+			r := map[string]interface{}{}
+			if localRule.User != nil {
+				r["username"] = localRule.User.Name
 			}
+
 			if localRule.Group != nil {
 				r["group"] = localRule.Group.Name
 			}

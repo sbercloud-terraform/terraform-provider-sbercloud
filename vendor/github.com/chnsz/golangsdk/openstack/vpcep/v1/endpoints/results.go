@@ -55,14 +55,14 @@ type Endpoint struct {
 	Description string `json:"description"`
 	// The gateway type endpoint policy information
 	PolicyStatement []PolicyStatementResult `json:"policy_statement"`
-	// the endpoint policy information
-	PolicyDocument string `json:"policy_document"`
 	// The cluster ID associated with the instance
 	EndpointPoolID string `json:"endpoint_pool_id"`
 	// The public border group information of the terminal node corresponding to the pool
 	PublicBorderGroup string `json:"public_border_group"`
 	// The IPv6 address to access the connected endpoint service
 	Ipv6Address string `json:"ipv6_address"`
+	// The IP version of the VPC endpoint.
+	IpVersion string `json:"ip_version"`
 }
 
 type QueryError struct {

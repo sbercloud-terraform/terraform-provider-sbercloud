@@ -31,7 +31,7 @@ resource "sbercloud_rds_instance" "myinstance" {
     password = var.rds_password
   }
   volume {
-    type = "ULTRAHIGH"
+    type = "CLOUDSSD"
     size = 40
   }
 }

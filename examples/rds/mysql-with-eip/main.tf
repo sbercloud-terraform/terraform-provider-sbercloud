@@ -46,7 +46,7 @@ resource "sbercloud_rds_instance" "myinstance" {
     password = var.password
   }
   volume {
-    type = "ULTRAHIGH"
+    type = "CLOUDSSD"
     size = 40
   }
 }
@@ -69,7 +69,7 @@ data "sbercloud_networking_port" "rds_port" {
   fixed_ip   = sbercloud_rds_instance.myinstance.private_ips[0]
 }
 
-resource "sbercloud_vpc_eip_associate" "associated" {
+resource "sbercloud_networking_eip_associate" "associated" {
   public_ip = sbercloud_vpc_eip.myeip.address
   port_id   = data.sbercloud_networking_port.rds_port.id
 }

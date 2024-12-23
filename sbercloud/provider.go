@@ -6,7 +6,6 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dew"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dns"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ecs"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ges"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/lts"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/nat"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/obs"
@@ -14,6 +13,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/swr"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/vpn"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/cbh"
+	ges_sbercloud "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/ges"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/rds"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/vpcep"
 
@@ -208,7 +208,32 @@ func Provider() *schema.Provider {
 
 		DataSourcesMap: map[string]*schema.Resource{
 			"sbercloud_availability_zones": huaweicloud.DataSourceAvailabilityZones(),
-			"sbercloud_css_flavors":        css_huawei.DataSourceCssFlavors(),
+
+			"sbercloud_apig_acl_policies":                       apig.DataSourceAclPolicies(),
+			"sbercloud_apig_api_associated_acl_policies":        apig.DataSourceApiAssociatedAclPolicies(),
+			"sbercloud_apig_api_associated_applications":        apig.DataSourceApiAssociatedApplications(),
+			"sbercloud_apig_api_associated_plugins":             apig.DataSourceApiAssociatedPlugins(),
+			"sbercloud_apig_api_associated_signatures":          apig.DataSourceApiAssociatedSignatures(),
+			"sbercloud_apig_api_associated_throttling_policies": apig.DataSourceApiAssociatedThrottlingPolicies(),
+			"sbercloud_apig_api_basic_configurations":           apig.DataSourceApiBasicConfigurations(),
+			"sbercloud_apig_api":                                apig.DataSourceApi(),
+			"sbercloud_apig_appcodes":                           apig.DataSourceAppcodes(),
+			"sbercloud_apig_applications":                       apig.DataSourceApplications(),
+			"sbercloud_apig_application_acl":                    apig.DataSourceApplicationAcl(),
+			"sbercloud_apig_application_quotas":                 apig.DataSourceApigApplicationQuotas(),
+			"sbercloud_apig_channels":                           apig.DataSourceChannels(),
+			"sbercloud_apig_custom_authorizers":                 apig.DataSourceCustomAuthorizers(),
+			"sbercloud_apig_endpoint_connections":               apig.DataSourceApigEndpointConnections(),
+			"sbercloud_apig_environment_variables":              apig.DataSourceApigEnvironmentVariables(),
+			"sbercloud_apig_environments":                       apig.DataSourceEnvironments(),
+			"sbercloud_apig_groups":                             apig.DataSourceGroups(),
+			"sbercloud_apig_instance_features":                  apig.DataSourceInstanceFeatures(),
+			"sbercloud_apig_instance_supported_features":        apig.DataSourceInstanceSupportedFeatures(),
+			"sbercloud_apig_instances":                          apig.DataSourceInstances(),
+			"sbercloud_apig_signatures":                         apig.DataSourceSignatures(),
+			"sbercloud_apig_throttling_policies":                apig.DataSourceThrottlingPolicies(),
+
+			"sbercloud_css_flavors": css_huawei.DataSourceCssFlavors(),
 
 			"sbercloud_cbh_instances":          cbh.DataSourceCbhInstances(),
 			"sbercloud_cbh_flavors":            cbh.DataSourceCbhFlavors(),
@@ -229,6 +254,7 @@ func Provider() *schema.Provider {
 			"sbercloud_compute_instances":    ecs.DataSourceComputeInstances(),
 			"sbercloud_compute_servergroups": ecs.DataSourceComputeServerGroups(),
 			"sbercloud_dcs_flavors":          dcs.DataSourceDcsFlavorsV2(),
+			"sbercloud_dcs_accounts":         dcs.DataSourceDcsAccounts(),
 			"sbercloud_dcs_az":               deprecated.DataSourceDcsAZV1(),
 			"sbercloud_dcs_maintainwindow":   dcs.DataSourceDcsMaintainWindow(),
 			"sbercloud_dcs_product":          deprecated.DataSourceDcsProductV1(),
@@ -237,6 +263,9 @@ func Provider() *schema.Provider {
 			"sbercloud_dms_product":          dms.DataSourceDmsProduct(),
 			"sbercloud_dms_maintainwindow":   dms.DataSourceDmsMaintainWindow(),
 			"sbercloud_dms_kafka_instances":  dms.DataSourceDmsKafkaInstances(),
+			"sbercloud_dms_kafka_flavors":    dms.DataSourceKafkaFlavors(),
+			"sbercloud_dms_kafka_users":      dms.DataSourceDmsKafkaUsers(),
+			"sbercloud_dms_kafka_messages":   dms.DataSourceDmsKafkaMessages(),
 			"sbercloud_dms_rabbitmq_flavors": dms.DataSourceRabbitMQFlavors(),
 			"sbercloud_dws_flavors":          dws.DataSourceDwsFlavors(),
 			"sbercloud_elb_certificate":      elb.DataSourceELBCertificateV3(),
@@ -314,10 +343,40 @@ func Provider() *schema.Provider {
 			"sbercloud_aom_service_discovery_rule": aom.ResourceServiceDiscoveryRule(),
 			"sbercloud_api_gateway_api":            apig.ResourceApigAPIV2(),
 			"sbercloud_api_gateway_group":          apig.ResourceApigGroupV2(),
-			"sbercloud_as_configuration":           as.ResourceASConfiguration(),
-			"sbercloud_as_group":                   as.ResourceASGroup(),
-			"sbercloud_as_policy":                  as.ResourceASPolicy(),
-			"sbercloud_as_bandwidth_policy":        as.ResourceASBandWidthPolicy(),
+
+			"sbercloud_apig_acl_policy":                     apig.ResourceAclPolicy(),
+			"sbercloud_apig_acl_policy_associate":           apig.ResourceAclPolicyAssociate(),
+			"sbercloud_apig_api":                            apig.ResourceApigAPIV2(),
+			"sbercloud_apig_api_publishment":                apig.ResourceApigApiPublishment(),
+			"sbercloud_apig_appcode":                        apig.ResourceAppcode(),
+			"sbercloud_apig_application":                    apig.ResourceApigApplicationV2(),
+			"sbercloud_apig_application_acl":                apig.ResourceApplicationAcl(),
+			"sbercloud_apig_application_authorization":      apig.ResourceAppAuth(),
+			"sbercloud_apig_application_quota":              apig.ResourceApplicationQuota(),
+			"sbercloud_apig_application_quota_associate":    apig.ResourceApplicationQuotaAssociate(),
+			"sbercloud_apig_certificate":                    apig.ResourceCertificate(),
+			"sbercloud_apig_channel":                        apig.ResourceChannel(),
+			"sbercloud_apig_custom_authorizer":              apig.ResourceApigCustomAuthorizerV2(),
+			"sbercloud_apig_endpoint_connection_management": apig.ResourceEndpointConnectionManagement(),
+			"sbercloud_apig_environment":                    apig.ResourceApigEnvironmentV2(),
+			"sbercloud_apig_environment_variable":           apig.ResourceEnvironmentVariable(),
+			"sbercloud_apig_group":                          apig.ResourceApigGroupV2(),
+			"sbercloud_apig_instance_feature":               apig.ResourceInstanceFeature(),
+			"sbercloud_apig_instance_routes":                apig.ResourceInstanceRoutes(),
+			"sbercloud_apig_instance":                       apig.ResourceApigInstanceV2(),
+			"sbercloud_apig_plugin_associate":               apig.ResourcePluginAssociate(),
+			"sbercloud_apig_plugin":                         apig.ResourcePlugin(),
+			"sbercloud_apig_response":                       apig.ResourceApigResponseV2(),
+			"sbercloud_apig_signature_associate":            apig.ResourceSignatureAssociate(),
+			"sbercloud_apig_signature":                      apig.ResourceSignature(),
+			"sbercloud_apig_throttling_policy_associate":    apig.ResourceThrottlingPolicyAssociate(),
+			"sbercloud_apig_throttling_policy":              apig.ResourceApigThrottlingPolicyV2(),
+			"sbercloud_apig_endpoint_whitelist":             apig.ResourceEndpointWhiteList(),
+
+			"sbercloud_as_configuration":    as.ResourceASConfiguration(),
+			"sbercloud_as_group":            as.ResourceASGroup(),
+			"sbercloud_as_policy":           as.ResourceASPolicy(),
+			"sbercloud_as_bandwidth_policy": as.ResourceASBandWidthPolicy(),
 
 			"sbercloud_cbr_backup_share_accepter": cbr.ResourceBackupShareAccepter(),
 			"sbercloud_cbr_backup_share":          cbr.ResourceBackupShare(),
@@ -348,10 +407,11 @@ func Provider() *schema.Provider {
 			"sbercloud_cts_tracker":                    cts.ResourceCTSTracker(),
 			"sbercloud_cts_data_tracker":               cts.ResourceCTSDataTracker(),
 			"sbercloud_cts_notification":               cts.ResourceCTSNotification(),
-			"sbercloud_dcs_instance":                   dcs.ResourceDcsInstance(),
+			"sbercloud_dcs_instance":                   dcs2.ResourceDcsInstance(),
 			"sbercloud_dcs_backup":                     dcs.ResourceDcsBackup(),
 			"sbercloud_dcs_restore":                    dcs2.ResourceDcsRestore(),
 			"sbercloud_dcs_parameters":                 dcs2.ResourceDcsParameters(),
+			"sbercloud_dcs_account":                    dcs.ResourceDcsAccount(),
 			"sbercloud_dds_instance":                   dds2.ResourceDdsInstanceV3(),
 			"sbercloud_dis_stream":                     dis.ResourceDisStream(),
 			"sbercloud_dli_database":                   dli.ResourceDliSqlDatabaseV1(),
@@ -361,6 +421,9 @@ func Provider() *schema.Provider {
 			"sbercloud_dms_instance":                   deprecated.ResourceDmsInstancesV1(),
 			"sbercloud_dms_kafka_instance":             dms.ResourceDmsKafkaInstance(),
 			"sbercloud_dms_kafka_topic":                dms.ResourceDmsKafkaTopic(),
+			"sbercloud_dms_kafka_permissions":          dms.ResourceDmsKafkaPermissions(),
+			"sbercloud_dms_kafka_user":                 dms.ResourceDmsKafkaUser(),
+			"sbercloud_dms_kafka_message_produce":      dms.ResourceDmsKafkaMessageProduce(),
 			"sbercloud_dms_rabbitmq_instance":          dms.ResourceDmsRabbitmqInstance(),
 			"sbercloud_dns_recordset":                  dns.ResourceDNSRecordSetV2(),
 			"sbercloud_dns_zone":                       dns.ResourceDNSZone(),
@@ -380,7 +443,7 @@ func Provider() *schema.Provider {
 			"sbercloud_evs_snapshot":                   evs.ResourceEvsSnapshotV2(),
 			"sbercloud_evs_volume":                     evs.ResourceEvsVolume(),
 			"sbercloud_fgs_function":                   fgs.ResourceFgsFunctionV2(),
-			"sbercloud_ges_graph":                      ges.ResourceGesGraph(),
+			"sbercloud_ges_graph":                      ges_sbercloud.ResourceGesGraph(),
 			"sbercloud_identity_access_key":            iam.ResourceIdentityKey(),
 			"sbercloud_identity_acl":                   iam.ResourceIdentityACL(),
 			"sbercloud_identity_agency":                iam.ResourceIAMAgencyV3(),
@@ -411,8 +474,8 @@ func Provider() *schema.Provider {
 			"sbercloud_nat_dnat_rule":                  nat.ResourcePublicDnatRule(),
 			"sbercloud_nat_gateway":                    nat.ResourcePublicGateway(),
 			"sbercloud_nat_snat_rule":                  nat.ResourcePublicSnatRule(),
-			"sbercloud_network_acl":                    huaweicloud.ResourceNetworkACL(),
-			"sbercloud_network_acl_rule":               huaweicloud.ResourceNetworkACLRule(),
+			"sbercloud_network_acl":                    deprecated.ResourceNetworkACL(),
+			"sbercloud_network_acl_rule":               deprecated.ResourceNetworkACLRule(),
 			"sbercloud_networking_eip_associate":       eip.ResourceEIPAssociate(),
 			"sbercloud_networking_secgroup":            vpc.ResourceNetworkingSecGroup(),
 			"sbercloud_networking_secgroup_rule":       vpc.ResourceNetworkingSecGroupRule(),
@@ -427,14 +490,14 @@ func Provider() *schema.Provider {
 			"sbercloud_rds_backup":                     rds.ResourceBackup(),
 			"sbercloud_rds_read_replica_instance":      rds.ResourceRdsReadReplicaInstance(),
 			"sbercloud_rds_pg_database":                rds.ResourcePgDatabase(),
+			"sbercloud_rds_pg_account_roles":           rds.ResourcePgAccountRoles(),
+			"sbercloud_rds_pg_plugin":                  rds.ResourceRdsPgPlugin(),
+			"sbercloud_rds_pg_plugin_update":           rds.ResourceRdsPgPluginUpdate(),
+			"sbercloud_rds_pg_hba":                     rds.ResourcePgHba(),
+			"sbercloud_rds_pg_sql_limit":               rds.ResourcePgSqlLimit(),
 
-			// "sbercloud_rds_pg_account":          rds.ResourcePgAccount(),
-			"sbercloud_rds_pg_account_roles": rds.ResourcePgAccountRoles(),
-			"sbercloud_rds_pg_plugin":        rds.ResourceRdsPgPlugin(),
-			"sbercloud_rds_pg_plugin_update": rds.ResourceRdsPgPluginUpdate(),
-			"sbercloud_rds_pg_hba":           rds.ResourcePgHba(),
-			"sbercloud_rds_pg_sql_limit":     rds.ResourcePgSqlLimit(),
-			// "sbercloud_rds_pg_plugin_parameter": rds.ResourcePgPluginParameter(),
+			"sbercloud_rds_pg_account":          rds.ResourcePgAccount(),
+			"sbercloud_rds_pg_plugin_parameter": rds.ResourcePgPluginParameter(),
 
 			"sbercloud_sfs_turbo":            sfsturbo.ResourceSFSTurbo(),
 			"sbercloud_sfs_turbo_dir":        sfsturbo.ResourceSfsTurboDir(),

@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"regexp"
 	"strings"
 	"time"
 
@@ -18,7 +17,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
 
@@ -36,6 +34,7 @@ import (
 // @API VPN DELETE /v5/{project_id}/vpn-gateways/{id}
 // @API VPN POST /v5/{project_id}/{resource_type}/{resource_id}/tags/create
 // @API VPN POST /v5/{project_id}/{resource_type}/{resource_id}/tags/delete
+// @API VPN POST /v5/{project_id}/vpn-gateways/{vgw_id}/update-specification
 func ResourceGateway() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceGatewayCreate,
@@ -62,11 +61,6 @@ func ResourceGateway() *schema.Resource {
 				Type:        schema.TypeString,
 				Required:    true,
 				Description: `The name of the VPN gateway. Only letters, digits, underscores(_) and hypens(-) are supported.`,
-				ValidateFunc: validation.All(
-					validation.StringMatch(regexp.MustCompile(`^[\-_A-Za-z0-9]+$`),
-						"the input is invalid"),
-					validation.StringLenBetween(1, 64),
-				),
 			},
 			"availability_zones": {
 				Type:        schema.TypeList,
@@ -78,12 +72,8 @@ func ResourceGateway() *schema.Resource {
 			"flavor": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				ForceNew:    true,
 				Computed:    true,
 				Description: `The flavor of the VPN gateway.`,
-				ValidateFunc: validation.StringInSlice([]string{
-					"V1G", "V300", "Basic", "Professional1", "Professional2", "GM",
-				}, false),
 			},
 			"attachment_type": {
 				Type:        schema.TypeString,
@@ -201,11 +191,10 @@ func ResourceGateway() *schema.Resource {
 				Description: `The ASN number of BGP`,
 			},
 			"enterprise_project_id": {
-				Type:         schema.TypeString,
-				Optional:     true,
-				Computed:     true,
-				Description:  `The enterprise project ID`,
-				ValidateFunc: validation.StringLenBetween(1, 64),
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
+				Description: `The enterprise project ID`,
 			},
 			"access_private_ip_1": {
 				Type:         schema.TypeString,
@@ -363,11 +352,6 @@ func GatewayEipSchema() *schema.Resource {
 				Computed:    true,
 				ForceNew:    true,
 				Description: `The public IP ID.`,
-				ValidateFunc: validation.All(
-					validation.StringMatch(regexp.MustCompile(`[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}`),
-						"the input is invalid"),
-					validation.StringLenBetween(36, 36),
-				),
 			},
 
 			"type": {
@@ -383,11 +367,6 @@ func GatewayEipSchema() *schema.Resource {
 				Computed:    true,
 				ForceNew:    true,
 				Description: `The bandwidth name.`,
-				ValidateFunc: validation.All(
-					validation.StringMatch(regexp.MustCompile(`^[\-_A-Za-z0-9]+$`),
-						"the input is invalid"),
-					validation.StringLenBetween(1, 64),
-				),
 			},
 			"bandwidth_size": {
 				Type:     schema.TypeInt,
@@ -396,7 +375,6 @@ func GatewayEipSchema() *schema.Resource {
 				ForceNew: true,
 				Description: `Bandwidth size in Mbit/s. When the flavor is **V300**, the value cannot be greater than **300**.
 `,
-				ValidateFunc: validation.IntBetween(1, 1024),
 			},
 			"charge_mode": {
 				Type:        schema.TypeString,
@@ -461,11 +439,11 @@ func resourceGatewayCreate(ctx context.Context, d *schema.ResourceData, meta int
 		return diag.FromErr(err)
 	}
 
-	id, err := jmespath.Search("vpn_gateway.id", createGatewayRespBody)
-	if err != nil {
+	id := utils.PathSearch("vpn_gateway.id", createGatewayRespBody, "").(string)
+	if id == "" {
 		return diag.Errorf("error creating VPN gateway: ID is not found in API response")
 	}
-	d.SetId(id.(string))
+	d.SetId(id)
 
 	err = createGatewayWaitingForStateCompleted(ctx, d, meta, d.Timeout(schema.TimeoutCreate))
 	if err != nil {
@@ -668,9 +646,9 @@ func createGatewayWaitingForStateCompleted(ctx context.Context, d *schema.Resour
 			if err != nil {
 				return nil, "ERROR", err
 			}
-			statusRaw, err := jmespath.Search(`vpn_gateway.status`, createGatewayWaitingRespBody)
-			if err != nil {
-				return nil, "ERROR", fmt.Errorf("error parse %s from response body", `vpn_gateway.status`)
+			statusRaw := utils.PathSearch(`vpn_gateway.status`, createGatewayWaitingRespBody, nil)
+			if statusRaw == nil {
+				return nil, "ERROR", fmt.Errorf("error parsing %s from response body", `vpn_gateway.status`)
 			}
 
 			status := fmt.Sprintf("%v", statusRaw)
@@ -800,9 +778,9 @@ func resourceGatewayRead(_ context.Context, d *schema.ResourceData, meta interfa
 
 func flattenGatewayCertificateResponse(d *schema.ResourceData, resp interface{}) []interface{} {
 	rst := d.Get("certificate").([]interface{})
-	curJson, err := jmespath.Search("certificate", resp)
-	if err != nil {
-		log.Printf("[ERROR] error parsing certificate from response: %s", err)
+	curJson := utils.PathSearch("certificate", resp, nil)
+	if curJson == nil {
+		log.Printf("[ERROR] error parsing certificate from response")
 		return rst
 	}
 
@@ -827,9 +805,9 @@ func flattenGatewayCertificateResponse(d *schema.ResourceData, resp interface{})
 
 func flattenGetGatewayResponseBodyVPNGatewayBody(resp interface{}, paramName string) []interface{} {
 	var rst []interface{}
-	curJson, err := jmespath.Search(fmt.Sprintf("vpn_gateway.%s", paramName), resp)
-	if err != nil {
-		log.Printf("[ERROR] error parsing vpn_gateway.%s from response: %s", paramName, err)
+	curJson := utils.PathSearch(fmt.Sprintf("vpn_gateway.%s", paramName), resp, nil)
+	if curJson == nil {
+		log.Printf("[ERROR] error parsing vpn_gateway.%s from response", paramName)
 		return rst
 	}
 
@@ -857,6 +835,7 @@ func resourceGatewayUpdate(ctx context.Context, d *schema.ResourceData, meta int
 	var (
 		updateGatewayHttpUrl            = "v5/{project_id}/vpn-gateways/{id}"
 		updateGatewayCertificateHttpUrl = "v5/{project_id}/vpn-gateways/{gateway_id}/certificate/{certificate_id}"
+		updateFlavorHttpUrl             = "v5/{project_id}/vpn-gateways/{vgw_id}/update-specification"
 		updateGatewayProduct            = "vpn"
 	)
 	updateGatewayClient, err := cfg.NewServiceClient(updateGatewayProduct, region)
@@ -941,6 +920,30 @@ func resourceGatewayUpdate(ctx context.Context, d *schema.ResourceData, meta int
 			return diag.Errorf("error updating tags of VPN gateway (%s): %s", d.Id(), tagErr)
 		}
 	}
+
+	if d.HasChange("flavor") {
+		updateFlavorPath := updateGatewayClient.Endpoint + updateFlavorHttpUrl
+		updateFlavorPath = strings.ReplaceAll(updateFlavorPath, "{project_id}", updateGatewayClient.ProjectID)
+		updateFlavorPath = strings.ReplaceAll(updateFlavorPath, "{vgw_id}", gatewayId)
+
+		updateGatewayOpt := golangsdk.RequestOpts{
+			KeepResponseBody: true,
+		}
+		updateGatewayOpt.JSONBody = map[string]interface{}{
+			"vpn_gateway": map[string]interface{}{
+				"flavor": d.Get("flavor"),
+			},
+		}
+		_, err = updateGatewayClient.Request("POST", updateFlavorPath, &updateGatewayOpt)
+		if err != nil {
+			return diag.Errorf("error updating VPN gateway flavor: %s", err)
+		}
+		err = updateGatewayWaitingForStateCompleted(ctx, d, meta, d.Timeout(schema.TimeoutUpdate))
+		if err != nil {
+			return diag.Errorf("error waiting for updating VPN gateway (%s) flavor to complete: %s", gatewayId, err)
+		}
+	}
+
 	return resourceGatewayRead(ctx, d, meta)
 }
 
@@ -1006,9 +1009,9 @@ func updateGatewayWaitingForStateCompleted(ctx context.Context, d *schema.Resour
 			if err != nil {
 				return nil, "ERROR", err
 			}
-			statusRaw, err := jmespath.Search(`vpn_gateway.status`, updateGatewayWaitingRespBody)
-			if err != nil {
-				return nil, "ERROR", fmt.Errorf("error parse %s from response body", `vpn_gateway.status`)
+			statusRaw := utils.PathSearch(`vpn_gateway.status`, updateGatewayWaitingRespBody, nil)
+			if statusRaw == nil {
+				return nil, "ERROR", fmt.Errorf("error parsing %s from response body", `vpn_gateway.status`)
 			}
 
 			status := fmt.Sprintf("%v", statusRaw)
@@ -1108,9 +1111,9 @@ func deleteGatewayWaitingForStateCompleted(ctx context.Context, d *schema.Resour
 			if err != nil {
 				return nil, "ERROR", err
 			}
-			statusRaw, err := jmespath.Search(`vpn_gateway.status`, deleteGatewayWaitingRespBody)
-			if err != nil {
-				return nil, "ERROR", fmt.Errorf("error parse %s from response body", `vpn_gateway.status`)
+			statusRaw := utils.PathSearch(`vpn_gateway.status`, deleteGatewayWaitingRespBody, nil)
+			if statusRaw == nil {
+				return nil, "ERROR", fmt.Errorf("error parsing %s from response body", `vpn_gateway.status`)
 			}
 
 			status := fmt.Sprintf("%v", statusRaw)

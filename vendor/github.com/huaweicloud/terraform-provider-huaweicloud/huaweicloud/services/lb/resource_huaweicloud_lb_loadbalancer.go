@@ -31,6 +31,7 @@ import (
 // @API ELB POST /v3/{project_id}/elb/loadbalancers/change-charge-mode
 // @API VPC PUT /v2.0/ports/{port_id}
 // @API VPC GET /v2.0/ports/{port_id}
+// @API EPS POST /v1.0/enterprise-projects/{enterprise_project_id}/resources-migrat
 // @API BSS GET /v2/orders/customer-orders/details/{order_id}
 // @API BSS POST /v2/orders/suscriptions/resources/query
 // @API BSS POST /v2/orders/subscriptions/resources/unsubscribe
@@ -119,7 +120,6 @@ func ResourceLoadBalancer() *schema.Resource {
 			"enterprise_project_id": {
 				Type:     schema.TypeString,
 				Optional: true,
-				ForceNew: true,
 				Computed: true,
 			},
 
@@ -157,7 +157,6 @@ func ResourceLoadBalancer() *schema.Resource {
 				Type:         schema.TypeInt,
 				Optional:     true,
 				RequiredWith: []string{"period_unit"},
-				ValidateFunc: validation.IntBetween(1, 9),
 			},
 
 			"auto_renew": common.SchemaAutoRenewUpdatable(nil),
@@ -521,6 +520,18 @@ func resourceLoadBalancerV2Update(ctx context.Context, d *schema.ResourceData, m
 		tagErr := utils.UpdateResourceTags(elbV2Client, d, "loadbalancers", d.Id())
 		if tagErr != nil {
 			return diag.Errorf("error updating tags of LoadBalancer:%s, err:%s", d.Id(), tagErr)
+		}
+	}
+
+	if d.HasChange("enterprise_project_id") {
+		migrateOpts := config.MigrateResourceOpts{
+			ResourceId:   d.Id(),
+			ResourceType: "loadbalancers",
+			RegionId:     region,
+			ProjectId:    cfg.GetProjectID(region),
+		}
+		if err := cfg.MigrateEnterpriseProject(ctx, d, migrateOpts); err != nil {
+			return diag.FromErr(err)
 		}
 	}
 

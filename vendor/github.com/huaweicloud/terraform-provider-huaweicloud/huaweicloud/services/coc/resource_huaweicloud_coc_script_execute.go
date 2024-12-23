@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
 
@@ -24,6 +23,10 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
+
+var scriptOrderNotFoundErrCodes = []string{
+	"COC.00040709", // Script not found
+}
 
 // @API COC POST /v1/job/scripts/{script_uuid}
 // @API COC GET /v1/job/script/orders/{execute_uuid}
@@ -202,12 +205,11 @@ func resourceScriptExecuteCreate(ctx context.Context, d *schema.ResourceData, me
 		return diag.FromErr(err)
 	}
 
-	id, err := jmespath.Search("data", createExecuteRespBody)
-	if err != nil {
-		return diag.Errorf("error executing COC script: ID is not found in API response")
+	ticketID := utils.PathSearch("data", createExecuteRespBody, "").(string)
+	if ticketID == "" {
+		return diag.Errorf("unable to find the executing COC script ID from the API response")
 	}
 
-	ticketID := id.(string)
 	d.SetId(ticketID)
 
 	// waiting the execution status of COC script
@@ -278,7 +280,8 @@ func resourceScriptExecuteRead(_ context.Context, d *schema.ResourceData, meta i
 	ticketID := d.Id()
 	ticketDetail, err := getExecutionTicketDetail(client, ticketID)
 	if err != nil {
-		return common.CheckDeletedDiag(d, err, "error retrieving COC script execute")
+		return common.CheckDeletedDiag(d, common.ConvertExpected400ErrInto404Err(err, "error_code",
+			scriptOrderNotFoundErrCodes...), "COC script execute")
 	}
 
 	mErr := multierror.Append(nil,

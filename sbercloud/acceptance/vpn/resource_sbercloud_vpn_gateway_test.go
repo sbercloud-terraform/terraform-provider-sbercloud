@@ -2,17 +2,14 @@ package vpn
 
 import (
 	"fmt"
+	"github.com/chnsz/golangsdk"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"strings"
 	"testing"
-
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
-
-	"github.com/chnsz/golangsdk"
-
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
 func getGatewayResourceFunc(conf *config.Config, state *terraform.ResourceState) (interface{}, error) {
@@ -88,6 +85,11 @@ func TestAccGateway_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(rName, "name", name+"-update"),
 					resource.TestCheckResourceAttrPair(rName, "local_subnets.0", "sbercloud_vpc_subnet.test", "cidr"),
 					resource.TestCheckResourceAttr(rName, "local_subnets.1", "192.168.2.0/24"),
+					resource.TestCheckResourceAttr(rName, "flavor", "Professional2"),
+					resource.TestCheckResourceAttrPair(rName, "availability_zones.0",
+						"data.sbercloud_vpn_gateway_availability_zones.test", "names.0"),
+					resource.TestCheckResourceAttrPair(rName, "availability_zones.1",
+						"data.sbercloud_vpn_gateway_availability_zones.test", "names.1"),
 					resource.TestCheckResourceAttr(rName, "tags.key", "val"),
 					resource.TestCheckResourceAttr(rName, "tags.foo", "bar-update"),
 				),
@@ -349,51 +351,6 @@ func TestAccGateway_deprecated(t *testing.T) {
 	})
 }
 
-//func TestAccGateway_withER(t *testing.T) {
-//	var obj interface{}
-//
-//	name := acceptance.RandomAccResourceName()
-//	rName := "sbercloud_vpn_gateway.test"
-//
-//	rc := acceptance.InitResourceCheck(
-//		rName,
-//		&obj,
-//		getGatewayResourceFunc,
-//	)
-//
-//	resource.ParallelTest(t, resource.TestCase{
-//		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
-//		ProviderFactories: acceptance.TestAccProviderFactories,
-//		CheckDestroy:      rc.CheckResourceDestroy(),
-//		Steps: []resource.TestStep{
-//			{
-//				Config: testGateway_withER(name),
-//				Check: resource.ComposeTestCheckFunc(
-//					rc.CheckResourceExists(),
-//					resource.TestCheckResourceAttr(rName, "name", name),
-//					resource.TestCheckResourceAttr(rName, "network_type", "private"),
-//					resource.TestCheckResourceAttr(rName, "attachment_type", "er"),
-//					resource.TestCheckResourceAttr(rName, "status", "ACTIVE"),
-//					resource.TestCheckResourceAttr(rName, "access_private_ip_1", "172.16.0.99"),
-//					resource.TestCheckResourceAttr(rName, "access_private_ip_2", "172.16.0.100"),
-//					resource.TestCheckResourceAttrPair(rName, "er_id", "sbercloud_er_instance.test", "id"),
-//					resource.TestCheckResourceAttrPair(rName, "access_vpc_id", "sbercloud_vpc.test", "id"),
-//					resource.TestCheckResourceAttrPair(rName, "access_subnet_id", "sbercloud_vpc_subnet.test", "id"),
-//					resource.TestCheckResourceAttrPair(rName, "availability_zones.0",
-//						"data.sbercloud_vpn_gateway_availability_zones.test", "names.0"),
-//					resource.TestCheckResourceAttrPair(rName, "availability_zones.1",
-//						"data.sbercloud_vpn_gateway_availability_zones.test", "names.1"),
-//				),
-//			},
-//			{
-//				ResourceName:      rName,
-//				ImportState:       true,
-//				ImportStateVerify: true,
-//			},
-//		},
-//	})
-//}
-
 func testGateway_base(name string) string {
 	return fmt.Sprintf(`
 data "sbercloud_vpn_gateway_availability_zones" "test" {
@@ -478,6 +435,8 @@ resource "sbercloud_vpn_gateway" "test" {
   vpc_id             = sbercloud_vpc.test.id
   local_subnets      = [sbercloud_vpc_subnet.test.cidr, "192.168.2.0/24"]
   connect_subnet     = sbercloud_vpc_subnet.test.id
+  flavor             = "Professional2"
+  
   availability_zones = [
     data.sbercloud_vpn_gateway_availability_zones.test.names[0],
     data.sbercloud_vpn_gateway_availability_zones.test.names[1]
@@ -550,56 +509,6 @@ resource "sbercloud_vpn_gateway" "test" {
 }
 `, testGateway_base(name), name)
 }
-
-//func testGateway_withER(name string) string {
-//	return fmt.Sprintf(`
-//resource "sbercloud_vpc" "test" {
-//  name = "%[1]s"
-//  cidr = "172.16.0.0/16"
-//}
-//
-//resource "sbercloud_vpc_subnet" "test" {
-//  name       = "%[1]s"
-//  vpc_id     = sbercloud_vpc.test.id
-//  cidr       = "172.16.0.0/24"
-//  gateway_ip = "172.16.0.1"
-//}
-//
-//data "sbercloud_availability_zones" "test" {}
-//
-//resource "sbercloud_er_instance" "test" {
-//  availability_zones = [
-//    data.sbercloud_availability_zones.test.names[0],
-//    data.sbercloud_availability_zones.test.names[3]
-//  ]
-//
-//  name = "%[1]s"
-//  asn  = "65000"
-//}
-//
-//data "sbercloud_vpn_gateway_availability_zones" "test" {
-//  flavor          = "professional1"
-//  attachment_type = "er"
-//}
-//
-//resource "sbercloud_vpn_gateway" "test" {
-//  name               = "%[1]s"
-//  network_type       = "private"
-//  attachment_type    = "er"
-//  er_id              = sbercloud_er_instance.test.id
-//  availability_zones = [
-//    data.sbercloud_vpn_gateway_availability_zones.test.names[0],
-//    data.sbercloud_vpn_gateway_availability_zones.test.names[1]
-//  ]
-//
-//  access_vpc_id    = sbercloud_vpc.test.id
-//  access_subnet_id = sbercloud_vpc_subnet.test.id
-//
-//  access_private_ip_1 = "172.16.0.99"
-//  access_private_ip_2 = "172.16.0.100"
-//}
-//`, name)
-//}
 
 func testGateway_deprecated(name string) string {
 	return fmt.Sprintf(`
@@ -702,3 +611,102 @@ type certificate struct {
 	encCertificate   string
 	encPrivateKey    string
 }
+
+//func TestAccGateway_withER(t *testing.T) {
+//	var obj interface{}
+//
+//	name := acceptance.RandomAccResourceName()
+//	rName := "sbercloud_vpn_gateway.test"
+//
+//	rc := acceptance.InitResourceCheck(
+//		rName,
+//		&obj,
+//		getGatewayResourceFunc,
+//	)
+//
+//	resource.ParallelTest(t, resource.TestCase{
+//		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+//		ProviderFactories: acceptance.TestAccProviderFactories,
+//		CheckDestroy:      rc.CheckResourceDestroy(),
+//		Steps: []resource.TestStep{
+//			{
+//				Config: testGateway_withER(name),
+//				Check: resource.ComposeTestCheckFunc(
+//					rc.CheckResourceExists(),
+//					resource.TestCheckResourceAttr(rName, "name", name),
+//					resource.TestCheckResourceAttr(rName, "network_type", "private"),
+//					resource.TestCheckResourceAttr(rName, "attachment_type", "er"),
+//					resource.TestCheckResourceAttr(rName, "status", "ACTIVE"),
+//					resource.TestCheckResourceAttr(rName, "access_private_ip_1", "172.16.0.99"),
+//					resource.TestCheckResourceAttr(rName, "access_private_ip_2", "172.16.0.100"),
+//					resource.TestCheckResourceAttrPair(rName, "er_id", "sbercloud_er_instance.test", "id"),
+//					resource.TestCheckResourceAttrPair(rName, "access_vpc_id", "sbercloud_vpc.test", "id"),
+//					resource.TestCheckResourceAttrPair(rName, "access_subnet_id", "sbercloud_vpc_subnet.test", "id"),
+//					resource.TestCheckResourceAttrPair(rName, "availability_zones.0",
+//						"data.sbercloud_vpn_gateway_availability_zones.test", "names.0"),
+//					resource.TestCheckResourceAttrPair(rName, "availability_zones.1",
+//						"data.sbercloud_vpn_gateway_availability_zones.test", "names.1"),
+//				),
+//			},
+//			{
+//				ResourceName:      rName,
+//				ImportState:       true,
+//				ImportStateVerify: true,
+//			},
+//		},
+//	})
+//}
+
+//func testGateway_withER(name string) string {
+//	return fmt.Sprintf(`
+//resource "sbercloud_vpc" "test" {
+//  name = "%[1]s"
+//  cidr = "172.16.0.0/16"
+//}
+//
+//resource "sbercloud_vpc_subnet" "test" {
+//  name       = "%[1]s"
+//  vpc_id     = sbercloud_vpc.test.id
+//  cidr       = "172.16.0.0/24"
+//  gateway_ip = "172.16.0.1"
+//}
+//
+//data "sbercloud_availability_zones" "test" {}
+//
+//resource "sbercloud_er_instance" "test" {
+//  availability_zones = [
+//    data.sbercloud_availability_zones.test.names[0],
+//    data.sbercloud_availability_zones.test.names[3]
+//  ]
+//
+//  name = "%[1]s"
+//  asn  = "65000"
+//}
+//
+//data "sbercloud_vpn_gateway_availability_zones" "test" {
+//  flavor          = "professional1"
+//  attachment_type = "er"
+//}
+//
+//resource "sbercloud_vpn_gateway" "test" {
+//  name               = "%[1]s"
+//  network_type       = "private"
+//  attachment_type    = "er"
+//  er_id              = sbercloud_er_instance.test.id
+//  availability_zones = [
+//    data.sbercloud_vpn_gateway_availability_zones.test.names[0],
+//    data.sbercloud_vpn_gateway_availability_zones.test.names[1]
+//  ]
+//
+//  access_vpc_id    = sbercloud_vpc.test.id
+//  access_subnet_id = sbercloud_vpc_subnet.test.id
+//
+//  access_private_ip_1 = "172.16.0.99"
+//  access_private_ip_2 = "172.16.0.100"
+//}
+//`, name)
+//}
+
+//================================================================================================================//
+//test
+//================================================================================================================//

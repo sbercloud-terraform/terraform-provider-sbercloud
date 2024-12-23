@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
 
@@ -156,11 +155,11 @@ func createAntiCrawlerRule(client *golangsdk.ServiceClient, httpPath string, d *
 		return err
 	}
 
-	id, err := jmespath.Search("id", createRespBody)
-	if err != nil {
+	ruleId := utils.PathSearch("id", createRespBody, "").(string)
+	if ruleId == "" {
 		return fmt.Errorf("error creating WAF anti crawler rule: ID is not found in API response")
 	}
-	d.SetId(id.(string))
+	d.SetId(ruleId)
 	return nil
 }
 
@@ -173,7 +172,7 @@ func resourceAntiCrawlerRuleCreate(ctx context.Context, d *schema.ResourceData, 
 	)
 	client, err := cfg.NewServiceClient(product, region)
 	if err != nil {
-		return diag.Errorf("error creating WAF Client: %s", err)
+		return diag.Errorf("error creating WAF client: %s", err)
 	}
 
 	httpPath := client.Endpoint + httpUrl
@@ -239,7 +238,7 @@ func resourceAntiCrawlerRuleRead(_ context.Context, d *schema.ResourceData, meta
 	)
 	client, err := cfg.NewServiceClient(product, region)
 	if err != nil {
-		return diag.Errorf("error creating WAF Client: %s", err)
+		return diag.Errorf("error creating WAF client: %s", err)
 	}
 
 	getPath := client.Endpoint + httpUrl
@@ -306,7 +305,7 @@ func resourceAntiCrawlerRuleUpdate(ctx context.Context, d *schema.ResourceData, 
 	)
 	client, err := cfg.NewServiceClient(product, region)
 	if err != nil {
-		return diag.Errorf("error creating WAF Client: %s", err)
+		return diag.Errorf("error creating WAF client: %s", err)
 	}
 
 	updatePath := client.Endpoint + httpUrl
@@ -339,7 +338,7 @@ func resourceAntiCrawlerRuleDelete(_ context.Context, d *schema.ResourceData, me
 	)
 	client, err := cfg.NewServiceClient(product, region)
 	if err != nil {
-		return diag.Errorf("error creating WAF Client: %s", err)
+		return diag.Errorf("error creating WAF client: %s", err)
 	}
 
 	deletePath := client.Endpoint + httpUrl

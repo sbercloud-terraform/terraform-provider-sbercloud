@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
@@ -54,6 +53,8 @@ const ClusterIdIllegalErrCode = "DWS.0001"
 // @API DWS POST /v1/{project_id}/clusters/{cluster_id}/lts-logs/disable
 // @API DWS POST /v2/{project_id}/clusters/{cluster_id}/eips/{eip_id}
 // @API DWS DELETE /v2/{project_id}/clusters/{cluster_id}/eips/{eip_id}
+// @API DWS POST /v1/{project_id}/clusters/{cluster_id}/description
+// @API DWS PUT /v1/{project_id}/clusters/{cluster_id}/security-group
 func ResourceDwsCluster() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceDwsClusterCreate,
@@ -120,7 +121,6 @@ func ResourceDwsCluster() *schema.Resource {
 			"security_group_id": {
 				Type:        schema.TypeString,
 				Required:    true,
-				ForceNew:    true,
 				Description: `The security group ID.`,
 			},
 			"availability_zone": {
@@ -198,7 +198,7 @@ func ResourceDwsCluster() *schema.Resource {
 			"logical_cluster_enable": {
 				Type:        schema.TypeBool,
 				Optional:    true,
-				Description: `Specified whether to enable logical cluster.`,
+				Description: `Whether to enable logical cluster.`,
 			},
 			"elb_id": {
 				Type:        schema.TypeString,
@@ -208,7 +208,12 @@ func ResourceDwsCluster() *schema.Resource {
 			"lts_enable": {
 				Type:        schema.TypeBool,
 				Optional:    true,
-				Description: `Specified whether to enable LTS.`,
+				Description: `Whether to enable LTS.`,
+			},
+			"description": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: `The description of the cluster.`,
 			},
 			"status": {
 				Type:        schema.TypeString,
@@ -481,15 +486,15 @@ func resourceDwsClusterCreateV2(ctx context.Context, d *schema.ResourceData, met
 		return diag.FromErr(err)
 	}
 
-	id, err := jmespath.Search("cluster.id", createDwsClusterRespBody)
-	if err != nil {
-		return diag.Errorf("error creating DWS Cluster: ID is not found in API response")
+	clusterId := utils.PathSearch("cluster.id", createDwsClusterRespBody, "").(string)
+	if clusterId == "" {
+		return diag.Errorf("unable to find the DWS Cluster ID from the API response")
 	}
-	d.SetId(id.(string))
+	d.SetId(clusterId)
 
-	err = clusterWaitingForAvailable(ctx, d, meta, d.Timeout(schema.TimeoutCreate))
+	err = clusterWaitingForAvailable(ctx, d, createDwsClusterClient, d.Timeout(schema.TimeoutCreate))
 	if err != nil {
-		return diag.Errorf("error waiting for the DWS cluster (%s) creation to complete: %s", d.Id(), err)
+		return diag.Errorf("error waiting for the DWS cluster (%s) creation to complete: %s", clusterId, err)
 	}
 
 	if d.Get("logical_cluster_enable").(bool) {
@@ -515,6 +520,11 @@ func resourceDwsClusterCreateV2(ctx context.Context, d *schema.ResourceData, met
 		}
 	}
 
+	if v, ok := d.GetOk("description"); ok {
+		if err := updateDescription(createDwsClusterClient, clusterId, v.(string)); err != nil {
+			return diag.FromErr(err)
+		}
+	}
 	return resourceDwsClusterRead(ctx, d, meta)
 }
 
@@ -551,15 +561,15 @@ func resourceDwsClusterCreateV1(ctx context.Context, d *schema.ResourceData, met
 		return diag.FromErr(err)
 	}
 
-	id, err := jmespath.Search("cluster.id", createDwsClusterRespBody)
-	if err != nil {
-		return diag.Errorf("error creating DWS Cluster: ID is not found in API response")
+	clusterId := utils.PathSearch("cluster.id", createDwsClusterRespBody, "").(string)
+	if clusterId == "" {
+		return diag.Errorf("unable to find the DWS Cluster ID from the API response")
 	}
-	d.SetId(id.(string))
+	d.SetId(clusterId)
 
-	err = clusterWaitingForAvailable(ctx, d, meta, d.Timeout(schema.TimeoutCreate))
+	err = clusterWaitingForAvailable(ctx, d, createDwsClusterClient, d.Timeout(schema.TimeoutCreate))
 	if err != nil {
-		return diag.Errorf("error waiting for the DWS cluster (%s) creation to complete: %s", d.Id(), err)
+		return diag.Errorf("error waiting for the DWS cluster (%s) creation to complete: %s", clusterId, err)
 	}
 
 	if d.Get("logical_cluster_enable").(bool) {
@@ -573,6 +583,12 @@ func resourceDwsClusterCreateV1(ctx context.Context, d *schema.ResourceData, met
 		elbId := v.(string)
 		err := bindElb(ctx, d, createDwsClusterClient, elbId)
 		if err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	if v, ok := d.GetOk("description"); ok {
+		if err := updateDescription(createDwsClusterClient, clusterId, v.(string)); err != nil {
 			return diag.FromErr(err)
 		}
 	}
@@ -658,39 +674,12 @@ func buildCreateDwsClusterReqBodyVolume(rawParams interface{}) map[string]interf
 	return nil
 }
 
-func clusterWaitingForAvailable(ctx context.Context, d *schema.ResourceData, meta interface{}, t time.Duration) error {
+func clusterWaitingForAvailable(ctx context.Context, d *schema.ResourceData, client *golangsdk.ServiceClient, t time.Duration) error {
 	stateConf := &resource.StateChangeConf{
 		Pending: []string{"PENDING"},
 		Target:  []string{"COMPLETED"},
 		Refresh: func() (interface{}, string, error) {
-			cfg := meta.(*config.Config)
-			region := cfg.GetRegion(d)
-			// createDwsClusterWaiting: waiting cluster is available
-			var (
-				createDwsClusterWaitingHttpUrl = "v1.0/{project_id}/clusters/{cluster_id}"
-				createDwsClusterWaitingProduct = "dws"
-			)
-			clusterWaitingClient, err := cfg.NewServiceClient(createDwsClusterWaitingProduct, region)
-			if err != nil {
-				return nil, "ERROR", fmt.Errorf("error creating DWS Client: %s", err)
-			}
-
-			clusterWaitingPath := clusterWaitingClient.Endpoint + createDwsClusterWaitingHttpUrl
-			clusterWaitingPath = strings.ReplaceAll(clusterWaitingPath, "{project_id}", clusterWaitingClient.ProjectID)
-			clusterWaitingPath = strings.ReplaceAll(clusterWaitingPath, "{cluster_id}", d.Id())
-
-			clusterWaitingOpt := golangsdk.RequestOpts{
-				KeepResponseBody: true,
-				MoreHeaders:      requestOpts.MoreHeaders,
-			}
-
-			clusterWaitingResp, err := clusterWaitingClient.Request("GET", clusterWaitingPath,
-				&clusterWaitingOpt)
-			if err != nil {
-				return nil, "ERROR", err
-			}
-
-			clusterWaitingRespBody, err := utils.FlattenResponse(clusterWaitingResp)
+			clusterWaitingRespBody, err := GetClusterInfoByClusterId(client, d.Id())
 			if err != nil {
 				return nil, "ERROR", err
 			}
@@ -700,12 +689,7 @@ func clusterWaitingForAvailable(ctx context.Context, d *schema.ResourceData, met
 				return clusterWaitingRespBody, "PENDING", nil
 			}
 
-			statusRaw, err := jmespath.Search(`cluster.status`, clusterWaitingRespBody)
-			if err != nil {
-				return nil, "ERROR", fmt.Errorf("error parse %s from response body", `cluster.status`)
-			}
-
-			status := fmt.Sprintf("%v", statusRaw)
+			status := utils.PathSearch(`cluster.status`, clusterWaitingRespBody, "").(string)
 
 			targetStatus := []string{
 				"AVAILABLE",
@@ -734,6 +718,25 @@ func clusterWaitingForAvailable(ctx context.Context, d *schema.ResourceData, met
 	return err
 }
 
+// GetClusterInfoByClusterId is a method that used to query DWS cluster detail.
+func GetClusterInfoByClusterId(client *golangsdk.ServiceClient, clusterId string) (interface{}, error) {
+	getDwsClusterHttpUrl := "v1.0/{project_id}/clusters/{cluster_id}"
+	getDwsClusterPath := client.Endpoint + getDwsClusterHttpUrl
+	getDwsClusterPath = strings.ReplaceAll(getDwsClusterPath, "{project_id}", client.ProjectID)
+	getDwsClusterPath = strings.ReplaceAll(getDwsClusterPath, "{cluster_id}", clusterId)
+
+	getDwsClusterOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		MoreHeaders:      requestOpts.MoreHeaders,
+	}
+
+	getDwsClusterResp, err := client.Request("GET", getDwsClusterPath, &getDwsClusterOpt)
+	if err != nil {
+		return nil, parseClusterNotFoundError(err)
+	}
+	return utils.FlattenResponse(getDwsClusterResp)
+}
+
 func resourceDwsClusterRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	region := cfg.GetRegion(d)
@@ -741,31 +744,16 @@ func resourceDwsClusterRead(_ context.Context, d *schema.ResourceData, meta inte
 	var mErr *multierror.Error
 
 	// getDwsCluster: Query the DWS cluster.
-	var (
-		getDwsClusterHttpUrl = "v1.0/{project_id}/clusters/{cluster_id}"
-		getDwsClusterProduct = "dws"
-	)
-	getDwsClusterClient, err := cfg.NewServiceClient(getDwsClusterProduct, region)
+	getDwsClusterClient, err := cfg.NewServiceClient("dws", region)
 	if err != nil {
 		return diag.Errorf("error creating DWS Client: %s", err)
 	}
 
-	getDwsClusterPath := getDwsClusterClient.Endpoint + getDwsClusterHttpUrl
-	getDwsClusterPath = strings.ReplaceAll(getDwsClusterPath, "{project_id}", getDwsClusterClient.ProjectID)
-	getDwsClusterPath = strings.ReplaceAll(getDwsClusterPath, "{cluster_id}", d.Id())
-
-	getDwsClusterOpt := golangsdk.RequestOpts{
-		KeepResponseBody: true,
-		MoreHeaders:      requestOpts.MoreHeaders,
-	}
-
-	getDwsClusterResp, err := getDwsClusterClient.Request("GET", getDwsClusterPath, &getDwsClusterOpt)
-
+	getDwsClusterRespBody, err := GetClusterInfoByClusterId(getDwsClusterClient, d.Id())
 	if err != nil {
-		return common.CheckDeletedDiag(d, parseClusterNotFoundError(err), "error retrieving DWS Cluster")
+		return common.CheckDeletedDiag(d, err, "error retrieving DWS Cluster")
 	}
 
-	getDwsClusterRespBody, err := utils.FlattenResponse(getDwsClusterResp)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -797,6 +785,7 @@ func resourceDwsClusterRead(_ context.Context, d *schema.ResourceData, meta inte
 		d.Set("private_ip", utils.PathSearch("cluster.private_ip", getDwsClusterRespBody, nil)),
 		d.Set("maintain_window", flattenGetDwsClusterRespBodyMaintainWindow(getDwsClusterRespBody)),
 		d.Set("elb", flattenGetDwsClusterRespBodyElb(getDwsClusterRespBody)),
+		d.Set("description", utils.PathSearch("cluster.cluster_description_info", getDwsClusterRespBody, nil)),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())
@@ -820,9 +809,8 @@ func flattenGetDwsClusterRespBodyEndpoint(resp interface{}) []interface{} {
 
 func flattenGetDwsClusterRespBodyPublicIp(resp interface{}) []interface{} {
 	var rst []interface{}
-	curJson, err := jmespath.Search("cluster.public_ip", resp)
-	if err != nil {
-		log.Printf("[ERROR] error parsing cluster.public_ip from response= %#v", resp)
+	curJson := utils.PathSearch("cluster.public_ip", resp, make(map[string]interface{})).(map[string]interface{})
+	if len(curJson) < 1 {
 		return rst
 	}
 
@@ -853,9 +841,8 @@ func flattenGetDwsClusterRespBodyPublicEndpoint(resp interface{}) []interface{} 
 
 func flattenGetDwsClusterRespBodyMaintainWindow(resp interface{}) []interface{} {
 	var rst []interface{}
-	curJson, err := jmespath.Search("cluster.maintain_window", resp)
-	if err != nil {
-		log.Printf("[ERROR] error parsing cluster.maintain_window from response= %#v", resp)
+	curJson := utils.PathSearch("cluster.maintain_window", resp, make(map[string]interface{})).(map[string]interface{})
+	if len(curJson) < 1 {
 		return rst
 	}
 
@@ -871,9 +858,8 @@ func flattenGetDwsClusterRespBodyMaintainWindow(resp interface{}) []interface{} 
 
 func flattenGetDwsClusterRespBodyElb(resp interface{}) []interface{} {
 	var rst []interface{}
-	curJson, err := jmespath.Search("cluster.elb", resp)
-	if err != nil {
-		log.Printf("[WARN] error parsing elb object from response: %v", err)
+	curJson := utils.PathSearch("cluster.elb", resp, make(map[string]interface{})).(map[string]interface{})
+	if len(curJson) < 1 {
 		return rst
 	}
 
@@ -901,7 +887,7 @@ func resourceDwsClusterUpdate(ctx context.Context, d *schema.ResourceData, meta 
 		return diag.Errorf("error creating DWS client: %s", clientErr)
 	}
 
-	err := clusterWaitingForAvailable(ctx, d, meta, d.Timeout(schema.TimeoutUpdate))
+	err := clusterWaitingForAvailable(ctx, d, clusterClient, d.Timeout(schema.TimeoutUpdate))
 	if err != nil {
 		return diag.Errorf("cluster (%s) state is not available to update: %s", clusterId, err)
 	}
@@ -930,7 +916,7 @@ func resourceDwsClusterUpdate(ctx context.Context, d *schema.ResourceData, meta 
 		if err != nil {
 			return diag.Errorf("error updating DWS Cluster: %s", err)
 		}
-		err = clusterWaitingForAvailable(ctx, d, meta, d.Timeout(schema.TimeoutUpdate))
+		err = clusterWaitingForAvailable(ctx, d, clusterClient, d.Timeout(schema.TimeoutUpdate))
 		if err != nil {
 			return diag.Errorf("error waiting for the DWS cluster (%s) update to complete: %s", clusterId, err)
 		}
@@ -960,7 +946,7 @@ func resourceDwsClusterUpdate(ctx context.Context, d *schema.ResourceData, meta 
 			return diag.Errorf("error updating DWS Cluster: %s", err)
 		}
 
-		err = clusterWaitingForAvailable(ctx, d, meta, d.Timeout(schema.TimeoutUpdate))
+		err = clusterWaitingForAvailable(ctx, d, clusterClient, d.Timeout(schema.TimeoutUpdate))
 		if err != nil {
 			return diag.Errorf("error waiting for the DWS cluster (%s) update to complete: %s", clusterId, err)
 		}
@@ -990,7 +976,7 @@ func resourceDwsClusterUpdate(ctx context.Context, d *schema.ResourceData, meta 
 			return diag.Errorf("error updating DWS Cluster: %s", err)
 		}
 
-		err = clusterWaitingForAvailable(ctx, d, meta, d.Timeout(schema.TimeoutUpdate))
+		err = clusterWaitingForAvailable(ctx, d, clusterClient, d.Timeout(schema.TimeoutUpdate))
 		if err != nil {
 			return diag.Errorf("error waiting for the DWS cluster (%s) update to complete: %s", clusterId, err)
 		}
@@ -1060,6 +1046,17 @@ func resourceDwsClusterUpdate(ctx context.Context, d *schema.ResourceData, meta 
 		}
 	}
 
+	if d.HasChange("description") {
+		if err := updateDescription(clusterClient, clusterId, d.Get("description").(string)); err != nil {
+			return diag.FromErr(err)
+		}
+	}
+
+	if d.HasChange("security_group_id") {
+		if err := updateSecurityGroup(clusterClient, clusterId, d.Get("security_group_id").(string)); err != nil {
+			return diag.FromErr(err)
+		}
+	}
 	return resourceDwsClusterRead(ctx, d, meta)
 }
 
@@ -1118,7 +1115,7 @@ func resourceDwsClusterDelete(ctx context.Context, d *schema.ResourceData, meta 
 		return diag.Errorf("error deleting DWS Cluster: %s", err)
 	}
 
-	err = deleteClusterWaitingForCompleted(ctx, d, meta, d.Timeout(schema.TimeoutDelete))
+	err = deleteClusterWaitingForCompleted(ctx, d, deleteDwsClusterClient, d.Timeout(schema.TimeoutDelete))
 	if err != nil {
 		return diag.Errorf("error waiting for the DWS cluster (%s) deletion to complete: %s", d.Id(), err)
 	}
@@ -1132,35 +1129,14 @@ func buildDeleteDwsClusterBodyParams(d *schema.ResourceData) map[string]interfac
 	return bodyParams
 }
 
-func deleteClusterWaitingForCompleted(ctx context.Context, d *schema.ResourceData, meta interface{}, t time.Duration) error {
+func deleteClusterWaitingForCompleted(ctx context.Context, d *schema.ResourceData, client *golangsdk.ServiceClient, t time.Duration) error {
 	stateConf := &resource.StateChangeConf{
 		Pending: []string{"PENDING"},
 		Target:  []string{"COMPLETED"},
 		Refresh: func() (interface{}, string, error) {
-			cfg := meta.(*config.Config)
-			region := cfg.GetRegion(d)
 			// deleteDwsClusterWaiting: missing operation notes
-			var (
-				deleteDwsClusterWaitingHttpUrl = "v1.0/{project_id}/clusters/{cluster_id}"
-				deleteDwsClusterWaitingProduct = "dws"
-			)
-			deleteDwsClusterWaitingClient, err := cfg.NewServiceClient(deleteDwsClusterWaitingProduct, region)
+			deleteDwsClusterWaitingRespBody, err := GetClusterInfoByClusterId(client, d.Id())
 			if err != nil {
-				return nil, "ERROR", fmt.Errorf("error creating DWS Client: %s", err)
-			}
-
-			deleteDwsClusterWaitingPath := deleteDwsClusterWaitingClient.Endpoint + deleteDwsClusterWaitingHttpUrl
-			deleteDwsClusterWaitingPath = strings.ReplaceAll(deleteDwsClusterWaitingPath, "{project_id}", deleteDwsClusterWaitingClient.ProjectID)
-			deleteDwsClusterWaitingPath = strings.ReplaceAll(deleteDwsClusterWaitingPath, "{cluster_id}", d.Id())
-
-			deleteDwsClusterWaitingOpt := golangsdk.RequestOpts{
-				KeepResponseBody: true,
-				MoreHeaders:      requestOpts.MoreHeaders,
-			}
-
-			deleteDwsClusterWaitingResp, err := deleteDwsClusterWaitingClient.Request("GET", deleteDwsClusterWaitingPath, &deleteDwsClusterWaitingOpt)
-			if err != nil {
-				err = parseClusterNotFoundError(err)
 				if _, ok := err.(golangsdk.ErrDefault404); ok {
 					// When the error code is 404, the value of respBody is nil, and a non-null value is returned to avoid continuing the loop check.
 					return "Resource Not Found", "COMPLETED", nil
@@ -1168,16 +1144,7 @@ func deleteClusterWaitingForCompleted(ctx context.Context, d *schema.ResourceDat
 				return nil, "ERROR", err
 			}
 
-			deleteDwsClusterWaitingRespBody, err := utils.FlattenResponse(deleteDwsClusterWaitingResp)
-			if err != nil {
-				return nil, "ERROR", err
-			}
-			statusRaw, err := jmespath.Search(`cluster.status`, deleteDwsClusterWaitingRespBody)
-			if err != nil {
-				return nil, "ERROR", fmt.Errorf("error parse %s from response body", `cluster.status`)
-			}
-
-			status := fmt.Sprintf("%v", statusRaw)
+			status := utils.PathSearch(`cluster.status`, deleteDwsClusterWaitingRespBody, "").(string)
 
 			targetStatus := []string{
 				"DELETED",
@@ -1307,14 +1274,14 @@ func bindElb(ctx context.Context, d *schema.ResourceData, client *golangsdk.Serv
 		return err
 	}
 
-	jobId, err := jmespath.Search("job_id", bindElbRespBody)
-	if err != nil {
+	jobId := utils.PathSearch("job_id", bindElbRespBody, "").(string)
+	if jobId == "" {
 		return fmt.Errorf("error binding ELB to DWS cluster: job ID is not found in API response")
 	}
 	stateConf := &resource.StateChangeConf{
 		Pending:      []string{"INIT"},
 		Target:       []string{"SUCCESS"},
-		Refresh:      jobStatusRefreshFunc(client, jobId.(string)),
+		Refresh:      jobStatusRefreshFunc(client, jobId),
 		Timeout:      d.Timeout(schema.TimeoutCreate),
 		Delay:        60 * time.Second,
 		PollInterval: 10 * time.Second,
@@ -1355,14 +1322,14 @@ func unbindElb(ctx context.Context, d *schema.ResourceData, client *golangsdk.Se
 		return err
 	}
 
-	jobId, err := jmespath.Search("job_id", unbindElbRespBody)
-	if err != nil {
+	jobId := utils.PathSearch("job_id", unbindElbRespBody, "").(string)
+	if jobId == "" {
 		return fmt.Errorf("error unbinding ELB from DWS cluster: job ID is not found in API response: %s", jobId)
 	}
 	stateConf := &resource.StateChangeConf{
 		Pending:      []string{"INIT"},
 		Target:       []string{"SUCCESS"},
-		Refresh:      jobStatusRefreshFunc(client, jobId.(string)),
+		Refresh:      jobStatusRefreshFunc(client, jobId),
 		Timeout:      d.Timeout(schema.TimeoutCreate),
 		Delay:        60 * time.Second,
 		PollInterval: 10 * time.Second,
@@ -1498,13 +1465,7 @@ func parseLtsError(err error) error {
 }
 
 func parseClusterNotFoundError(err error) error {
-	// "DWS.0001": The cluster ID does not exist (non-standard UUID format). Status code is 400.
-	parsedErr := common.ConvertExpected400ErrInto404Err(err, "error_code", ClusterIdIllegalErrCode)
-	if _, ok := parsedErr.(golangsdk.ErrDefault404); ok {
-		return parsedErr
-	}
-
-	parsedErr = common.ConvertExpected401ErrInto404Err(err, "error_code", "DWS.0047")
+	parsedErr := common.ConvertExpected401ErrInto404Err(err, "error_code", "DWS.0047")
 	if _, ok := parsedErr.(golangsdk.ErrDefault404); ok {
 		return parsedErr
 	}
@@ -1516,4 +1477,43 @@ func parseClusterNotFoundError(err error) error {
 		return parsedErr
 	}
 	return err
+}
+
+func updateDescription(client *golangsdk.ServiceClient, clusterId, description string) error {
+	httpUrl := "v1/{project_id}/clusters/{cluster_id}/description"
+	path := client.Endpoint + httpUrl
+	path = strings.ReplaceAll(path, "{project_id}", client.ProjectID)
+	path = strings.ReplaceAll(path, "{cluster_id}", clusterId)
+	opt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		// The description can be changed to empty.
+		JSONBody: map[string]interface{}{
+			"description_info": description,
+		},
+	}
+	_, err := client.Request("POST", path, &opt)
+	if err != nil {
+		return fmt.Errorf("unable to set description for the cluster (%s): %s", clusterId, err)
+	}
+
+	return nil
+}
+
+func updateSecurityGroup(client *golangsdk.ServiceClient, clusterId, securityGroupId string) error {
+	httpUrl := "v1/{project_id}/clusters/{cluster_id}/security-group"
+	path := client.Endpoint + httpUrl
+	path = strings.ReplaceAll(path, "{project_id}", client.ProjectID)
+	path = strings.ReplaceAll(path, "{cluster_id}", clusterId)
+	opt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		JSONBody: map[string]interface{}{
+			"security_groups": []string{securityGroupId},
+		},
+	}
+	_, err := client.Request("PUT", path, &opt)
+	if err != nil {
+		return fmt.Errorf("error updating security group for the cluster (%s): %s", clusterId, err)
+	}
+
+	return nil
 }

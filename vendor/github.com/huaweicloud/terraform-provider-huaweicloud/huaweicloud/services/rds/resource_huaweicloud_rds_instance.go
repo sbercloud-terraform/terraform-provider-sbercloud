@@ -280,7 +280,6 @@ func ResourceRdsInstance() *schema.Resource {
 			"power_action": {
 				Type:     schema.TypeString,
 				Optional: true,
-				Computed: true,
 				ValidateFunc: validation.StringInSlice([]string{
 					"ON", "OFF", "REBOOT",
 				}, false),
@@ -2293,7 +2292,7 @@ func checkRDSInstanceJobFinish(client *golangsdk.ServiceClient, jobID string, ti
 		Target:       []string{"Completed"},
 		Refresh:      rdsInstanceJobRefreshFunc(client, jobID),
 		Timeout:      timeout,
-		Delay:        20 * time.Second,
+		Delay:        10 * time.Second,
 		PollInterval: 10 * time.Second,
 	}
 	if _, err := stateConf.WaitForState(); err != nil {

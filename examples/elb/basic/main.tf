@@ -72,7 +72,7 @@ resource "sbercloud_lb_loadbalancer" "elb_1" {
 }
 
 # associate eip with loadbalancer
-resource "sbercloud_vpc_eip_associate" "associate_1" {
+resource "sbercloud_networking_eip_associate" "associate_1" {
   public_ip = sbercloud_vpc_eip.eip_1.address
   port_id   = sbercloud_lb_loadbalancer.elb_1.vip_port_id
 }

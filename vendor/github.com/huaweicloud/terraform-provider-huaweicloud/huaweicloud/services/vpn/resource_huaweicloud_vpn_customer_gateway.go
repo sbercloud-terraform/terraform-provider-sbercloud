@@ -7,14 +7,12 @@ package vpn
 
 import (
 	"context"
-	"regexp"
 	"strings"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
 
@@ -50,11 +48,6 @@ func ResourceCustomerGateway() *schema.Resource {
 				Type:        schema.TypeString,
 				Required:    true,
 				Description: `The customer gateway name.`,
-				ValidateFunc: validation.All(
-					validation.StringMatch(regexp.MustCompile(`^[\-_A-Za-z0-9]+$`),
-						"the input is invalid"),
-					validation.StringLenBetween(1, 64),
-				),
 			},
 			"id_value": {
 				Type:     schema.TypeString,
@@ -188,11 +181,11 @@ func resourceCustomerGatewayCreate(ctx context.Context, d *schema.ResourceData, 
 		return diag.FromErr(err)
 	}
 
-	id, err := jmespath.Search("customer_gateway.id", createCustomerGatewayRespBody)
-	if err != nil {
+	id := utils.PathSearch("customer_gateway.id", createCustomerGatewayRespBody, "").(string)
+	if id == "" {
 		return diag.Errorf("error creating VPN customer gateway: ID is not found in API response")
 	}
-	d.SetId(id.(string))
+	d.SetId(id)
 
 	return resourceCustomerGatewayRead(ctx, d, meta)
 }
