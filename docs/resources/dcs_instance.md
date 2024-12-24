@@ -264,6 +264,8 @@ In addition to all arguments above, the following attributes are exported:
 
 * `security_group_name` - The name of security group which the instance belongs to.
 
+* `ssl_enable` - Specifies whether to enable the SSL. Value options: **true**, **false**.
+
 * `order_id` - The ID of the order that created the instance.
 
 ## Timeouts

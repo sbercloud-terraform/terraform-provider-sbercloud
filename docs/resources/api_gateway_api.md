@@ -31,7 +31,7 @@ resource "sbercloud_api_gateway_api" "tf_apigw_api" {
     protocol   = "HTTPS"
     method     = "GET"
     uri        = "/web/openapi"
-    url_domain = "mysbercloud.com"
+    url_domain = "hc.sbercloud.ru"
     timeout    = 10000
   }
 }
