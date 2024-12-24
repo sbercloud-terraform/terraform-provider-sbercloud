@@ -279,7 +279,7 @@ The `noncurrent_version_transition` object supports the following
 In addition to all arguments above, the following attributes are exported:
 
 * `id` - The name of the bucket.
-* `bucket_domain_name` - The bucket domain name. Will be of format `bucketname.obs.region.mysbercloud.com`.
+* `bucket_domain_name` - The bucket domain name. Will be of format `bucketname.obs.region.hc.sbercloud.ru`.
 * `region` - The region where this bucket resides in.
 * `bucket_version` - The OBS version of the bucket.
 * `storage_info` - The OBS storage info of the bucket.

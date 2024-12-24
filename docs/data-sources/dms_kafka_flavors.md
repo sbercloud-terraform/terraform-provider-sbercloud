@@ -1,7 +1,7 @@
 ---
 subcategory: "Distributed Message Service (DMS)"
-layout: "huaweicloud"
-page_title: "HuaweiCloud: huaweicloud_dms_kafka_flavors"
+layout: "sbercloud"
+page_title: "SberCloud: sbercloud_dms_kafka_flavors"
 description: ""
 ---
 

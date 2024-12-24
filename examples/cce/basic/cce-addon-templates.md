@@ -93,12 +93,12 @@ are no unneeded nodes.
 
 ```json
 {
-  "cceEndpoint": "https://cce.ru-moscow-1.mysbercloud.com",
-  "ecsEndpoint": "https://ecs.ru-moscow-1.mysbercloud.com",
+  "cceEndpoint": "https://cce.ru-moscow-1.hc.sbercloud.ru",
+  "ecsEndpoint": "https://ecs.ru-moscow-1.hc.sbercloud.ru",
   "image_version": "1.19.6",
   "platform": "linux-amd64",
   "region": "ru-moscow-1",
-  "swr_addr": "swr.ru-moscow-1.mysbercloud.com",
+  "swr_addr": "swr-api.ru-moscow-1.hc.sbercloud.ru",
   "swr_user": "hwofficial"
 }
 ```
@@ -142,7 +142,7 @@ CoreDNS is a DNS server that chains plugins and provides Kubernetes DNS Services
   "cluster_ip": "10.247.3.10",
   "image_version": "1.17.7",
   "platform": "linux-amd64",
-  "swr_addr": "swr.ru-moscow-1.mysbercloud.com",
+  "swr_addr": "swr-api.ru-moscow-1.hc.sbercloud.ru",
   "swr_user": "hwofficial"
 }
 ```
@@ -165,20 +165,19 @@ Everest is a cloud native container storage system based on CSI, used to support
 
 ```json
 {
-  "bms_url": "bms.ru-moscow-1.mysbercloud.com",
   "controller_image_version": "1.2.9",
   "driver_image_version": "1.2.9",
-  "ecsEndpoint": "https://ecs.ru-moscow-1.mysbercloud.com",
-  "evs_url": "evs.ru-moscow-1.mysbercloud.com",
-  "iam_url": "iam.ru-moscow-1.mysbercloud.com",
-  "ims_url": "ims.ru-moscow-1.mysbercloud.com",
-  "obs_url": "obs.ru-moscow-1.mysbercloud.com",
+  "ecsEndpoint": "https://ecs.ru-moscow-1.hc.sbercloud.ru",
+  "evs_url": "evs.ru-moscow-1.hc.sbercloud.ru",
+  "iam_url": "iam.ru-moscow-1.hc.sbercloud.ru",
+  "ims_url": "ims.ru-moscow-1.hc.sbercloud.ru",
+  "obs_url": "obs.ru-moscow-1.hc.sbercloud.ru",
   "platform": "linux-amd64",
-  "sfs_turbo_url": "sfs-turbo.ru-moscow-1.mysbercloud.com",
-  "sfs_url": "sfs.ru-moscow-1.mysbercloud.com",
+  "sfs_turbo_url": "sfs-turbo.ru-moscow-1.hc.sbercloud.ru",
+  "sfs_url": "sfs.ru-moscow-1.hc.sbercloud.ru",
   "supportHcs": false,
-  "swr_addr": "swr.ru-moscow-1.mysbercloud.com",
-  "swr_user": "hwofficial"
+  "swr_addr": "swr-api.ru-moscow-1.hc.sbercloud.ru",
+  "swr_user": "sbcofficial"
 }
 ```
 
@@ -203,7 +202,7 @@ Metrics Server is a cluster-level resource usage data aggregator.
 ```json
 {
   "image_version": "v0.4.4",
-  "swr_addr": "swr.ru-moscow-1.mysbercloud.com",
+  "swr_addr": "swr-api.ru-moscow-1.hc.sbercloud.ru",
   "swr_user": "hwofficial"
 }
 ```
@@ -223,9 +222,9 @@ A device plugin for nvidia.com/gpu resource on nvidia driver.
 {
   "device_version": "1.2.2",
   "driver_version": "1.2.2",
-  "obs_url": "obs.ru-moscow-1.mysbercloud.com",
+  "obs_url": "obs.ru-moscow-1.hc.sbercloud.ru",
   "region": "ru-moscow-1",
-  "swr_addr": "swr.ru-moscow-1.mysbercloud.com",
+  "swr_addr": "swr-api.ru-moscow-1.hc.sbercloud.ru",
   "swr_user": "hwofficial"
 }
 ```
