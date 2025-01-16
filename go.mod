@@ -5,11 +5,11 @@ go 1.21
 toolchain go1.23.0
 
 require (
-	github.com/chnsz/golangsdk v0.0.0-20241129015404-d9f9240236d7
+	github.com/chnsz/golangsdk v0.0.0-20250114114204-a56a2c74f332
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.24.0
 	github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.112
-	github.com/huaweicloud/terraform-provider-huaweicloud v1.71.0
+	github.com/huaweicloud/terraform-provider-huaweicloud v1.72.1
 	github.com/tidwall/gjson v1.17.1
 )
 

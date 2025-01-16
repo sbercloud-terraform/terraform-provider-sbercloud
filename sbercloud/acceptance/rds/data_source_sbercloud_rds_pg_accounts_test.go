@@ -65,7 +65,7 @@ resource "sbercloud_rds_instance" "test" {
 resource "sbercloud_rds_pg_account" "test" {
   instance_id = sbercloud_rds_instance.test.id
   name        = "%[2]s"
-  password    = "Test@12345678"
+  password    = "TestPass1!23!4"
   description = "test_description"
 }
 `, testAccRdsInstance_base(name), name)

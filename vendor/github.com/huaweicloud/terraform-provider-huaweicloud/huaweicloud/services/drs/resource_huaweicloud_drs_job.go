@@ -432,6 +432,12 @@ func ResourceDrsJob() *schema.Resource {
 					},
 				},
 			},
+			"is_open_fast_clean": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
 			"order_id": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -477,6 +483,10 @@ func ResourceDrsJob() *schema.Resource {
 				Computed: true,
 			},
 			"security_group_id": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"original_job_direction": {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
@@ -1011,6 +1021,8 @@ func resourceJobRead(_ context.Context, d *schema.ResourceData, meta interface{}
 		d.Set("security_group_id", detail.SecurityGroupId),
 		setDbInfoToState(d, detail.SourceEndpoint, "source_db"),
 		setDbInfoToState(d, detail.TargetEndpoint, "destination_db"),
+		d.Set("is_open_fast_clean", detail.IsOpenFastClean),
+		d.Set("original_job_direction", detail.OriginalJobDirection),
 	)
 
 	// set objects
@@ -1623,6 +1635,7 @@ func buildCreateParamter(d *schema.ResourceData, projectId, enterpriseProjectID 
 		MasterAz:         d.Get("master_az").(string),
 		SlaveAz:          d.Get("slave_az").(string),
 		PublciIpList:     buildPublicIpListParam(d.Get("public_ip_list").([]interface{})),
+		IsOpenFastClean:  d.Get("is_open_fast_clean").(bool),
 	}
 
 	if chargingMode, ok := d.GetOk("charging_mode"); ok && chargingMode.(string) == "prePaid" {
@@ -1730,7 +1743,7 @@ func setDbInfoToState(d *schema.ResourceData, endpoint jobs.Endpoint, fieldName 
 		"password":              endpoint.DbPassword,
 		"user":                  endpoint.DbUser,
 		"instance_id":           endpoint.InstanceId,
-		"name":                  endpoint.InstanceName,
+		"name":                  endpoint.DbName,
 		"region":                endpoint.Region,
 		"vpc_id":                endpoint.VpcId,
 		"subnet_id":             endpoint.SubnetId,
@@ -1790,6 +1803,7 @@ func testConnections(client *golangsdk.ServiceClient, jobId string, opts jobs.Cr
 				VpcId:               opts.SourceEndpoint.VpcId,
 				SubnetId:            opts.SourceEndpoint.SubnetId,
 				DbType:              opts.SourceEndpoint.DbType,
+				DbName:              opts.SourceEndpoint.DbName,
 				Ip:                  opts.SourceEndpoint.Ip,
 				DbUser:              opts.SourceEndpoint.DbUser,
 				DbPassword:          opts.SourceEndpoint.DbPassword,
@@ -1811,6 +1825,7 @@ func testConnections(client *golangsdk.ServiceClient, jobId string, opts jobs.Cr
 				VpcId:               opts.TargetEndpoint.VpcId,
 				SubnetId:            opts.TargetEndpoint.SubnetId,
 				DbType:              opts.TargetEndpoint.DbType,
+				DbName:              opts.TargetEndpoint.DbName,
 				Ip:                  opts.TargetEndpoint.Ip,
 				DbUser:              opts.TargetEndpoint.DbUser,
 				DbPassword:          opts.TargetEndpoint.DbPassword,
@@ -1845,6 +1860,7 @@ func processIpAndPort(ip, port string) string {
 func testConnectionsForDualAZ(client *golangsdk.ServiceClient, jobId string, opts jobs.CreateJobReq) (valid bool) {
 	sourceEndpoint := []jobs.PropertyParam{
 		{
+			DbName:              opts.SourceEndpoint.DbName,
 			DbType:              opts.SourceEndpoint.DbType,
 			NetType:             opts.NetType,
 			EndPointType:        "so",
@@ -1865,6 +1881,7 @@ func testConnectionsForDualAZ(client *golangsdk.ServiceClient, jobId string, opt
 	}
 	targetEndpoint := []jobs.PropertyParam{
 		{
+			DbName:              opts.TargetEndpoint.DbName,
 			DbType:              opts.TargetEndpoint.DbType,
 			NetType:             opts.NetType,
 			EndPointType:        "ta",
