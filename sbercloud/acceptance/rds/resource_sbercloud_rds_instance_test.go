@@ -379,3 +379,365 @@ resource "sbercloud_rds_instance" "test" {
 }
 `, testAccRdsInstanceV3_base(name), name)
 }
+
+// if the instance flavor has been changed, then a temp instance will be kept for 12 hours,
+// the binding relationship between instance and security group or subnet cannot be unbound
+// when deleting the instance in this period time, so we cannot create a new vpc, subnet and
+// security group in the test case, otherwise, they cannot be deleted when destroy the resource
+func testAccRdsInstance_mysql_step1(name string) string {
+	return fmt.Sprintf(`
+%[1]s
+
+data "sbercloud_rds_flavors" "test" {
+  db_type       = "MySQL"
+  db_version    = "8.0"
+  instance_mode = "single"
+  group_type    = "dedicated"
+  vcpus         = 8
+}
+
+resource "sbercloud_rds_instance" "test" {
+  name                   = "%[2]s"
+  flavor                 = data.sbercloud_rds_flavors.test.flavors[0].name
+  security_group_id      = sbercloud_networking_secgroup.test.id
+  subnet_id              = data.sbercloud_vpc_subnet.test.id
+  vpc_id                 = data.sbercloud_vpc.test.id
+  availability_zone      = slice(sort(data.sbercloud_rds_flavors.test.flavors[0].availability_zones), 0, 1)
+  ssl_enable             = true  
+  binlog_retention_hours = "12"
+  read_write_permissions = "readonly"
+
+  # seconds_level_monitoring_enabled  = false
+  # seconds_level_monitoring_interval = 1
+
+  db {
+    type     = "MySQL"
+    version  = "8.0"
+    port     = 3306
+  }
+
+  backup_strategy {
+    start_time = "08:15-09:15"
+    keep_days  = 3
+    period     = 1
+  }
+
+  volume {
+    type              = "CLOUDSSD"
+    size              = 40
+    limit_size        = 0
+    trigger_threshold = 15
+  }
+
+  parameters {
+    name  = "back_log"
+    value = "2000"
+  }
+}
+`, testAccRdsInstance_base(name), name)
+}
+
+func testAccRdsInstance_mysql_step2(name string) string {
+	return fmt.Sprintf(`
+%[1]s
+
+%[2]s
+
+data "sbercloud_rds_flavors" "test" {
+  db_type       = "MySQL"
+  db_version    = "8.0"
+  instance_mode = "single"
+  group_type    = "dedicated"
+  vcpus         = 4
+}
+
+resource "sbercloud_rds_instance" "test" {
+  name                   = "%[3]s"
+  flavor                 = data.sbercloud_rds_flavors.test.flavors[1].name
+  security_group_id      = sbercloud_networking_secgroup.test.id
+  subnet_id              = data.sbercloud_vpc_subnet.test.id
+  vpc_id                 = data.sbercloud_vpc.test.id
+  availability_zone      = slice(sort(data.sbercloud_rds_flavors.test.flavors[0].availability_zones), 0, 1)
+  ssl_enable             = false
+  param_group_id         = sbercloud_rds_parametergroup.pg_1.id
+  binlog_retention_hours = "0"
+  read_write_permissions = "readwrite"
+
+  seconds_level_monitoring_enabled  = true
+  seconds_level_monitoring_interval = 5
+
+  db {
+    password = "Huangwei!120521"
+    type     = "MySQL"
+    version  = "8.0"
+    port     = 3308
+  }
+
+  backup_strategy {
+    start_time = "18:15-19:15"
+    keep_days  = 5
+    period     = 3
+  }
+
+  volume {
+    type              = "CLOUDSSD"
+    size              = 40
+    limit_size        = 500
+    trigger_threshold = 20
+  }
+
+  parameters {
+    name  = "connect_timeout"
+    value = "14"
+  }
+}
+`, testAccRdsInstance_base(name), testAccRdsConfig_basic(name), name)
+}
+
+func testAccRdsInstance_sqlserver(name string) string {
+	return fmt.Sprintf(`
+%[1]s
+
+resource "sbercloud_networking_secgroup_rule" "ingress" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  ports             = 8634
+  protocol          = "tcp"
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = sbercloud_networking_secgroup.test.id
+}
+
+data "sbercloud_rds_flavors" "test" {
+  db_type       = "SQLServer"
+  db_version    = "2017_SE"
+  instance_mode = "single"
+  # group_type    = "dedicated"
+  vcpus         = 4
+}
+
+resource "sbercloud_rds_instance" "test" {
+  depends_on        = [sbercloud_networking_secgroup_rule.ingress]
+  name              = "%[2]s"
+  flavor            = data.sbercloud_rds_flavors.test.flavors[0].name
+  security_group_id = sbercloud_networking_secgroup.test.id
+  subnet_id         = data.sbercloud_vpc_subnet.test.id
+  vpc_id            = data.sbercloud_vpc.test.id
+  collation         = "Chinese_PRC_CI_AS"
+  # tde_enabled       = true
+
+  availability_zone = [
+    data.sbercloud_availability_zones.test.names[0],
+  ]
+
+  db {
+    password = "Huangwei!120521"
+    type     = "SQLServer"
+    version  = "2017_SE"
+    port     = 8634
+  }
+
+  volume {
+    type = "ULTRAHIGH"
+    size = 40
+  }
+}
+`, testAccRdsInstance_base(name), name)
+}
+
+func testAccRdsInstance_sqlserver_update(name string) string {
+	return fmt.Sprintf(`
+%[1]s
+
+resource "sbercloud_networking_secgroup_rule" "ingress" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  ports             = 8634
+  protocol          = "tcp"
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = sbercloud_networking_secgroup.test.id
+}
+
+data "sbercloud_rds_flavors" "test" {
+  db_type       = "SQLServer"
+  db_version    = "2017_SE"
+  instance_mode = "single"
+  group_type    = "dedicated"
+  vcpus         = 4
+}
+
+resource "sbercloud_rds_instance" "test" {
+  depends_on        = [sbercloud_networking_secgroup_rule.ingress]
+  name              = "%[2]s"
+  flavor            = data.sbercloud_rds_flavors.test.flavors[0].name
+  security_group_id = sbercloud_networking_secgroup.test.id
+  subnet_id         = data.sbercloud_vpc_subnet.test.id
+  vpc_id            = data.sbercloud_vpc.test.id
+  collation         = "Chinese_PRC_CI_AI"
+
+  availability_zone = [
+    data.sbercloud_availability_zones.test.names[0],
+  ]
+
+  db {
+    password = "Huangwei!120521"
+    type     = "SQLServer"
+    version  = "2017_SE"
+    port     = 8634
+  }
+
+  volume {
+    type = "ULTRAHIGH"
+    size = 40
+  }
+}
+`, testAccRdsInstance_base(name), name)
+}
+
+func testAccRdsInstance_sqlserver_msdtcHosts_base(name string) string {
+	return fmt.Sprintf(`
+%[1]s
+
+resource "sbercloud_networking_secgroup_rule" "ingress" {
+  direction         = "ingress"
+  ethertype         = "IPv4"
+  ports             = 8634
+  protocol          = "tcp"
+  remote_ip_prefix  = "0.0.0.0/0"
+  security_group_id = sbercloud_networking_secgroup.test.id
+}
+
+data "sbercloud_rds_flavors" "test" {
+  db_type       = "SQLServer"
+  db_version    = "2019_SE"
+  instance_mode = "single"
+  group_type    = "dedicated"
+  vcpus         = 4
+}
+
+data "sbercloud_compute_flavors" "test" {
+  availability_zone = data.sbercloud_availability_zones.test.names[0]
+  performance_type  = "normal"
+  cpu_core_count    = 2
+  memory_size       = 4
+}
+
+data "sbercloud_images_image" "test" {
+  name        = "Ubuntu 18.04 server 64bit"
+  most_recent = true
+}
+`, testAccRdsInstance_base(name), name)
+}
+
+func testAccRdsInstance_sqlserver_msdtcHosts(name string) string {
+	return fmt.Sprintf(`
+%[1]s
+
+resource "sbercloud_compute_instance" "ecs_1" {
+  name               = "%[2]s_ecs_1"
+  image_id           = data.sbercloud_images_image.test.id
+  flavor_id          = data.sbercloud_compute_flavors.test.ids[0]
+  security_group_ids = [sbercloud_networking_secgroup.test.id]
+  availability_zone  = data.sbercloud_availability_zones.test.names[0]
+
+  network {
+    uuid = data.sbercloud_vpc_subnet.test.id
+  }
+}
+
+resource "sbercloud_rds_instance" "test" {
+  depends_on        = [sbercloud_networking_secgroup_rule.ingress]
+  name              = "%[2]s"
+  flavor            = data.sbercloud_rds_flavors.test.flavors[0].name
+  security_group_id = sbercloud_networking_secgroup.test.id
+  subnet_id         = data.sbercloud_vpc_subnet.test.id
+  vpc_id            = data.sbercloud_vpc.test.id
+  collation         = "Chinese_PRC_CI_AS"
+
+  availability_zone = [
+    data.sbercloud_availability_zones.test.names[0],
+  ]
+
+  db {
+    password = "Huangwei!120521"
+    type     = "SQLServer"
+    version  = "2019_SE"
+    port     = 8634
+  }
+
+  volume {
+    type = "CLOUDSSD"
+    size = 40
+  }
+
+  msdtc_hosts {
+    ip        = sbercloud_compute_instance.ecs_1.access_ip_v4
+    host_name = "msdtc-host-name-1"
+  }
+}
+`, testAccRdsInstance_sqlserver_msdtcHosts_base(name), name)
+}
+
+func testAccRdsInstance_sqlserver_msdtcHosts_update(name string) string {
+	return fmt.Sprintf(`
+%[1]s
+
+resource "sbercloud_compute_instance" "ecs_1" {
+  name               = "%[2]s_ecs_1"
+  image_id           = data.sbercloud_images_image.test.id
+  flavor_id          = data.sbercloud_compute_flavors.test.ids[0]
+  security_group_ids = [sbercloud_networking_secgroup.test.id]
+  availability_zone  = data.sbercloud_availability_zones.test.names[0]
+
+  network {
+    uuid = data.sbercloud_vpc_subnet.test.id
+  }
+}
+
+resource "sbercloud_compute_instance" "ecs_2" {
+  name               = "%[2]s_ecs_2"
+  image_id           = data.sbercloud_images_image.test.id
+  flavor_id          = data.sbercloud_compute_flavors.test.ids[0]
+  security_group_ids = [sbercloud_networking_secgroup.test.id]
+  availability_zone  = data.sbercloud_availability_zones.test.names[0]
+
+  network {
+    uuid = data.sbercloud_vpc_subnet.test.id
+  }
+}
+
+resource "sbercloud_rds_instance" "test" {
+  depends_on        = [sbercloud_networking_secgroup_rule.ingress]
+  name              = "%[2]s"
+  flavor            = data.sbercloud_rds_flavors.test.flavors[0].name
+  security_group_id = sbercloud_networking_secgroup.test.id
+  subnet_id         = data.sbercloud_vpc_subnet.test.id
+  vpc_id            = data.sbercloud_vpc.test.id
+  collation         = "Chinese_PRC_CI_AS"
+
+  availability_zone = [
+    data.sbercloud_availability_zones.test.names[0],
+  ]
+
+  db {
+    password = "Huangwei!120521"
+    type     = "SQLServer"
+    version  = "2019_SE"
+    port     = 8634
+  }
+
+  volume {
+    type = "CLOUDSSD"
+    size = 40
+  }
+
+  msdtc_hosts {
+    ip        = sbercloud_compute_instance.ecs_1.access_ip_v4
+    host_name = "msdtc-host-name-1"
+  }
+  msdtc_hosts {
+    ip        = sbercloud_compute_instance.ecs_2.access_ip_v4
+    host_name = "msdtc-host-name-2"
+  }
+}
+`, testAccRdsInstance_sqlserver_msdtcHosts_base(name), name)
+}

@@ -347,6 +347,86 @@ func ResourceDmsKafkaInstance() *schema.Resource {
 				Type:     schema.TypeBool,
 				Computed: true,
 			},
+			"port_protocols": {
+				Type:     schema.TypeList,
+				Computed: true,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"private_plain_enable": {
+							Type:     schema.TypeBool,
+							Computed: true,
+						},
+						"private_plain_address": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"private_plain_domain_name": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"private_sasl_ssl_enable": {
+							Type:     schema.TypeBool,
+							Computed: true,
+						},
+						"private_sasl_ssl_address": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"private_sasl_ssl_domain_name": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"private_sasl_plaintext_enable": {
+							Type:     schema.TypeBool,
+							Computed: true,
+						},
+						"private_sasl_plaintext_address": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"private_sasl_plaintext_domain_name": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"public_plain_enable": {
+							Type:     schema.TypeBool,
+							Computed: true,
+						},
+						"public_plain_address": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"public_plain_domain_name": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"public_sasl_ssl_enable": {
+							Type:     schema.TypeBool,
+							Computed: true,
+						},
+						"public_sasl_ssl_address": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"public_sasl_ssl_domain_name": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"public_sasl_plaintext_enable": {
+							Type:     schema.TypeBool,
+							Computed: true,
+						},
+						"public_sasl_plaintext_address": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"public_sasl_plaintext_domain_name": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+					},
+				},
+			},
 			"manager_user": {
 				Type:       schema.TypeString,
 				Optional:   true,
@@ -1074,6 +1154,7 @@ func resourceDmsKafkaInstanceRead(ctx context.Context, d *schema.ResourceData, m
 		d.Set("pod_connect_address", v.PodConnectAddress),
 		d.Set("public_bandwidth", v.PublicBandWidth),
 		d.Set("ssl_two_way_enable", v.SslTwoWayEnable),
+		d.Set("port_protocols", flattenKafkaSecurityConfig(v.PortProtocols)),
 	)
 
 	// set tags
@@ -1142,6 +1223,31 @@ func setKafkaInstanceParameters(ctx context.Context, d *schema.ResourceData, cli
 		}
 	}
 	return nil
+}
+
+func flattenKafkaSecurityConfig(kafkaSecurityConfig instances.PortProtocols) interface{} {
+	return []map[string]interface{}{
+		{
+			"private_plain_enable":               kafkaSecurityConfig.PrivatePlainEnable,
+			"private_plain_address":              kafkaSecurityConfig.PrivatePlainAddress,
+			"private_plain_domain_name":          kafkaSecurityConfig.PrivatePlainDomainName,
+			"private_sasl_ssl_enable":            kafkaSecurityConfig.PrivateSaslSslEnable,
+			"private_sasl_ssl_address":           kafkaSecurityConfig.PrivateSaslSslAddress,
+			"private_sasl_ssl_domain_name":       kafkaSecurityConfig.PrivateSaslSslDomainName,
+			"private_sasl_plaintext_enable":      kafkaSecurityConfig.PrivateSaslPlaintextEnable,
+			"private_sasl_plaintext_address":     kafkaSecurityConfig.PrivateSaslPlaintextAddress,
+			"private_sasl_plaintext_domain_name": kafkaSecurityConfig.PrivateSaslPlaintextDomainName,
+			"public_plain_enable":                kafkaSecurityConfig.PublicPlainEnable,
+			"public_plain_address":               kafkaSecurityConfig.PublicPlainAddress,
+			"public_plain_domain_name":           kafkaSecurityConfig.PublicPlainDomainName,
+			"public_sasl_ssl_enable":             kafkaSecurityConfig.PublicSaslSslEnable,
+			"public_sasl_ssl_address":            kafkaSecurityConfig.PublicSaslSslAddress,
+			"public_sasl_ssl_domain_name":        kafkaSecurityConfig.PublicSaslSslDomainName,
+			"public_sasl_plaintext_enable":       kafkaSecurityConfig.PublicSaslPlaintextEnable,
+			"public_sasl_plaintext_address":      kafkaSecurityConfig.PublicSaslPlaintextAddress,
+			"public_sasl_plaintext_domain_name":  kafkaSecurityConfig.PublicSaslPlaintextDomainName,
+		},
+	}
 }
 
 func resourceDmsKafkaInstanceUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -1672,11 +1778,11 @@ func filterTaskRefreshFunc(client *golangsdk.ServiceClient, instanceID string, t
 		getTasksPathOpt := golangsdk.RequestOpts{
 			KeepResponseBody: true,
 		}
-		getAutoTopicTaskPathResp, err := client.Request("GET", getTasksPath, &getTasksPathOpt)
+		getTasksPathResp, err := client.Request("GET", getTasksPath, &getTasksPathOpt)
 		if err != nil {
 			return nil, "QUERY ERROR", err
 		}
-		getTasksRespBody, err := utils.FlattenResponse(getAutoTopicTaskPathResp)
+		getTasksRespBody, err := utils.FlattenResponse(getTasksPathResp)
 		if err != nil {
 			return nil, "PARSE ERROR", err
 		}
@@ -1762,7 +1868,6 @@ func modifyParameters(ctx context.Context, client *golangsdk.ServiceClient, time
 
 func restartKafkaInstance(ctx context.Context, timeout time.Duration, client *golangsdk.ServiceClient,
 	instanceID string) error {
-	// If static parameter is changed, reboot the instance.
 	restartInstanceOpts := instances.RestartInstanceOpts{
 		Action:    "restart",
 		Instances: []string{instanceID},
@@ -1788,6 +1893,7 @@ func restartKafkaInstance(ctx context.Context, timeout time.Duration, client *go
 
 	// wait for the instance state to be 'RUNNING'.
 	stateConf := &resource.StateChangeConf{
+		Pending:      []string{"RESTARTING"},
 		Target:       []string{"RUNNING"},
 		Refresh:      KafkaInstanceStateRefreshFunc(client, instanceID),
 		Timeout:      timeout,
@@ -1842,7 +1948,7 @@ func kafkaInstanceTaskStatusRefreshFunc(client *golangsdk.ServiceClient, instanc
 			return nil, "QUERY ERROR", err
 		}
 		if len(taskResp.Tasks) == 0 {
-			return nil, "NIL ERROR", fmt.Errorf("failed to find updating parameters task(%s)", taskID)
+			return nil, "NIL ERROR", fmt.Errorf("failed to find task(%s)", taskID)
 		}
 		return taskResp.Tasks[0], taskResp.Tasks[0].Status, nil
 	}

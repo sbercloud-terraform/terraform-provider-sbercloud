@@ -163,14 +163,14 @@ func testPgAccount_basic(name string) string {
 resource "sbercloud_rds_pg_account" "member" {
   instance_id = sbercloud_rds_instance.test.id
   name        = "%[2]s_member"
-  password    = "Test@123456789"
+  password    = "TestPass1!23!49"
 }
 
 resource "sbercloud_rds_pg_account" "test" {
   depends_on  = [sbercloud_rds_pg_account.member]
   instance_id = sbercloud_rds_instance.test.id
   name        = "%[2]s"
-  password    = "Test@12345678"
+  password    = "TestPass1!23!4"
   description = "test_description"
   memberof    = [sbercloud_rds_pg_account.member.name]
 }
@@ -184,20 +184,20 @@ func testPgAccount_update(name string) string {
 resource "sbercloud_rds_pg_account" "member" {
   instance_id = sbercloud_rds_instance.test.id
   name        = "%[2]s_member"
-  password    = "Test@123456789"
+  password    = "TestPass1!23!49"
 }
 
 resource "sbercloud_rds_pg_account" "member_update" {
   instance_id = sbercloud_rds_instance.test.id
   name        = "%[2]s_member_update"
-  password    = "Test@123456789"
+  password    = "TestPass1!23!49"
 }
 
 resource "sbercloud_rds_pg_account" "test" {
   depends_on  = [sbercloud_rds_pg_account.member_update]
   instance_id = sbercloud_rds_instance.test.id
   name        = "%[2]s"
-  password    = "Test@123456789"
+  password    = "TestPass1!23!49"
   description = "test_description_update"
   memberof    = [sbercloud_rds_pg_account.member_update.name]
 }

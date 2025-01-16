@@ -21,8 +21,8 @@ github.com/bufbuild/protocompile v0.4.0 h1:LbFKd2XowZvQ/kajzguUp2DC9UEIQhIq77fZZ
 github.com/bufbuild/protocompile v0.4.0/go.mod h1:3v93+mbWn/v3xzN+31nwkJfrEpAUwp+BagBSZWx+TP8=
 github.com/bwesterb/go-ristretto v1.2.3/go.mod h1:fUIoIZaG73pV5biE2Blr2xEzDoMj7NFEuV9ekS419A0=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
-github.com/chnsz/golangsdk v0.0.0-20241129015404-d9f9240236d7 h1:t2Q5xKqtaIdDiiOECVOnOD9Wdb1Ye0AeItrucuNZMZ4=
-github.com/chnsz/golangsdk v0.0.0-20241129015404-d9f9240236d7/go.mod h1:Erm4hDWxXgAdbkG3+hhJFgRzEL1TvvcroWzw2Gax4uI=
+github.com/chnsz/golangsdk v0.0.0-20250114114204-a56a2c74f332 h1:Ot5Nx+RRIq6B8bdsreletGCSBom2D3tOJSeEZ4x83a8=
+github.com/chnsz/golangsdk v0.0.0-20250114114204-a56a2c74f332/go.mod h1:Erm4hDWxXgAdbkG3+hhJFgRzEL1TvvcroWzw2Gax4uI=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/cloudflare/circl v1.3.3/go.mod h1:5XYMA4rFBvNIrhs50XuiBJ15vF2pZn4nnUKZrLbUZFA=
 github.com/cloudflare/circl v1.3.7 h1:qlCDlTPz2n9fu58M0Nh1J/JzcFpfgkFHHX3O35r5vcU=
@@ -125,8 +125,8 @@ github.com/hashicorp/yamux v0.1.1 h1:yrQxtgseBDrq9Y652vSRDvsKCJKOUD+GzTS4Y0Y8pvE
 github.com/hashicorp/yamux v0.1.1/go.mod h1:CtWFDAQgb7dxtzFs4tWbplKIe2jSi3+5vKbgIO0SLnQ=
 github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.112 h1:kIZQl+PjLn/AZLzqMaHnD1C3HdCCum0mMrlMFaOmB5U=
 github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.112/go.mod h1:JWz2ujO9X3oU5wb6kXp+DpR2UuDj2SldDbX8T0FSuhI=
-github.com/huaweicloud/terraform-provider-huaweicloud v1.71.0 h1:p23i73Mx220Od4e++y0FQr/6000W7W1ySDgXay99mSI=
-github.com/huaweicloud/terraform-provider-huaweicloud v1.71.0/go.mod h1:DjEOmJi0eeTARFawQswuGUaU+O+Zwfj5H6eja76wPG0=
+github.com/huaweicloud/terraform-provider-huaweicloud v1.72.1 h1:XpPQv9dvtl05Vqh8edSTKP8gqj7i+C88w23iLB4n0eg=
+github.com/huaweicloud/terraform-provider-huaweicloud v1.72.1/go.mod h1:rRCYJs//D0gQODXvRp7VqUsYr6wynRh4+IoasDxR1iE=
 github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 h1:BQSFePA1RWJOlocH6Fxy8MmwDt+yVQYULKfN0RoTN8A=
 github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99/go.mod h1:1lJo3i6rXxKeerYnT8Nvf0QmHCRC1n8sfWVwXF2Frvo=
 github.com/jen20/awspolicyequivalence v1.1.0 h1:cn37D6o0lXLwqx2neCokGfaB3LLNSo5CrLMLGjY609g=

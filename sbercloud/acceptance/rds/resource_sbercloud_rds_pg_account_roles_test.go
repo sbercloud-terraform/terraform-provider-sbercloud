@@ -158,7 +158,7 @@ resource "sbercloud_rds_pg_account" "test" {
 
   instance_id = sbercloud_rds_instance.test.id
   name        = "%[2]s_${count.index}"
-  password    = "Test@12345678"
+  password    = "TestPass1!23!4"
 }
 `, acceptance.TestBaseNetwork(name), name)
 }
