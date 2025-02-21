@@ -54,6 +54,7 @@ import (
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/css"
 	dli_sbercloud "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dli"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/drs"
+	vpc2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/vpc"
 )
 
 // This is a global MutexKV for use within this plugin.
@@ -533,7 +534,7 @@ func Provider() *schema.Provider {
 			"sbercloud_vpc_peering_connection_accepter": vpc.ResourceVpcPeeringConnectionAccepterV2(),
 			"sbercloud_vpc_route":                       vpc.ResourceVPCRouteTableRoute(),
 			"sbercloud_vpc_route_table":                 vpc.ResourceVPCRouteTable(),
-			"sbercloud_vpc_subnet":                      vpc.ResourceVpcSubnetV1(),
+			"sbercloud_vpc_subnet":                      vpc2.ResourceVpcSubnetV1(),
 			"sbercloud_vpc_address_group":               vpc.ResourceVpcAddressGroup(),
 			"sbercloud_vpcep_endpoint":                  vpcep.ResourceVPCEndpoint(),
 			"sbercloud_vpcep_service":                   vpcep.ResourceVPCEndpointService(),
