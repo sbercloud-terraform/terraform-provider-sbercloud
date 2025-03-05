@@ -83,6 +83,10 @@ var (
 	SBC_APIG_DEDICATED_INSTANCE_ID             = os.Getenv("SBC_APIG_DEDICATED_INSTANCE_ID")
 	SBC_APIG_DEDICATED_INSTANCE_USED_SUBNET_ID = os.Getenv("SBC_APIG_DEDICATED_INSTANCE_USED_SUBNET_ID")
 	SBC_FGS_AGENCY_NAME                        = os.Getenv("SBC_FGS_AGENCY_NAME")
+
+	SBC_KPS_KEY_FILE_PATH = os.Getenv("SBC_KPS_KEY_FILE_PATH")
+	SBC_USER_ID           = os.Getenv("SBC_USER_ID")
+	SBC_DEW_ENABLE_FLAG   = os.Getenv("SBC_DEW_ENABLE_FLAG")
 )
 
 // TestAccProviderFactories is a static map containing only the main provider instance
@@ -560,6 +564,29 @@ func TestAccPreCheckCertificateFull(t *testing.T) {
 	TestAccPreCheckCertificateWithoutRootCA(t)
 	if SBC_CERTIFICATE_ROOT_CA == "" || SBC_NEW_CERTIFICATE_ROOT_CA == "" {
 		t.Skip("SBC_CERTIFICATE_ROOT_CA and SBC_NEW_CERTIFICATE_ROOT_CA must be set for root CA validation")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckUserId(t *testing.T) {
+	if SBC_USER_ID == "" {
+		t.Skip("The environment variables does not support the user ID (SBC_USER_ID) for acc tests")
+	}
+}
+
+// lintignore:AT003
+func TestAccPrecheckDewFlag(t *testing.T) {
+	// The key pair operation task, such as key pair bind or unbind task
+	// Query the task execution status(running or failed)
+	if SBC_DEW_ENABLE_FLAG == "" {
+		t.Skip("SBC_DEW_ENABLE_FLAG must be set for the acceptance test")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckKPSKeyFilePath(t *testing.T) {
+	if SBC_KPS_KEY_FILE_PATH == "" {
+		t.Skip("SBC_KPS_KEY_FILE_PATH must be set for the acceptance test")
 	}
 }
 

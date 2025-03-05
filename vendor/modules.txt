@@ -33,7 +33,7 @@ github.com/apparentlymart/go-cidr/cidr
 # github.com/apparentlymart/go-textseg/v15 v15.0.0
 ## explicit; go 1.16
 github.com/apparentlymart/go-textseg/v15/textseg
-# github.com/chnsz/golangsdk v0.0.0-20250114114204-a56a2c74f332
+# github.com/chnsz/golangsdk v0.0.0-20250225032204-25154fdef892
 ## explicit; go 1.14
 github.com/chnsz/golangsdk
 github.com/chnsz/golangsdk/auth
@@ -212,12 +212,8 @@ github.com/chnsz/golangsdk/openstack/evs/v2/cloudvolumes
 github.com/chnsz/golangsdk/openstack/evs/v2/snapshots
 github.com/chnsz/golangsdk/openstack/evs/v3/volumes
 github.com/chnsz/golangsdk/openstack/evs/v5/cloudvolumes
-github.com/chnsz/golangsdk/openstack/fgs/v2/aliases
-github.com/chnsz/golangsdk/openstack/fgs/v2/application
-github.com/chnsz/golangsdk/openstack/fgs/v2/dependencies
 github.com/chnsz/golangsdk/openstack/fgs/v2/function
 github.com/chnsz/golangsdk/openstack/fgs/v2/trigger
-github.com/chnsz/golangsdk/openstack/fgs/v2/versions
 github.com/chnsz/golangsdk/openstack/geminidb/v3/backups
 github.com/chnsz/golangsdk/openstack/geminidb/v3/configurations
 github.com/chnsz/golangsdk/openstack/geminidb/v3/flavors
@@ -396,7 +392,6 @@ github.com/chnsz/golangsdk/openstack/waf_hw/v1/whiteblackip_rules
 github.com/chnsz/golangsdk/openstack/workspace/v2/accesspolicies
 github.com/chnsz/golangsdk/openstack/workspace/v2/desktops
 github.com/chnsz/golangsdk/openstack/workspace/v2/groups
-github.com/chnsz/golangsdk/openstack/workspace/v2/jobs
 github.com/chnsz/golangsdk/openstack/workspace/v2/policygroups
 github.com/chnsz/golangsdk/openstack/workspace/v2/services
 github.com/chnsz/golangsdk/openstack/workspace/v2/terminals
@@ -627,7 +622,7 @@ github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vod/v1
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vod/v1/model
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vpc/v3
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vpc/v3/model
-# github.com/huaweicloud/terraform-provider-huaweicloud v1.72.1
+# github.com/huaweicloud/terraform-provider-huaweicloud v1.73.0
 ## explicit; go 1.18
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common
@@ -845,8 +840,8 @@ github.com/zclconf/go-cty/cty/function/stdlib
 github.com/zclconf/go-cty/cty/gocty
 github.com/zclconf/go-cty/cty/json
 github.com/zclconf/go-cty/cty/set
-# go.mongodb.org/mongo-driver v1.13.1
-## explicit; go 1.13
+# go.mongodb.org/mongo-driver v1.17.2
+## explicit; go 1.18
 go.mongodb.org/mongo-driver/bson
 go.mongodb.org/mongo-driver/bson/bsoncodec
 go.mongodb.org/mongo-driver/bson/bsonoptions
@@ -854,15 +849,14 @@ go.mongodb.org/mongo-driver/bson/bsonrw
 go.mongodb.org/mongo-driver/bson/bsontype
 go.mongodb.org/mongo-driver/bson/primitive
 go.mongodb.org/mongo-driver/x/bsonx/bsoncore
-# golang.org/x/crypto v0.23.0
-## explicit; go 1.18
+# golang.org/x/crypto v0.26.0
+## explicit; go 1.20
 golang.org/x/crypto/argon2
 golang.org/x/crypto/blake2b
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/cast5
 golang.org/x/crypto/chacha20
 golang.org/x/crypto/curve25519
-golang.org/x/crypto/curve25519/internal/field
 golang.org/x/crypto/hkdf
 golang.org/x/crypto/internal/alias
 golang.org/x/crypto/internal/poly1305
@@ -875,7 +869,7 @@ golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/modfile
 golang.org/x/mod/module
 golang.org/x/mod/semver
-# golang.org/x/net v0.23.0
+# golang.org/x/net v0.25.0
 ## explicit; go 1.18
 golang.org/x/net/http/httpguts
 golang.org/x/net/http/httpproxy
@@ -889,14 +883,12 @@ golang.org/x/net/trace
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.15.0
+# golang.org/x/text v0.17.0
 ## explicit; go 1.18
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.14.0
-## explicit; go 1.18
 # google.golang.org/appengine v1.6.8
 ## explicit; go 1.11
 google.golang.org/appengine
