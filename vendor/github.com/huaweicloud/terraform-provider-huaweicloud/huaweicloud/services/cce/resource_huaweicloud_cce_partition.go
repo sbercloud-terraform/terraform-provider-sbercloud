@@ -42,29 +42,33 @@ func ResourcePartition() *schema.Resource {
 			},
 			"cluster_id": {
 				Type:     schema.TypeString,
-				Required: true,
+				Optional: true,
 				ForceNew: true,
 			},
-			"availability_zone": {
+			"name": {
 				Type:     schema.TypeString,
-				Required: true,
+				Optional: true,
+				ForceNew: true,
+			},
+			"public_border_group": {
+				Type:     schema.TypeString,
+				Optional: true,
 				ForceNew: true,
 			},
 			"category": {
 				Type:     schema.TypeString,
-				Required: true,
+				Optional: true,
 				ForceNew: true,
 			},
 			"partition_subnet_id": {
 				Type:     schema.TypeString,
-				Required: true,
+				Optional: true,
 				ForceNew: true,
 			},
 			"container_subnet_ids": {
 				Type:     schema.TypeSet,
-				Required: true,
+				Optional: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
-				Set:      schema.HashString,
 			},
 		},
 	}
@@ -113,11 +117,11 @@ func resourcePartitionCreate(ctx context.Context, d *schema.ResourceData, meta i
 		Kind:       "Partition",
 		ApiVersion: "v3",
 		Metadata: partitions.CreateMetaData{
-			Name: d.Get("availability_zone").(string),
+			Name: d.Get("name").(string),
 		},
 		Spec: partitions.Spec{
 			Category:          d.Get("category").(string),
-			PublicBorderGroup: d.Get("availability_zone").(string),
+			PublicBorderGroup: d.Get("public_border_group").(string),
 			HostNetwork:       buildPartitionSubnetID(d),
 			ContainerNetwork:  buildContainerSubnetIDs(d),
 		},
@@ -149,17 +153,11 @@ func resourcePartitionRead(_ context.Context, d *schema.ResourceData, meta inter
 
 	mErr := multierror.Append(nil,
 		d.Set("region", cfg.GetRegion(d)),
-		d.Set("name", s.Metadata.Name),
 		d.Set("category", s.Spec.Category),
-		d.Set("availability_zone", s.Spec.PublicBorderGroup),
+		d.Set("name", s.Metadata.Name),
+		d.Set("public_border_group", s.Spec.PublicBorderGroup),
 		d.Set("partition_subnet_id", s.Spec.HostNetwork.SubnetID),
 	)
-
-	var containerNetworkIDs []string
-	for _, network := range s.Spec.ContainerNetwork {
-		containerNetworkIDs = append(containerNetworkIDs, network.SubnetID)
-	}
-	mErr = multierror.Append(mErr, d.Set("container_subnet_ids", containerNetworkIDs))
 
 	if err = mErr.ErrorOrNil(); err != nil {
 		return diag.Errorf("Error setting CCE Partition fields: %s", err)
@@ -191,19 +189,13 @@ func resourcePartitionUpdate(ctx context.Context, d *schema.ResourceData, meta i
 }
 
 func resourcePartitionDelete(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	cfg := meta.(*config.Config)
-	cceClient, err := cfg.CceV3Client(cfg.GetRegion(d))
-	if err != nil {
-		return diag.Errorf("Error creating CCE client: %s", err)
+	errorMsg := "Deleting partition resource is not supported. The partition resource is only removed from the state."
+	return diag.Diagnostics{
+		diag.Diagnostic{
+			Severity: diag.Warning,
+			Summary:  errorMsg,
+		},
 	}
-
-	clusterid := d.Get("cluster_id").(string)
-	err = partitions.Delete(cceClient, clusterid, d.Id()).ExtractErr()
-	if err != nil {
-		return diag.Errorf("Error deleting CCE partition: %s", err)
-	}
-
-	return nil
 }
 
 func resourcePartitionImport(_ context.Context, d *schema.ResourceData, _ interface{}) ([]*schema.ResourceData, error) {

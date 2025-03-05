@@ -3,6 +3,7 @@ package ecs
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -53,6 +54,7 @@ var (
 // @API ECS GET /v1/{project_id}/cloudservers/{server_id}
 // @API ECS GET /v1/{project_id}/cloudservers/{server_id}/block_device/{volume_id}
 // @API ECS GET /v1/{project_id}/jobs/{job_id}
+// @API ECS POST /v1/{project_id}/cloudservers/{server_id}/changevpc
 // @API IMS GET /v2/cloudimages
 // @API EVS POST /v2.1/{project_id}/cloudvolumes/{volume_id}/action
 // @API EVS GET /v2/{project_id}/cloudvolumes/{volume_id}
@@ -94,11 +96,6 @@ func ResourceComputeInstance() *schema.Resource {
 				Required: true,
 			},
 			"description": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
-			},
-			"hostname": {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
@@ -171,7 +168,6 @@ func ResourceComputeInstance() *schema.Resource {
 						"uuid": {
 							Type:        schema.TypeString,
 							Optional:    true,
-							ForceNew:    true,
 							Computed:    true,
 							Description: "schema: Required",
 						},
@@ -190,7 +186,6 @@ func ResourceComputeInstance() *schema.Resource {
 						"fixed_ip_v4": {
 							Type:     schema.TypeString,
 							Optional: true,
-							ForceNew: true,
 							Computed: true,
 						},
 						"source_dest_check": {
@@ -519,6 +514,14 @@ func ResourceComputeInstance() *schema.Resource {
 					},
 				},
 			},
+			"hostname": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				Description: utils.SchemaDesc("", utils.SchemaDescInput{
+					Computed: true,
+				}),
+			},
 			"system_disk_id": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -741,17 +744,6 @@ func resourceComputeInstanceCreate(ctx context.Context, d *schema.ResourceData, 
 		}
 	}
 
-	// Update the hostname if necessary.
-	if _, ok := d.GetOk("hostname"); ok {
-		if err := updateInstanceHostname(ecsClient, d); err != nil {
-			return diag.FromErr(err)
-		}
-
-		if err = doPowerAction(ecsClient, d, "REBOOT"); err != nil {
-			return diag.Errorf("doing power reboot for instance (%s) failed: %s", d.Id(), err)
-		}
-	}
-
 	// Create an instance in the shutdown state.
 	if action, ok := d.GetOk("power_action"); ok {
 		action := action.(string)
@@ -964,7 +956,7 @@ func resourceComputeInstanceRead(_ context.Context, d *schema.ResourceData, meta
 	}
 
 	// Set instance tags
-	d.Set("tags", flattenTagsToMap(server.Tags))
+	d.Set("tags", flattenTagsToMap(d, server.Tags))
 
 	// Set expired time for prePaid instance
 	if normalizeChargingMode(server.Metadata.ChargingMode) == "prePaid" {
@@ -1276,40 +1268,19 @@ func resourceComputeInstanceUpdate(ctx context.Context, d *schema.ResourceData, 
 			return diag.Errorf("error updating auto-terminate-time of server (%s): %s", serverID, err)
 		}
 	}
-	var diags diag.Diagnostics
-	if d.HasChanges("hostname") {
-		if err := updateInstanceHostname(ecsClient, d); err != nil {
-			return diag.FromErr(err)
+
+	if d.HasChanges("network.0.uuid", "network.0.fixed_ip_v4") {
+		vpcClient, err := cfg.NetworkingV1Client(region)
+		if err != nil {
+			return diag.Errorf("error creating networking client: %s", err)
 		}
-
-		hostnameDiag := diag.Diagnostic{
-			Severity: diag.Warning,
-			Summary:  "Parameters Changed",
-			Detail:   "Parameters hostname changed which needs reboot.",
+		err = updateInstanceNetwork(ctx, d, ecsClient, vpcClient, serverID)
+		if err != nil {
+			return diag.Errorf("error updating network of server (%s): %s", serverID, err)
 		}
-		diags = append(diags, hostnameDiag)
 	}
 
-	readDiags := resourceComputeInstanceRead(ctx, d, meta)
-	diags = append(diags, readDiags...)
-
-	return diags
-}
-
-func updateInstanceHostname(ecsClient *golangsdk.ServiceClient, d *schema.ResourceData) error {
-	serverID := d.Id()
-	hostname := d.Get("hostname").(string)
-	userData := []byte(d.Get("user_data").(string))
-	updateOpts := cloudservers.UpdateOpts{
-		Hostname: hostname,
-		UserData: userData,
-	}
-	err := cloudservers.Update(ecsClient, serverID, updateOpts).ExtractErr()
-	if err != nil {
-		return fmt.Errorf("error updating service (%s) hostname (%s): %s", serverID, hostname, err)
-	}
-
-	return nil
+	return resourceComputeInstanceRead(ctx, d, meta)
 }
 
 func updateInstanceMetaData(d *schema.ResourceData, client *golangsdk.ServiceClient, serverID string) error {
@@ -1350,6 +1321,85 @@ func updateInstanceMetaData(d *schema.ResourceData, client *golangsdk.ServiceCli
 	}
 
 	return nil
+}
+
+func updateInstanceNetwork(ctx context.Context, d *schema.ResourceData, client, vpcClient *golangsdk.ServiceClient, serverID string) error {
+	updateNetworkHttpUrl := "v1/{project_id}/cloudservers/{server_id}/changevpc"
+	updateNetworkPath := client.Endpoint + updateNetworkHttpUrl
+	updateNetworkPath = strings.ReplaceAll(updateNetworkPath, "{project_id}", client.ProjectID)
+	updateNetworkPath = strings.ReplaceAll(updateNetworkPath, "{server_id}", serverID)
+
+	vpcID, err := getVpcID(d, vpcClient)
+	if err != nil {
+		return err
+	}
+
+	updateNetworkOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		JSONBody:         utils.RemoveNil(buildUpdateInstanceNetworkOpts(d, vpcID)),
+	}
+	updateNetworkResp, err := client.Request("POST", updateNetworkPath, &updateNetworkOpt)
+	if err != nil {
+		return fmt.Errorf("error udpating ECS network: %s", err)
+	}
+	updateNetworkRespBody, err := utils.FlattenResponse(updateNetworkResp)
+	if err != nil {
+		return err
+	}
+	jobID := utils.PathSearch("job_id", updateNetworkRespBody, "").(string)
+	if jobID == "" {
+		return errors.New("unable to find the job ID from the API response")
+	}
+
+	// Wait for job status become `SUCCESS`.
+	stateConf := &resource.StateChangeConf{
+		Pending:      []string{"PENDING"},
+		Target:       []string{"SUCCESS"},
+		Refresh:      getJobRefreshFunc(client, jobID),
+		Timeout:      d.Timeout(schema.TimeoutUpdate),
+		Delay:        10 * time.Second,
+		PollInterval: 10 * time.Second,
+	}
+	_, err = stateConf.WaitForStateContext(ctx)
+	if err != nil {
+		return fmt.Errorf("error waiting for ECS network updated: %s", err)
+	}
+
+	return nil
+}
+
+func buildUpdateInstanceNetworkOpts(d *schema.ResourceData, vpcID string) map[string]interface{} {
+	var ipAddress interface{}
+	networks := d.Get("network")
+
+	networkID := utils.PathSearch("[0].uuid", networks, nil)
+	if d.HasChange("network.0.fixed_ip_v4") {
+		ipAddress = utils.PathSearch("[0].fixed_ip_v4", networks, nil)
+	}
+
+	bodyParam := map[string]interface{}{
+		"vpc_id": vpcID,
+		"nic": map[string]interface{}{
+			"subnet_id":       networkID,
+			"ip_address":      utils.ValueIgnoreEmpty(ipAddress),
+			"security_groups": buildUpdateInstanceNetworkSecgroupOpts(d),
+		},
+	}
+
+	return bodyParam
+}
+
+func buildUpdateInstanceNetworkSecgroupOpts(d *schema.ResourceData) []map[string]interface{} {
+	secgroupIDs := d.Get("security_group_ids").(*schema.Set).List()
+	bodyParams := make([]map[string]interface{}, len(secgroupIDs))
+
+	for i, v := range secgroupIDs {
+		bodyParams[i] = map[string]interface{}{
+			"id": v,
+		}
+	}
+
+	return bodyParams
 }
 
 func resourceComputeInstanceDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -1869,15 +1919,30 @@ func shouldUnsubscribeEIP(d *schema.ResourceData) bool {
 	return deleteEIP && eipAddr != "" && eipType != "" && !sharebw
 }
 
-func flattenTagsToMap(tags []string) map[string]string {
+func flattenTagsToMap(d *schema.ResourceData, tags []string) map[string]string {
 	result := make(map[string]string)
 
-	for _, tagStr := range tags {
-		tag := strings.SplitN(tagStr, "=", 2)
-		if len(tag) == 1 {
-			result[tag[0]] = ""
-		} else if len(tag) == 2 {
-			result[tag[0]] = tag[1]
+	tagsRaw := d.Get("tags").(map[string]interface{})
+
+	if len(tagsRaw) != 0 {
+		for _, tagStr := range tags {
+			tag := strings.Split(tagStr, "=")
+			if _, ok := tagsRaw[tag[0]]; ok {
+				if len(tag) == 1 {
+					result[tag[0]] = ""
+				} else if len(tag) == 2 {
+					result[tag[0]] = tag[1]
+				}
+			}
+		}
+	} else {
+		for _, tagStr := range tags {
+			tag := strings.Split(tagStr, "=")
+			if len(tag) == 1 {
+				result[tag[0]] = ""
+			} else if len(tag) == 2 {
+				result[tag[0]] = tag[1]
+			}
 		}
 	}
 
