@@ -65,6 +65,9 @@ func ResourceSearchCriteria() *schema.Resource {
 				Optional: true,
 				ForceNew: true,
 				Computed: true,
+				Description: utils.SchemaDesc("The enterprise project ID.",
+					utils.SchemaDescInput{Internal: true},
+				),
 			},
 		},
 	}
@@ -143,6 +146,8 @@ func resourceSearchCriteriaRead(_ context.Context, d *schema.ResourceData, meta 
 	getSearchCriteriaPath = strings.ReplaceAll(getSearchCriteriaPath, "{project_id}", getSearchCriteriaClient.ProjectID)
 	getSearchCriteriaPath = strings.ReplaceAll(getSearchCriteriaPath, "{group_id}", d.Get("log_group_id").(string))
 	getSearchCriteriaPath = strings.ReplaceAll(getSearchCriteriaPath, "{topic_id}", d.Get("log_stream_id").(string))
+	// If `type` parameter is not specified, the default query is "ORIGINALLOG" type, and the "VISUALIZATION" type cannot be queried.
+	getSearchCriteriaPath = fmt.Sprintf("%s?search_type=%s", getSearchCriteriaPath, d.Get("type").(string))
 
 	getSearchCriteriaOpt := golangsdk.RequestOpts{
 		KeepResponseBody: true,

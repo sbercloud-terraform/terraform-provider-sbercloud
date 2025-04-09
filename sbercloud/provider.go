@@ -6,13 +6,16 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dew"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dns"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ecs"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/kafka"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/lts"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/nat"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/obs"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/rabbitmq"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/sfsturbo"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/swr"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/vpn"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/cbh"
+	deprecated_sbc "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/deprecated"
 	ges_sbercloud "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/ges"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/rds"
 	vpc2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/vpc"
@@ -266,13 +269,15 @@ func Provider() *schema.Provider {
 			"sbercloud_kps_running_tasks": dew.DataSourceDewKpsRunningTasks(),
 			"sbercloud_kps_keypairs":      dew.DataSourceKeypairs(),
 
-			"sbercloud_dms_product":          dms.DataSourceDmsProduct(),
-			"sbercloud_dms_maintainwindow":   dms.DataSourceDmsMaintainWindow(),
-			"sbercloud_dms_kafka_instances":  dms.DataSourceDmsKafkaInstances(),
-			"sbercloud_dms_kafka_flavors":    dms.DataSourceKafkaFlavors(),
-			"sbercloud_dms_kafka_users":      dms.DataSourceDmsKafkaUsers(),
-			"sbercloud_dms_kafka_messages":   dms.DataSourceDmsKafkaMessages(),
-			"sbercloud_dms_rabbitmq_flavors": dms.DataSourceRabbitMQFlavors(),
+			"sbercloud_dms_product":         dms.DataSourceDmsProduct(),
+			"sbercloud_dms_maintainwindow":  dms.DataSourceDmsMaintainWindow(),
+			"sbercloud_dms_kafka_instances": kafka.DataSourceDmsKafkaInstances(),
+			"sbercloud_dms_kafka_flavors":   kafka.DataSourceKafkaFlavors(),
+			"sbercloud_dms_kafka_users":     kafka.DataSourceDmsKafkaUsers(),
+			"sbercloud_dms_kafka_messages":  kafka.DataSourceDmsKafkaMessages(),
+
+			"sbercloud_dms_rabbitmq_flavors": rabbitmq.DataSourceRabbitMQFlavors(),
+
 			"sbercloud_dws_flavors":          dws.DataSourceDwsFlavors(),
 			"sbercloud_elb_certificate":      elb.DataSourceELBCertificateV3(),
 			"sbercloud_elb_flavors":          elb.DataSourceElbFlavorsV3(),
@@ -324,11 +329,13 @@ func Provider() *schema.Provider {
 
 			"sbercloud_vpc":                            vpc.DataSourceVpcV1(),
 			"sbercloud_vpcs":                           vpc.DataSourceVpcs(),
+			"sbercloud_vpc_address_groups":             vpc.DataSourceVpcAddressGroups(),
 			"sbercloud_vpc_bandwidth":                  eip.DataSourceBandWidth(),
 			"sbercloud_vpc_eip":                        eip.DataSourceVpcEip(),
 			"sbercloud_vpc_eips":                       eip.DataSourceVpcEips(),
 			"sbercloud_vpc_ids":                        vpc.DataSourceVpcIdsV1(),
 			"sbercloud_vpc_peering_connection":         vpc.DataSourceVpcPeeringConnectionV2(),
+			"sbercloud_vpc_routes":                     vpc.DataSourceVpcRoutes(),
 			"sbercloud_vpc_route":                      vpc.DataSourceVpcRouteV2(),
 			"sbercloud_vpc_route_table":                vpc.DataSourceVPCRouteTable(),
 			"sbercloud_vpc_subnet":                     vpc.DataSourceVpcSubnetV1(),
@@ -395,7 +402,8 @@ func Provider() *schema.Provider {
 			"sbercloud_cbr_policy": cbr.ResourcePolicy(),
 			"sbercloud_cbr_vault":  cbr.ResourceVault(),
 
-			"sbercloud_css_cluster": css.ResourceCssCluster(),
+			"sbercloud_css_cluster":       css.ResourceCssCluster(),
+			"sbercloud_css_configuration": css_huawei.ResourceCssConfiguration(),
 
 			"sbercloud_cce_addon":       cce.ResourceAddon(),
 			"sbercloud_cce_cluster":     cce.ResourceCluster(),
@@ -424,7 +432,7 @@ func Provider() *schema.Provider {
 			"sbercloud_dcs_instance":   dcs2.ResourceDcsInstance(),
 			"sbercloud_dcs_backup":     dcs.ResourceDcsBackup(),
 			"sbercloud_dcs_restore":    dcs2.ResourceDcsRestore(),
-			"sbercloud_dcs_parameters": dcs2.ResourceDcsParameters(),
+			"sbercloud_dcs_parameters": deprecated_sbc.ResourceDcsParameters(),
 			"sbercloud_dcs_account":    dcs.ResourceDcsAccount(),
 			"sbercloud_dds_instance":   dds2.ResourceDdsInstanceV3(),
 
@@ -436,12 +444,13 @@ func Provider() *schema.Provider {
 			"sbercloud_dli_spark_job": dli_sbercloud.ResourceDliSparkJobV2(),
 
 			"sbercloud_dms_instance":              deprecated.ResourceDmsInstancesV1(),
-			"sbercloud_dms_kafka_instance":        dms.ResourceDmsKafkaInstance(),
-			"sbercloud_dms_kafka_topic":           dms.ResourceDmsKafkaTopic(),
-			"sbercloud_dms_kafka_permissions":     dms.ResourceDmsKafkaPermissions(),
-			"sbercloud_dms_kafka_user":            dms.ResourceDmsKafkaUser(),
-			"sbercloud_dms_kafka_message_produce": dms.ResourceDmsKafkaMessageProduce(),
-			"sbercloud_dms_rabbitmq_instance":     dms.ResourceDmsRabbitmqInstance(),
+			"sbercloud_dms_kafka_instance":        kafka.ResourceDmsKafkaInstance(),
+			"sbercloud_dms_kafka_topic":           kafka.ResourceDmsKafkaTopic(),
+			"sbercloud_dms_kafka_permissions":     kafka.ResourceDmsKafkaPermissions(),
+			"sbercloud_dms_kafka_user":            kafka.ResourceDmsKafkaUser(),
+			"sbercloud_dms_kafka_message_produce": kafka.ResourceDmsKafkaMessageProduce(),
+
+			"sbercloud_dms_rabbitmq_instance": rabbitmq.ResourceDmsRabbitmqInstance(),
 
 			"sbercloud_dns_recordset": dns.ResourceDNSRecordSetV2(),
 			"sbercloud_dns_zone":      dns.ResourceDNSZone(),

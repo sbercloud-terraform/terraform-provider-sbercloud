@@ -122,7 +122,7 @@ func testAccCheckDcsV1InstanceExists(n string, instance instances.Instance) reso
 	}
 }
 
-func testAccDcsV1Instance_basic(instanceName string) string {
+func testAccDcsV1Instance_basic_old(instanceName string) string {
 	return fmt.Sprintf(`
 	data "sbercloud_availability_zones" "test" {}
 
@@ -164,7 +164,7 @@ func testAccDcsV1Instance_basic(instanceName string) string {
 	`, instanceName)
 }
 
-func testAccDcsV1Instance_updated(instanceName string) string {
+func testAccDcsV1Instance_updated_old(instanceName string) string {
 	return fmt.Sprintf(`
 	data "sbercloud_availability_zones" "test" {}
 

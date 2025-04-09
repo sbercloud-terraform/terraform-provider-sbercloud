@@ -1,4 +1,4 @@
-package dcs
+package deprecated
 
 import (
 	"context"
@@ -24,6 +24,8 @@ type ParamsConfig struct {
 
 func ResourceDcsParameters() *schema.Resource {
 	return &schema.Resource{
+		DeprecationMessage: "resource_dcs_parameters has been deprecated, use parameters block in resource_dcs_instance instead",
+
 		CreateContext: resourceDcsParametersCreate,
 		ReadContext:   resourceDcsParametersRead,
 		DeleteContext: resourceDcsParametersDelete,

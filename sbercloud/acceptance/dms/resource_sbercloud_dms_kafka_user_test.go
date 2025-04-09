@@ -53,7 +53,7 @@ func getDmsKafkaUserFunc(c *config.Config, state *terraform.ResourceState) (inte
 func TestAccDmsKafkaUser_basic(t *testing.T) {
 	var user model.ShowInstanceUsersEntity
 	rName := acceptance.RandomAccResourceNameWithDash()
-	resourceName := "huaweicloud_dms_kafka_user.test"
+	resourceName := "sbercloud_dms_kafka_user.test"
 	password := acceptance.RandomPassword()
 	passwordUpdate := password + "update"
 	description := "add destription"
@@ -104,8 +104,8 @@ func testAccDmsKafkaUser_basic(rName, password string, description string) strin
 	return fmt.Sprintf(`
 %[1]s
 
-resource "huaweicloud_dms_kafka_user" "test" {
-  instance_id = huaweicloud_dms_kafka_instance.test.id
+resource "sbercloud_dms_kafka_user" "test" {
+  instance_id = sbercloud_dms_kafka_instance.test.id
   name        = "%[2]s"
   password    = "%[3]s"
   description = "%[4]s"

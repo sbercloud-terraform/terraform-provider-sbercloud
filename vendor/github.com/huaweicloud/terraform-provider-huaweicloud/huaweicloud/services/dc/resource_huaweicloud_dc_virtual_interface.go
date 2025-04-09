@@ -2,16 +2,15 @@ package dc
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"log"
-	"reflect"
+	"strings"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
 	"github.com/chnsz/golangsdk"
-	"github.com/chnsz/golangsdk/openstack/dc/v3/interfaces"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
@@ -87,6 +86,14 @@ func ResourceVirtualInterface() *schema.Resource {
 				Elem:        &schema.Schema{Type: schema.TypeString},
 				Description: "The CIDR list of remote subnets.",
 			},
+			// The field `service_ep_group` was not tested because the test condition was missing.
+			"service_ep_group": {
+				Type:        schema.TypeList,
+				Optional:    true,
+				Computed:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Description: "The subnets that access Internet services through a connection.",
+			},
 			"description": {
 				Type:        schema.TypeString,
 				Optional:    true,
@@ -98,6 +105,13 @@ func ResourceVirtualInterface() *schema.Resource {
 				Computed:    true,
 				ForceNew:    true,
 				Description: "The service type of the virtual interface.",
+			},
+			"gateway_id": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
+				ForceNew:    true,
+				Description: "The ID of the gateway associated with the virtual interface.",
 			},
 			"local_gateway_v4_ip": {
 				Type:         schema.TypeString,
@@ -192,10 +206,50 @@ func ResourceVirtualInterface() *schema.Resource {
 				Computed:    true,
 				Description: "The current status of the virtual interface.",
 			},
+			"bgp_route_limit": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: "The BGP route configuration.",
+			},
+			"ies_id": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "The edge site ID.",
+			},
+			"lgw_id": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "The ID of the local gateway, which is used in IES scenarios.",
+			},
+			"priority": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "The priority of a virtual interface.",
+			},
+			"rate_limit": {
+				Type:        schema.TypeBool,
+				Computed:    true,
+				Description: "Whether rate limiting is enabled on a virtual interface.",
+			},
+			"reason": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "The error information if the status of a line is Error.",
+			},
+			"route_limit": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: "The remote subnet route configurations of the virtual interface.",
+			},
 			"created_at": {
 				Type:        schema.TypeString,
 				Computed:    true,
 				Description: "The creation time of the virtual interface.",
+			},
+			"updated_at": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "The latest update time of the virtual interface.",
 			},
 			"vif_peers": {
 				Type:        schema.TypeList,
@@ -203,8 +257,57 @@ func ResourceVirtualInterface() *schema.Resource {
 				Elem:        vifPeersSchema(),
 				Description: "The peer information of the virtual interface.",
 			},
+			"extend_attribute": {
+				Type:        schema.TypeList,
+				Computed:    true,
+				Elem:        extendAttributeSchema(),
+				Description: "The extended parameter information.",
+			},
 		},
 	}
+}
+
+func extendAttributeSchema() *schema.Resource {
+	sc := schema.Resource{
+		Schema: map[string]*schema.Schema{
+			"ha_type": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `The availability detection type of the virtual interface.`,
+			},
+			"ha_mode": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `The availability detection mode.`,
+			},
+			"detect_multiplier": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: `The number of detection retries.`,
+			},
+			"min_rx_interval": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: `The interval for receiving detection packets.`,
+			},
+			"min_tx_interval": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: `The interval for sending detection packets.`,
+			},
+			"remote_disclaim": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: `The remote identifier of the static BFD session.`,
+			},
+			"local_disclaim": {
+				Type:        schema.TypeInt,
+				Computed:    true,
+				Description: `The local identifier of the static BFD session.`,
+			},
+		},
+	}
+	return &sc
 }
 
 func vifPeersSchema() *schema.Resource {
@@ -301,218 +404,347 @@ func vifPeersSchema() *schema.Resource {
 				Elem:        &schema.Schema{Type: schema.TypeString},
 				Description: `The remote subnet list, which records the CIDR blocks used in the on-premises data center.`,
 			},
+			"service_ep_group": {
+				Type:        schema.TypeList,
+				Computed:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Description: `The list of public network addresses that can be accessed by the on-premises data center.`,
+			},
 		},
 	}
 	return &sc
 }
 
-func buildVirtualInterfaceCreateOpts(d *schema.ResourceData, cfg *config.Config) interfaces.CreateOpts {
-	return interfaces.CreateOpts{
-		VgwId:               d.Get("vgw_id").(string),
-		Type:                d.Get("type").(string),
-		RouteMode:           d.Get("route_mode").(string),
-		Vlan:                d.Get("vlan").(int),
-		Bandwidth:           d.Get("bandwidth").(int),
-		RemoteEpGroup:       utils.ExpandToStringList(d.Get("remote_ep_group").([]interface{})),
-		Name:                d.Get("name").(string),
-		Description:         d.Get("description").(string),
-		DirectConnectId:     d.Get("direct_connect_id").(string),
-		ServiceType:         d.Get("service_type").(string),
-		LocalGatewayV4Ip:    d.Get("local_gateway_v4_ip").(string),
-		RemoteGatewayV4Ip:   d.Get("remote_gateway_v4_ip").(string),
-		AddressFamily:       d.Get("address_family").(string),
-		LocalGatewayV6Ip:    d.Get("local_gateway_v6_ip").(string),
-		RemoteGatewayV6Ip:   d.Get("remote_gateway_v6_ip").(string),
-		BgpAsn:              d.Get("asn").(int),
-		BgpMd5:              d.Get("bgp_md5").(string),
-		EnableBfd:           d.Get("enable_bfd").(bool),
-		EnableNqa:           d.Get("enable_nqa").(bool),
-		LagId:               d.Get("lag_id").(string),
-		ResourceTenantId:    d.Get("resource_tenant_id").(string),
-		EnterpriseProjectId: cfg.GetEnterpriseProjectID(d),
+// The default value of this field is false when it is created, so the false value is treated as nil when it is created.
+func buildCreateVirtualInterfaceEnableBfd(d *schema.ResourceData) interface{} {
+	if d.Get("enable_bfd").(bool) {
+		return true
+	}
+
+	return nil
+}
+
+// The default value of this field is false when it is created, so the false value is treated as nil when it is created.
+func buildCreateVirtualInterfaceEnableNqa(d *schema.ResourceData) interface{} {
+	if d.Get("enable_nqa").(bool) {
+		return true
+	}
+
+	return nil
+}
+
+func buildCreateVirtualInterfaceBodyParams(d *schema.ResourceData, cfg *config.Config) map[string]interface{} {
+	bodyParams := map[string]interface{}{
+		"vgw_id":                d.Get("vgw_id"),
+		"type":                  d.Get("type"),
+		"route_mode":            d.Get("route_mode"),
+		"vlan":                  d.Get("vlan"),
+		"bandwidth":             d.Get("bandwidth"),
+		"remote_ep_group":       d.Get("remote_ep_group"),
+		"service_ep_group":      utils.ValueIgnoreEmpty(d.Get("service_ep_group")),
+		"name":                  utils.ValueIgnoreEmpty(d.Get("name")),
+		"description":           utils.ValueIgnoreEmpty(d.Get("description")),
+		"direct_connect_id":     utils.ValueIgnoreEmpty(d.Get("direct_connect_id")),
+		"service_type":          utils.ValueIgnoreEmpty(d.Get("service_type")),
+		"gateway_id":            utils.ValueIgnoreEmpty(d.Get("gateway_id")),
+		"local_gateway_v4_ip":   utils.ValueIgnoreEmpty(d.Get("local_gateway_v4_ip")),
+		"remote_gateway_v4_ip":  utils.ValueIgnoreEmpty(d.Get("remote_gateway_v4_ip")),
+		"address_family":        utils.ValueIgnoreEmpty(d.Get("address_family")),
+		"local_gateway_v6_ip":   utils.ValueIgnoreEmpty(d.Get("local_gateway_v6_ip")),
+		"remote_gateway_v6_ip":  utils.ValueIgnoreEmpty(d.Get("remote_gateway_v6_ip")),
+		"bgp_asn":               utils.ValueIgnoreEmpty(d.Get("asn")),
+		"bgp_md5":               utils.ValueIgnoreEmpty(d.Get("bgp_md5")),
+		"enable_bfd":            buildCreateVirtualInterfaceEnableBfd(d),
+		"enable_nqa":            buildCreateVirtualInterfaceEnableNqa(d),
+		"lag_id":                utils.ValueIgnoreEmpty(d.Get("lag_id")),
+		"resource_tenant_id":    utils.ValueIgnoreEmpty(d.Get("resource_tenant_id")),
+		"enterprise_project_id": utils.ValueIgnoreEmpty(cfg.GetEnterpriseProjectID(d)),
+	}
+
+	return map[string]interface{}{
+		"virtual_interface": bodyParams,
 	}
 }
 
 func resourceVirtualInterfaceCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	cfg := meta.(*config.Config)
-	client, err := cfg.DcV3Client(cfg.GetRegion(d))
+	var (
+		cfg     = meta.(*config.Config)
+		region  = cfg.GetRegion(d)
+		httpUrl = "v3/{project_id}/dcaas/virtual-interfaces"
+		product = "dc"
+	)
+	client, err := cfg.NewServiceClient(product, region)
 	if err != nil {
-		return diag.Errorf("error creating DC v3 client: %s", err)
+		return diag.Errorf("error creating DC client: %s", err)
 	}
 
-	opts := buildVirtualInterfaceCreateOpts(d, cfg)
-	resp, err := interfaces.Create(client, opts)
-	if err != nil {
-		return diag.Errorf("error creating virtual interface: %s", err)
+	requestPath := client.Endpoint + httpUrl
+	requestPath = strings.ReplaceAll(requestPath, "{project_id}", client.ProjectID)
+	requestOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		JSONBody:         utils.RemoveNil(buildCreateVirtualInterfaceBodyParams(d, cfg)),
 	}
-	d.SetId(resp.ID)
+
+	resp, err := client.Request("POST", requestPath, &requestOpt)
+	if err != nil {
+		return diag.Errorf("error creating DC virtual interface: %s", err)
+	}
+
+	respBody, err := utils.FlattenResponse(resp)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+
+	id := utils.PathSearch("virtual_interface.id", respBody, "").(string)
+	if id == "" {
+		return diag.Errorf("error creating DC virtual interface: ID is not found in API response")
+	}
+	d.SetId(id)
 
 	// create tags
 	if err := utils.CreateResourceTags(client, d, "dc-vif", d.Id()); err != nil {
-		return diag.Errorf("error setting tags of DC virtual interface %s: %s", d.Id(), err)
+		return diag.Errorf("error creating tags of DC virtual interface (%s): %s", d.Id(), err)
 	}
 
 	return resourceVirtualInterfaceRead(ctx, d, meta)
 }
 
 func resourceVirtualInterfaceRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	cfg := meta.(*config.Config)
-	client, err := cfg.DcV3Client(cfg.GetRegion(d))
+	var (
+		cfg     = meta.(*config.Config)
+		region  = cfg.GetRegion(d)
+		httpUrl = "v3/{project_id}/dcaas/virtual-interfaces/{interfaceId}"
+		product = "dc"
+	)
+	client, err := cfg.NewServiceClient(product, region)
 	if err != nil {
-		return diag.Errorf("error creating DC v3 client: %s", err)
+		return diag.Errorf("error creating DC client: %s", err)
 	}
 
-	interfaceId := d.Id()
-	resp, err := interfaces.Get(client, interfaceId)
+	requestPath := client.Endpoint + httpUrl
+	requestPath = strings.ReplaceAll(requestPath, "{project_id}", client.ProjectID)
+	requestPath = strings.ReplaceAll(requestPath, "{interfaceId}", d.Id())
+	requestOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+	}
+
+	resp, err := client.Request("GET", requestPath, &requestOpt)
 	if err != nil {
 		// When the interface does not exist, the response HTTP status code of the details API is 404.
 		return common.CheckDeletedDiag(d, err, "error retrieving DC virtual interface")
 	}
-	log.Printf("[DEBUG] The response of virtual interface is: %#v", resp)
 
-	mErr := multierror.Append(nil,
-		d.Set("region", cfg.GetRegion(d)),
-		d.Set("vgw_id", resp.VgwId),
-		d.Set("type", resp.Type),
-		d.Set("route_mode", resp.RouteMode),
-		d.Set("vlan", resp.Vlan),
-		d.Set("bandwidth", resp.Bandwidth),
-		d.Set("remote_ep_group", resp.RemoteEpGroup),
-		d.Set("name", resp.Name),
-		d.Set("description", resp.Description),
-		d.Set("direct_connect_id", resp.DirectConnectId),
-		d.Set("service_type", resp.ServiceType),
-		d.Set("local_gateway_v4_ip", resp.LocalGatewayV4Ip),
-		d.Set("remote_gateway_v4_ip", resp.RemoteGatewayV4Ip),
-		d.Set("address_family", resp.AddressFamily),
-		d.Set("local_gateway_v6_ip", resp.LocalGatewayV6Ip),
-		d.Set("remote_gateway_v6_ip", resp.RemoteGatewayV6Ip),
-		d.Set("asn", resp.BgpAsn),
-		d.Set("bgp_md5", resp.BgpMd5),
-		d.Set("enable_bfd", resp.EnableBfd),
-		d.Set("enable_nqa", resp.EnableNqa),
-		d.Set("lag_id", resp.LagId),
-		d.Set("enterprise_project_id", resp.EnterpriseProjectId),
-		d.Set("device_id", resp.DeviceId),
-		d.Set("status", resp.Status),
-		d.Set("created_at", resp.CreatedAt),
-		d.Set("vif_peers", flattenVifPeers(resp.VifPeers)),
+	respBody, err := utils.FlattenResponse(resp)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+
+	interfaceResp := utils.PathSearch("virtual_interface", respBody, nil)
+	if interfaceResp == nil {
+		return common.CheckDeletedDiag(d, golangsdk.ErrDefault404{}, "")
+	}
+
+	mErr := multierror.Append(
+		d.Set("region", region),
+		d.Set("vgw_id", utils.PathSearch("vgw_id", interfaceResp, nil)),
+		d.Set("type", utils.PathSearch("type", interfaceResp, nil)),
+		d.Set("route_mode", utils.PathSearch("route_mode", interfaceResp, nil)),
+		d.Set("vlan", utils.PathSearch("vlan", interfaceResp, nil)),
+		d.Set("bandwidth", utils.PathSearch("bandwidth", interfaceResp, nil)),
+		d.Set("remote_ep_group", utils.PathSearch("remote_ep_group", interfaceResp, nil)),
+		d.Set("service_ep_group", utils.PathSearch("service_ep_group", interfaceResp, nil)),
+		d.Set("name", utils.PathSearch("name", interfaceResp, nil)),
+		d.Set("description", utils.PathSearch("description", interfaceResp, nil)),
+		d.Set("direct_connect_id", utils.PathSearch("direct_connect_id", interfaceResp, nil)),
+		d.Set("service_type", utils.PathSearch("service_type", interfaceResp, nil)),
+		d.Set("gateway_id", utils.PathSearch("gateway_id", interfaceResp, nil)),
+		d.Set("local_gateway_v4_ip", utils.PathSearch("local_gateway_v4_ip", interfaceResp, nil)),
+		d.Set("remote_gateway_v4_ip", utils.PathSearch("remote_gateway_v4_ip", interfaceResp, nil)),
+		d.Set("address_family", utils.PathSearch("address_family", interfaceResp, nil)),
+		d.Set("local_gateway_v6_ip", utils.PathSearch("local_gateway_v6_ip", interfaceResp, nil)),
+		d.Set("remote_gateway_v6_ip", utils.PathSearch("remote_gateway_v6_ip", interfaceResp, nil)),
+		d.Set("asn", utils.PathSearch("bgp_asn", interfaceResp, nil)),
+		d.Set("bgp_md5", utils.PathSearch("bgp_md5", interfaceResp, nil)),
+		d.Set("enable_bfd", utils.PathSearch("enable_bfd", interfaceResp, nil)),
+		d.Set("enable_nqa", utils.PathSearch("enable_nqa", interfaceResp, nil)),
+		d.Set("lag_id", utils.PathSearch("lag_id", interfaceResp, nil)),
+		d.Set("enterprise_project_id", utils.PathSearch("enterprise_project_id", interfaceResp, nil)),
+		d.Set("device_id", utils.PathSearch("device_id", interfaceResp, nil)),
+		d.Set("status", utils.PathSearch("status", interfaceResp, nil)),
+		d.Set("created_at", utils.PathSearch("create_time", interfaceResp, nil)),
+		d.Set("updated_at", utils.PathSearch("update_time", interfaceResp, nil)),
+		d.Set("bgp_route_limit", utils.PathSearch("bgp_route_limit", interfaceResp, nil)),
+		d.Set("ies_id", utils.PathSearch("ies_id", interfaceResp, nil)),
+		d.Set("lgw_id", utils.PathSearch("lgw_id", interfaceResp, nil)),
+		d.Set("priority", utils.PathSearch("priority", interfaceResp, nil)),
+		d.Set("rate_limit", utils.PathSearch("rate_limit", interfaceResp, nil)),
+		d.Set("reason", utils.PathSearch("reason", interfaceResp, nil)),
+		d.Set("route_limit", utils.PathSearch("route_limit", interfaceResp, nil)),
+		d.Set("vif_peers", flattenVifPeersAttribute(utils.PathSearch("vif_peers", interfaceResp, make([]interface{}, 0)).([]interface{}))),
+		d.Set("extend_attribute", flattenExtendAttribute(utils.PathSearch("extend_attribute", interfaceResp, nil))),
 		utils.SetResourceTagsToState(d, client, "dc-vif", d.Id()),
 	)
 
-	if err = mErr.ErrorOrNil(); err != nil {
-		return diag.Errorf("error saving virtual interface fields: %s", err)
-	}
-	return nil
+	return diag.FromErr(mErr.ErrorOrNil())
 }
 
-func flattenVifPeers(vifPeers []interfaces.VifPeer) []interface{} {
-	if vifPeers == nil {
+func flattenExtendAttribute(extendResp interface{}) []interface{} {
+	if extendResp == nil {
 		return nil
 	}
 
-	rst := make([]interface{}, 0, len(vifPeers))
-	for _, v := range vifPeers {
+	extendAttribute := map[string]interface{}{
+		"ha_type":           utils.PathSearch("ha_type", extendResp, nil),
+		"ha_mode":           utils.PathSearch("ha_mode", extendResp, nil),
+		"detect_multiplier": utils.PathSearch("detect_multiplier", extendResp, nil),
+		"min_rx_interval":   utils.PathSearch("min_rx_interval", extendResp, nil),
+		"min_tx_interval":   utils.PathSearch("min_tx_interval", extendResp, nil),
+		"remote_disclaim":   utils.PathSearch("remote_disclaim", extendResp, nil),
+		"local_disclaim":    utils.PathSearch("local_disclaim", extendResp, nil),
+	}
+
+	return []interface{}{extendAttribute}
+}
+
+func flattenVifPeersAttribute(peersArray []interface{}) []interface{} {
+	if len(peersArray) == 0 {
+		return nil
+	}
+
+	rst := make([]interface{}, 0, len(peersArray))
+	for _, v := range peersArray {
 		rst = append(rst, map[string]interface{}{
-			"id":                v.ID,
-			"name":              v.Name,
-			"description":       v.Description,
-			"address_family":    v.AddressFamily,
-			"local_gateway_ip":  v.LocalGatewayIp,
-			"remote_gateway_ip": v.RemoteGatewayIp,
-			"route_mode":        v.RouteMode,
-			"bgp_asn":           v.BgpAsn,
-			"bgp_md5":           v.BgpMd5,
-			"device_id":         v.DeviceId,
-			"enable_bfd":        v.EnableBfd,
-			"enable_nqa":        v.EnableNqa,
-			"bgp_route_limit":   v.BgpRouteLimit,
-			"bgp_status":        v.BgpStatus,
-			"status":            v.Status,
-			"vif_id":            v.VifId,
-			"receive_route_num": v.ReceiveRouteNum,
-			"remote_ep_group":   v.RemoteEpGroup,
+			"id":                utils.PathSearch("id", v, nil),
+			"name":              utils.PathSearch("name", v, nil),
+			"description":       utils.PathSearch("description", v, nil),
+			"address_family":    utils.PathSearch("address_family", v, nil),
+			"local_gateway_ip":  utils.PathSearch("local_gateway_ip", v, nil),
+			"remote_gateway_ip": utils.PathSearch("remote_gateway_ip", v, nil),
+			"route_mode":        utils.PathSearch("route_mode", v, nil),
+			"bgp_asn":           utils.PathSearch("bgp_asn", v, nil),
+			"bgp_md5":           utils.PathSearch("bgp_md5", v, nil),
+			"device_id":         utils.PathSearch("device_id", v, nil),
+			"enable_bfd":        utils.PathSearch("enable_bfd", v, nil),
+			"enable_nqa":        utils.PathSearch("enable_nqa", v, nil),
+			"bgp_route_limit":   utils.PathSearch("bgp_route_limit", v, nil),
+			"bgp_status":        utils.PathSearch("bgp_status", v, nil),
+			"status":            utils.PathSearch("status", v, nil),
+			"vif_id":            utils.PathSearch("vif_id", v, nil),
+			"receive_route_num": utils.PathSearch("receive_route_num", v, nil),
+			"remote_ep_group":   utils.PathSearch("remote_ep_group", v, nil),
+			"service_ep_group":  utils.PathSearch("service_ep_group", v, nil),
 		})
 	}
 	return rst
 }
 
-func closeVirtualInterfaceNetworkDetection(client *golangsdk.ServiceClient, d *schema.ResourceData) error {
-	var (
-		interfaceId = d.Id()
-		opts        = interfaces.UpdateOpts{}
-	)
+func buildUpdateVirtualInterfaceBodyParams(d *schema.ResourceData) map[string]interface{} {
+	bodyParams := map[string]interface{}{
+		"name":             utils.ValueIgnoreEmpty(d.Get("name")),
+		"description":      d.Get("description"),
+		"bandwidth":        utils.ValueIgnoreEmpty(d.Get("bandwidth")),
+		"remote_ep_group":  utils.ValueIgnoreEmpty(d.Get("remote_ep_group")),
+		"service_ep_group": utils.ValueIgnoreEmpty(d.Get("service_ep_group")),
+	}
 
+	return map[string]interface{}{
+		"virtual_interface": bodyParams,
+	}
+}
+
+func closeVirtualInterfaceNetworkDetection(client *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	bodyParams := make(map[string]interface{})
 	// At the same time, only one of BFD and NQA is enabled.
 	if d.HasChange("enable_bfd") && !d.Get("enable_bfd").(bool) {
-		opts.EnableBfd = utils.Bool(false)
+		bodyParams["enable_bfd"] = false
 	} else if d.HasChange("enable_nqa") && !d.Get("enable_nqa").(bool) {
-		opts.EnableNqa = utils.Bool(false)
+		bodyParams["enable_nqa"] = false
 	}
-	if reflect.DeepEqual(opts, interfaces.UpdateOpts{}) {
+
+	if len(bodyParams) == 0 {
 		return nil
 	}
 
-	_, err := interfaces.Update(client, interfaceId, opts)
+	requestPath := client.Endpoint + "v3/{project_id}/dcaas/virtual-interfaces/{interfaceId}"
+	requestPath = strings.ReplaceAll(requestPath, "{project_id}", client.ProjectID)
+	requestPath = strings.ReplaceAll(requestPath, "{interfaceId}", d.Id())
+	requestOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		JSONBody: map[string]interface{}{
+			"virtual_interface": bodyParams,
+		},
+	}
+
+	_, err := client.Request("PUT", requestPath, &requestOpt)
 	if err != nil {
-		return fmt.Errorf("error closing network detection of the virtual interface (%s): %s", interfaceId, err)
+		return fmt.Errorf("error closing network detection of the virtual interface (%s): %s", d.Id(), err)
 	}
 	return nil
 }
 
 func openVirtualInterfaceNetworkDetection(client *golangsdk.ServiceClient, d *schema.ResourceData) error {
-	var (
-		interfaceId     = d.Id()
-		detectionOpened = false
-		opts            = interfaces.UpdateOpts{}
-	)
-
+	bodyParams := make(map[string]interface{})
+	detectionOpened := false
 	if d.HasChange("enable_bfd") && d.Get("enable_bfd").(bool) {
 		detectionOpened = true
-		opts.EnableBfd = utils.Bool(true)
+		bodyParams["enable_bfd"] = true
 	}
+
 	if d.HasChange("enable_nqa") && d.Get("enable_nqa").(bool) {
 		// The enable requests of BFD and NQA cannot be sent at the same time.
 		if detectionOpened {
-			return fmt.Errorf("BFD and NQA cannot be enabled at the same time")
+			return errors.New("BFD and NQA cannot be enabled at the same time")
 		}
-		opts.EnableNqa = utils.Bool(true)
+		bodyParams["enable_nqa"] = true
 	}
-	if reflect.DeepEqual(opts, interfaces.UpdateOpts{}) {
+
+	if len(bodyParams) == 0 {
 		return nil
 	}
 
-	_, err := interfaces.Update(client, interfaceId, opts)
+	requestPath := client.Endpoint + "v3/{project_id}/dcaas/virtual-interfaces/{interfaceId}"
+	requestPath = strings.ReplaceAll(requestPath, "{project_id}", client.ProjectID)
+	requestPath = strings.ReplaceAll(requestPath, "{interfaceId}", d.Id())
+	requestOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		JSONBody: map[string]interface{}{
+			"virtual_interface": bodyParams,
+		},
+	}
+
+	_, err := client.Request("PUT", requestPath, &requestOpt)
 	if err != nil {
-		return fmt.Errorf("error opening network detection of the virtual interface (%s): %s", interfaceId, err)
+		return fmt.Errorf("error opening network detection of the virtual interface (%s): %s", d.Id(), err)
 	}
 	return nil
 }
 
 func resourceVirtualInterfaceUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	cfg := meta.(*config.Config)
-	client, err := cfg.DcV3Client(cfg.GetRegion(d))
+	var (
+		cfg     = meta.(*config.Config)
+		region  = cfg.GetRegion(d)
+		product = "dc"
+	)
+	client, err := cfg.NewServiceClient(product, region)
 	if err != nil {
-		return diag.Errorf("error creating DC v3 client: %s", err)
+		return diag.Errorf("error creating DC client: %s", err)
 	}
 
-	if d.HasChanges("name", "description", "bandwidth", "remote_ep_group") {
-		var (
-			interfaceId = d.Id()
+	if d.HasChanges("name", "description", "bandwidth", "remote_ep_group", "service_ep_group") {
+		requestPath := client.Endpoint + "v3/{project_id}/dcaas/virtual-interfaces/{interfaceId}"
+		requestPath = strings.ReplaceAll(requestPath, "{project_id}", client.ProjectID)
+		requestPath = strings.ReplaceAll(requestPath, "{interfaceId}", d.Id())
+		requestOpt := golangsdk.RequestOpts{
+			KeepResponseBody: true,
+			JSONBody:         utils.RemoveNil(buildUpdateVirtualInterfaceBodyParams(d)),
+		}
 
-			opts = interfaces.UpdateOpts{
-				Name:          d.Get("name").(string),
-				Description:   utils.String(d.Get("description").(string)),
-				Bandwidth:     d.Get("bandwidth").(int),
-				RemoteEpGroup: utils.ExpandToStringList(d.Get("remote_ep_group").([]interface{})),
-			}
-		)
-
-		_, err := interfaces.Update(client, interfaceId, opts)
+		_, err := client.Request("PUT", requestPath, &requestOpt)
 		if err != nil {
-			return diag.Errorf("error closing network detection of the virtual interface (%s): %s", interfaceId, err)
+			return diag.Errorf("error updating DC virtual interface: %s", err)
 		}
 	}
+
 	if d.HasChanges("enable_bfd", "enable_nqa") {
 		// BFD and NQA cannot be enabled at the same time.
 		// When BFD (NQA) is enabled and NQA (BFD) is disabled, we need to disable BFD (NQA) first, and then enable NQA (BFD).
@@ -535,14 +767,25 @@ func resourceVirtualInterfaceUpdate(ctx context.Context, d *schema.ResourceData,
 }
 
 func resourceVirtualInterfaceDelete(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	cfg := meta.(*config.Config)
-	client, err := cfg.DcV3Client(cfg.GetRegion(d))
+	var (
+		cfg     = meta.(*config.Config)
+		region  = cfg.GetRegion(d)
+		httpUrl = "v3/{project_id}/dcaas/virtual-interfaces/{interfaceId}"
+		product = "dc"
+	)
+	client, err := cfg.NewServiceClient(product, region)
 	if err != nil {
-		return diag.Errorf("error creating DC v3 client: %s", err)
+		return diag.Errorf("error creating DC client: %s", err)
 	}
 
-	interfaceId := d.Id()
-	err = interfaces.Delete(client, interfaceId)
+	requestPath := client.Endpoint + httpUrl
+	requestPath = strings.ReplaceAll(requestPath, "{project_id}", client.ProjectID)
+	requestPath = strings.ReplaceAll(requestPath, "{interfaceId}", d.Id())
+	requestOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+	}
+
+	_, err = client.Request("DELETE", requestPath, &requestOpt)
 	if err != nil {
 		// When the interface does not exist, the response HTTP status code of the deletion API is 404.
 		return common.CheckDeletedDiag(d, err, "error deleting DC virtual interface")

@@ -108,7 +108,7 @@ func TestAccDDSV3Instance_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
-					testAccCheckDDSV3InstanceFlavor(&instance, "config", "spec_code", "dds.mongodb.s6.xlarge.2.config"),
+					testAccCheckDDSV3InstanceFlavor(&instance, "config", "spec_code", "dds.mongodb.c6.large.2.config"),
 				),
 			},
 			{
@@ -201,7 +201,7 @@ func TestAccDDSV3Instance_prePaid(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "backup_strategy.0.keep_days", "7"),
 					testAccCheckDDSV3InstanceFlavor(&instance, "shard", "num", 3),
 					testAccCheckDDSV3InstanceFlavor(&instance, "shard", "size", "30"),
-					testAccCheckDDSV3InstanceFlavor(&instance, "mongos", "spec_code", "dds.mongodb.s6.large.4.mongos"),
+					testAccCheckDDSV3InstanceFlavor(&instance, "mongos", "spec_code", "dds.mongodb.c6.large.4.mongos"),
 					resource.TestCheckResourceAttr(resourceName, "auto_renew", "true"),
 					resource.TestCheckResourceAttr(resourceName, "description", ""),
 				),
@@ -466,21 +466,21 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.s6.large.2.mongos"
+    spec_code = "dds.mongodb.c6.large.4.mongos"
   }
   flavor {
     type      = "shard"
     num       = 2
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.large.2.shard"
+    spec_code = "dds.mongodb.c6.large.4.shard"
   }
   flavor {
     type      = "config"
     num       = 1
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.large.2.config"
+    spec_code = "dds.mongodb.c6.large.2.config"
   }
 
   backup_strategy {
@@ -520,21 +520,21 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.s6.large.2.mongos"
+    spec_code = "dds.mongodb.c6.large.4.mongos"
   }
   flavor {
     type      = "shard"
     num       = 2
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.large.2.shard"
+    spec_code = "dds.mongodb.c6.large.4.shard"
   }
   flavor {
     type      = "config"
     num       = 1
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.large.2.config"
+    spec_code = "dds.mongodb.c6.large.2.config"
   }
 
   backup_strategy {
@@ -575,21 +575,21 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.s6.large.2.mongos"
+    spec_code = "dds.mongodb.c6.large.4.mongos"
   }
   flavor {
     type      = "shard"
     num       = 3
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.large.2.shard"
+    spec_code = "dds.mongodb.c6.large.4.shard"
   }
   flavor {
     type      = "config"
     num       = 1
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.large.2.config"
+    spec_code = "dds.mongodb.c6.large.2.config"
   }
 
   backup_strategy {
@@ -629,21 +629,21 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.s6.large.2.mongos"
+    spec_code = "dds.mongodb.c6.large.4.mongos"
   }
   flavor {
     type      = "shard"
     num       = 3
     storage   = "ULTRAHIGH"
     size      = 30
-    spec_code = "dds.mongodb.s6.large.2.shard"
+    spec_code = "dds.mongodb.c6.large.4.shard"
   }
   flavor {
     type      = "config"
     num       = 1
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.large.2.config"
+    spec_code = "dds.mongodb.c6.large.2.config"
   }
 
   backup_strategy {
@@ -683,21 +683,21 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.s6.large.2.mongos"
+    spec_code = "dds.mongodb.c6.large.4.mongos"
   }
   flavor {
     type      = "shard"
     num       = 3
     storage   = "ULTRAHIGH"
     size      = 30
-    spec_code = "dds.mongodb.s6.large.2.shard"
+    spec_code = "dds.mongodb.c6.large.4.shard"
   }
   flavor {
     type      = "config"
     num       = 1
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.xlarge.2.config"
+    spec_code = "dds.mongodb.c6.large.2.config"
   }
 
   backup_strategy {
@@ -738,21 +738,21 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.s6.large.2.mongos"
+    spec_code = "dds.mongodb.c6.large.2.mongos"
   }
   flavor {
     type      = "shard"
     num       = 2
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.large.2.shard"
+    spec_code = "dds.mongodb.c6.large.4.shard"
   }
   flavor {
     type      = "config"
     num       = 1
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.large.2.config"
+    spec_code = "dds.mongodb.c6.large.2.config"
   }
 
   backup_strategy {
@@ -793,21 +793,21 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.s6.large.2.mongos"
+    spec_code = "dds.mongodb.c6.large.4.mongos"
   }
   flavor {
     type      = "shard"
     num       = 2
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.large.2.shard"
+    spec_code = "dds.mongodb.c6.large.4.shard"
   }
   flavor {
     type      = "config"
     num       = 1
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.large.2.config"
+    spec_code = "dds.mongodb.c6.large.2.config"
   }
 
   backup_strategy {
@@ -853,21 +853,21 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.s6.large.2.mongos"
+    spec_code = "dds.mongodb.c6.large.4.mongos"
   }
   flavor {
     type      = "shard"
     num       = 2
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.large.2.shard"
+    spec_code = "dds.mongodb.c6.large.4.shard"
   }
   flavor {
     type      = "config"
     num       = 1
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.large.2.config"
+    spec_code = "dds.mongodb.c6.large.2.config"
   }
 
   backup_strategy {
@@ -907,21 +907,21 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.s6.large.4.mongos"
+    spec_code = "dds.mongodb.c6.large.4.mongos"
   }
   flavor {
     type      = "shard"
     num       = 3
     storage   = "ULTRAHIGH"
     size      = 30
-    spec_code = "dds.mongodb.s6.large.2.shard"
+    spec_code = "dds.mongodb.c6.large.4.shard"
   }
   flavor {
     type      = "config"
     num       = 1
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.large.2.config"
+    spec_code = "dds.mongodb.c6.large.2.config"
   }
 
   backup_strategy {
@@ -998,7 +998,7 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.s6.large.2.mongos"
+    spec_code = "dds.mongodb.c6.large.4.mongos"
   }
 
   flavor {
@@ -1006,7 +1006,7 @@ resource "sbercloud_dds_instance" "instance" {
     num       = 2
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.large.2.shard"
+    spec_code = "dds.mongodb.c6.large.4.shard"
   }
 
   flavor {
@@ -1014,7 +1014,7 @@ resource "sbercloud_dds_instance" "instance" {
     num       = 1
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.large.2.config"
+    spec_code = "dds.mongodb.c6.large.2.config"
   }
 }`, acceptance.TestBaseNetwork(rName), templateMongos1, templateShard1, templateConfig1, rName)
 }
@@ -1068,7 +1068,7 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.s6.large.4.mongos"
+    spec_code = "dds.mongodb.c6.large.4.mongos"
   }
 
   flavor {
@@ -1076,7 +1076,7 @@ resource "sbercloud_dds_instance" "instance" {
     num       = 2
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.large.2.shard"
+    spec_code = "dds.mongodb.c6.large.4.shard"
   }
 
   flavor {
@@ -1084,7 +1084,7 @@ resource "sbercloud_dds_instance" "instance" {
     num       = 1
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.large.2.config"
+    spec_code = "dds.mongodb.c6.large.2.config"
   }
 }`, acceptance.TestBaseNetwork(rName), templateMongos2, templateShard2, templateConfig2, rName)
 }
@@ -1125,7 +1125,7 @@ resource "sbercloud_dds_instance" "instance" {
     storage   = "ULTRAHIGH"
     num       = 3
     size      = 20
-    spec_code = "dds.mongodb.s6.large.2.repset"
+    spec_code = "dds.mongodb.c6.large.4.repset"
   }
 }`, acceptance.TestBaseNetwork(rName), templateRreplica1, rName)
 }
@@ -1166,7 +1166,7 @@ resource "sbercloud_dds_instance" "instance" {
     storage   = "ULTRAHIGH"
     num       = 5
     size      = 30
-    spec_code = "dds.mongodb.s6.large.4.repset"
+    spec_code = "dds.mongodb.c6.large.4.repset"
   }
 }`, acceptance.TestBaseNetwork(rName), templateRreplica2, rName)
 }
@@ -1196,7 +1196,7 @@ resource "sbercloud_dds_instance" "test" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.s6.xlarge.2.mongos"
+    spec_code = "dds.mongodb.c6.xlarge.2.mongos"
   }
 
   flavor {
@@ -1204,7 +1204,7 @@ resource "sbercloud_dds_instance" "test" {
     num       = 2
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.xlarge.2.shard"
+    spec_code = "dds.mongodb.c6.xlarge.2.shard"
   }
 
   flavor {
@@ -1212,7 +1212,7 @@ resource "sbercloud_dds_instance" "test" {
     num       = 1
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.xlarge.2.config"
+    spec_code = "dds.mongodb.c6.large.2.config"
   }
 
   backup_strategy {
@@ -1248,7 +1248,7 @@ resource "sbercloud_dds_instance" "test" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.s6.xlarge.2.mongos"
+    spec_code = "dds.mongodb.c6.xlarge.2.mongos"
   }
   
   flavor {
@@ -1256,7 +1256,7 @@ resource "sbercloud_dds_instance" "test" {
     num       = 2
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.xlarge.2.shard"
+    spec_code = "dds.mongodb.c6.xlarge.2.shard"
   }
 
   flavor {
@@ -1264,7 +1264,7 @@ resource "sbercloud_dds_instance" "test" {
     num       = 1
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.s6.xlarge.2.config"
+    spec_code = "dds.mongodb.c6.large.2.config"
   }
 
   backup_strategy {
@@ -1311,7 +1311,7 @@ resource "sbercloud_dds_instance" "instance" {
     storage   = "ULTRAHIGH"
     num       = 3
     size      = 20
-    spec_code = "dds.mongodb.s6.large.2.repset"
+    spec_code = "dds.mongodb.c6.large.4.repset"
   }
 }`, acceptance.TestBaseNetwork(rName), templateRreplica1, rName)
 }

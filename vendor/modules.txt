@@ -33,7 +33,7 @@ github.com/apparentlymart/go-cidr/cidr
 # github.com/apparentlymart/go-textseg/v15 v15.0.0
 ## explicit; go 1.16
 github.com/apparentlymart/go-textseg/v15/textseg
-# github.com/chnsz/golangsdk v0.0.0-20250225032204-25154fdef892
+# github.com/chnsz/golangsdk v0.0.0-20250311033604-e22344f22211
 ## explicit; go 1.14
 github.com/chnsz/golangsdk
 github.com/chnsz/golangsdk/auth
@@ -622,7 +622,7 @@ github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vod/v1
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vod/v1/model
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vpc/v3
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vpc/v3/model
-# github.com/huaweicloud/terraform-provider-huaweicloud v1.73.0
+# github.com/huaweicloud/terraform-provider-huaweicloud v1.73.3
 ## explicit; go 1.18
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common
@@ -706,6 +706,7 @@ github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ims
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/internal/entity
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/internal/httpclient_go
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/iotda
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/kafka
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/koogallery
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/lb
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/live
@@ -718,11 +719,13 @@ github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/nat
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/obs
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/oms
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/organizations
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/rabbitmq
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ram
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/rds
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/rfs
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/rgc
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/rms
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/rocketmq
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/sdrs
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/secmaster
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/servicestage

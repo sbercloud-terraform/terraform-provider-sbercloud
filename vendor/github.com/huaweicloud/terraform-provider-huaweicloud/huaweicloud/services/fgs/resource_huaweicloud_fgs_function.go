@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -25,7 +26,6 @@ import (
 // @API FunctionGraph PUT /v2/{project_id}/fgs/functions/{function_urn}/config-max-instance
 // @API FunctionGraph GET /v2/{project_id}/fgs/functions/{function_urn}/config
 // @API FunctionGraph GET /v2/{project_id}/fgs/functions/{function_urn}/versions
-// @API FunctionGraph GET /v2/{project_id}/fgs/functions/reservedinstances
 // @API FunctionGraph POST /v2/{project_id}/fgs/functions/{function_urn}/tags/create
 // @API FunctionGraph DELETE /v2/{project_id}/fgs/functions/{function_urn}/tags/delete
 // @API FunctionGraph PUT /v2/{project_id}/fgs/functions/{function_urn}/code
@@ -197,7 +197,6 @@ func ResourceFgsFunction() *schema.Resource {
 			"enterprise_project_id": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				ForceNew:    true,
 				Computed:    true,
 				Description: `The ID of the enterprise project to which the function belongs.`,
 			},
@@ -338,13 +337,17 @@ func ResourceFgsFunction() *schema.Resource {
 			"versions": {
 				Type:     schema.TypeSet,
 				Optional: true,
-				Computed: true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"name": {
 							Type:        schema.TypeString,
 							Required:    true,
 							Description: `The version name.`,
+						},
+						"description": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: `The description of the version.`,
 						},
 						"aliases": {
 							Type:     schema.TypeList,
@@ -361,6 +364,18 @@ func ResourceFgsFunction() *schema.Resource {
 										Type:        schema.TypeString,
 										Optional:    true,
 										Description: `The description of the version alias.`,
+									},
+									"additional_version_weights": {
+										Type:         schema.TypeString,
+										Optional:     true,
+										ValidateFunc: validation.StringIsJSON,
+										Description:  `The percentage grayscale configuration of the version alias.`,
+									},
+									"additional_version_strategy": {
+										Type:         schema.TypeString,
+										Optional:     true,
+										ValidateFunc: validation.StringIsJSON,
+										Description:  `The description of the version alias.`,
 									},
 								},
 							},
@@ -483,6 +498,96 @@ func ResourceFgsFunction() *schema.Resource {
 						Internal: true,
 					},
 				),
+			},
+			"enable_dynamic_memory": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				// The dynamic memory function can be closed, so computed behavior cannot be supported.
+				Description: `Whether the dynamic memory configuration is enabled.`,
+			},
+			"is_stateful_function": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				// The stateful function can be closed, so computed behavior cannot be supported.
+				Description: `Whether the function is a stateful function.`,
+			},
+			"network_controller": {
+				Type:     schema.TypeList,
+				Optional: true,
+				// The network controller can be closed, so computed behavior cannot be supported.
+				MaxItems: 1,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"trigger_access_vpcs": {
+							Type:     schema.TypeSet,
+							Required: true,
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{
+									"vpc_id": {
+										Type:        schema.TypeString,
+										Required:    true,
+										Description: `The ID of the VPC that can trigger the function.`,
+									},
+								},
+							},
+							Description: `The configuration of the VPCs that can trigger the function.`,
+						},
+						"disable_public_network": {
+							Type:        schema.TypeBool,
+							Optional:    true,
+							Description: `Whether to disable the public network access.`,
+						},
+					},
+				},
+				Description: `The network configuration of the function.`,
+			},
+			"peering_cidr": {
+				Type:     schema.TypeString,
+				Optional: true,
+				// The perring CIDR can be canceled, so computed behavior cannot be supported.
+				Description: `The VPC CIDR blocks used in the function code to detect whether it conflicts with the VPC
+CIDR blocks used by the service.`,
+			},
+			"enable_auth_in_header": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				// The auth function can be closed, so computed behavior cannot be supported.
+				// And the default value (in the service API) is false.
+				Description: `Whether the authentication in the request header is enabled.`,
+			},
+			"enable_class_isolation": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				// The isolation function can be closed, so computed behavior cannot be supported.
+				// And the default value (in the service API) is false.
+				Description: `Whether the class isolation is enabled for the JAVA runtime functions.`,
+			},
+			"ephemeral_storage": {
+				Type:        schema.TypeInt,
+				Optional:    true,
+				Computed:    true,
+				Description: `The size of the function ephemeral storage.`,
+			},
+			"heartbeat_handler": {
+				Type:     schema.TypeString,
+				Optional: true,
+				// The handler of heartbeat can be omitted, and if this parameter is not configured, the default value
+				// will not be returned. So, the computed behavior cannot be supported.
+				Description: `The heartbeat handler of the function.`,
+			},
+			"restore_hook_handler": {
+				Type:     schema.TypeString,
+				Optional: true,
+				// The handler of restore hook can be omitted, and if this parameter is not configured, the default
+				// value will not be returned. So, the computed behavior cannot be supported.
+				Description: `The restore hook handler of the function.`,
+			},
+			"restore_hook_timeout": {
+				Type:     schema.TypeInt,
+				Optional: true,
+				// The timeout of restore hook can be omitted, and if this parameter is not configured, the default
+				// value will not be returned. So, the computed behavior cannot be supported.
+				Description: `The timeout of the function restore hook.`,
 			},
 
 			// Deprecated parameters.
@@ -628,6 +733,33 @@ func buildFunctionLogConfig(d *schema.ResourceData) map[string]interface{} {
 	}
 }
 
+func buildNetworkControllerTriggerAccessVpcs(triggerAccessVpcs []interface{}) []map[string]interface{} {
+	if len(triggerAccessVpcs) < 1 {
+		return nil
+	}
+
+	result := make([]map[string]interface{}, 0, len(triggerAccessVpcs))
+	for _, triggerAccessVpc := range triggerAccessVpcs {
+		result = append(result, map[string]interface{}{
+			"vpc_id": utils.PathSearch("vpc_id", triggerAccessVpc, nil),
+		})
+	}
+	return result
+}
+
+func buildFunctionNetworkController(networkControlers []interface{}) map[string]interface{} {
+	if len(networkControlers) < 1 {
+		return nil
+	}
+
+	networkControler := networkControlers[0]
+	return map[string]interface{}{
+		"trigger_access_vpcs": buildNetworkControllerTriggerAccessVpcs(utils.PathSearch("trigger_access_vpcs",
+			networkControler, schema.NewSet(schema.HashString, nil)).(*schema.Set).List()),
+		"disable_public_network": utils.PathSearch("disable_public_network", networkControler, nil),
+	}
+}
+
 func buildCreateFunctionBodyParams(cfg *config.Config, d *schema.ResourceData) map[string]interface{} {
 	// Parameter app is recommended to replace parameter package.
 	pkg, ok := d.GetOk("app")
@@ -667,6 +799,9 @@ func buildCreateFunctionBodyParams(cfg *config.Config, d *schema.ResourceData) m
 		"pre_stop_timeout":      utils.ValueIgnoreEmpty(d.Get("pre_stop_timeout")),
 		"func_code":             buildFunctionCodeConfig(d.Get("func_code").(string)),
 		"log_config":            buildFunctionLogConfig(d),
+		"enable_dynamic_memory": d.Get("enable_dynamic_memory"),
+		"is_stateful_function":  d.Get("is_stateful_function"),
+		"network_controller":    buildFunctionNetworkController(d.Get("network_controller").([]interface{})),
 	}
 }
 
@@ -749,7 +884,7 @@ func buildFunctionStrategyConfig(concurrencyNum int) map[string]interface{} {
 	}
 }
 
-func buildUpdateFunctionMetadataBodyParams(d *schema.ResourceData) map[string]interface{} {
+func buildUpdateFunctionMetadataBodyParams(cfg *config.Config, d *schema.ResourceData) map[string]interface{} {
 	// Parameter app is recommended to replace parameter package.
 	pkg, ok := d.GetOk("app")
 	if !ok {
@@ -786,11 +921,22 @@ func buildUpdateFunctionMetadataBodyParams(d *schema.ResourceData) map[string]in
 		"func_vpc":            buildFunctionVpcConfig(d),
 		"func_mounts": buildFunctionMountConfig(d.Get("func_mounts").([]interface{}),
 			d.Get("mount_user_id").(int), d.Get("mount_user_group_id").(int)),
-		"strategy_config": buildFunctionStrategyConfig(d.Get("concurrency_num").(int)),
+		"strategy_config":        buildFunctionStrategyConfig(d.Get("concurrency_num").(int)),
+		"enable_dynamic_memory":  d.Get("enable_dynamic_memory"),
+		"is_stateful_function":   d.Get("is_stateful_function"),
+		"network_controller":     buildFunctionNetworkController(d.Get("network_controller").([]interface{})),
+		"enterprise_project_id":  cfg.GetEnterpriseProjectID(d),
+		"peering_cidr":           d.Get("peering_cidr"),
+		"enable_auth_in_header":  d.Get("enable_auth_in_header"),
+		"enable_class_isolation": d.Get("enable_class_isolation"),
+		"ephemeral_storage":      utils.ValueIgnoreEmpty(d.Get("ephemeral_storage")),
+		"heartbeat_handler":      d.Get("heartbeat_handler"),
+		"restore_hook_handler":   d.Get("restore_hook_handler"),
+		"restore_hook_timeout":   d.Get("restore_hook_timeout"),
 	}
 }
 
-func updateFunctionMetadata(client *golangsdk.ServiceClient, d *schema.ResourceData, functionUrn string) error {
+func updateFunctionMetadata(client *golangsdk.ServiceClient, cfg *config.Config, d *schema.ResourceData, functionUrn string) error {
 	httpUrl := "v2/{project_id}/fgs/functions/{function_urn}/config"
 
 	updatePath := client.Endpoint + httpUrl
@@ -801,7 +947,7 @@ func updateFunctionMetadata(client *golangsdk.ServiceClient, d *schema.ResourceD
 		MoreHeaders: map[string]string{
 			"Content-Type": "application/json",
 		},
-		JSONBody: utils.RemoveNil(buildUpdateFunctionMetadataBodyParams(d)),
+		JSONBody: utils.RemoveNil(buildUpdateFunctionMetadataBodyParams(cfg, d)),
 	}
 
 	_, err := client.Request("PUT", updatePath, &updateOpt)
@@ -905,128 +1051,23 @@ func createFunctionTags(client *golangsdk.ServiceClient, functionUrn string, tag
 	return nil
 }
 
-func createFunctionVersion(client *golangsdk.ServiceClient, functionUrn, versionName string) error {
-	httpUrl := "v2/{project_id}/fgs/functions/{function_urn}/versions"
-
-	createPath := client.Endpoint + httpUrl
-	createPath = strings.ReplaceAll(createPath, "{project_id}", client.ProjectID)
-	createPath = strings.ReplaceAll(createPath, "{function_urn}", functionUrn)
-	createOpt := golangsdk.RequestOpts{
-		KeepResponseBody: true,
-		MoreHeaders: map[string]string{
-			"Content-Type": "application/json",
-		},
-		JSONBody: map[string]interface{}{
-			"version": versionName,
-		},
-	}
-
-	_, err := client.Request("POST", createPath, &createOpt)
-	if err != nil {
-		return fmt.Errorf("failed to create the function version: %s", err)
-	}
-	return nil
-}
-
-func createFunctionVersionAlias(client *golangsdk.ServiceClient, functionUrn, versionName string, aliasCfg interface{}) error {
-	if aliasCfg == nil {
-		return nil
-	}
-
-	httpUrl := "v2/{project_id}/fgs/functions/{function_urn}/aliases"
-
-	createPath := client.Endpoint + httpUrl
-	createPath = strings.ReplaceAll(createPath, "{project_id}", client.ProjectID)
-	createPath = strings.ReplaceAll(createPath, "{function_urn}", functionUrn)
-	createOpt := golangsdk.RequestOpts{
-		KeepResponseBody: true,
-		MoreHeaders: map[string]string{
-			"Content-Type": "application/json",
-		},
-		JSONBody: map[string]interface{}{
-			"version":     versionName,
-			"name":        utils.ValueIgnoreEmpty(utils.PathSearch("name", aliasCfg, nil)),
-			"description": utils.ValueIgnoreEmpty(utils.PathSearch("description", aliasCfg, nil)),
-		},
-	}
-
-	_, err := client.Request("POST", createPath, &createOpt)
-	if err != nil {
-		return fmt.Errorf("failed to create the function version alias: %s", err)
-	}
-	return nil
-}
-
-func createFunctionVersions(client *golangsdk.ServiceClient, functionUrn string, versions []interface{}) error {
-	for _, version := range versions {
-		versionName := utils.PathSearch("name", version, "").(string)
-		if versionName != "latest" {
-			err := createFunctionVersion(client, functionUrn, versionName)
-			if err != nil {
-				return err
-			}
-		}
-		// In the future, the function will support manage multiple versions, and will add the corresponding logic to
-		// create versions based on the related API (Create) in this place.
-		aliases := utils.PathSearch("aliases", version, make([]interface{}, 0)).([]interface{})
-		for _, alias := range aliases {
-			err := createFunctionVersionAlias(client, functionUrn, versionName, alias)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 func getFunctionVersionUrn(client *golangsdk.ServiceClient, functionUrn string, qualifierName string) (string, error) {
-	httpUrl := "v2/{project_id}/fgs/functions/{function_urn}/versions"
-
-	// The query parameter 'marker' and 'maxitems' are not available.
-	listPath := client.Endpoint + httpUrl
-	listPath = strings.ReplaceAll(listPath, "{project_id}", client.ProjectID)
-	listPath = strings.ReplaceAll(listPath, "{function_urn}", functionUrn)
-	listOpt := golangsdk.RequestOpts{
-		KeepResponseBody: true,
-		MoreHeaders: map[string]string{
-			"Content-Type": "application/json",
-		},
-	}
-	requestResp, err := client.Request("GET", listPath, &listOpt)
-	if err != nil {
-		return "", fmt.Errorf("failed to query the function versions: %s", err)
-	}
-	respBody, err := utils.FlattenResponse(requestResp)
+	versions, err := getFunctionVersions(client, functionUrn)
 	if err != nil {
 		return "", err
 	}
 
-	return utils.PathSearch(fmt.Sprintf("versions[?version=='%s']|[0].func_urn", qualifierName), respBody, "").(string), nil
+	return utils.PathSearch(fmt.Sprintf("[?version=='%s']|[0].func_urn", qualifierName), versions, "").(string), nil
 }
 
 func getFunctionAliasUrn(client *golangsdk.ServiceClient, functionUrn string, qualifierName string) (string, error) {
-	httpUrl := "v2/{project_id}/fgs/functions/{function_urn}/aliases"
-
-	listPath := client.Endpoint + httpUrl
-	listPath = strings.ReplaceAll(listPath, "{project_id}", client.ProjectID)
-	listPath = strings.ReplaceAll(listPath, "{function_urn}", functionUrn)
-	listOpt := golangsdk.RequestOpts{
-		KeepResponseBody: true,
-		MoreHeaders: map[string]string{
-			"Content-Type": "application/json",
-		},
-	}
-	requestResp, err := client.Request("GET", listPath, &listOpt)
-	if err != nil {
-		return "", fmt.Errorf("failed to query the function aliases: %s", err)
-	}
-	respBody, err := utils.FlattenResponse(requestResp)
+	aliases, err := getFunctionAliases(client, functionUrn)
 	if err != nil {
 		return "", err
 	}
 
 	// There will be no aliases with the same name even between different versions.
-	return utils.PathSearch(fmt.Sprintf("[?name=='%s']|[0].alias_urn", qualifierName), respBody, "").(string), nil
+	return utils.PathSearch(fmt.Sprintf("[?name=='%s']|[0].alias_urn", qualifierName), aliases, "").(string), nil
 }
 
 func getReservedInstanceUrn(client *golangsdk.ServiceClient, functionUrn, qualifierType, qualifierName string) (string, error) {
@@ -1210,8 +1251,10 @@ func resourceFunctionCreate(ctx context.Context, d *schema.ResourceData, meta in
 	funcUrnWithoutVersion := parseFunctionUrnWithoutVersion(funcUrn)
 
 	// lintignore:R019
-	if d.HasChanges("vpc_id", "func_mounts", "app_agency", "initializer_handler", "initializer_timeout", "concurrency_num") {
-		err = updateFunctionMetadata(client, d, funcUrnWithoutVersion)
+	if d.HasChanges("vpc_id", "func_mounts", "app_agency", "initializer_handler", "initializer_timeout", "concurrency_num",
+		"peering_cidr", "enable_auth_in_header", "enable_class_isolation", "ephemeral_storage", "heartbeat_handler",
+		"restore_hook_handler", "restore_hook_timeout") {
+		err = updateFunctionMetadata(client, cfg, d, funcUrnWithoutVersion)
 		if err != nil {
 			return diag.FromErr(err)
 		}
@@ -1240,8 +1283,10 @@ func resourceFunctionCreate(ctx context.Context, d *schema.ResourceData, meta in
 		}
 	}
 
-	if err = createFunctionVersions(client, funcUrnWithoutVersion, d.Get("versions").(*schema.Set).List()); err != nil {
-		return diag.FromErr(err)
+	if d.HasChanges("versions") {
+		if err = updateFunctionVersions(client, d); err != nil {
+			return diag.FromErr(err)
+		}
 	}
 
 	if d.HasChanges("reserved_instances") {
@@ -1313,6 +1358,7 @@ func flattenFuncionMounts(mounts []interface{}) []map[string]interface{} {
 func getFunctionVersions(client *golangsdk.ServiceClient, functionUrn string) ([]interface{}, error) {
 	httpUrl := "v2/{project_id}/fgs/functions/{function_urn}/versions"
 
+	// The query parameter 'marker' and 'maxitems' are not available.
 	listPath := client.Endpoint + httpUrl
 	listPath = strings.ReplaceAll(listPath, "{project_id}", client.ProjectID)
 	listPath = strings.ReplaceAll(listPath, "{function_urn}", functionUrn)
@@ -1368,12 +1414,43 @@ func flattenFunctionVersionAliases(aliases []interface{}) []map[string]interface
 	result := make([]map[string]interface{}, 0, len(aliases))
 	for _, alias := range aliases {
 		result = append(result, map[string]interface{}{
-			"name":        utils.PathSearch("name", alias, nil),
-			"description": utils.PathSearch("description", alias, nil),
+			"name":                        utils.PathSearch("name", alias, nil),
+			"description":                 utils.PathSearch("description", alias, nil),
+			"additional_version_weights":  utils.JsonToString(utils.PathSearch("additional_version_weights", alias, nil)),
+			"additional_version_strategy": utils.JsonToString(utils.PathSearch("additional_version_strategy", alias, nil)),
 		})
 	}
 
 	return result
+}
+
+func flattenNetworkControllerTriggerAccessVpcs(triggerAccessVpcs []interface{}) []map[string]interface{} {
+	if len(triggerAccessVpcs) < 1 {
+		return nil
+	}
+
+	result := make([]map[string]interface{}, 0, len(triggerAccessVpcs))
+	for _, triggerAccessVpc := range triggerAccessVpcs {
+		result = append(result, map[string]interface{}{
+			"vpc_id": utils.PathSearch("vpc_id", triggerAccessVpc, nil),
+		})
+	}
+
+	return result
+}
+
+func flattenFunctionNetworkController(networkController interface{}) []map[string]interface{} {
+	if networkController == nil {
+		return nil
+	}
+
+	return []map[string]interface{}{
+		{
+			"trigger_access_vpcs": flattenNetworkControllerTriggerAccessVpcs(utils.PathSearch("trigger_access_vpcs",
+				networkController, make([]interface{}, 0)).([]interface{})),
+			"disable_public_network": utils.PathSearch("disable_public_network", networkController, nil),
+		},
+	}
 }
 
 func flattenFunctionVersions(client *golangsdk.ServiceClient, functionUrn string) ([]map[string]interface{}, error) {
@@ -1393,14 +1470,21 @@ func flattenFunctionVersions(client *golangsdk.ServiceClient, functionUrn string
 			log.Printf("[DEBUG] The version name is not found from the API response: %v", version)
 			continue
 		}
+		versionDesc := utils.PathSearch("version_description", version, "").(string)
 		aliases := utils.PathSearch(fmt.Sprintf("[?version=='%s']", versionName),
 			aliasesConfig, make([]interface{}, 0)).([]interface{})
-		if versionName == "latest" && len(aliases) < 1 {
-			continue
+		if versionName == "latest" {
+			if len(aliases) < 1 {
+				continue
+			}
+			// The description of the latest version is configured through the 'description' parameter of the function resource,
+			// not the 'versions.description' parameter.
+			versionDesc = ""
 		}
 		result = append(result, utils.RemoveNil(map[string]interface{}{
-			"name":    versionName,
-			"aliases": flattenFunctionVersionAliases(aliases),
+			"name":        versionName,
+			"aliases":     flattenFunctionVersionAliases(aliases),
+			"description": utils.ValueIgnoreEmpty(versionDesc),
 		}))
 	}
 
@@ -1591,6 +1675,16 @@ func resourceFunctionRead(_ context.Context, d *schema.ResourceData, meta interf
 		d.Set("mount_user_group_id", utils.PathSearch("mount_config.mount_user.user_group_id", function, nil)),
 		d.Set("func_mounts", flattenFuncionMounts(utils.PathSearch("mount_config.func_mounts",
 			function, make([]interface{}, 0)).([]interface{}))),
+		d.Set("enable_dynamic_memory", utils.PathSearch("enable_dynamic_memory", function, nil)),
+		d.Set("is_stateful_function", utils.PathSearch("is_stateful_function", function, nil)),
+		d.Set("network_controller", flattenFunctionNetworkController(utils.PathSearch("network_controller", function, nil))),
+		d.Set("peering_cidr", utils.PathSearch("peering_cidr", function, nil)),
+		d.Set("enable_auth_in_header", utils.PathSearch("enable_auth_in_header", function, nil)),
+		d.Set("enable_class_isolation", utils.PathSearch("enable_class_isolation", function, nil)),
+		d.Set("ephemeral_storage", utils.PathSearch("ephemeral_storage", function, nil)),
+		d.Set("heartbeat_handler", utils.PathSearch("heartbeat_handler", function, nil)),
+		d.Set("restore_hook_handler", utils.PathSearch("restore_hook_handler", function, nil)),
+		d.Set("restore_hook_timeout", utils.PathSearch("restore_hook_timeout", function, nil)),
 		// Attributes.
 		d.Set("urn", utils.PathSearch("func_urn", function, nil)),
 		d.Set("version", utils.PathSearch("version", function, nil)),
@@ -1639,8 +1733,11 @@ func resourceFunctionUpdate(ctx context.Context, d *schema.ResourceData, meta in
 	if d.HasChanges("app", "handler", "memory_size", "timeout", "encrypted_user_data",
 		"user_data", "agency", "app_agency", "description", "initializer_handler", "initializer_timeout",
 		"vpc_id", "network_id", "dns_list", "mount_user_id", "mount_user_group_id", "func_mounts", "custom_image",
-		"log_group_id", "log_stream_id", "log_group_name", "log_stream_name", "concurrency_num", "gpu_memory", "gpu_type") {
-		err := updateFunctionMetadata(client, d, funcUrnWithoutVersion)
+		"log_group_id", "log_stream_id", "log_group_name", "log_stream_name", "concurrency_num", "gpu_memory", "gpu_type",
+		"enable_dynamic_memory", "is_stateful_function", "network_controller", "enterprise_project_id", "peering_cidr",
+		"enable_auth_in_header", "enable_class_isolation", "ephemeral_storage", "heartbeat_handler", "restore_hook_handler",
+		"restore_hook_timeout") {
+		err := updateFunctionMetadata(client, cfg, d, funcUrnWithoutVersion)
 		if err != nil {
 			return diag.FromErr(err)
 		}
@@ -1765,26 +1862,59 @@ func deleteFunctionVersionAlias(client *golangsdk.ServiceClient, functionUrn, al
 	return nil
 }
 
-func deleteFunctionVersions(client *golangsdk.ServiceClient, functionUrn string, versions []interface{}) error {
-	// In the future, the function will support manage multiple versions.
-	for _, version := range versions {
-		versionNum := utils.PathSearch("name", version, "").(string) // The version name, also name as the version number.
-		if versionNum != "latest" {
-			// Deletes a function version, also deleting all aliases beneath it.
-			err := deleteFunctionOrVersion(client, fmt.Sprintf("%s:%s", functionUrn, versionNum))
-			if err != nil {
-				return err
-			}
-			continue
-		}
-		// Since the latest version cannot be deleted, only the version alias under it can be deleted.
-		aliases := utils.PathSearch("aliases", version, make([]interface{}, 0)).([]interface{})
-		for _, alias := range aliases {
-			err := deleteFunctionVersionAlias(client, functionUrn, utils.PathSearch("name", alias, "").(string))
-			if err != nil {
-				return err
-			}
-		}
+func createFunctionVersion(client *golangsdk.ServiceClient, functionUrn, versionName, versionDesc string) error {
+	httpUrl := "v2/{project_id}/fgs/functions/{function_urn}/versions"
+
+	createPath := client.Endpoint + httpUrl
+	createPath = strings.ReplaceAll(createPath, "{project_id}", client.ProjectID)
+	createPath = strings.ReplaceAll(createPath, "{function_urn}", functionUrn)
+	createOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		MoreHeaders: map[string]string{
+			"Content-Type": "application/json",
+		},
+		JSONBody: map[string]interface{}{
+			"version":     versionName,
+			"description": versionDesc,
+		},
+	}
+
+	_, err := client.Request("POST", createPath, &createOpt)
+	if err != nil {
+		return fmt.Errorf("failed to create the function version: %s", err)
+	}
+	return nil
+}
+
+func createFunctionVersionAlias(client *golangsdk.ServiceClient, functionUrn, versionName string, aliasCfg interface{}) error {
+	if aliasCfg == nil {
+		return nil
+	}
+
+	httpUrl := "v2/{project_id}/fgs/functions/{function_urn}/aliases"
+
+	createPath := client.Endpoint + httpUrl
+	createPath = strings.ReplaceAll(createPath, "{project_id}", client.ProjectID)
+	createPath = strings.ReplaceAll(createPath, "{function_urn}", functionUrn)
+	createOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		MoreHeaders: map[string]string{
+			"Content-Type": "application/json",
+		},
+		JSONBody: utils.RemoveNil(map[string]interface{}{
+			"version":     versionName,
+			"name":        utils.ValueIgnoreEmpty(utils.PathSearch("name", aliasCfg, nil)),
+			"description": utils.ValueIgnoreEmpty(utils.PathSearch("description", aliasCfg, nil)),
+			"additional_version_weights": utils.ValueIgnoreEmpty(utils.StringToJson(utils.PathSearch("additional_version_weights",
+				aliasCfg, "").(string))),
+			"additional_version_strategy": utils.ValueIgnoreEmpty(utils.StringToJson(utils.PathSearch("additional_version_strategy",
+				aliasCfg, "").(string))),
+		}),
+	}
+
+	_, err := client.Request("POST", createPath, &createOpt)
+	if err != nil {
+		return fmt.Errorf("failed to create the function version alias: %s", err)
 	}
 	return nil
 }
@@ -1793,19 +1923,85 @@ func updateFunctionVersions(client *golangsdk.ServiceClient, d *schema.ResourceD
 	var (
 		functionUrn = parseFunctionUrnWithoutVersion(d.Id())
 
-		oldSet, newSet = d.GetChange("versions")
-		decrease       = oldSet.(*schema.Set).Difference(newSet.(*schema.Set))
-		increase       = newSet.(*schema.Set).Difference(oldSet.(*schema.Set))
+		oldVal, newVal  = d.GetChange("versions")
+		oldVersions     = oldVal.(*schema.Set).List()
+		newVersions     = newVal.(*schema.Set).List()
+		newVersionNames = utils.PathSearch("[*].name", newVersions, make([]interface{}, 0)).([]interface{})
+		oldVersionNames = utils.PathSearch("[*].name", oldVersions, make([]interface{}, 0)).([]interface{})
+
+		err error
 	)
 
-	err := deleteFunctionVersions(client, functionUrn, decrease.List())
-	if err != nil {
-		return fmt.Errorf("error deleting function versions: %s", err)
+	// Version         -> null:                Remove version
+	// Version + Alias -> null:                Remove version
+	// Version + Alias -> Version:             Remove alias
+	// Version + Alias -> Version + New Alias: Remove alias before new alias create
+	// Do not use the difference function of the type schema set, and use the custom compare function as follows.
+	for _, oldVersion := range oldVersions {
+		versionName := utils.PathSearch("name", oldVersion, nil)
+		versionDesc := utils.PathSearch("description", oldVersion, nil)
+		// Check if the version (by name and description) has changed and decide whether to delete it and the latest
+		// version is check in particular, because the latest version cannot be deleted, so, if the version structure
+		// has been removed (delete alias), skip the version delete logic and just only delete the corresponding alias.
+		// For versions with other names, deleting the version will also delete the alias, regardless of whether it has
+		// an alias.
+		if fmt.Sprint(versionName) != "latest" && (!utils.SliceContains(newVersionNames, versionName) ||
+			fmt.Sprint(versionDesc) != utils.PathSearch(fmt.Sprintf("[?name=='%s']|[0].description", versionName), newVersions, "").(string)) {
+			// Delete a specified function version.
+			err = deleteFunctionOrVersion(client, fmt.Sprintf("%s:%s", functionUrn, versionName))
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		aliases := utils.PathSearch("aliases", oldVersion, make([]interface{}, 0)).([]interface{})
+		// If the version info does not change, check if the alias information is removed or updated and decide whether
+		// to delete current alias, because these is no API to update the alias, just have APIs for create and delete.
+		// Any configuration update needs to be implemented by delete function (if the alias configuration has been
+		// configured in the history list) before new configuration create.
+		if len(aliases) > 0 && !reflect.DeepEqual(aliases, utils.PathSearch(fmt.Sprintf("[?name=='%s']|[0].aliases", versionName),
+			newVersions, make([]interface{}, 0)).([]interface{})) {
+			// Delete an alias from a specified function version.
+			err = deleteFunctionVersionAlias(client, functionUrn, utils.PathSearch("[0].name", aliases, "").(string))
+			if err != nil {
+				return err
+			}
+		}
 	}
 
-	err = createFunctionVersions(client, functionUrn, increase.List())
-	if err != nil {
-		return fmt.Errorf("error creating function versions: %s", err)
+	// null            -> Version:             Create version
+	// null            -> Version + Alias:     Create version + Create alias
+	// Version         -> Version + Alias:     Create alias
+	// Version + Alias -> Version + New Alias: Create alias after old alias removed
+	for _, newVersion := range newVersions {
+		versionName := utils.PathSearch("name", newVersion, nil)
+		versionDesc := utils.PathSearch("description", newVersion, "").(string)
+		// Check if the new version (by name and description) is supported and decide whether to create a new version
+		// and the latest version is check in particular, because the create version name cannot be 'latest', so, if the
+		// version name has been updated (ignore alias change), new a new version first.
+		isCreateNewVersion := versionName != "latest" && (!utils.SliceContains(oldVersionNames, versionName) ||
+			fmt.Sprint(versionDesc) != utils.PathSearch(fmt.Sprintf("[?name=='%s']|[0].description", versionName), oldVersions, "").(string))
+		if isCreateNewVersion {
+			// Create a new function version.
+			err := createFunctionVersion(client, functionUrn, fmt.Sprint(versionName), versionDesc)
+			if err != nil {
+				return err
+			}
+		}
+
+		aliases := utils.PathSearch("aliases", newVersion, make([]interface{}, 0)).([]interface{})
+		// If the version is supported or alias is changed (also can be supported), it means that a new alias needs to
+		// be created according to the alias configuration in the current script (the latter will delete the old alias
+		// configuration first).
+		if isCreateNewVersion || (len(aliases) > 0 && !reflect.DeepEqual(aliases,
+			utils.PathSearch(fmt.Sprintf("[?name=='%s']|[0].aliases", versionName), oldVersions, make([]interface{}, 0)).([]interface{}))) {
+			// Create a new alias under a specified function version.
+			err := createFunctionVersionAlias(client, functionUrn, fmt.Sprint(versionName), utils.PathSearch("[0]", aliases, nil))
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil

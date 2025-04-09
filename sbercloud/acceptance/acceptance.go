@@ -87,6 +87,8 @@ var (
 	SBC_KPS_KEY_FILE_PATH = os.Getenv("SBC_KPS_KEY_FILE_PATH")
 	SBC_USER_ID           = os.Getenv("SBC_USER_ID")
 	SBC_DEW_ENABLE_FLAG   = os.Getenv("SBC_DEW_ENABLE_FLAG")
+
+	SBC_CSS_LOCAL_DISK_FLAVOR = os.Getenv("SBC_CSS_LOCAL_DISK_FLAVOR")
 )
 
 // TestAccProviderFactories is a static map containing only the main provider instance
@@ -602,6 +604,13 @@ func TestAccPreCheckGMCertificate(t *testing.T) {
 			" SBC_GM_ENC_CERTIFICATE_PRIVATE_KEY, SBC_GM_CERTIFICATE_CHAIN, SBC_NEW_GM_CERTIFICATE_CONTENT," +
 			" SBC_NEW_GM_CERTIFICATE_PRIVATE_KEY, SBC_NEW_GM_ENC_CERTIFICATE_CONTENT," +
 			" SBC_NEW_GM_ENC_CERTIFICATE_PRIVATE_KEY, SBC_NEW_GM_CERTIFICATE_CHAIN must be set for GM certificate")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckCSSLocalDiskFlavor(t *testing.T) {
+	if SBC_CSS_LOCAL_DISK_FLAVOR == "" {
+		t.Skip("SBC_CSS_LOCAL_DISK_FLAVOR must be set for the acceptance test")
 	}
 }
 

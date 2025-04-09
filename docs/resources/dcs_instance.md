@@ -1,5 +1,8 @@
 ---
 subcategory: "Distributed Cache Service (DCS)"
+layout: "sbercloud"
+page_title: "SberCloud: sbercloud_dcs_instance"
+description: ""
 ---
 
 # sbercloud_dcs_instance
@@ -75,6 +78,17 @@ resource "sbercloud_dcs_instance" "instance_2" {
     group_name = "test-group2"
     ip_address = ["172.16.10.100", "172.16.0.0/24"]
   }
+
+  parameters {
+    id    = "1"
+    name  = "timeout"
+    value = "500"
+  }
+  parameters {
+    id    = "3"
+    name  = "hash-max-ziplist-entries"
+    value = "4096"
+  }
 }
 ```
 
@@ -110,8 +124,7 @@ The following arguments are supported:
   It also includes the modes of Redis instances. You can query the *flavor* as follows:
   + It can be obtained through this data source `sbercloud_dcs_flavors`.
   + Query some flavors
-    in [DCS Instance Specifications](https://support.hc.sbercloud.ru/usermanual/dcs/en-us_topic_0054235835.html)
-  + Log in to the DCS console, click *Buy DCS Instance*, and find the corresponding instance specification.
+    in [DCS Instance Specifications](https://support.hc.sbercloud.ru/usermanual/dcs/en-us_topic_0054235835.html) + Log in to the DCS console, click *Buy DCS Instance*, and find the corresponding instance specification.
 
 * `availability_zones` - (Required, List, ForceNew) The code of the AZ where the cache node resides.
   Master/Standby, Proxy Cluster, and Redis Cluster DCS instances support cross-AZ deployment.
@@ -127,17 +140,21 @@ The following arguments are supported:
 * `security_group_id` - (Optional, String) The ID of the security group which the instance belongs to.
   This parameter is mandatory for Memcached and Redis 3.0 version.
 
+* `ssl_enable` - (Optional, Bool) Specifies whether to enable the SSL. Value options: **true**, **false**.
+
 * `private_ip` - (Optional, String, ForceNew) The IP address of the DCS instance,
   which can only be the currently available IP address the selected subnet.
   You can specify an available IP for the Redis instance (except for the Redis Cluster type).
   If omitted, the system will automatically allocate an available IP address to the Redis instance.
   Changing this creates a new instance resource.
 
+* `template_id` - (Optional, String, ForceNew) The Parameter Template ID.
+  Changing this creates a new instance resource.
+
 * `port` - (Optional, Int) Port customization, which is supported only by Redis 4.0 and Redis 5.0 instances.
   Redis instance defaults to 6379. Memcached instance does not use this argument.
 
-* `password` - (Optional, String, ForceNew) Specifies the password of a DCS instance.
-  Changing this creates a new instance.
+* `password` - (Optional, String) Specifies the password of a DCS instance.
   The password of a DCS instance must meet the following complexity requirements:
   + Must be a string of 8 to 32 bits in length.
   + Must contain three combinations of the following four characters: Lower case letters, uppercase letter, digital,
@@ -150,35 +167,37 @@ The following arguments are supported:
 * `whitelist_enable` - (Optional, Bool) Enable or disable the IP address whitelists. Defaults to true.
   If the whitelist is disabled, all IP addresses connected to the VPC can access the instance.
 
-* `maintain_begin` - (Optional, String) Time at which the maintenance time window starts.
-  The valid values are `22:00:00`, `02:00:00`, `06:00:00`, `10:00:00`, `14:00:00` and `18:00:00`.
-  Default value is `02:00:00`.
+* `maintain_begin` - (Optional, String) Time at which the maintenance time window starts. Defaults to **02:00:00**.
   + The start time and end time of a maintenance time window must indicate the time segment of a supported maintenance
     time window.
-  + Parameters `maintain_begin` and `maintain_end` must be set in pairs.
-  + If parameter maintain_begin is left blank, parameter maintain_end is also blank.
-    In this case, the system automatically allocates the default start time 02:00:00.
+  + The start time must be on the hour, such as **18:00:00**.
+  + If parameter `maintain_begin` is left blank, parameter `maintain_end` is also blank.
+    In this case, the system automatically allocates the default start time **02:00:00**.
 
-* `maintain_end` - (Optional, String) Time at which the maintenance time window ends.
-  The valid values are `22:00:00`, `02:00:00`, `06:00:00`, `10:00:00`, `14:00:00` and `18:00:00`.
-  Default value is `06:00:00`.
+* `maintain_end` - (Optional, String) Time at which the maintenance time window ends. Defaults to **06:00:00**.
   + The start time and end time of a maintenance time window must indicate the time segment of a supported maintenance
     time window.
-  + The end time is four hours later than the start time.
-    For example, if the start time is 22:00:00, the end time is 02:00:00.
-  + Parameters `maintain_begin` and `maintain_end` must be set in pairs.
-  + If parameter maintain_end is left blank, parameter maintain_begin is also blank.
-    In this case, the system automatically allocates the default end time 06:00:00.
+  + The end time is one hour later than the start time. For example, if the start time is **18:00:00**, the end time is
+    **19:00:00**.
+  + If parameter `maintain_end` is left blank, parameter `maintain_begin` is also blank.
+    In this case, the system automatically allocates the default end time **06:00:00**.
+
+-> **NOTE:** Parameters `maintain_begin` and `maintain_end` must be set in pairs.
 
 * `backup_policy` - (Optional, List) Specifies the backup configuration to be used with the instance.
   The structure is described below.
 
-* `rename_commands` - (Optional, Map, ForceNew) Critical command renaming, which is supported only by Redis 4.0 and
-  Redis 5.0 instances but not by Redis 3.0 instance.
-  The valid commands that can be renamed are: *command*, *keys*, *flushdb*, *flushall* and *hgetall*.
+  -> **NOTE:** This parameter is not supported when the instance type is single.
 
-* `enterprise_project_id` - (Optional, String, ForceNew) The enterprise project id of the dcs instance.
-  Changing this creates a new instance.
+* `parameters` - (Optional, List) Specify an array of one or more parameters to be set to the DCS instance after
+  launched. You can check on console to see which parameters supported.
+  The [parameters](#DcsInstance_Parameters) structure is documented below.
+
+* `rename_commands` - (Optional, Map) Critical command renaming, which is supported only by Redis 4.0 and
+  Redis 5.0 instances but not by Redis 3.0 instance.
+  The valid commands that can be renamed are: **command**, **keys**, **flushdb**, **flushall** and **hgetall**.
+
+* `enterprise_project_id` - (Optional, String) The enterprise project id of the dcs instance.
 
 * `charging_mode` - (Optional, String, ForceNew) Specifies the charging mode of the redis instance.
   The valid values are as follows:
@@ -210,6 +229,13 @@ The following arguments are supported:
 * `description` - (Optional, String) Specifies the description of an instance.
   It is a string that contains a maximum of 1024 characters.
 
+* `deleted_nodes` - (Optional, List) Specifies the ID of the replica to delete. This parameter is mandatory when
+  you delete replicas of a master/standby DCS Redis 4.0 or 5.0 instance. Currently, only one replica can be deleted
+  at a time.
+
+* `reserved_ips` - (Optional, List) Specifies IP addresses to retain. Mandatory during cluster scale-in. If this
+  parameter is not set, the system randomly deletes unnecessary shards.
+
 The `whitelists` block supports:
 
 * `group_name` - (Required, String) Specifies the name of IP address group.
@@ -223,19 +249,28 @@ The `backup_policy` block supports:
   + `auto`: automatic backup.
   + `manual`: manual backup.
 
-* `save_days` - (Optional, Int) Retention time. Unit: day, the value ranges from 1 to 7.
+* `save_days` - (Optional, Int) Retention time. Unit: day, the value ranges from `1` to `7`.
   This parameter is required if the backup_type is **auto**.
 
 * `period_type` - (Optional, String) Interval at which backup is performed. Default value is `weekly`.
   Currently, only weekly backup is supported.
 
-* `backup_at` - (Required, List) Day in a week on which backup starts, the value ranges from 1 to 7.
+* `backup_at` - (Required, List) Day in a week on which backup starts, the value ranges from `1` to `7`.
   Where: 1 indicates Monday; 7 indicates Sunday.
 
 * `begin_at` - (Required, String) Time at which backup starts.
   Format: `hh24:00-hh24:00`, "00:00-01:00" indicates that backup starts at 00:00:00.
 
-## Attributes Reference
+<a name="DcsInstance_Parameters"></a>
+The `parameters` block supports:
+
+* `id` - (Required, String) Specifies the ID of the configuration item.
+
+* `name` - (Required, String) Specifies the name of the configuration item.
+
+* `value` - (Required, String) Specifies the value of the configuration item.
+
+## Attribute Reference
 
 In addition to all arguments above, the following attributes are exported:
 
@@ -262,11 +297,56 @@ In addition to all arguments above, the following attributes are exported:
 
 * `subnet_name` - The name of subnet which the instance belongs to.
 
+* `subnet_cidr` - Indicates the subnet segment.
+
 * `security_group_name` - The name of security group which the instance belongs to.
 
-* `ssl_enable` - Specifies whether to enable the SSL. Value options: **true**, **false**.
-
 * `order_id` - The ID of the order that created the instance.
+
+* `created_at` - Indicates the time when the instance is created, in RFC3339 format.
+
+* `launched_at` - Indicates the time when the instance is started, in RFC3339 format.
+
+* `bandwidth_info` - Indicates the bandwidth information of the instance.
+  The [bandwidth_info](#dcs_bandwidth_info) structure is documented below.
+
+* `cache_mode` - Indicates the instance type. The value can be **single**, **ha**, **cluster** or **proxy**.
+
+* `cpu_type` - Indicates the CPU type of the instance. The value can be **x86_64** or **aarch64**.
+
+* `readonly_domain_name` - Indicates the read-only domain name of the instance. This parameter is available
+  only for master/standby instances.
+
+* `replica_count` - Indicates the number of replicas in the instance.
+
+* `transparent_client_ip_enable` - Indicates whether client IP pass-through is enabled.
+
+* `product_type` - Indicates the product type of the instance. The value can be: **generic** or **enterprise**.
+
+* `sharding_count` - Indicates the number of shards in a cluster instance.
+
+<a name="dcs_bandwidth_info"></a>
+The `bandwidth_info` block supports:
+
+* `bandwidth` - Indicates the bandwidth size, the unit is **GB**.
+
+* `begin_time` - Indicates the begin time of temporary increase.
+
+* `current_time` - Indicates the current time.
+
+* `end_time` - Indicates the end time of temporary increase.
+
+* `expand_count` - Indicates the number of increases.
+
+* `expand_effect_time` - Indicates the interval between temporary increases, the unit is **ms**.
+
+* `expand_interval_time` - Indicates the time interval to the next increase, the unit is **ms**.
+
+* `max_expand_count` - Indicates the maximum number of increases.
+
+* `next_expand_time` - Indicates the next increase time.
+
+* `task_running` - Indicates whether the increase task is running.
 
 ## Timeouts
 
@@ -287,12 +367,12 @@ terraform import sbercloud_dcs_instance.instance_1 80e373f9-872e-4046-aae9-ccd9d
 Note that the imported state may not be identical to your resource definition, due to some attributes missing from the
 API response, security or some other reason.
 The missing attributes include: `password`, `auto_renew`, `period`, `period_unit`, `rename_commands`,
-`internal_version`, `save_days`, `backup_type`, `begin_at`, `period_type`, `backup_at`.
+`internal_version`, `save_days`, `backup_type`, `begin_at`, `period_type`, `backup_at`, `parameters`.
 It is generally recommended running `terraform plan` after importing an instance.
 You can then decide if changes should be applied to the instance, or the resource definition should be updated to
 align with the instance. Also you can ignore changes as below.
 
-```
+```hcl
 resource "sbercloud_dcs_instance" "instance_1" {
     ...
 
