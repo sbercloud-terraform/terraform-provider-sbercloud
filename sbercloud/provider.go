@@ -21,8 +21,9 @@ import (
 	vpc2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/vpc"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/vpcep"
 
-	elb2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/elb"
 	"sync"
+
+	elb2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/elb"
 
 	dcs2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dcs"
 	dds2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dds"
@@ -269,12 +270,13 @@ func Provider() *schema.Provider {
 			"sbercloud_kps_running_tasks": dew.DataSourceDewKpsRunningTasks(),
 			"sbercloud_kps_keypairs":      dew.DataSourceKeypairs(),
 
-			"sbercloud_dms_product":         dms.DataSourceDmsProduct(),
-			"sbercloud_dms_maintainwindow":  dms.DataSourceDmsMaintainWindow(),
-			"sbercloud_dms_kafka_instances": kafka.DataSourceDmsKafkaInstances(),
-			"sbercloud_dms_kafka_flavors":   kafka.DataSourceKafkaFlavors(),
-			"sbercloud_dms_kafka_users":     kafka.DataSourceDmsKafkaUsers(),
-			"sbercloud_dms_kafka_messages":  kafka.DataSourceDmsKafkaMessages(),
+			"sbercloud_dms_product":              dms.DataSourceDmsProduct(),
+			"sbercloud_dms_maintainwindow":       dms.DataSourceDmsMaintainWindow(),
+			"sbercloud_dms_kafka_instances":      kafka.DataSourceDmsKafkaInstances(),
+			"sbercloud_dms_kafka_flavors":        kafka.DataSourceKafkaFlavors(),
+			"sbercloud_dms_kafka_users":          kafka.DataSourceDmsKafkaUsers(),
+			"sbercloud_dms_kafka_messages":       kafka.DataSourceDmsKafkaMessages(),
+			"sbercloud_dms_kafka_consumer_group": kafka.DataSourceDmsKafkaConsumerGroups(),
 
 			"sbercloud_dms_rabbitmq_flavors": rabbitmq.DataSourceRabbitMQFlavors(),
 
@@ -449,6 +451,7 @@ func Provider() *schema.Provider {
 			"sbercloud_dms_kafka_permissions":     kafka.ResourceDmsKafkaPermissions(),
 			"sbercloud_dms_kafka_user":            kafka.ResourceDmsKafkaUser(),
 			"sbercloud_dms_kafka_message_produce": kafka.ResourceDmsKafkaMessageProduce(),
+			"sbercloud_dms_kafka_consumer_group":  kafka.ResourceDmsKafkaConsumerGroup(),
 
 			"sbercloud_dms_rabbitmq_instance": rabbitmq.ResourceDmsRabbitmqInstance(),
 
