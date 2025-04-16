@@ -37,30 +37,30 @@ func testDataSourceDataSourceDmsKafkaConsumerGroup_basic(name string) string {
 	return fmt.Sprintf(`
 %s
 
-data "sbercloud_dms_kafka_users" "all" {
+data "sbercloud_dms_kafka_consumer_groups" "all" {
   depends_on = [sbercloud_dms_kafka_consumer_group.test]
 
   instance_id = sbercloud_dms_kafka_consumer_group.test.instance_id
 }
 
-data "sbercloud_dms_kafka_users" "test" {
-  depends_on = [sbercloud_dms_kafka_user.test]
+data "sbercloud_dms_kafka_consumer_groups" "test" {
+  depends_on = [sbercloud_dms_kafka_consumer_group.test]
 
   instance_id = sbercloud_dms_kafka_instance.test.id
-  name        = sbercloud_dms_kafka_user.test.name
-  description = sbercloud_dms_kafka_user.test.description
+  name        = sbercloud_dms_kafka_consumer_group.test.name
+  description = sbercloud_dms_kafka_consumer_group.test.description
 }
 
 locals {
-  test_results = data.sbercloud_dms_kafka_users.test
+  test_results = data.sbercloud_dms_kafka_consumer_groups.test
 }
 
 output "name_validation" {
-  value = alltrue([for v in local.test_results.users[*].name : strcontains(v, sbercloud_dms_kafka_user.test.name)])
+  value = alltrue([for v in local.test_results.groups[*].name : strcontains(v, sbercloud_dms_kafka_consumer_group.test.name)])
 }
 
 output "description_validation" {
-  value = alltrue([for v in local.test_results.users[*].description : strcontains(v, sbercloud_dms_kafka_user.test.description)])
+  value = alltrue([for v in local.test_results.groups[*].description : strcontains(v, sbercloud_dms_kafka_consumer_group.test.description)])
 }
 `, testAccDmsKafkaConsumerGroup_basic(name, "test"))
 }
