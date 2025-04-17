@@ -21,7 +21,7 @@ func getDmsKafkaConsumerGroupFunc(c *config.Config, state *terraform.ResourceSta
 		return nil, fmt.Errorf("error creating DMS client: %s", err)
 	}
 
-	// Split instance_id and user from resource id
+	// Split instance_id and group from resource id
 	parts := strings.SplitN(state.Primary.ID, "/", 2)
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid id format, must be <instance_id>/<group_name>")
