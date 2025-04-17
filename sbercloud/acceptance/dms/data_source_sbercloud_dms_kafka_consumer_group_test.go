@@ -24,7 +24,7 @@ func TestAccDataSourceDmsKafkaConsumerGroup_basic(t *testing.T) {
 				Config: testDataSourceDataSourceDmsKafkaConsumerGroup_basic(rName),
 				Check: resource.ComposeTestCheckFunc(
 					dc.CheckResourceExists(),
-					resource.TestCheckResourceAttrSet(dataSource, "users.#"),
+					resource.TestCheckResourceAttrSet(dataSource, "groups.#"),
 					resource.TestCheckOutput("name_validation", "true"),
 					resource.TestCheckOutput("description_validation", "true"),
 				),
