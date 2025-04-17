@@ -10,7 +10,7 @@ import (
 )
 
 func TestAccDataSourceDmsKafkaConsumerGroup_basic(t *testing.T) {
-	dataSource := "data.sbercloud_dms_kafka_users.all"
+	dataSource := "data.sbercloud_dms_kafka_consumer_groups.all"
 	rName := acceptance.RandomAccResourceName()
 	dc := acceptance.InitDataSourceCheck(dataSource)
 
