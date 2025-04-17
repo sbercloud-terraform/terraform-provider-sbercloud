@@ -270,13 +270,13 @@ func Provider() *schema.Provider {
 			"sbercloud_kps_running_tasks": dew.DataSourceDewKpsRunningTasks(),
 			"sbercloud_kps_keypairs":      dew.DataSourceKeypairs(),
 
-			"sbercloud_dms_product":              dms.DataSourceDmsProduct(),
-			"sbercloud_dms_maintainwindow":       dms.DataSourceDmsMaintainWindow(),
-			"sbercloud_dms_kafka_instances":      kafka.DataSourceDmsKafkaInstances(),
-			"sbercloud_dms_kafka_flavors":        kafka.DataSourceKafkaFlavors(),
-			"sbercloud_dms_kafka_users":          kafka.DataSourceDmsKafkaUsers(),
-			"sbercloud_dms_kafka_messages":       kafka.DataSourceDmsKafkaMessages(),
-			"sbercloud_dms_kafka_consumer_group": kafka.DataSourceDmsKafkaConsumerGroups(),
+			"sbercloud_dms_product":               dms.DataSourceDmsProduct(),
+			"sbercloud_dms_maintainwindow":        dms.DataSourceDmsMaintainWindow(),
+			"sbercloud_dms_kafka_instances":       kafka.DataSourceDmsKafkaInstances(),
+			"sbercloud_dms_kafka_flavors":         kafka.DataSourceKafkaFlavors(),
+			"sbercloud_dms_kafka_users":           kafka.DataSourceDmsKafkaUsers(),
+			"sbercloud_dms_kafka_messages":        kafka.DataSourceDmsKafkaMessages(),
+			"sbercloud_dms_kafka_consumer_groups": kafka.DataSourceDmsKafkaConsumerGroups(),
 
 			"sbercloud_dms_rabbitmq_flavors": rabbitmq.DataSourceRabbitMQFlavors(),
 
