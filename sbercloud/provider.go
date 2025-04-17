@@ -23,8 +23,6 @@ import (
 
 	"sync"
 
-	elb2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/elb"
-
 	dcs2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dcs"
 	dds2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dds"
 
