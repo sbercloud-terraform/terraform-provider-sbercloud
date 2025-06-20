@@ -249,3 +249,33 @@ resource "sbercloud_cce_cluster" "test" {
 
 `, testAccCCEClusterV3_Base(rName), rName, acceptance.SBC_ENTERPRISE_PROJECT_ID)
 }
+
+func testAccCluster_turbo(rName string, eniNum int) string {
+	return fmt.Sprintf(`
+%s
+
+resource "sbercloud_vpc_subnet" "eni_test" {
+  count      = %[3]d
+
+  name       = "%[2]s-eni-${count.index}"
+  cidr       = cidrsubnet(sbercloud_vpc.test.cidr, 8, count.index + 1)
+  gateway_ip = cidrhost(cidrsubnet(sbercloud_vpc.test.cidr, 8, count.index + 1), 1)
+  vpc_id     = sbercloud_vpc.test.id
+}
+
+resource "sbercloud_cce_cluster" "test" {
+  name                   = "%[2]s"
+  flavor_id              = "cce.s1.small"
+  vpc_id                 = sbercloud_vpc.test.id
+  subnet_id              = sbercloud_vpc_subnet.test.id
+  container_network_type = "eni"
+  enable_dist_mgt        = true
+  eni_subnet_id          = join(",", sbercloud_vpc_subnet.eni_test[*].ipv4_subnet_id)
+}
+
+output "is_eni_subnet_id_different" {
+  value = length(setsubtract(split(",", sbercloud_cce_cluster.test.eni_subnet_id),
+  sbercloud_vpc_subnet.eni_test[*].ipv4_subnet_id)) != 0
+}
+`, acceptance.TestVpc(rName), rName, eniNum)
+}

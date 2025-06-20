@@ -71,7 +71,14 @@ The following arguments are supported:
 
 * `flavor_id` - (Optional, String) Specifies the Kafka `flavor ID`. This parameter and `product_id` are alternative.
 
-  -> It is recommended to use `flavor_id` if the region supports it.
+  -> It is recommended to use `flavor_id` if the region supports it.\
+  One of:
+  * c6.2u4g.cluster
+  * c6.4u8g.cluster
+  * c6.8u16g.cluster
+  * c6.12u24g.cluster
+  * c6.16u32g.cluster \
+  Or use data source sbercloud_dms_kafka_flavors
 
 * `product_id` - (Optional, String) Specifies a product ID, which includes bandwidth, partition, broker and default
   storage capacity.
@@ -112,14 +119,16 @@ The following arguments are supported:
   
   ~> The parameter behavior of `availability_zones` has been changed from `list` to `set`.
 
-* `manager_user` - (Required, String, ForceNew) Specifies the username for logging in to the Kafka Manager. The username
+* `manager_user` - (Optional, String, ForceNew) Specifies the username for logging in to the Kafka Manager. The username
   consists of 4 to 64 characters and can contain letters, digits, hyphens (-), and underscores (_). Changing this
   creates a new instance resource.
 
-* `manager_password` - (Required, String, ForceNew) Specifies the password for logging in to the Kafka Manager. The
+* `manager_password` - (Optional, String, ForceNew) Specifies the password for logging in to the Kafka Manager. The
   password must meet the following complexity requirements: Must be 8 to 32 characters long. Must contain at least 2 of
   the following character types: lowercase letters, uppercase letters, digits, and special characters (`~!@#$%^&*()-_
   =+\\|[{}]:'",<.>/?). Changing this creates a new instance resource.
+
+  -> **NOTE:** `manager_user` and `manager_password` are deprecated and will be deleted in future releases
 
 * `storage_space` - (Optional, Int) Specifies the message storage capacity, the unit is GB.
   + When bandwidth is 100MB: 600–90000 GB
@@ -135,14 +144,15 @@ The following arguments are supported:
   It is required when creating an instance with `flavor_id`.
 
 * `access_user` - (Optional, String, ForceNew) Specifies the username of SASL_SSL user. A username consists of 4
-  to 64 characters and supports only letters, digits, and hyphens (-). Changing this creates a new instance resource.
+  to 64 characters and supports only letters, digits, and hyphens (-). Changing this creates a new instance resource. 
 
 * `password` - (Optional, String, ForceNew) Specifies the password of SASL_SSL user. A password must meet the
   following complexity requirements: Must be 8 to 32 characters long. Must contain at least 2 of the following character
   types: lowercase letters, uppercase letters, digits, and special characters (`~!@#$%^&*()-_=+\\|[{}]:'",<.>/?).
   Changing this creates a new instance resource.
 
-  -> **NOTE:** If `access_user` and `password` are specified, the SASL_SSL is enabled for a Kafka instance.
+  -> **NOTE:** `access_user` and `password` parameters are mandatory when ssl_enable is set to true. These parameters are invalid when ssl_enable is set to false. \
+  -> **NOTE:** If `access_user` and `password` are specified, set `ssl_enable = true`, to enable SASL_SSL for a Kafka instance.
 
 * `description` - (Optional, String) Specifies the description of the DMS Kafka instance. It is a character string
   containing not more than 1,024 characters.

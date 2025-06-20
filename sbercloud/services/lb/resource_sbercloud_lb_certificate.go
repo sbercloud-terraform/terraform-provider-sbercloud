@@ -1,8 +1,9 @@
-package elb
+package lb
 
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -15,18 +16,24 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
-// @API ELB POST /v3/{project_id}/elb/certificates
-// @API ELB GET /v3/{project_id}/elb/certificates/{certificate_id}
-// @API ELB PUT /v3/{project_id}/elb/certificates/{certificate_id}
-// @API ELB DELETE /v3/{project_id}/elb/certificates/{certificate_id}
-func ResourceCertificateV3() *schema.Resource {
+// @API ELB POST /v2/{project_id}/elb/certificates
+// @API ELB GET /v2/{project_id}/elb/certificates/{certificate_id}
+// @API ELB PUT /v2/{project_id}/elb/certificates/{certificate_id}
+// @API ELB DELETE /v2/{project_id}/elb/certificates/{certificate_id}
+func ResourceCertificateV2() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceCertificateV3Create,
-		ReadContext:   resourceCertificateV3Read,
-		UpdateContext: resourceCertificateV3Update,
-		DeleteContext: resourceCertificateV3Delete,
+		CreateContext: resourceCertificateV2Create,
+		ReadContext:   resourceCertificateV2Read,
+		UpdateContext: resourceCertificateV2Update,
+		DeleteContext: resourceCertificateV2Delete,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
+		},
+
+		Timeouts: &schema.ResourceTimeout{
+			Create: schema.DefaultTimeout(10 * time.Minute),
+			Update: schema.DefaultTimeout(10 * time.Minute),
+			Delete: schema.DefaultTimeout(5 * time.Minute),
 		},
 
 		Schema: map[string]*schema.Schema{
@@ -58,47 +65,36 @@ func ResourceCertificateV3() *schema.Resource {
 				Type:             schema.TypeString,
 				Optional:         true,
 				DiffSuppressFunc: utils.SuppressNewLineDiffs,
+				Sensitive:        true,
 			},
 			"certificate": {
 				Type:             schema.TypeString,
 				Required:         true,
 				DiffSuppressFunc: utils.SuppressNewLineDiffs,
+				Sensitive:        true,
 			},
-			"enc_certificate": {
-				Type:             schema.TypeString,
-				Optional:         true,
-				DiffSuppressFunc: utils.SuppressNewLineDiffs,
-			},
-			"enc_private_key": {
-				Type:             schema.TypeString,
-				Optional:         true,
-				DiffSuppressFunc: utils.SuppressNewLineDiffs,
-			},
-			"scm_certificate_id": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
-			},
+			// these parameters are not supported yet by API
+			//"protection_status": {
+			//	Type:     schema.TypeString,
+			//	Optional: true,
+			//	Computed: true,
+			//},
+			//"protection_reason": {
+			//	Type:     schema.TypeString,
+			//	Optional: true,
+			//},
+			//"source": {
+			//	Type:     schema.TypeString,
+			//	Optional: true,
+			//	Computed: true,
+			//},
 			"enterprise_project_id": {
 				Type:     schema.TypeString,
 				Optional: true,
 				ForceNew: true,
 				Computed: true,
 			},
-			"common_name": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
-			"fingerprint": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
-			"subject_alternative_names": {
-				Type:     schema.TypeList,
-				Computed: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-			},
-			"expire_time": {
+			"update_time": {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
@@ -106,7 +102,7 @@ func ResourceCertificateV3() *schema.Resource {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
-			"update_time": {
+			"expire_time": {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
@@ -114,12 +110,12 @@ func ResourceCertificateV3() *schema.Resource {
 	}
 }
 
-func resourceCertificateV3Create(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceCertificateV2Create(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	region := cfg.GetRegion(d)
 
 	var (
-		httpUrl = "v3/{project_id}/elb/certificates"
+		httpUrl = "v2/{project_id}/elb/certificates"
 		product = "elb"
 	)
 	client, err := cfg.NewServiceClient(product, region)
@@ -143,43 +139,40 @@ func resourceCertificateV3Create(ctx context.Context, d *schema.ResourceData, me
 	if err != nil {
 		return diag.Errorf("error retrieving ELB certificate: %s", err)
 	}
-	certificateId := utils.PathSearch("certificate.id", createRespBody, "").(string)
+	certificateId := utils.PathSearch("id", createRespBody, "").(string)
 	if certificateId == "" {
 		return diag.Errorf("error creating ELB certificate: ID is not found in API response")
 	}
 
 	d.SetId(certificateId)
 
-	return resourceCertificateV3Read(ctx, d, meta)
+	return resourceCertificateV2Read(ctx, d, meta)
 }
 
 func buildCreateCertificateBodyParams(d *schema.ResourceData, cfg *config.Config) map[string]interface{} {
-	params := map[string]interface{}{
-		"name":                  utils.ValueIgnoreEmpty(d.Get("name")),
-		"description":           utils.ValueIgnoreEmpty(d.Get("description")),
-		"type":                  utils.ValueIgnoreEmpty(d.Get("type")),
-		"domain":                utils.ValueIgnoreEmpty(d.Get("domain")),
-		"private_key":           utils.ValueIgnoreEmpty(d.Get("private_key")),
-		"certificate":           utils.ValueIgnoreEmpty(d.Get("certificate")),
-		"enc_certificate":       utils.ValueIgnoreEmpty(d.Get("enc_certificate")),
-		"enc_private_key":       utils.ValueIgnoreEmpty(d.Get("enc_private_key")),
-		"scm_certificate_id":    utils.ValueIgnoreEmpty(d.Get("scm_certificate_id")),
-		"enterprise_project_id": utils.ValueIgnoreEmpty(cfg.GetEnterpriseProjectID(d)),
-	}
 	bodyParams := map[string]interface{}{
-		"certificate": params,
+		"name":        utils.ValueIgnoreEmpty(d.Get("name")),
+		"description": utils.ValueIgnoreEmpty(d.Get("description")),
+		"type":        utils.ValueIgnoreEmpty(d.Get("type")),
+		"domain":      utils.ValueIgnoreEmpty(d.Get("domain")),
+		"private_key": utils.ValueIgnoreEmpty(d.Get("private_key")),
+		"certificate": utils.ValueIgnoreEmpty(d.Get("certificate")),
+		//"protection_reason":     utils.ValueIgnoreEmpty(d.Get("protection_reason")),
+		//"protection_status":     utils.ValueIgnoreEmpty(d.Get("protection_status")),
+		//"source":                utils.ValueIgnoreEmpty(d.Get("source")),
+		"enterprise_project_id": utils.ValueIgnoreEmpty(cfg.GetEnterpriseProjectID(d)),
 	}
 	return bodyParams
 }
 
-func resourceCertificateV3Read(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceCertificateV2Read(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	region := cfg.GetRegion(d)
 
 	var mErr *multierror.Error
 
 	var (
-		httpUrl = "v3/{project_id}/elb/certificates/{certificate_id}"
+		httpUrl = "v2/{project_id}/elb/certificates/{certificate_id}"
 		product = "elb"
 	)
 	client, err := cfg.NewServiceClient(product, region)
@@ -208,32 +201,28 @@ func resourceCertificateV3Read(_ context.Context, d *schema.ResourceData, meta i
 	mErr = multierror.Append(
 		mErr,
 		d.Set("region", region),
-		d.Set("name", utils.PathSearch("certificate.name", getRespBody, nil)),
-		d.Set("description", utils.PathSearch("certificate.description", getRespBody, nil)),
-		d.Set("type", utils.PathSearch("certificate.type", getRespBody, nil)),
-		d.Set("domain", utils.PathSearch("certificate.domain", getRespBody, nil)),
-		d.Set("certificate", utils.PathSearch("certificate.certificate", getRespBody, nil)),
-		d.Set("create_time", utils.PathSearch("certificate.create_time", getRespBody, nil)),
-		d.Set("update_time", utils.PathSearch("certificate.update_time", getRespBody, nil)),
-		d.Set("expire_time", utils.PathSearch("certificate.expire_time", getRespBody, nil)),
-		d.Set("enc_certificate", utils.PathSearch("certificate.enc_certificate", getRespBody, nil)),
-		d.Set("scm_certificate_id", utils.PathSearch("certificate.scm_certificate_id", getRespBody, nil)),
-		d.Set("enterprise_project_id", utils.PathSearch("certificate.enterprise_project_id", getRespBody, nil)),
-		d.Set("common_name", utils.PathSearch("certificate.common_name", getRespBody, nil)),
-		d.Set("fingerprint", utils.PathSearch("certificate.fingerprint", getRespBody, nil)),
-		d.Set("subject_alternative_names", utils.PathSearch("certificate.subject_alternative_names",
-			getRespBody, nil)),
+		d.Set("name", utils.PathSearch("name", getRespBody, nil)),
+		d.Set("description", utils.PathSearch("description", getRespBody, nil)),
+		d.Set("type", utils.PathSearch("type", getRespBody, nil)),
+		d.Set("domain", utils.PathSearch("domain", getRespBody, nil)),
+		d.Set("certificate", utils.PathSearch("certificate", getRespBody, nil)),
+		//d.Set("protection_reason", utils.PathSearch("protection_reason", getRespBody, nil)),
+		//d.Set("protection_status", utils.PathSearch("protection_status", getRespBody, nil)),
+		//d.Set("source", utils.PathSearch("source", getRespBody, nil)),
+		d.Set("create_time", utils.PathSearch("create_time", getRespBody, nil)),
+		d.Set("update_time", utils.PathSearch("update_time", getRespBody, nil)),
+		d.Set("expire_time", utils.PathSearch("expire_time", getRespBody, nil)),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())
 }
 
-func resourceCertificateV3Update(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceCertificateV2Update(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	region := cfg.GetRegion(d)
 
 	var (
-		httpUrl = "v3/{project_id}/elb/certificates/{certificate_id}"
+		httpUrl = "v2/{project_id}/elb/certificates/{certificate_id}"
 		product = "elb"
 	)
 	client, err := cfg.NewServiceClient(product, region)
@@ -254,32 +243,29 @@ func resourceCertificateV3Update(ctx context.Context, d *schema.ResourceData, me
 		return diag.Errorf("error updating ELB certificate: %s", err)
 	}
 
-	return resourceCertificateV3Read(ctx, d, meta)
+	return resourceCertificateV2Read(ctx, d, meta)
 }
 
 func buildUpdateCertificateBodyParams(d *schema.ResourceData) map[string]interface{} {
-	params := map[string]interface{}{
-		"name":               utils.ValueIgnoreEmpty(d.Get("name")),
-		"description":        utils.ValueIgnoreEmpty(d.Get("description")),
-		"domain":             utils.ValueIgnoreEmpty(d.Get("domain")),
-		"private_key":        utils.ValueIgnoreEmpty(d.Get("private_key")),
-		"certificate":        utils.ValueIgnoreEmpty(d.Get("certificate")),
-		"enc_certificate":    utils.ValueIgnoreEmpty(d.Get("enc_certificate")),
-		"enc_private_key":    utils.ValueIgnoreEmpty(d.Get("enc_private_key")),
-		"scm_certificate_id": utils.ValueIgnoreEmpty(d.Get("scm_certificate_id")),
-	}
 	bodyParams := map[string]interface{}{
-		"certificate": params,
+		"name":        d.Get("name"),
+		"description": d.Get("description"),
+		"domain":      d.Get("domain"),
+		"private_key": d.Get("private_key"),
+		"certificate": d.Get("certificate"),
+		//"protection_reason": d.Get("protection_reason"),
+		//"protection_status": d.Get("protection_status"),
+		//"source":            d.Get("source"),
 	}
 	return bodyParams
 }
 
-func resourceCertificateV3Delete(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceCertificateV2Delete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	region := cfg.GetRegion(d)
 
 	var (
-		httpUrl = "v3/{project_id}/elb/certificates/{certificate_id}"
+		httpUrl = "v2/{project_id}/elb/certificates/{certificate_id}"
 		product = "elb"
 	)
 

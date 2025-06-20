@@ -1,15 +1,15 @@
 module github.com/sbercloud-terraform/terraform-provider-sbercloud
 
-go 1.21
+go 1.23.0
 
-toolchain go1.23.0
+toolchain go1.23.9
 
 require (
-	github.com/chnsz/golangsdk v0.0.0-20250311033604-e22344f22211
+	github.com/chnsz/golangsdk v0.0.0-20250612072604-c4851f639048
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.24.0
 	github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.112
-	github.com/huaweicloud/terraform-provider-huaweicloud v1.73.3
+	github.com/huaweicloud/terraform-provider-huaweicloud v1.75.4
 	github.com/tidwall/gjson v1.17.1
 )
 
@@ -69,12 +69,12 @@ require (
 	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	github.com/zclconf/go-cty v1.14.2 // indirect
-	go.mongodb.org/mongo-driver v1.17.2 // indirect
-	golang.org/x/crypto v0.26.0 // indirect
+	go.mongodb.org/mongo-driver v1.17.3 // indirect
+	golang.org/x/crypto v0.38.0 // indirect
 	golang.org/x/mod v0.20.0 // indirect
 	golang.org/x/net v0.25.0 // indirect
-	golang.org/x/sys v0.26.0 // indirect
-	golang.org/x/text v0.17.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/text v0.25.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240205150955-31a09d347014 // indirect
 	google.golang.org/grpc v1.61.0 // indirect

@@ -47,6 +47,7 @@ const (
 // @API BSS POST /v2/orders/subscriptions/resources/autorenew/{instance_id}
 // @API BSS DELETE /v2/orders/subscriptions/resources/autorenew/{instance_id}
 // @API BSS POST /v2/orders/subscriptions/resources/unsubscribe
+// @API EPS POST /v1.0/enterprise-projects/{enterprise_project_id}/resources-migrat
 func ResourceOpenGaussInstance() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceOpenGaussInstanceCreate,
@@ -116,7 +117,7 @@ func ResourceOpenGaussInstance() *schema.Resource {
 							Type:             schema.TypeString,
 							Required:         true,
 							ForceNew:         true,
-							DiffSuppressFunc: utils.SuppressCaseDiffs,
+							DiffSuppressFunc: utils.SuppressCaseDiffs(),
 						},
 						"replication_mode": {
 							Type:     schema.TypeString,
@@ -128,7 +129,7 @@ func ResourceOpenGaussInstance() *schema.Resource {
 							Optional:         true,
 							ForceNew:         true,
 							Computed:         true,
-							DiffSuppressFunc: utils.SuppressCaseDiffs,
+							DiffSuppressFunc: utils.SuppressCaseDiffs(),
 						},
 						"instance_mode": {
 							Type:     schema.TypeString,

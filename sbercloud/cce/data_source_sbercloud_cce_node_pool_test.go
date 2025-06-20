@@ -52,5 +52,5 @@ data "sbercloud_cce_node_pool" "test" {
   cluster_id = sbercloud_cce_cluster.test.id
   name       = sbercloud_cce_node_pool.test.name
 }
-`, testAccCCENodePool_basic(rName))
+`, testAccNodePool_base(rName))
 }

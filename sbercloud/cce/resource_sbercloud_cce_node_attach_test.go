@@ -2,45 +2,70 @@ package cce
 
 import (
 	"fmt"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 	"testing"
 
-	"github.com/chnsz/golangsdk/openstack/cce/v3/nodes"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+
+	"github.com/chnsz/golangsdk/openstack/cce/v3/nodes"
+
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
-func TestAccCCENodeAttachV3_basic(t *testing.T) {
-	var node nodes.Nodes
+func getAttachedNodeFunc(cfg *config.Config, state *terraform.ResourceState) (interface{}, error) {
+	client, err := cfg.CceV3Client(acceptance.SBC_REGION_NAME)
+	if err != nil {
+		return nil, fmt.Errorf("error creating CCE v3 client: %s", err)
+	}
+	return nodes.Get(client, state.Primary.Attributes["cluster_id"], state.Primary.ID).Extract()
+}
 
-	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
-	rNameUpdate := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
-	resourceName := "sbercloud_cce_node_attach.test"
-	//clusterName here is used to provide the cluster id to fetch cce node.
-	clusterName := "sbercloud_cce_cluster.test"
+func TestAccNodeAttach_basic(t *testing.T) {
+	var (
+		node nodes.Nodes
+
+		name         = acceptance.RandomAccResourceNameWithDash()
+		updateName   = acceptance.RandomAccResourceNameWithDash()
+		resourceName = "sbercloud_cce_node_attach.test"
+
+		baseConfig = testAccNodeAttach_base(name)
+
+		rc = acceptance.InitResourceCheck(
+			resourceName,
+			&node,
+			getAttachedNodeFunc,
+		)
+	)
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
 		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy:      testAccCheckCCENodeV3Destroy,
+		CheckDestroy:      rc.CheckResourceDestroy(),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccCCENodeAttachV3_basic(rName),
+				Config: testAccNodeAttach_basic_step1(baseConfig, name),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckCCENodeV3Exists(resourceName, clusterName, &node),
-					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(resourceName, "name", name),
 					resource.TestCheckResourceAttr(resourceName, "tags.foo", "bar"),
 					resource.TestCheckResourceAttr(resourceName, "tags.key", "value"),
-					resource.TestCheckResourceAttr(resourceName, "os", "CentOS 7.6"),
+					resource.TestCheckResourceAttr(resourceName, "os", "EulerOS 2.9"),
 				),
 			},
 			{
-				Config: testAccCCENodeAttachV3_update(rName, rNameUpdate),
+				Config: testAccNodeAttach_basic_step2(baseConfig, updateName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckCCENodeV3Exists(resourceName, clusterName, &node),
-					resource.TestCheckResourceAttr(resourceName, "name", rNameUpdate),
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(resourceName, "name", updateName),
 					resource.TestCheckResourceAttr(resourceName, "tags.foo", "bar_update"),
 					resource.TestCheckResourceAttr(resourceName, "tags.key_update", "value_update"),
+				),
+			},
+			{
+				Config: testAccNodeAttach_basic_step3(baseConfig, updateName),
+				Check: resource.ComposeTestCheckFunc(
+					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "os", "CentOS 7.6"),
 				),
 			},
@@ -48,45 +73,37 @@ func TestAccCCENodeAttachV3_basic(t *testing.T) {
 	})
 }
 
-func testAccCCENodeAttachV3_Base(rName string) string {
+func testAccNodeAttach_base(name string) string {
 	return fmt.Sprintf(`
-%s
+%[1]s
 
 data "sbercloud_availability_zones" "test" {}
 
 data "sbercloud_images_image" "test" {
-  name = "CentOS 7.6 64bit"
+  name        = "Ubuntu 24.04 server 64bit"
   most_recent = true
 }
 
-data "sbercloud_compute_flavors" "test" {
-  availability_zone = data.sbercloud_availability_zones.test.names[0]
-  performance_type  = "normal"
-  cpu_core_count    = 2
-  memory_size       = 4
-}
-
-resource "sbercloud_compute_keypair" "test" {
-  name = "%s"
-  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDAjpC1hwiOCCmKEWxJ4qzTTsJbKzndLo1BCz5PcwtUnflmU+gHJtWMZKpuEGVi29h0A/+ydKek1O18k10Ff+4tyFjiHDQAT9+OfgWf7+b1yK+qDip3X1C0UPMbwHlTfSGWLGZquwhvEFx9k3h/M+VtMvwR1lJ9LUyTAImnNjWG7TAIPmui30HvM2UiFEmqkr4ijq45MyX2+fLIePLRIFuu1p4whjHAQYufqyno3BS48icQb4p6iVEZPo4AE2o9oIyQvj2mx4dk5Y8CgSETOZTYDOR3rU2fZTRDRgPJDH9FWvQjF5tA0p3d9CoWWd2s6GKKbfoUIi8R/Db1BSPJwkqB jrp-hp-pc"
+resource "sbercloud_kps_keypair" "test" {
+  name = "%[2]s"
 }
 
 resource "sbercloud_compute_instance" "test" {
-  name                        = "%s"
+  name                        = "%[2]s"
   image_id                    = data.sbercloud_images_image.test.id
-  flavor_id                   = data.sbercloud_compute_flavors.test.ids[0]
+  flavor_id                   = "sn3.large.2"
   availability_zone           = data.sbercloud_availability_zones.test.names[0]
-  key_pair                    = sbercloud_compute_keypair.test.name
+  key_pair                    = sbercloud_kps_keypair.test.name
   delete_disks_on_termination = true
-
+  
   system_disk_type = "SAS"
-  system_disk_size = 50
-
+  system_disk_size = 40
+  
   data_disks {
 	type = "SAS"
 	size = "100"
   }
-
+  
   network {
 	uuid = sbercloud_vpc_subnet.test.id
   }
@@ -99,50 +116,220 @@ resource "sbercloud_compute_instance" "test" {
 }
 
 resource "sbercloud_cce_cluster" "test" {
-  name                   = "%s"
+  name                   = "%[2]s"
   cluster_type           = "VirtualMachine"
   flavor_id              = "cce.s1.small"
   vpc_id                 = sbercloud_vpc.test.id
   subnet_id              = sbercloud_vpc_subnet.test.id
   container_network_type = "overlay_l2"
 }
-`, testAccCCEClusterV3_Base(rName), rName, rName, rName)
+`, acceptance.TestVpc(name), name)
 }
 
-func testAccCCENodeAttachV3_basic(rName string) string {
+func testAccNodeAttach_basic_step1(baseConfig, name string) string {
 	return fmt.Sprintf(`
-%s
+%[1]s
 
 resource "sbercloud_cce_node_attach" "test" {
   cluster_id = sbercloud_cce_cluster.test.id
   server_id  = sbercloud_compute_instance.test.id
-  key_pair   = sbercloud_compute_keypair.test.name
-  os         = "CentOS 7.6"
-  name       = "%s"
+  key_pair   = sbercloud_kps_keypair.test.name
+  os         = "EulerOS 2.9"
+  name       = "%[2]s"
+
+  max_pods         = 20
+  docker_base_size = 10
+  lvm_config       = "dockerThinpool=vgpaas/90%%VG;kubernetesLV=vgpaas/10%%VG"
+
+  labels = {
+    test_key = "test_value"
+  }
+
+  taints {
+    key    = "test_key"
+    value  = "test_value"
+    effect = "NoSchedule"
+  }
 
   tags = {
     foo = "bar"
     key = "value"
   }
 }
-`, testAccCCENodeAttachV3_Base(rName), rName)
+`, baseConfig, name)
 }
 
-func testAccCCENodeAttachV3_update(rName, rNameUpdate string) string {
+func testAccNodeAttach_basic_step2(baseConfig, name string) string {
 	return fmt.Sprintf(`
-%s
+%[1]s
 
 resource "sbercloud_cce_node_attach" "test" {
   cluster_id = sbercloud_cce_cluster.test.id
   server_id  = sbercloud_compute_instance.test.id
-  key_pair   = sbercloud_compute_keypair.test.name
-  os         = "CentOS 7.6"
-  name       = "%s"
+  key_pair   = sbercloud_kps_keypair.test.name
+  os         = "EulerOS 2.9"
+  name       = "%[2]s"
+
+  max_pods         = 20
+  docker_base_size = 10
+  lvm_config       = "dockerThinpool=vgpaas/90%%VG;kubernetesLV=vgpaas/10%%VG"
+
+  labels = {
+    test_key = "test_value"
+  }
+
+  taints {
+    key    = "test_key"
+    value  = "test_value"
+    effect = "NoSchedule"
+  }
 
   tags = {
     foo        = "bar_update"
     key_update = "value_update"
   }
 }
-`, testAccCCENodeAttachV3_Base(rName), rNameUpdate)
+`, baseConfig, name)
+}
+
+func testAccNodeAttach_basic_step3(baseConfig, name string) string {
+	return fmt.Sprintf(`
+%[1]s
+
+resource "sbercloud_cce_node_attach" "test" {
+  cluster_id = sbercloud_cce_cluster.test.id
+  server_id  = sbercloud_compute_instance.test.id
+  key_pair   = sbercloud_kps_keypair.test.name
+  os         = "CentOS 7.6"
+  name       = "%[2]s"
+
+  max_pods         = 20
+  docker_base_size = 10
+  lvm_config       = "dockerThinpool=vgpaas/90%%VG;kubernetesLV=vgpaas/10%%VG"
+
+  labels = {
+    test_key = "test_value"
+  }
+
+  taints {
+    key    = "test_key"
+    value  = "test_value"
+    effect = "NoSchedule"
+  }
+
+  tags = {
+    foo        = "bar_update"
+    key_update = "value_update"
+  }
+}
+`, baseConfig, name)
+}
+
+func TestAccNodeAttach_prePaid(t *testing.T) {
+	var (
+		node nodes.Nodes
+
+		name         = acceptance.RandomAccResourceNameWithDash()
+		resourceName = "sbercloud_cce_node_attach.test"
+
+		rc = acceptance.InitResourceCheck(
+			resourceName,
+			&node,
+			getAttachedNodeFunc,
+		)
+	)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck: func() {
+			acceptance.TestAccPreCheck(t)
+			acceptance.TestAccPreCheckChargingMode(t)
+		},
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      rc.CheckResourceDestroy(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccNodeAttach_prePaid(name),
+				Check: resource.ComposeTestCheckFunc(
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(resourceName, "name", name),
+					resource.TestCheckResourceAttr(resourceName, "tags.foo", "bar"),
+					resource.TestCheckResourceAttr(resourceName, "tags.key", "value"),
+					resource.TestCheckResourceAttr(resourceName, "os", "EulerOS 2.9"),
+					resource.TestCheckResourceAttr(resourceName, "charging_mode", "prePaid"),
+				),
+			},
+		},
+	})
+}
+
+func testAccNodeAttach_prePaidBase(name string) string {
+	return fmt.Sprintf(`
+%[1]s
+
+data "sbercloud_availability_zones" "test" {}
+
+data "sbercloud_images_image" "test" {
+  name        = "Ubuntu 24.04 server 64bit"
+  most_recent = true
+}
+
+resource "sbercloud_compute_instance" "test" {
+  name                        = "%[2]s"
+  image_id                    = data.sbercloud_images_image.test.id
+  flavor_id                   = "sn3.large.2"
+  availability_zone           = data.sbercloud_availability_zones.test.names[0]
+  admin_pass                  = "Test@123"
+  delete_disks_on_termination = true
+
+  charging_mode = "prePaid"
+  period_unit   = "month"
+  period        = 1
+  
+  system_disk_type = "SAS"
+  system_disk_size = 40
+  
+  data_disks {
+	type = "SAS"
+	size = "100"
+  }
+  
+  network {
+	uuid = sbercloud_vpc_subnet.test.id
+  }
+
+  lifecycle {
+    ignore_changes = [
+      image_id, tags, name
+    ]
+  }
+}
+
+resource "sbercloud_cce_cluster" "test" {
+  name                   = "%[2]s"
+  cluster_type           = "VirtualMachine"
+  flavor_id              = "cce.s1.small"
+  vpc_id                 = sbercloud_vpc.test.id
+  subnet_id              = sbercloud_vpc_subnet.test.id
+  container_network_type = "overlay_l2"
+}
+`, acceptance.TestVpc(name), name)
+}
+
+func testAccNodeAttach_prePaid(name string) string {
+	return fmt.Sprintf(`
+%[1]s
+
+resource "sbercloud_cce_node_attach" "test" {
+  cluster_id = sbercloud_cce_cluster.test.id
+  server_id  = sbercloud_compute_instance.test.id
+  password   = "Test@123"
+  os         = "EulerOS 2.9"
+  name       = "%[2]s"
+
+  tags = {
+    foo = "bar"
+    key = "value"
+  }
+}
+`, testAccNodeAttach_prePaidBase(name), name)
 }
