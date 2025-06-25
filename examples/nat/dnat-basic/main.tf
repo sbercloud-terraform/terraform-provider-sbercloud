@@ -45,8 +45,8 @@ resource "sbercloud_vpc_subnet" "newSubnet_Example" {
   cidr          = var.subnet_cidr
   gateway_ip    = var.subnet_gateway_ip
   vpc_id        = sbercloud_vpc.newVPC_Example.id
-  primary_dns   = "100.125.129.250"
-  secondary_dns = "100.125.1.250"
+  primary_dns   = "100.125.13.59"
+  secondary_dns = "100.125.65.14"
 }
 
 resource "sbercloud_networking_secgroup" "newSecgroup_Example" {

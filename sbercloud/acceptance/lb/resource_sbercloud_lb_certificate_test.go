@@ -3,39 +3,93 @@ package lb
 import (
 	"fmt"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
+	"strings"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 
-	"github.com/chnsz/golangsdk/openstack/networking/v2/extensions/lbaas_v2/certificates"
+	"github.com/chnsz/golangsdk"
+	"github.com/chnsz/golangsdk/openstack/elb/v2/certificates"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
+
+func getCertificateResourceFunc(cfg *config.Config, state *terraform.ResourceState) (interface{}, error) {
+	var (
+		httpUrl = "v2/{project_id}/elb/certificates/{certificate_id}"
+		product = "elb"
+	)
+	client, err := cfg.NewServiceClient(product, acceptance.SBC_REGION_NAME)
+	if err != nil {
+		return nil, err
+	}
+
+	getPath := client.Endpoint + httpUrl
+	getPath = strings.ReplaceAll(getPath, "{project_id}", client.ProjectID)
+	getPath = strings.ReplaceAll(getPath, "{certificate_id}", state.Primary.ID)
+
+	getOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+	}
+
+	getResp, err := client.Request("GET", getPath, &getOpt)
+	if err != nil {
+		return nil, err
+	}
+
+	return utils.FlattenResponse(getResp)
+}
 
 func TestAccLBV2Certificate_basic(t *testing.T) {
 	var c certificates.Certificate
-	name := fmt.Sprintf("tf-cert-%s", acctest.RandString(5))
+	name := acceptance.RandomAccResourceNameWithDash()
+	updateName := acceptance.RandomAccResourceNameWithDash()
 	resourceName := "sbercloud_lb_certificate.certificate_1"
+
+	rc := acceptance.InitResourceCheck(
+		resourceName,
+		&c,
+		getCertificateResourceFunc,
+	)
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
 		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy:      testAccCheckLBV2CertificateDestroy,
+		CheckDestroy:      rc.CheckResourceDestroy(),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccLBV2CertificateConfig_basic(name),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckLBV2CertificateExists(resourceName, &c),
+					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "name", name),
+					resource.TestCheckResourceAttr(resourceName, "description", "terraform test certificate"),
+					resource.TestCheckResourceAttr(resourceName, "domain", "www.elb.com"),
 					resource.TestCheckResourceAttr(resourceName, "type", "server"),
+					//resource.TestCheckResourceAttr(resourceName, "protection_status", "consoleProtection"),
+					//resource.TestCheckResourceAttr(resourceName, "protection_reason", "test protection"),
+					//resource.TestCheckResourceAttr(resourceName, "source", "scm"),
+					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", "0"),
 				),
 			},
 			{
-				Config: testAccLBV2CertificateConfig_update(name),
+				Config: testAccLBV2CertificateConfig_update(updateName),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr(resourceName, "name", fmt.Sprintf("%s_updated", name)),
+					resource.TestCheckResourceAttr(resourceName, "name", updateName),
+					resource.TestCheckResourceAttr(resourceName, "description", "terraform test certificate update"),
+					resource.TestCheckResourceAttr(resourceName, "domain", "www.elbUpdate.com"),
+					//resource.TestCheckResourceAttr(resourceName, "protection_status", "nonProtection"),
 				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateVerifyIgnore: []string{
+					"enterprise_project_id",
+					"private_key",
+				},
 			},
 		},
 	})
@@ -43,18 +97,24 @@ func TestAccLBV2Certificate_basic(t *testing.T) {
 
 func TestAccLBV2Certificate_client(t *testing.T) {
 	var c certificates.Certificate
-	name := fmt.Sprintf("tf-cert-%s", acctest.RandString(5))
+	name := acceptance.RandomAccResourceNameWithDash()
 	resourceName := "sbercloud_lb_certificate.certificate_client"
+
+	rc := acceptance.InitResourceCheck(
+		resourceName,
+		&c,
+		getCertificateResourceFunc,
+	)
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
 		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy:      testAccCheckLBV2CertificateDestroy,
+		CheckDestroy:      rc.CheckResourceDestroy(),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccLBV2CertificateConfig_client(name),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckLBV2CertificateExists(resourceName, &c),
+					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "name", name),
 					resource.TestCheckResourceAttr(resourceName, "type", "client"),
 				),
@@ -63,66 +123,16 @@ func TestAccLBV2Certificate_client(t *testing.T) {
 	})
 }
 
-func testAccCheckLBV2CertificateDestroy(s *terraform.State) error {
-	config := acceptance.TestAccProvider.Meta().(*config.Config)
-	elbClient, err := config.ElbV2Client(acceptance.SBC_REGION_NAME)
-	if err != nil {
-		return fmt.Errorf("Error creating Sbercloud elb client: %s", err)
-	}
-
-	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "sbercloud_lb_certificate" {
-			continue
-		}
-
-		_, err := certificates.Get(elbClient, rs.Primary.ID).Extract()
-		if err == nil {
-			return fmt.Errorf("Certificate still exists: %s", rs.Primary.ID)
-		}
-	}
-
-	return nil
-}
-
-func testAccCheckLBV2CertificateExists(
-	n string, c *certificates.Certificate) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		rs, ok := s.RootModule().Resources[n]
-		if !ok {
-			return fmt.Errorf("Not found: %s", n)
-		}
-
-		if rs.Primary.ID == "" {
-			return fmt.Errorf("No ID is set")
-		}
-
-		config := acceptance.TestAccProvider.Meta().(*config.Config)
-		elbClient, err := config.ElbV2Client(acceptance.SBC_REGION_NAME)
-		if err != nil {
-			return fmt.Errorf("Error creating Sbercloud elb client: %s", err)
-		}
-
-		found, err := certificates.Get(elbClient, rs.Primary.ID).Extract()
-		if err != nil {
-			return err
-		}
-
-		if found.ID != rs.Primary.ID {
-			return fmt.Errorf("Certificate not found")
-		}
-
-		*c = *found
-
-		return nil
-	}
-}
-
 func testAccLBV2CertificateConfig_basic(name string) string {
 	return fmt.Sprintf(`
 resource "sbercloud_lb_certificate" "certificate_1" {
-  name        = "%s"
-  description = "terraform test certificate"
-  domain      = "www.elb.com"
+  name                  = "%s"
+  description           = "terraform test certificate"
+  domain                = "www.elb.com"
+  //protection_status     = "consoleProtection"
+  //protection_reason     = "test protection"
+  //source                = "scm"
+  enterprise_project_id = "0"
   private_key = <<EOT
 -----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEAwZ5UJULAjWr7p6FVwGRQRjFN2s8tZ/6LC3X82fajpVsYqF1x
@@ -190,9 +200,12 @@ EOT
 func testAccLBV2CertificateConfig_update(name string) string {
 	return fmt.Sprintf(`
 resource "sbercloud_lb_certificate" "certificate_1" {
-  name        = "%s_updated"
-  description = "terraform test certificate"
-  domain      = "www.elb.com"
+  name                  = "%s"
+  description           = "terraform test certificate update"
+  domain                = "www.elbUpdate.com"
+  //protection_status     = "nonProtection"
+  //source                = "scm"
+  enterprise_project_id = "0"
   private_key = <<EOT
 -----BEGIN RSA PRIVATE KEY-----
 MIIEowIBAAKCAQEAwZ5UJULAjWr7p6FVwGRQRjFN2s8tZ/6LC3X82fajpVsYqF1x
@@ -263,6 +276,7 @@ resource "sbercloud_lb_certificate" "certificate_client" {
   name        = "%s"
   description = "terraform CA certificate"
   type        = "client"
+  enterprise_project_id = "0"
 
   certificate = <<EOT
 -----BEGIN CERTIFICATE-----

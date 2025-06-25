@@ -22,8 +22,8 @@ resource "sbercloud_vpc_subnet" "mysubnet" {
   gateway_ip = "192.168.0.1"
 
   //dns is required for cce node installing
-  primary_dns   = "100.125.1.250"
-  secondary_dns = "100.125.21.250"
+  primary_dns   = "100.125.13.59"
+  secondary_dns = "100.125.65.14"
   vpc_id        = sbercloud_vpc.myvpc.id
 }
 
@@ -50,8 +50,8 @@ resource "sbercloud_vpc_subnet" "mysubnet" {
   gateway_ip = "192.168.0.1"
 
   //dns is required for cce node installing
-  primary_dns   = "100.125.1.250"
-  secondary_dns = "100.125.21.250"
+  primary_dns   = "100.125.13.59"
+  secondary_dns = "100.125.65.14"
   vpc_id        = sbercloud_vpc.myvpc.id
 }
 
@@ -93,8 +93,8 @@ resource "sbercloud_vpc_subnet" "mysubnet" {
   gateway_ip = "192.168.0.1"
 
   //dns is required for cce node installing
-  primary_dns   = "100.125.1.250"
-  secondary_dns = "100.125.21.250"
+  primary_dns   = "100.125.13.59"
+  secondary_dns = "100.125.65.14"
   vpc_id        = sbercloud_vpc.myvpc.id
 }
 

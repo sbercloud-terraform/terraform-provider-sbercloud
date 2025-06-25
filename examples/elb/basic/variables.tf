@@ -23,7 +23,7 @@ variable "subnet_gateway" {
 }
 
 variable "primary_dns" {
-  default = "100.125.1.250"
+  default = "100.125.13.59"
 }
 
 variable "secgroup_name" {

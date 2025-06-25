@@ -33,7 +33,7 @@ github.com/apparentlymart/go-cidr/cidr
 # github.com/apparentlymart/go-textseg/v15 v15.0.0
 ## explicit; go 1.16
 github.com/apparentlymart/go-textseg/v15/textseg
-# github.com/chnsz/golangsdk v0.0.0-20250311033604-e22344f22211
+# github.com/chnsz/golangsdk v0.0.0-20250612072604-c4851f639048
 ## explicit; go 1.14
 github.com/chnsz/golangsdk
 github.com/chnsz/golangsdk/auth
@@ -191,7 +191,6 @@ github.com/chnsz/golangsdk/openstack/elb/v2/monitors
 github.com/chnsz/golangsdk/openstack/elb/v2/pools
 github.com/chnsz/golangsdk/openstack/elb/v2/whitelists
 github.com/chnsz/golangsdk/openstack/elb/v3/certificates
-github.com/chnsz/golangsdk/openstack/elb/v3/flavors
 github.com/chnsz/golangsdk/openstack/elb/v3/ipgroups
 github.com/chnsz/golangsdk/openstack/elb/v3/l7policies
 github.com/chnsz/golangsdk/openstack/elb/v3/listeners
@@ -207,11 +206,9 @@ github.com/chnsz/golangsdk/openstack/er/v3/propagations
 github.com/chnsz/golangsdk/openstack/er/v3/routes
 github.com/chnsz/golangsdk/openstack/er/v3/routetables
 github.com/chnsz/golangsdk/openstack/er/v3/vpcattachments
-github.com/chnsz/golangsdk/openstack/evs/v1/jobs
 github.com/chnsz/golangsdk/openstack/evs/v2/cloudvolumes
 github.com/chnsz/golangsdk/openstack/evs/v2/snapshots
 github.com/chnsz/golangsdk/openstack/evs/v3/volumes
-github.com/chnsz/golangsdk/openstack/evs/v5/cloudvolumes
 github.com/chnsz/golangsdk/openstack/fgs/v2/function
 github.com/chnsz/golangsdk/openstack/fgs/v2/trigger
 github.com/chnsz/golangsdk/openstack/geminidb/v3/backups
@@ -256,7 +253,6 @@ github.com/chnsz/golangsdk/openstack/iec/v1/subnets
 github.com/chnsz/golangsdk/openstack/iec/v1/vpcs
 github.com/chnsz/golangsdk/openstack/imageservice/v2/imagedata
 github.com/chnsz/golangsdk/openstack/imageservice/v2/images
-github.com/chnsz/golangsdk/openstack/ims/v1/imagecopy
 github.com/chnsz/golangsdk/openstack/ims/v2/cloudimages
 github.com/chnsz/golangsdk/openstack/ims/v2/tags
 github.com/chnsz/golangsdk/openstack/kms/v1/keys
@@ -278,13 +274,7 @@ github.com/chnsz/golangsdk/openstack/mrs/v1/cluster
 github.com/chnsz/golangsdk/openstack/mrs/v1/job
 github.com/chnsz/golangsdk/openstack/mrs/v2/clusters
 github.com/chnsz/golangsdk/openstack/mrs/v2/jobs
-github.com/chnsz/golangsdk/openstack/nat/v2/dnats
 github.com/chnsz/golangsdk/openstack/nat/v2/gateways
-github.com/chnsz/golangsdk/openstack/nat/v2/snats
-github.com/chnsz/golangsdk/openstack/nat/v3/dnats
-github.com/chnsz/golangsdk/openstack/nat/v3/gateways
-github.com/chnsz/golangsdk/openstack/nat/v3/snats
-github.com/chnsz/golangsdk/openstack/nat/v3/transitips
 github.com/chnsz/golangsdk/openstack/networking/v1/bandwidths
 github.com/chnsz/golangsdk/openstack/networking/v1/eips
 github.com/chnsz/golangsdk/openstack/networking/v1/flowlogs
@@ -303,7 +293,6 @@ github.com/chnsz/golangsdk/openstack/networking/v2/extensions/fwaas_v2/rules
 github.com/chnsz/golangsdk/openstack/networking/v2/extensions/hw_snatrules
 github.com/chnsz/golangsdk/openstack/networking/v2/extensions/layer3/floatingips
 github.com/chnsz/golangsdk/openstack/networking/v2/extensions/layer3/routers
-github.com/chnsz/golangsdk/openstack/networking/v2/extensions/lbaas_v2/certificates
 github.com/chnsz/golangsdk/openstack/networking/v2/extensions/lbaas_v2/l7policies
 github.com/chnsz/golangsdk/openstack/networking/v2/extensions/lbaas_v2/listeners
 github.com/chnsz/golangsdk/openstack/networking/v2/extensions/lbaas_v2/loadbalancers
@@ -622,7 +611,7 @@ github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vod/v1
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vod/v1/model
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vpc/v3
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vpc/v3/model
-# github.com/huaweicloud/terraform-provider-huaweicloud v1.73.3
+# github.com/huaweicloud/terraform-provider-huaweicloud v1.75.4
 ## explicit; go 1.18
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common
@@ -648,6 +637,7 @@ github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/asm
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/bcs
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/bms
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cae
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cbc
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cbh
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cbr
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cc
@@ -666,6 +656,7 @@ github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/coc
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/codearts
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/codeartsdeploy
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/codeartsinspector
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/codeartspipeline
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cph
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cpts
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cse
@@ -677,6 +668,7 @@ github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dc
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dcs
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ddm
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dds
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/deh
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/deprecated
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dew
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dis
@@ -843,7 +835,7 @@ github.com/zclconf/go-cty/cty/function/stdlib
 github.com/zclconf/go-cty/cty/gocty
 github.com/zclconf/go-cty/cty/json
 github.com/zclconf/go-cty/cty/set
-# go.mongodb.org/mongo-driver v1.17.2
+# go.mongodb.org/mongo-driver v1.17.3
 ## explicit; go 1.18
 go.mongodb.org/mongo-driver/bson
 go.mongodb.org/mongo-driver/bson/bsoncodec
@@ -852,8 +844,8 @@ go.mongodb.org/mongo-driver/bson/bsonrw
 go.mongodb.org/mongo-driver/bson/bsontype
 go.mongodb.org/mongo-driver/bson/primitive
 go.mongodb.org/mongo-driver/x/bsonx/bsoncore
-# golang.org/x/crypto v0.26.0
-## explicit; go 1.20
+# golang.org/x/crypto v0.38.0
+## explicit; go 1.23.0
 golang.org/x/crypto/argon2
 golang.org/x/crypto/blake2b
 golang.org/x/crypto/blowfish
@@ -881,13 +873,13 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/sys v0.26.0
-## explicit; go 1.18
+# golang.org/x/sys v0.33.0
+## explicit; go 1.23.0
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.17.0
-## explicit; go 1.18
+# golang.org/x/text v0.25.0
+## explicit; go 1.23.0
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi

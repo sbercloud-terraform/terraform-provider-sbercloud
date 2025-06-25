@@ -132,7 +132,7 @@ resource "sbercloud_vpc_subnet" "subnet_1" {
   cidr       = "172.16.10.0/24"
   gateway_ip = "172.16.10.1"
   vpc_id     = sbercloud_vpc.vpc_1.id
-  dns_list   = ["100.125.1.250"]
+  dns_list   = ["100.125.13.59"]
 }
 	`, suffix, suffix)
 }

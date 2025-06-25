@@ -535,14 +535,14 @@ func TestAccPreCheckDDSSecondLevelMonitoringEnabled(t *testing.T) {
 // lintignore:AT003
 func TestAccPreCheckApigSubResourcesRelatedInfo(t *testing.T) {
 	if SBC_APIG_DEDICATED_INSTANCE_ID == "" {
-		t.Skip("Before running APIG acceptance tests, please ensure the env 'HW_APIG_DEDICATED_INSTANCE_ID' has been configured")
+		t.Skip("Before running APIG acceptance tests, please ensure the env 'SBC_APIG_DEDICATED_INSTANCE_ID' has been configured")
 	}
 }
 
 // lintignore:AT003
 func TestAccPreCheckApigChannelRelatedInfo(t *testing.T) {
 	if SBC_APIG_DEDICATED_INSTANCE_USED_SUBNET_ID == "" {
-		t.Skip("Before running APIG acceptance tests, please ensure the env 'HW_APIG_DEDICATED_INSTANCE_USED_SUBNET_ID' has been configured")
+		t.Skip("Before running APIG acceptance tests, please ensure the env 'SBC_APIG_DEDICATED_INSTANCE_USED_SUBNET_ID' has been configured")
 	}
 }
 

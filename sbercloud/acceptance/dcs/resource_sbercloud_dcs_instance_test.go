@@ -29,7 +29,7 @@ func TestAccDcsInstancesV1_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "name", instanceName),
 					resource.TestCheckResourceAttr(resourceName, "engine", "Redis"),
 					resource.TestCheckResourceAttr(resourceName, "engine_version", "5.0"),
-					resource.TestCheckResourceAttr(resourceName, "capacity", "2"),
+					resource.TestCheckResourceAttr(resourceName, "capacity", "0.125"),
 					resource.TestCheckResourceAttr(resourceName, "tags.key", "value"),
 					resource.TestCheckResourceAttr(resourceName, "tags.owner", "terraform"),
 					resource.TestCheckResourceAttrSet(resourceName, "ip"),
@@ -227,7 +227,7 @@ func testAccDcsV1Instance_single(instanceName string) string {
 	  engine_version    = "5.0"
 	  password          = "Sber_test"
 	  engine            = "Redis"
-	  capacity          = 2
+	  capacity          = "2"
 	  vpc_id            = data.sbercloud_vpc.test.id
 	  subnet_id         = data.sbercloud_vpc_subnet.test.id
 	  available_zones   = [data.sbercloud_dcs_az.az_1.id]

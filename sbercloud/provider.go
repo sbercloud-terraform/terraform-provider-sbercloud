@@ -17,6 +17,7 @@ import (
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/cbh"
 	deprecated_sbc "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/deprecated"
 	ges_sbercloud "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/ges"
+	lb2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/lb"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/rds"
 	vpc2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/vpc"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/vpcep"
@@ -284,7 +285,7 @@ func Provider() *schema.Provider {
 			"sbercloud_elb_flavors":          elb.DataSourceElbFlavorsV3(),
 			"sbercloud_elb_pools":            elb.DataSourcePools(),
 			"sbercloud_enterprise_project":   eps.DataSourceEnterpriseProject(),
-			"sbercloud_evs_volumes":          evs.DataSourceEvsVolumesV2(),
+			"sbercloud_evs_volumes":          evs.DataSourceEvsVolumes(),
 			"sbercloud_identity_role":        iam.DataSourceIdentityRole(),
 			"sbercloud_identity_custom_role": iam.DataSourceIdentityCustomRole(),
 			"sbercloud_identity_group":       iam.DataSourceIdentityGroup(),
@@ -416,6 +417,9 @@ func Provider() *schema.Provider {
 
 			"sbercloud_cdm_cluster": cdm.ResourceCdmCluster(),
 
+			// no API
+			//"sbercloud_cloudtable_cluster": cloudtable.ResourceCloudTableCluster(),
+
 			"sbercloud_compute_instance":         ecs.ResourceComputeInstance(),
 			"sbercloud_compute_interface_attach": ecs.ResourceComputeInterfaceAttach(),
 			"sbercloud_compute_servergroup":      ecs.ResourceComputeServerGroup(),
@@ -474,7 +478,7 @@ func Provider() *schema.Provider {
 
 			"sbercloud_enterprise_project": eps.ResourceEnterpriseProject(),
 
-			"sbercloud_evs_snapshot": evs.ResourceEvsSnapshotV2(),
+			"sbercloud_evs_snapshot": evs.ResourceEvsSnapshot(),
 			"sbercloud_evs_volume":   evs.ResourceEvsVolume(),
 
 			"sbercloud_fgs_function": fgs.ResourceFgsFunction(),
@@ -499,7 +503,7 @@ func Provider() *schema.Provider {
 			"sbercloud_kms_key":     dew.ResourceKmsKey(),
 			"sbercloud_kps_keypair": dew.ResourceKeypair(),
 
-			"sbercloud_lb_certificate":  lb.ResourceCertificateV2(),
+			"sbercloud_lb_certificate":  lb2.ResourceCertificateV2(),
 			"sbercloud_lb_l7policy":     lb.ResourceL7PolicyV2(),
 			"sbercloud_lb_l7rule":       lb.ResourceL7RuleV2(),
 			"sbercloud_lb_listener":     lb.ResourceListener(),
@@ -571,8 +575,9 @@ func Provider() *schema.Provider {
 			"sbercloud_sfs_access_rule": deprecated.ResourceSFSAccessRuleV2(),
 			"sbercloud_sfs_file_system": deprecated.ResourceSFSFileSystemV2(),
 
-			"sbercloud_smn_subscription": smn.ResourceSubscription(),
-			"sbercloud_smn_topic":        smn.ResourceTopic(),
+			"sbercloud_smn_subscription":      smn.ResourceSubscription(),
+			"sbercloud_smn_topic":             smn.ResourceTopic(),
+			"sbercloud_smn_message_detection": smn.ResourceMessageDetection(),
 
 			"sbercloud_swr_organization":             swr.ResourceSWROrganization(),
 			"sbercloud_swr_organization_permissions": swr.ResourceSWROrganizationPermissions(),
