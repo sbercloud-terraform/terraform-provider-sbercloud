@@ -11,6 +11,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/nat"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/obs"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/rabbitmq"
+	rdshuawei "github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/rds"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/rocketmq"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/sfsturbo"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/swr"
@@ -559,16 +560,17 @@ func Provider() *schema.Provider {
 			"sbercloud_obs_bucket_policy": obs.ResourceObsBucketPolicy(),
 			"sbercloud_obs_bucket_acl":    obs.ResourceOBSBucketAcl(),
 
-			"sbercloud_rds_instance":              rds.ResourceRdsInstance(),
-			"sbercloud_rds_parametergroup":        rds.ResourceRdsConfiguration(),
-			"sbercloud_rds_backup":                rds.ResourceBackup(),
-			"sbercloud_rds_read_replica_instance": rds.ResourceRdsReadReplicaInstance(),
-			"sbercloud_rds_pg_database":           rds.ResourcePgDatabase(),
-			"sbercloud_rds_pg_account_roles":      rds.ResourcePgAccountRoles(),
-			"sbercloud_rds_pg_plugin":             rds.ResourceRdsPgPlugin(),
-			"sbercloud_rds_pg_plugin_update":      rds.ResourceRdsPgPluginUpdate(),
-			"sbercloud_rds_pg_hba":                rds.ResourcePgHba(),
-			"sbercloud_rds_pg_sql_limit":          rds.ResourcePgSqlLimit(),
+			"sbercloud_rds_instance":               rds.ResourceRdsInstance(),
+			"sbercloud_rds_parametergroup":         rds.ResourceRdsConfiguration(),
+			"sbercloud_rds_instance_eip_associate": rdshuawei.ResourceRdsInstanceEipAssociate(),
+			"sbercloud_rds_backup":                 rds.ResourceBackup(),
+			"sbercloud_rds_read_replica_instance":  rds.ResourceRdsReadReplicaInstance(),
+			"sbercloud_rds_pg_database":            rds.ResourcePgDatabase(),
+			"sbercloud_rds_pg_account_roles":       rds.ResourcePgAccountRoles(),
+			"sbercloud_rds_pg_plugin":              rds.ResourceRdsPgPlugin(),
+			"sbercloud_rds_pg_plugin_update":       rds.ResourceRdsPgPluginUpdate(),
+			"sbercloud_rds_pg_hba":                 rds.ResourcePgHba(),
+			"sbercloud_rds_pg_sql_limit":           rds.ResourcePgSqlLimit(),
 
 			"sbercloud_rds_pg_account":          rds.ResourcePgAccount(),
 			"sbercloud_rds_pg_plugin_parameter": rds.ResourcePgPluginParameter(),
