@@ -11,6 +11,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/nat"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/obs"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/rabbitmq"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/rocketmq"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/sfsturbo"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/swr"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/vpn"
@@ -279,6 +280,21 @@ func Provider() *schema.Provider {
 
 			"sbercloud_dms_rabbitmq_flavors": rabbitmq.DataSourceRabbitMQFlavors(),
 
+			"sbercloud_dms_rocketmq_broker":                      rocketmq.DataSourceDmsRocketMQBroker(),
+			"sbercloud_dms_rocketmq_instances":                   rocketmq.DataSourceDmsRocketMQInstances(),
+			"sbercloud_dms_rocketmq_topics":                      rocketmq.DataSourceDmsRocketMQTopics(),
+			"sbercloud_dms_rocketmq_topic_access_users":          rocketmq.DataSourceDmsRocketmqTopicAccessUsers(),
+			"sbercloud_dms_rocketmq_users":                       rocketmq.DataSourceDmsRocketMQUsers(),
+			"sbercloud_dms_rocketmq_consumer_groups":             rocketmq.DataSourceDmsRocketMQConsumerGroups(),
+			"sbercloud_dms_rocketmq_consumers":                   rocketmq.DataSourceDmsRocketmqConsumers(),
+			"sbercloud_dms_rocketmq_consumer_group_access_users": rocketmq.DataSourceDmsRocketmqConsumerGroupAccessUsers(),
+			"sbercloud_dms_rocketmq_flavors":                     rocketmq.DataSourceRocketMQFlavors(),
+			"sbercloud_dms_rocketmq_migration_tasks":             rocketmq.DataSourceDmsRocketmqMigrationTasks(),
+			"sbercloud_dms_rocketmq_topic_consumer_groups":       rocketmq.DataSourceDmsRocketmqTopicConsumerGroups(),
+			"sbercloud_dms_rocketmq_message_traces":              rocketmq.DataSourceDmsRocketmqMessageTraces(),
+			"sbercloud_dms_rocketmq_extend_flavors":              rocketmq.DataSourceDmsRocketmqExtendFlavors(),
+			"sbercloud_dms_rocketmq_messages":                    rocketmq.DataSourceDmsRocketMQMessages(),
+
 			"sbercloud_dws_flavors":          dws.DataSourceDwsFlavors(),
 			"sbercloud_elb_certificate":      elb.DataSourceELBCertificateV3(),
 			"sbercloud_elb_flavors":          elb.DataSourceElbFlavorsV3(),
@@ -453,6 +469,15 @@ func Provider() *schema.Provider {
 			"sbercloud_dms_kafka_consumer_group":  kafka.ResourceDmsKafkaConsumerGroup(),
 
 			"sbercloud_dms_rabbitmq_instance": rabbitmq.ResourceDmsRabbitmqInstance(),
+
+			"sbercloud_dms_rocketmq_instance":             rocketmq.ResourceDmsRocketMQInstance(),
+			"sbercloud_dms_rocketmq_consumer_group":       rocketmq.ResourceDmsRocketMQConsumerGroup(),
+			"sbercloud_dms_rocketmq_consumption_verify":   rocketmq.ResourceDmsRocketMQConsumptionVerify(),
+			"sbercloud_dms_rocketmq_message_offset_reset": rocketmq.ResourceDmsRocketMQMessageOffsetReset(),
+			"sbercloud_dms_rocketmq_dead_letter_resend":   rocketmq.ResourceDmsRocketMQDeadLetterResend(),
+			"sbercloud_dms_rocketmq_topic":                rocketmq.ResourceDmsRocketMQTopic(),
+			"sbercloud_dms_rocketmq_user":                 rocketmq.ResourceDmsRocketMQUser(),
+			"sbercloud_dms_rocketmq_migration_task":       rocketmq.ResourceDmsRocketmqMigrationTask(),
 
 			"sbercloud_dns_recordset": dns.ResourceDNSRecordSetV2(),
 			"sbercloud_dns_zone":      dns.ResourceDNSZone(),
