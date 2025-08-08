@@ -1,8 +1,10 @@
 package acceptance
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud"
 	"os"
 	"regexp"
@@ -89,6 +91,13 @@ var (
 	SBC_DEW_ENABLE_FLAG   = os.Getenv("SBC_DEW_ENABLE_FLAG")
 
 	SBC_CSS_LOCAL_DISK_FLAVOR = os.Getenv("SBC_CSS_LOCAL_DISK_FLAVOR")
+
+	SBC_CFW_EAST_WEST_FIREWALL = os.Getenv("SBC_CFW_EAST_WEST_FIREWALL")
+
+	SBC_CFW_INSTANCE_ID         = os.Getenv("SBC_CFW_INSTANCE_ID")
+	SBC_FGS_DEPENDENCY_OBS_LINK = os.Getenv("SBC_FGS_DEPENDENCY_OBS_LINK")
+
+	SBC_EVS_ENABLE_FLAG = os.Getenv("SBC_EVS_ENABLE_FLAG")
 )
 
 // TestAccProviderFactories is a static map containing only the main provider instance
@@ -97,8 +106,36 @@ var TestAccProviderFactories map[string]func() (*schema.Provider, error)
 // TestAccProvider is the "main" provider instance
 var TestAccProvider *schema.Provider
 
+//	func init() {
+//		TestAccProvider = sbercloud.Provider()
+//
+//		customConfig := map[string]interface{}{
+//			"endpoints": map[string]interface{}{
+//				"er": "https://er.ru-moscow-1.hc.cloud.ru",
+//			},
+//		}
+//
+//		if err := TestAccProvider.Configure(context.Background(), terraform.NewResourceConfigRaw(customConfig)); err != nil {
+//			log.Fatal(err)
+//		}
+//
+//		TestAccProviderFactories = map[string]func() (*schema.Provider, error){
+//			"sbercloud": func() (*schema.Provider, error) {
+//				return TestAccProvider, nil
+//			},
+//		}
+//	}
 func init() {
 	TestAccProvider = sbercloud.Provider()
+
+	rawProvider := TestAccProvider
+	rawProvider.ConfigureContextFunc = func(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
+		d.Set("endpoints", map[string]interface{}{
+			"er": "https://er.ru-moscow-1.hc.cloud.ru",
+		})
+
+		return sbercloud.Provider().ConfigureContextFunc(ctx, d)
+	}
 
 	TestAccProviderFactories = map[string]func() (*schema.Provider, error){
 		"sbercloud": func() (*schema.Provider, error) {
@@ -445,6 +482,13 @@ func TestAccPreCheckEpsID(t *testing.T) {
 	}
 }
 
+// lintignore:AT003
+func TestAccPreCheckEVSFlag(t *testing.T) {
+	if SBC_EVS_ENABLE_FLAG == "" {
+		t.Skip("Skip the EVS acceptance tests.")
+	}
+}
+
 func TestAccPreCheckProject(t *testing.T) {
 	if SBC_ENTERPRISE_PROJECT_ID_TEST == "" {
 		t.Skip("This environment does not support project tests")
@@ -557,7 +601,7 @@ func TestAccPreCheckFgsAgency(t *testing.T) {
 	// For the acceptance tests of the function trigger and the application:
 	// + LTS Administrator
 	if SBC_FGS_AGENCY_NAME == "" {
-		t.Skip("HW_FGS_AGENCY_NAME must be set for FGS acceptance tests")
+		t.Skip("SBC_FGS_AGENCY_NAME must be set for FGS acceptance tests")
 	}
 }
 
@@ -618,6 +662,27 @@ func TestAccPreCheckCSSLocalDiskFlavor(t *testing.T) {
 func TestAccPreCheckCodeArtsDeployResourcePoolID(t *testing.T) {
 	if SBC_CODEARTS_RESOURCE_POOL_ID == "" {
 		t.Skip("SBC_CODEARTS_RESOURCE_POOL_ID must be set for this acceptance test")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckCfwEastWestFirewall(t *testing.T) {
+	if SBC_CFW_EAST_WEST_FIREWALL == "" {
+		t.Skip("SBC_CFW_EAST_WEST_FIREWALL must be set for CFW east-west firewall acceptance tests")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckCfw(t *testing.T) {
+	if SBC_CFW_INSTANCE_ID == "" {
+		t.Skip("SBC_CFW_INSTANCE_ID must be set for CFW acceptance tests")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckFgsDependencyLink(t *testing.T) {
+	if SBC_FGS_DEPENDENCY_OBS_LINK == "" {
+		t.Skip("SBC_FGS_DEPENDENCY_OBS_LINK must be set for FGS acceptance tests")
 	}
 }
 

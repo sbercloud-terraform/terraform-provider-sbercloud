@@ -33,7 +33,7 @@ github.com/apparentlymart/go-cidr/cidr
 # github.com/apparentlymart/go-textseg/v15 v15.0.0
 ## explicit; go 1.16
 github.com/apparentlymart/go-textseg/v15/textseg
-# github.com/chnsz/golangsdk v0.0.0-20250612072604-c4851f639048
+# github.com/chnsz/golangsdk v0.0.0-20250714122404-8ec4c665c567
 ## explicit; go 1.14
 github.com/chnsz/golangsdk
 github.com/chnsz/golangsdk/auth
@@ -82,7 +82,6 @@ github.com/chnsz/golangsdk/openstack/cbr/v3/backups
 github.com/chnsz/golangsdk/openstack/cbr/v3/checkpoints
 github.com/chnsz/golangsdk/openstack/cbr/v3/members
 github.com/chnsz/golangsdk/openstack/cbr/v3/policies
-github.com/chnsz/golangsdk/openstack/cbr/v3/vaults
 github.com/chnsz/golangsdk/openstack/cce/v1/namespaces
 github.com/chnsz/golangsdk/openstack/cce/v1/persistentvolumeclaims
 github.com/chnsz/golangsdk/openstack/cce/v3/addons
@@ -208,7 +207,7 @@ github.com/chnsz/golangsdk/openstack/er/v3/routetables
 github.com/chnsz/golangsdk/openstack/er/v3/vpcattachments
 github.com/chnsz/golangsdk/openstack/evs/v2/cloudvolumes
 github.com/chnsz/golangsdk/openstack/evs/v2/snapshots
-github.com/chnsz/golangsdk/openstack/evs/v3/volumes
+github.com/chnsz/golangsdk/openstack/fgs/v2/dependencies
 github.com/chnsz/golangsdk/openstack/fgs/v2/function
 github.com/chnsz/golangsdk/openstack/fgs/v2/trigger
 github.com/chnsz/golangsdk/openstack/geminidb/v3/backups
@@ -373,7 +372,6 @@ github.com/chnsz/golangsdk/openstack/waf_hw/v1/datamasking_rules
 github.com/chnsz/golangsdk/openstack/waf_hw/v1/domains
 github.com/chnsz/golangsdk/openstack/waf_hw/v1/policies
 github.com/chnsz/golangsdk/openstack/waf_hw/v1/pools
-github.com/chnsz/golangsdk/openstack/waf_hw/v1/premium_domains
 github.com/chnsz/golangsdk/openstack/waf_hw/v1/premium_instances
 github.com/chnsz/golangsdk/openstack/waf_hw/v1/valuelists
 github.com/chnsz/golangsdk/openstack/waf_hw/v1/webtamperprotection_rules
@@ -611,7 +609,7 @@ github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vod/v1
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vod/v1/model
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vpc/v3
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vpc/v3/model
-# github.com/huaweicloud/terraform-provider-huaweicloud v1.75.4
+# github.com/huaweicloud/terraform-provider-huaweicloud v1.76.5
 ## explicit; go 1.18
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common
@@ -626,6 +624,7 @@ github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/mutexkv
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/pathorcontents
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/schemas
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/aad
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/acceptance
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/accessanalyzer
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/antiddos
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/aom
@@ -654,6 +653,7 @@ github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cmdb
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cnad
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/coc
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/codearts
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/codeartsbuild
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/codeartsdeploy
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/codeartsinspector
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/codeartspipeline

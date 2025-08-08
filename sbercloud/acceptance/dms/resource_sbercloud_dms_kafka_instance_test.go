@@ -162,6 +162,7 @@ resource "sbercloud_dms_kafka_instance" "test" {
   description       = "kafka test"
   access_user       = "user"
   password          = "Kafkatest@123"
+  ssl_enable        = true
   vpc_id            = data.sbercloud_vpc.test.id
   network_id        = data.sbercloud_vpc_subnet.test.id
   security_group_id = sbercloud_networking_secgroup.test.id
