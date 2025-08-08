@@ -1,11 +1,17 @@
 package sbercloud
 
 import (
+	"context"
+	"fmt"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/apig"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cfw"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cts"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dds"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dew"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dns"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ecs"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/er"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/kafka"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/lts"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/nat"
@@ -23,12 +29,14 @@ import (
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/rds"
 	vpc2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/vpc"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/vpcep"
+	"log"
+	"strings"
 
 	elb2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/elb"
 	"sync"
 
 	dcs2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dcs"
-	dds2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dds"
+	dds_sbc "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dds"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
@@ -100,6 +108,13 @@ func Provider() *schema.Provider {
 				DefaultFunc: schema.EnvDefaultFunc(
 					"SBC_AUTH_URL", "https://iam.ru-moscow-1.hc.sbercloud.ru/v3"),
 				Description: descriptions["auth_url"],
+			},
+
+			"endpoints": {
+				Type:        schema.TypeMap,
+				Optional:    true,
+				Description: descriptions["endpoints"],
+				Elem:        &schema.Schema{Type: schema.TypeString},
 			},
 
 			"region": {
@@ -241,6 +256,27 @@ func Provider() *schema.Provider {
 
 			"sbercloud_css_flavors": css_huawei.DataSourceCssFlavors(),
 
+			"sbercloud_cfw_firewalls":                 cfw.DataSourceFirewalls(),
+			"sbercloud_cfw_address_groups":            cfw.DataSourceCfwAddressGroups(),
+			"sbercloud_cfw_address_group_members":     cfw.DataSourceCfwAddressGroupMembers(),
+			"sbercloud_cfw_black_white_lists":         cfw.DataSourceCfwBlackWhiteLists(),
+			"sbercloud_cfw_capture_tasks":             cfw.DataSourceCfwCaptureTasks(),
+			"sbercloud_cfw_capture_task_results":      cfw.DataSourceCfwCaptureTaskResults(),
+			"sbercloud_cfw_domain_name_groups":        cfw.DataSourceCfwDomainNameGroups(),
+			"sbercloud_cfw_domain_name_parse_ip_list": cfw.DataSourceCfwDomainNameParseIpList(),
+			"sbercloud_cfw_protection_rules":          cfw.DataSourceCfwProtectionRules(),
+			"sbercloud_cfw_service_groups":            cfw.DataSourceCfwServiceGroups(),
+			"sbercloud_cfw_service_group_members":     cfw.DataSourceCfwServiceGroupMembers(),
+			"sbercloud_cfw_access_control_logs":       cfw.DataSourceCfwAccessControlLogs(),
+			"sbercloud_cfw_attack_logs":               cfw.DataSourceCfwAttackLogs(),
+			"sbercloud_cfw_flow_logs":                 cfw.DataSourceCfwFlowLogs(),
+			"sbercloud_cfw_regions":                   cfw.DataSourceCfwRegions(),
+			"sbercloud_cfw_ips_rules":                 cfw.DataSourceCfwIpsRules(),
+			"sbercloud_cfw_ips_custom_rules":          cfw.DataSourceCfwIpsCustomRules(),
+			"sbercloud_cfw_ips_rule_details":          cfw.DataSourceCfwIpsRuleDetails(),
+			"sbercloud_cfw_resource_tags":             cfw.DataSourceCfwResourceTags(),
+			"sbercloud_cfw_tags":                      cfw.DataSourceCfwTags(),
+
 			"sbercloud_cbh_instances":          cbh.DataSourceCbhInstances(),
 			"sbercloud_cbh_flavors":            cbh.DataSourceCbhFlavors(),
 			"sbercloud_cbh_availability_zones": cbh.DataSourceAvailabilityZones(),
@@ -265,7 +301,7 @@ func Provider() *schema.Provider {
 			"sbercloud_dcs_az":                  deprecated.DataSourceDcsAZV1(),
 			"sbercloud_dcs_maintainwindow":      dcs.DataSourceDcsMaintainWindow(),
 			"sbercloud_dcs_product":             deprecated.DataSourceDcsProductV1(),
-			"sbercloud_dds_flavors":             dds2.DataSourceDDSFlavorV3(),
+			"sbercloud_dds_flavors":             dds_sbc.DataSourceDDSFlavorV3(),
 			"sbercloud_dms_az":                  deprecated.DataSourceDmsAZ(),
 
 			"sbercloud_kps_failed_tasks":  dew.DataSourceDewKpsFailedTasks(),
@@ -297,12 +333,37 @@ func Provider() *schema.Provider {
 			"sbercloud_dms_rocketmq_extend_flavors":              rocketmq.DataSourceDmsRocketmqExtendFlavors(),
 			"sbercloud_dms_rocketmq_messages":                    rocketmq.DataSourceDmsRocketMQMessages(),
 
-			"sbercloud_dws_flavors":          dws.DataSourceDwsFlavors(),
-			"sbercloud_elb_certificate":      elb.DataSourceELBCertificateV3(),
-			"sbercloud_elb_flavors":          elb.DataSourceElbFlavorsV3(),
-			"sbercloud_elb_pools":            elb.DataSourcePools(),
-			"sbercloud_enterprise_project":   eps.DataSourceEnterpriseProject(),
-			"sbercloud_evs_volumes":          evs.DataSourceEvsVolumes(),
+			"sbercloud_dws_flavors": dws.DataSourceDwsFlavors(),
+
+			"sbercloud_elb_certificate": elb.DataSourceELBCertificateV3(),
+			"sbercloud_elb_flavors":     elb.DataSourceElbFlavorsV3(),
+			"sbercloud_elb_pools":       elb.DataSourcePools(),
+
+			"sbercloud_enterprise_project": eps.DataSourceEnterpriseProject(),
+
+			"sbercloud_evs_volumes": evs.DataSourceEvsVolumes(),
+
+			"sbercloud_fgs_function_events":       fgs.DataSourceFunctionEvents(),
+			"sbercloud_fgs_function_triggers":     fgs.DataSourceFunctionTriggers(),
+			"sbercloud_fgs_functions":             fgs.DataSourceFunctions(),
+			"sbercloud_fgs_applications":          fgs.DataSourceApplications(),
+			"sbercloud_fgs_application_templates": fgs.DataSourceApplicationTemplates(),
+			"sbercloud_fgs_dependencies":          fgs.DataSourceDependencies(),
+			"sbercloud_fgs_dependency_versions":   fgs.DataSourceDependencieVersions(),
+			"sbercloud_fgs_quotas":                fgs.DataSourceQuotas(),
+
+			"sbercloud_er_associations":       er.DataSourceAssociations(),
+			"sbercloud_er_attachments":        er.DataSourceAttachments(),
+			"sbercloud_er_available_routes":   er.DataSourceErAvailableRoutes(),
+			"sbercloud_er_availability_zones": er.DataSourceAvailabilityZones(),
+			"sbercloud_er_flow_logs":          er.DataSourceFlowLogs(),
+			"sbercloud_er_instances":          er.DataSourceInstances(),
+			"sbercloud_er_propagations":       er.DataSourcePropagations(),
+			"sbercloud_er_quotas":             er.DataSourceErQuotas(),
+			"sbercloud_er_resource_tags":      er.DataSourceResourceTags(),
+			"sbercloud_er_route_tables":       er.DataSourceRouteTables(),
+			"sbercloud_er_tags":               er.DataSourceTags(),
+
 			"sbercloud_identity_role":        iam.DataSourceIdentityRole(),
 			"sbercloud_identity_custom_role": iam.DataSourceIdentityCustomRole(),
 			"sbercloud_identity_group":       iam.DataSourceIdentityGroup(),
@@ -447,6 +508,22 @@ func Provider() *schema.Provider {
 
 			"sbercloud_ces_alarmrule": ces.ResourceAlarmRule(),
 
+			"sbercloud_cfw_acl_rule":             cfw.ResourceAclRule(),
+			"sbercloud_cfw_address_group":        cfw.ResourceAddressGroup(),
+			"sbercloud_cfw_address_group_member": cfw.ResourceAddressGroupMember(),
+			"sbercloud_cfw_alarm_config":         cfw.ResourceAlarmConfig(),
+			"sbercloud_cfw_anti_virus":           cfw.ResourceAntiVirus(),
+			"sbercloud_cfw_black_white_list":     cfw.ResourceBlackWhiteList(),
+			"sbercloud_cfw_eip_protection":       cfw.ResourceEipProtection(),
+			"sbercloud_cfw_service_group":        cfw.ResourceServiceGroup(),
+			"sbercloud_cfw_service_group_member": cfw.ResourceServiceGroupMember(),
+			"sbercloud_cfw_firewall":             cfw.ResourceFirewall(),
+			"sbercloud_cfw_domain_name_group":    cfw.ResourceDomainNameGroup(),
+			"sbercloud_cfw_lts_log":              cfw.ResourceLtsLog(),
+			"sbercloud_cfw_dns_resolution":       cfw.ResourceDNSResolution(),
+			"sbercloud_cfw_capture_task":         cfw.ResourceCaptureTask(),
+			"sbercloud_cfw_ips_rule_mode_change": cfw.ResourceCfwIpsRuleModeChange(),
+
 			"sbercloud_cts_tracker":      cts.ResourceCTSTracker(),
 			"sbercloud_cts_data_tracker": cts.ResourceCTSDataTracker(),
 			"sbercloud_cts_notification": cts.ResourceCTSNotification(),
@@ -456,7 +533,13 @@ func Provider() *schema.Provider {
 			"sbercloud_dcs_restore":    dcs2.ResourceDcsRestore(),
 			"sbercloud_dcs_parameters": deprecated_sbc.ResourceDcsParameters(),
 			"sbercloud_dcs_account":    dcs.ResourceDcsAccount(),
-			"sbercloud_dds_instance":   dds2.ResourceDdsInstanceV3(),
+
+			"sbercloud_dds_instance":                   dds.ResourceDdsInstanceV3(), //dds_sbc.ResourceDdsInstanceV3(),
+			"sbercloud_dds_parameter_template":         dds.ResourceDdsParameterTemplate(),
+			"sbercloud_dds_parameter_template_reset":   dds.ResourceDDSParameterTemplateReset(),
+			"sbercloud_dds_parameter_template_copy":    dds.ResourceDDSParameterTemplateCopy(),
+			"sbercloud_dds_parameter_template_compare": dds.ResourceDDSParameterTemplateCompare(),
+			"sbercloud_dds_parameter_template_apply":   dds.ResourceDDSParameterTemplateApply(),
 
 			"sbercloud_dis_stream": dis.ResourceDisStream(),
 
@@ -504,10 +587,28 @@ func Provider() *schema.Provider {
 
 			"sbercloud_enterprise_project": eps.ResourceEnterpriseProject(),
 
+			"sbercloud_er_association":         er.ResourceAssociation(),
+			"sbercloud_er_attachment_accepter": er.ResourceAttachmentAccepter(),
+			"sbercloud_er_instance":            er.ResourceInstance(),
+			"sbercloud_er_propagation":         er.ResourcePropagation(),
+			"sbercloud_er_route_table":         er.ResourceRouteTable(),
+			"sbercloud_er_static_route":        er.ResourceStaticRoute(),
+			"sbercloud_er_vpc_attachment":      er.ResourceVpcAttachment(),
+			"sbercloud_er_flow_log":            er.ResourceFlowLog(),
+
 			"sbercloud_evs_snapshot": evs.ResourceEvsSnapshot(),
 			"sbercloud_evs_volume":   evs.ResourceEvsVolume(),
 
-			"sbercloud_fgs_function": fgs.ResourceFgsFunction(),
+			"sbercloud_fgs_function":                       fgs.ResourceFgsFunction(),
+			"sbercloud_fgs_function_trigger":               fgs.ResourceFunctionTrigger(),
+			"sbercloud_fgs_function_event":                 fgs.ResourceFunctionEvent(),
+			"sbercloud_fgs_function_topping":               fgs.ResourceFunctionTopping(),
+			"sbercloud_fgs_function_trigger_status_action": fgs.ResourceFunctionTriggerStatusAction(),
+			"sbercloud_fgs_application":                    fgs.ResourceApplication(),
+			"sbercloud_fgs_async_invoke_configuration":     fgs.ResourceAsyncInvokeConfiguration(),
+			"sbercloud_fgs_dependency":                     fgs.ResourceDependency(),
+			"sbercloud_fgs_dependency_version":             fgs.ResourceDependencyVersion(),
+			"sbercloud_fgs_lts_log_enable":                 fgs.ResourceLtsLogEnable(),
 
 			"sbercloud_ges_graph": ges_sbercloud.ResourceGesGraph(),
 
@@ -636,14 +737,24 @@ func Provider() *schema.Provider {
 		},
 	}
 
-	provider.ConfigureFunc = func(d *schema.ResourceData) (interface{}, error) {
+	//provider.ConfigureFunc = func(d *schema.ResourceData) (interface{}, error) {
+	//	terraformVersion := provider.TerraformVersion
+	//	if terraformVersion == "" {
+	//		// Terraform 0.12 introduced this field to the protocol
+	//		// We can therefore assume that if it's missing it's 0.10 or 0.11
+	//		terraformVersion = "0.11+compatible"
+	//	}
+	//	return configureProvider(d, terraformVersion)
+	//}
+	provider.ConfigureContextFunc = func(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
 		terraformVersion := provider.TerraformVersion
 		if terraformVersion == "" {
 			// Terraform 0.12 introduced this field to the protocol
-			// We can therefore assume that if it's missing it's 0.10 or 0.11
+			// We can therefore assume that if it's missing it's 0.10 or 0.11 cc
 			terraformVersion = "0.11+compatible"
 		}
-		return configureProvider(d, terraformVersion)
+
+		return configureProvider(ctx, d, terraformVersion)
 	}
 
 	return provider
@@ -672,10 +783,12 @@ func init() {
 		"account_name": "The name of the Account to login with.",
 
 		"insecure": "Trust self-signed certificates.",
+
+		"endpoints": "The custom endpoints used to override the default endpoint URL.",
 	}
 }
 
-func configureProvider(d *schema.ResourceData, terraformVersion string) (interface{}, error) {
+func configureProvider(_ context.Context, d *schema.ResourceData, terraformVersion string) (interface{}, diag.Diagnostics) {
 	var project_name string
 
 	// Use region as project_name if it's not set
@@ -705,8 +818,15 @@ func configureProvider(d *schema.ResourceData, terraformVersion string) (interfa
 		RPLock:              new(sync.Mutex),
 	}
 
+	// get custom endpoints
+	endpoints, err := flattenProviderEndpoints(d)
+	if err != nil {
+		return nil, diag.FromErr(err)
+	}
+	config.Endpoints = endpoints
+
 	if err := config.LoadAndValidate(); err != nil {
-		return nil, err
+		return nil, diag.FromErr(err)
 	}
 
 	if config.HwClient != nil && config.HwClient.ProjectID != "" {
@@ -714,4 +834,42 @@ func configureProvider(d *schema.ResourceData, terraformVersion string) (interfa
 	}
 
 	return &config, nil
+}
+
+func flattenProviderEndpoints(d *schema.ResourceData) (map[string]string, error) {
+	endpoints := d.Get("endpoints").(map[string]interface{})
+	epMap := make(map[string]string)
+
+	for key, val := range endpoints {
+		endpoint := strings.TrimSpace(val.(string))
+		// check empty string
+		if endpoint == "" {
+			return nil, fmt.Errorf("the value of customer endpoint %s must be specified", key)
+		}
+
+		// add prefix "https://" and suffix "/"
+		if !strings.HasPrefix(endpoint, "http") {
+			endpoint = fmt.Sprintf("https://%s", endpoint)
+		}
+		if !strings.HasSuffix(endpoint, "/") {
+			endpoint = fmt.Sprintf("%s/", endpoint)
+		}
+		epMap[key] = endpoint
+	}
+
+	// unify the endpoint which has multiple versions
+	for key := range endpoints {
+		ep, ok := epMap[key]
+		if !ok {
+			continue
+		}
+
+		multiKeys := config.GetServiceDerivedCatalogKeys(key)
+		for _, k := range multiKeys {
+			epMap[k] = ep
+		}
+	}
+
+	log.Printf("[DEBUG] customer endpoints: %+v", epMap)
+	return epMap, nil
 }

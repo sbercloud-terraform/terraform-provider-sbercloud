@@ -111,7 +111,7 @@ func TestAccCBHInstance_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(rName, "password", "test_147258"),
 					resource.TestCheckResourceAttr(rName, "flavor_id", "cbh.basic.50"),
 					// resource.TestCheckResourceAttr(rName, "auto_renew", "true"),
-					resource.TestCheckResourceAttr(rName, "data_disk_size", "3.2"),
+					resource.TestCheckResourceAttr(rName, "data_disk_size", "0.5"),
 					resource.TestCheckResourceAttr(rName, "tags.foo", "bar_update"),
 					resource.TestCheckResourceAttr(rName, "tags.key", "value_update"),
 					resource.TestCheckResourceAttr(rName, "enterprise_project_id", acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST),
