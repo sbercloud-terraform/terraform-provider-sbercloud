@@ -98,6 +98,10 @@ var (
 	SBC_FGS_DEPENDENCY_OBS_LINK = os.Getenv("SBC_FGS_DEPENDENCY_OBS_LINK")
 
 	SBC_EVS_ENABLE_FLAG = os.Getenv("SBC_EVS_ENABLE_FLAG")
+
+	SBC_DMS_KAFKA_INSTANCE_ID = os.Getenv("SBC_DMS_KAFKA_INSTANCE_ID")
+
+	SBC_ELB_GATEWAY_TYPE = os.Getenv("SBC_ELB_GATEWAY_TYPE")
 )
 
 // TestAccProviderFactories is a static map containing only the main provider instance
@@ -683,6 +687,20 @@ func TestAccPreCheckCfw(t *testing.T) {
 func TestAccPreCheckFgsDependencyLink(t *testing.T) {
 	if SBC_FGS_DEPENDENCY_OBS_LINK == "" {
 		t.Skip("SBC_FGS_DEPENDENCY_OBS_LINK must be set for FGS acceptance tests")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckDMSKafkaInstanceID(t *testing.T) {
+	if SBC_FGS_DEPENDENCY_OBS_LINK == "" {
+		t.Skip("SBC_DMS_KAFKA_INSTANCE_ID must be set for FGS acceptance tests")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckElbGatewayType(t *testing.T) {
+	if SBC_ELB_GATEWAY_TYPE == "" {
+		t.Skip("SBC_ELB_GATEWAY_TYPE must be set for the acceptance test")
 	}
 }
 

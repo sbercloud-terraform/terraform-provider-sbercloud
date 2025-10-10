@@ -1,10 +1,13 @@
 ---
 subcategory: "Cloud Backup and Recovery (CBR)"
+layout: "sbercloud"
+page_title: "SberCloud: sbercloud_cbr_vault"
+description: ""
 ---
 
 # sbercloud_cbr_vault
 
-Manages a CBR Vault resource within Sbercloud.
+Manages a CBR vault resource within SberCloud.
 
 ## Example Usage
 
@@ -13,10 +16,8 @@ Manages a CBR Vault resource within Sbercloud.
 ```hcl
 variable "vault_name" {}
 variable "ecs_instance_id" {}
-variable "evs_volume_id" {}
-
-data "sbercloud_compute_instance" "test" {
-  ...
+variable "attached_volume_ids" {
+  type = list(string)
 }
 
 resource "sbercloud_cbr_vault" "test" {
@@ -28,10 +29,7 @@ resource "sbercloud_cbr_vault" "test" {
 
   resources {
     server_id = var.ecs_instance_id
-  
-    excludes = [
-      var.evs_volume_id
-    ]
+    excludes  = var.attached_volume_ids
   }
 
   tags = {
@@ -40,23 +38,64 @@ resource "sbercloud_cbr_vault" "test" {
 }
 ```
 
+### Create a server type vault and associate backup and reprecation policies
+
+```hcl
+variable "destination_region" {}
+variable "destination_vault_name" {}
+variable "vault_name" {}
+variable "backup_policy_id" {}
+variable "replication_policy_id" {}
+
+resource "sbercloud_cbr_vault" "destination" {
+  region          = var.destination_region
+  name            = var.destination_vault_name
+  type            = "server"
+  protection_type = "replication"
+  size            = 500
+}
+
+resource "sbercloud_cbr_vault" "test" {
+  name             = var.vault_name
+  type             = "server"
+  protection_type  = "backup"
+  consistent_level = "crash_consistent"
+  size             = 500
+
+  auto_bind  = true
+  bind_rules = {
+    # {auto_bind_key} = {auto_bind_value}
+    service_name = "xxx"
+  }
+
+  policy {
+    id = var.backup_policy_id
+  }
+  policy {
+    id                   = var.replication_policy_id
+    destination_vault_id = sbercloud_cbr_vault.destination.id
+  }
+}
+```
+
 ### Create a disk type vault
 
 ```hcl
 variable "vault_name" {}
-variable "evs_volume_id" {}
+variable "evs_volume_ids" {
+  type = list(string)
+}
 
 resource "sbercloud_cbr_vault" "test" {
-  name             = var.vault_name
-  type             = "disk"
-  protection_type  = "backup"
-  size             = 50
-  auto_expand      = true
+  name            = var.vault_name
+  type            = "disk"
+  protection_type = "backup"
+  size            = 50
+  auto_expand     = true
+  locked          = false
 
   resources {
-    includes = [
-      var.evs_volume_id
-    ]
+    includes = var.evs_volume_ids
   }
 
   tags = {
@@ -69,18 +108,18 @@ resource "sbercloud_cbr_vault" "test" {
 
 ```hcl
 variable "vault_name" {}
-variable "sfs_turbo_id" {}
+variable "sfs_turbo_ids" {
+  type = list(string)
+}
 
 resource "sbercloud_cbr_vault" "test" {
-  name             = var.vault_name
-  type             = "turbo"
-  protection_type  = "backup"
-  size             = 1000
+  name            = var.vault_name
+  type            = "turbo"
+  protection_type = "backup"
+  size            = 1000
 
   resources {
-    includes = [
-      var.sfs_turbo_id
-    ]
+    includes = var.sfs_turbo_ids
   }
 
   tags = {
@@ -95,10 +134,52 @@ resource "sbercloud_cbr_vault" "test" {
 variable "vault_name" {}
 
 resource "sbercloud_cbr_vault" "test" {
+  name            = var.vault_name
+  type            = "turbo"
+  protection_type = "replication"
+  size            = 1000
+}
+```
+
+### Create a Workspace type vault
+
+```hcl
+variable "vault_name" {}
+
+resource "sbercloud_cbr_vault" "test" {
   name             = var.vault_name
-  type             = "turbo"
-  protection_type  = "replication"
-  size             = 1000
+  type             = "workspace"
+  protection_type  = "backup"
+  size             = 100
+  consistent_level = "crash_consistent"
+}
+```
+
+### Create a VMware type vault
+
+```hcl
+variable "vault_name" {}
+
+resource "sbercloud_cbr_vault" "test" {
+  name             = var.vault_name
+  type             = "vmware"
+  protection_type  = "backup"
+  size             = 100
+  consistent_level = "crash_consistent"
+}
+```
+
+### Create a file type vault
+
+```hcl
+variable "vault_name" {}
+
+resource "sbercloud_cbr_vault" "test" {
+  name             = var.vault_name
+  type             = "file"
+  protection_type  = "backup"
+  size             = 100
+  consistent_level = "crash_consistent"
 }
 ```
 
@@ -109,14 +190,20 @@ The following arguments are supported:
 * `region` - (Optional, String, ForceNew) Specifies the region in which to create the CBR vault. If omitted, the
   provider-level region will be used. Changing this will create a new vault.
 
+* `cloud_type` - (Required, String, ForceNew) Specifies the cloud type of the vault.  
+  Changing this will create a new vault.
+
 * `name` - (Required, String) Specifies a unique name of the CBR vault. This parameter can contain a maximum of 64
   characters, which may consist of letters, digits, underscores(_) and hyphens (-).
 
 * `type` - (Required, String, ForceNew) Specifies the object type of the CBR vault.
-  Changing this will create a new vault. Vaild values are as follows:
-  + **server** (Cloud Servers)
-  + **disk** (EVS Disks)
-  + **turbo** (SFS Turbo file systems)
+  Changing this will create a new vault. Valid values are as follows:
+  + **server** (Elastic Cloud Server)
+  + **disk** (EVS Disk)
+  + **turbo** (SFS Turbo file system)
+  + **workspace** (Workspace Desktop)
+  + **vmware** (VMware)
+  + **file** (File System)
 
 * `protection_type` - (Required, String, ForceNew) Specifies the protection type of the CBR vault.
   The valid values are **backup** and **replication**. Vaults of type **disk** don't support **replication**.
@@ -126,28 +213,41 @@ The following arguments are supported:
 
   -> You cannot update `size` if the vault is **prePaid** mode.
 
-* `consistent_level` - (Optional, String, ForceNew) Specifies the backup specifications.
+* `consistent_level` - (Optional, String) Specifies the consistent level (specification) of the vault.
+  The valid values are as follows:
+  + **[crash_consistent](https://support.hc.sbercloud.ru/usermanual/cbr/cbr_01_0012.html)**
+  + **[app_consistent](https://support.hc.sbercloud.ru/usermanual/cbr/cbr_01_0012.html)**
 
-  Only **server** type vaults support application consistent and defaults to **crash_consistent**.
-  Changing this will create a new vault.
+  Only **server** type vaults support application consistent and defaults to **crash_consistent**, and only
+  **crash_consistent** can be updated to **app_consistent**.  
+  The **workspace** type vaults does not support application consistent.
 
 * `auto_expand` - (Optional, Bool) Specifies to enable auto capacity expansion for the backup protection type vault.
   Defaults to **false**.
 
   -> You cannot configure `auto_expand` if the vault is **prePaid** mode.
 
+* This parameter is not supported yet. \
+~~`locked` - (Optional, Bool) Specifies whether the vault is locked. A locked vault cannot be unlocked.
+  Defaults to **false**.~~ 
+
 * `auto_bind` - (Optional, Bool) Specifies whether automatic association is enabled. Defaults to **false**.
 
 * `bind_rules` - (Optional, Map) Specifies the tags to filter resources for automatic association with **auto_bind**.
 
-* `enterprise_project_id` - (Optional, String, ForceNew) Specifies a unique ID in UUID format of enterprise project.
+* `enterprise_project_id` - (Optional, String) Specifies the ID of the enterprise project to which the vault belongs.
+
+* `policy` - (Optional, List) Specifies the policy details to associate with the CBR vault.
+  The [object](#cbr_vault_policies) structure is documented below.
+
+* `resources` - (Optional, List) Specifies an array of one or more resources to attach to the CBR vault.  
+  This feature is not supported for the **vmware** type and the **file** type.  
+  The [object](#cbr_vault_resources) structure is documented below.
+
+* `backup_name_prefix` - (Optional, String, ForceNew) Specifies the backup name prefix.
   Changing this will create a new vault.
 
-* `policy_id` - (Optional, String) Specifies a policy to associate with the CBR vault.
-  `policy_id` cannot be used with the vault of replicate protection type.
-
-* `resources` - (Optional, List) Specifies an array of one or more resources to attach to the CBR vault.
-  The [object](#cbr_vault_resources) structure is documented below.
+-> If configured, the names of all automatic backups generated for the vault will use this prefix.
 
 * `is_multi_az` - (Optional, Bool, ForceNew) Specifies whether multiple availability zones are used for backing up.
   Defaults to **false**.
@@ -174,6 +274,16 @@ The following arguments are supported:
 * `auto_renew` - (Optional, String) Specifies whether auto renew is enabled.
   Valid values are **true** and **false**. Defaults to **false**.
 
+<a name="cbr_vault_policies"></a>
+The `policy` block supports:
+
+* `id` - (Required, String) Specifies the policy ID.
+
+* `destination_vault_id` - (Optional, String) Specifies the ID of destination vault to which the replication policy
+  will associated.
+
+-> Only one policy of each type (backup and replication) can be associated.
+
 <a name="cbr_vault_resources"></a>
 The `resources` block supports:
 
@@ -185,7 +295,7 @@ The `resources` block supports:
 * `includes` - (Optional, List) Specifies the array of disk or SFS file system IDs which will be included in the backup.
   Only **disk** and **turbo** vault support this parameter.
 
-## Attributes Reference
+## Attribute Reference
 
 In addition to all arguments above, the following attributes are exported:
 
@@ -205,14 +315,14 @@ In addition to all arguments above, the following attributes are exported:
 
 This resource provides the following timeouts configuration options:
 
-* `create` - Default is 10 minute.
-* `delete` - Default is 5 minute.
+* `create` - Default is 10 minutes.
+* `delete` - Default is 5 minutes.
 
 ## Import
 
 Vaults can be imported by their `id`. For example,
 
-```
+```bash
 $ terraform import sbercloud_cbr_vault.test 01c33779-7c83-4182-8b6b-24a671fcedf8
 ```
 
@@ -222,9 +332,9 @@ It is generally recommended running `terraform plan` after importing a vault.
 You can then decide if changes should be applied to the vault, or the resource definition should be updated to align
 with the vault. Also you can ignore changes as below.
 
-```
+```hcl
 resource "sbercloud_cbr_vault" "test" {
-    ...
+  ...
 
   lifecycle {
     ignore_changes = [

@@ -40,6 +40,8 @@ func ResourceWafDedicatedInstance() *schema.Resource {
 			Delete: schema.DefaultTimeout(20 * time.Minute),
 		},
 
+		CustomizeDiff: config.MergeDefaultTags(),
+
 		Schema: map[string]*schema.Schema{
 			"region": {
 				Type:     schema.TypeString,
@@ -264,6 +266,7 @@ func resourceDedicatedInstanceRead(_ context.Context, d *schema.ResourceData, me
 		d.Set("specification_code", r.ResourceSpecCode),
 		// Only ELB mode uses this field
 		d.Set("group_id", r.PoolId),
+		d.Set("tags", d.Get("tags")),
 	)
 
 	if mErr.ErrorOrNil() != nil {

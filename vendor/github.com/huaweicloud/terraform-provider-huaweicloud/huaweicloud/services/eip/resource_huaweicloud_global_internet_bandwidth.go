@@ -32,6 +32,8 @@ func ResourceGlobalInternetBandwidth() *schema.Resource {
 			StateContext: schema.ImportStatePassthroughContext,
 		},
 
+		CustomizeDiff: config.MergeDefaultTags(),
+
 		Schema: map[string]*schema.Schema{
 			"access_site": {
 				Type:     schema.TypeString,
@@ -70,12 +72,7 @@ func ResourceGlobalInternetBandwidth() *schema.Resource {
 				Optional: true,
 				Computed: true,
 			},
-			"tags": {
-				Type:     schema.TypeMap,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-				Optional: true,
-				Computed: true,
-			},
+			"tags": common.TagsSchema(),
 			"enterprise_project_id": {
 				Type:     schema.TypeString,
 				Optional: true,

@@ -110,5 +110,5 @@ resource "sbercloud_dms_kafka_user" "test" {
   password    = "%[3]s"
   description = "%[4]s"
 }
-`, testAccDmsKafkaInstance_basic(rName), rName, password, description)
+`, testAccKafkaInstance_newFormat(rName), rName, password, description)
 }

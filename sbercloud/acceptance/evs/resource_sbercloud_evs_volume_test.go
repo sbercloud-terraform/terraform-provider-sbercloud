@@ -26,7 +26,7 @@ func getVolumeResourceFunc(conf *config.Config, state *terraform.ResourceState) 
 	return evs.GetVolumeDetail(client, state.Primary.ID)
 }
 
-// This test case is used to test the `GPSSD` type cloud hard disk, which can be used in cn-north-4.
+// This test case is used to test the `GPSSD2` type cloud hard disk, which can be used in cn-north-4.
 func TestAccEvsVolume_postPaidWithoutServer(t *testing.T) {
 	var volume interface{}
 	name := acceptance.RandomAccResourceName()
@@ -147,7 +147,7 @@ resource "sbercloud_evs_volume" "test" {
   name                  = "%s"
   size                  = 100
   description           = "test description"
-  volume_type           = "SSD"
+  volume_type           = "GPSSD2"
   iops                  = 3000
   throughput            = 125
   device_type           = "SCSI"
@@ -204,7 +204,7 @@ resource "sbercloud_evs_volume" "test" {
 `, name, acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST)
 }
 
-// This test case is used to test the `GPSSD` type cloud hard disk, which can be used in cn-north-4.
+// This test case is used to test the `GPSSD2` type cloud hard disk, which can be used in cn-north-4.
 func TestAccEvsVolume_postPaidWithServer(t *testing.T) {
 	var volume interface{}
 	name := acceptance.RandomAccResourceName()
@@ -384,7 +384,7 @@ resource "sbercloud_evs_volume" "test" {
   name                  = "%[2]s"
   size                  = 100
   description           = "test description"
-  volume_type           = "SSD"
+  volume_type           = "GPSSD2"
   multiattach           = false
   enterprise_project_id = "%[3]s"
   server_id             = sbercloud_compute_instance.test.id

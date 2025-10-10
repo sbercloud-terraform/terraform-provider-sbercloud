@@ -2,6 +2,9 @@ package dms
 
 import (
 	"fmt"
+	"github.com/chnsz/golangsdk"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -10,57 +13,68 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 
-	"github.com/huaweicloud/huaweicloud-sdk-go-v3/services/kafka/v2/model"
-
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
-func getDmsKafkaConsumerGroupFunc(c *config.Config, state *terraform.ResourceState) (interface{}, error) {
-	client, err := c.HcDmsV2Client(acceptance.SBC_REGION_NAME)
+func getDmsKafkaConsumerGroupResourceFunc(cfg *config.Config, state *terraform.ResourceState) (interface{}, error) {
+	region := acceptance.SBC_REGION_NAME
+	// getKafkaConsumerGroup: query DMS kafka consumer group
+	var (
+		getKafkaConsumerGroupHttpUrl = "v2/{project_id}/instances/{instance_id}/groups/{group}"
+		getKafkaConsumerGroupProduct = "dms"
+	)
+	getKafkaConsumerGroupClient, err := cfg.NewServiceClient(getKafkaConsumerGroupProduct, region)
 	if err != nil {
-		return nil, fmt.Errorf("error creating DMS client: %s", err)
+		return nil, fmt.Errorf("error creating DMS Client: %s", err)
 	}
 
 	// Split instance_id and group from resource id
-	parts := strings.SplitN(state.Primary.ID, "/", 2)
+	parts := strings.Split(state.Primary.ID, "/")
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid id format, must be <instance_id>/<group_name>")
+		return nil, fmt.Errorf("invalid id format, must be <instance_id>/<consumerGroup>")
 	}
-	instanceId := parts[0]
-	instanceConsumerGroup := parts[1]
+	instanceID := parts[0]
+	name := parts[1]
+	getKafkaConsumerGroupPath := getKafkaConsumerGroupClient.Endpoint + getKafkaConsumerGroupHttpUrl
+	getKafkaConsumerGroupPath = strings.ReplaceAll(getKafkaConsumerGroupPath, "{project_id}",
+		getKafkaConsumerGroupClient.ProjectID)
+	getKafkaConsumerGroupPath = strings.ReplaceAll(getKafkaConsumerGroupPath, "{instance_id}", instanceID)
+	getKafkaConsumerGroupPath = strings.ReplaceAll(getKafkaConsumerGroupPath, "{group}", name)
 
-	// List all instance groups
-	request := &model.ListInstanceConsumerGroupsRequest{
-		InstanceId: instanceId,
+	getKafkaConsumerGroupOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		OkCodes: []int{
+			200,
+		},
 	}
-
-	response, err := client.ListInstanceConsumerGroups(request)
+	getKafkaConsumerGroupResp, err := getKafkaConsumerGroupClient.Request("GET", getKafkaConsumerGroupPath,
+		&getKafkaConsumerGroupOpt)
 	if err != nil {
-		return nil, fmt.Errorf("error listing DMS kafka consumer groups in %s, error: %s", instanceId, err)
-	}
-	if response.Groups != nil && len(*response.Groups) != 0 {
-		groups := *response.Groups
-		for _, group := range groups {
-			if *group.GroupId == instanceConsumerGroup {
-				return group, nil
-			}
-		}
+		return nil, fmt.Errorf("error retrieving DMS Kafka consumer group: %s", err)
 	}
 
-	return nil, fmt.Errorf("can not found DMS kafka consumer group")
+	getKafkaConsumerGroupRespBody, err := utils.FlattenResponse(getKafkaConsumerGroupResp)
+	if err != nil {
+		return nil, err
+	}
+	groupJson := utils.PathSearch("group", getKafkaConsumerGroupRespBody, nil)
+	groupState := utils.PathSearch("state", groupJson, nil)
+	if groupState == "DEAD" {
+		return nil, fmt.Errorf("error retrieving DMS Kafka consumer group")
+	}
+	return getKafkaConsumerGroupRespBody, nil
 }
 
 func TestAccDmsKafkaConsumerGroup_basic(t *testing.T) {
-	var consumerGroup model.GroupInfoSimple
+	var obj interface{}
+
 	rName := acceptance.RandomAccResourceNameWithDash()
 	resourceName := "sbercloud_dms_kafka_consumer_group.test"
-	description := "add desсription"
-	descriptionUpdate := ""
 
 	rc := acceptance.InitResourceCheck(
 		resourceName,
-		&consumerGroup,
-		getDmsKafkaConsumerGroupFunc,
+		&obj,
+		getDmsKafkaConsumerGroupResourceFunc,
 	)
 
 	resource.ParallelTest(t, resource.TestCase{
@@ -69,19 +83,28 @@ func TestAccDmsKafkaConsumerGroup_basic(t *testing.T) {
 		CheckDestroy:      rc.CheckResourceDestroy(),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccDmsKafkaConsumerGroup_basic(rName, description),
+				Config: testDmsKafkaConsumerGroup_basic(rName),
 				Check: resource.ComposeTestCheckFunc(
 					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttrSet(resourceName, "name"),
+					resource.TestCheckResourceAttrSet(resourceName, "description"),
+					resource.TestCheckResourceAttrSet(resourceName, "state"),
+					resource.TestCheckResourceAttrSet(resourceName, "lag"),
+					resource.TestCheckResourceAttrSet(resourceName, "coordinator_id"),
+					resource.TestMatchResourceAttr(resourceName, "created_at",
+						regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}?(Z|([+-]\d{2}:\d{2}))$`)),
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
-					resource.TestCheckResourceAttr(resourceName, "description", description),
+					resource.TestCheckResourceAttr(resourceName, "description", "add"),
+					resource.TestCheckResourceAttr(resourceName, "state", "EMPTY"),
+					resource.TestCheckResourceAttr(resourceName, "lag", "0"),
 				),
 			},
 			{
-				Config: testAccDmsKafkaConsumerGroup_basic(rName, descriptionUpdate),
+				Config: testDmsKafkaConsumerGroup_basic_update(rName),
 				Check: resource.ComposeTestCheckFunc(
 					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
-					resource.TestCheckResourceAttr(resourceName, "description", descriptionUpdate),
+					resource.TestCheckResourceAttr(resourceName, "description", ""),
 				),
 			},
 			{
@@ -93,14 +116,26 @@ func TestAccDmsKafkaConsumerGroup_basic(t *testing.T) {
 	})
 }
 
-func testAccDmsKafkaConsumerGroup_basic(rName, description string) string {
+func testDmsKafkaConsumerGroup_basic(name string) string {
 	return fmt.Sprintf(`
-%[1]s
+%s
 
 resource "sbercloud_dms_kafka_consumer_group" "test" {
   instance_id = sbercloud_dms_kafka_instance.test.id
-  name        = "%[2]s"
-  description = "%[3]s"
+  name        = "%s"
+  description = "add"
 }
-`, testAccDmsKafkaInstance_basic(rName), rName, description)
+`, testAccKafkaInstance_newFormat(name), name)
+}
+
+func testDmsKafkaConsumerGroup_basic_update(name string) string {
+	return fmt.Sprintf(`
+%s
+
+resource "sbercloud_dms_kafka_consumer_group" "test" {
+  instance_id = sbercloud_dms_kafka_instance.test.id  
+  name        = "%s"  
+  description = ""
+}
+`, testAccKafkaInstance_newFormat(name), name)
 }

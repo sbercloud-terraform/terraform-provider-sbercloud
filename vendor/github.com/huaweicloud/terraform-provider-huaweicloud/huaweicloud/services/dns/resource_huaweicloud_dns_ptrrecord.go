@@ -40,6 +40,8 @@ func ResourcePtrRecord() *schema.Resource {
 			Delete: schema.DefaultTimeout(10 * time.Minute),
 		},
 
+		CustomizeDiff: config.MergeDefaultTags(),
+
 		Schema: map[string]*schema.Schema{
 			"region": {
 				Type:     schema.TypeString,
@@ -186,6 +188,7 @@ func resourcePtrRecordRead(_ context.Context, d *schema.ResourceData, meta inter
 		d.Set("ttl", respBody.TTL),
 		d.Set("address", respBody.Address),
 		d.Set("enterprise_project_id", respBody.EnterpriseProjectID),
+		d.Set("tags", d.Get("tags")),
 	)
 	if mErr.ErrorOrNil() != nil {
 		return diag.Errorf("error setting resource: %s", mErr)

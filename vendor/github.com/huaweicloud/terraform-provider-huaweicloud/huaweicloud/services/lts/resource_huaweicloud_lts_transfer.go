@@ -295,6 +295,16 @@ func ltsTransferLogDetailSchema() *schema.Resource {
 				Computed:    true,
 				Description: `The list of tag fields will be delivered when transferring.`,
 			},
+			"cloud_project_id": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				Description: utils.SchemaDesc(
+					`The cloud project ID.`,
+					utils.SchemaDescInput{
+						Internal: true,
+					}),
+			},
 		},
 	}
 	return &sc
@@ -438,6 +448,7 @@ func buildLogTransferInfoLogTransferDetail(rawParams interface{}) map[string]int
 			"struct_fields":        raw["struct_fields"].(*schema.Set).List(),
 			"invalid_field_value":  utils.ValueIgnoreEmpty(raw["invalid_field_value"]),
 			"tags":                 utils.ValueIgnoreEmpty(raw["delivery_tags"]),
+			"cloud_project_id":     utils.ValueIgnoreEmpty(raw["cloud_project_id"]),
 		}
 		return params
 	}
@@ -583,6 +594,7 @@ func flattenLogTransferInfoLogTransferDetail(resp interface{}, d *schema.Resourc
 		"stream_tags":          utils.PathSearch("stream_tags", curJson, nil),
 		"struct_fields":        utils.PathSearch("struct_fields", curJson, nil),
 		"delivery_tags":        utils.PathSearch("tags", curJson, nil),
+		"cloud_project_id":     utils.PathSearch("cloud_project_id", curJson, nil),
 	}
 
 	invalidFieldValue, ok := d.GetOk("log_transfer_info.0.log_transfer_detail.0.invalid_field_value")
@@ -659,26 +671,13 @@ func buildUpdateTransferRequestBodyLogTransferInfoUpdate(rawParams interface{}) 
 	return nil
 }
 
-func resourceLtsTransferDelete(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	cfg := meta.(*config.Config)
-	region := cfg.GetRegion(d)
+func DeleteTransferById(client *golangsdk.ServiceClient, transferId string) error {
+	httpUrl := "v2/{project_id}/transfers?log_transfer_id={log_transfer_id}"
+	deletePath := client.Endpoint + httpUrl
+	deletePath = strings.ReplaceAll(deletePath, "{project_id}", client.ProjectID)
+	deletePath = strings.ReplaceAll(deletePath, "{log_transfer_id}", transferId)
 
-	// deleteTransfer: delete log transfer task
-	var (
-		deleteTransferHttpUrl = "v2/{project_id}/transfers"
-		deleteTransferProduct = "lts"
-	)
-	deleteTransferClient, err := cfg.NewServiceClient(deleteTransferProduct, region)
-	if err != nil {
-		return diag.Errorf("error creating LTS client: %s", err)
-	}
-
-	deleteTransferPath := deleteTransferClient.Endpoint + deleteTransferHttpUrl
-	deleteTransferPath = strings.ReplaceAll(deleteTransferPath, "{project_id}", deleteTransferClient.ProjectID)
-
-	deleteTransferPath += fmt.Sprintf("?log_transfer_id=%s", d.Id())
-
-	deleteTransferOpt := golangsdk.RequestOpts{
+	opt := golangsdk.RequestOpts{
 		KeepResponseBody: true,
 		OkCodes: []int{
 			200,
@@ -686,10 +685,26 @@ func resourceLtsTransferDelete(_ context.Context, d *schema.ResourceData, meta i
 		MoreHeaders: map[string]string{"Content-Type": "application/json"},
 	}
 
-	_, err = deleteTransferClient.Request("DELETE", deleteTransferPath, &deleteTransferOpt)
+	_, err := client.Request("DELETE", deletePath, &opt)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func resourceLtsTransferDelete(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cfg := meta.(*config.Config)
+	region := cfg.GetRegion(d)
+
+	client, err := cfg.NewServiceClient("lts", region)
+	if err != nil {
+		return diag.Errorf("error creating LTS client: %s", err)
+	}
+
+	err = DeleteTransferById(client, d.Id())
 	if err != nil {
 		return diag.Errorf("error deleting LTS transfer: %s", err)
 	}
-
 	return nil
 }

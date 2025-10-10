@@ -51,6 +51,7 @@ var (
 // @API ECS POST /v1/{project_id}/cloudservers/{server_id}/tags/action
 // @API ECS POST /v2.1/{project_id}/servers/{server_id}/action
 // @API ECS GET /v1/{project_id}/cloudservers/{server_id}
+// @API ECS GET /v1.1/{project_id}/cloudservers/detail
 // @API ECS GET /v1/{project_id}/cloudservers/{server_id}/block_device/{volume_id}
 // @API ECS GET /v1/{project_id}/jobs/{job_id}
 // @API ECS POST /v1/{project_id}/cloudservers/{server_id}/changevpc
@@ -76,6 +77,8 @@ func ResourceComputeInstance() *schema.Resource {
 			Update: schema.DefaultTimeout(30 * time.Minute),
 			Delete: schema.DefaultTimeout(30 * time.Minute),
 		},
+
+		CustomizeDiff: config.MergeDefaultTags(),
 
 		Schema: map[string]*schema.Schema{
 			"region": {
@@ -462,11 +465,7 @@ func ResourceComputeInstance() *schema.Resource {
 				Optional: true,
 				Computed: true,
 			},
-			"tags": {
-				Type:     schema.TypeMap,
-				Optional: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-			},
+			"tags": common.TagsSchema(),
 			"power_action": {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -479,6 +478,22 @@ func ResourceComputeInstance() *schema.Resource {
 			"auto_terminate_time": {
 				Type:     schema.TypeString,
 				Optional: true,
+			},
+			"enclave_options": {
+				Type:     schema.TypeList,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+				MaxItems: 1,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"enabled": {
+							Type:     schema.TypeBool,
+							Required: true,
+							ForceNew: true,
+						},
+					},
+				},
 			},
 			// computed attributes
 			"volume_attached": {
@@ -628,6 +643,7 @@ func resourceComputeInstanceCreate(ctx context.Context, d *schema.ResourceData, 
 		PublicIp:          buildInstancePublicIPRequest(d),
 		UserData:          []byte(d.Get("user_data").(string)),
 		AutoTerminateTime: d.Get("auto_terminate_time").(string),
+		EnclaveOptions:    buildInstanceEnclaveOptionsPRequest(d),
 	}
 
 	if tags, ok := d.GetOk("tags"); ok {
@@ -837,6 +853,7 @@ func resourceComputeInstanceRead(_ context.Context, d *schema.ResourceData, meta
 	d.Set("updated_at", server.Updated.Format(time.RFC3339))
 	d.Set("auto_terminate_time", server.AutoTerminateTime)
 	d.Set("public_ip", computePublicIP(server))
+	d.Set("enclave_options", flattenEnclaveOptions(server.EnclaveOptions))
 
 	flavorInfo := server.Flavor
 	d.Set("flavor_id", flavorInfo.ID)
@@ -1010,6 +1027,20 @@ func normalizeChargingMode(mode string) string {
 	}
 
 	return ret
+}
+
+func flattenEnclaveOptions(enclaveOptions *cloudservers.EnclaveOptions) []map[string]interface{} {
+	if enclaveOptions == nil {
+		return nil
+	}
+
+	res := []map[string]interface{}{
+		{
+			"enabled": enclaveOptions.Enabled,
+		},
+	}
+
+	return res
 }
 
 func resourceComputeInstanceUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -1654,6 +1685,21 @@ func buildInstanceSchedulerHints(schedulerHintsRaw map[string]interface{}) cloud
 	}
 
 	return schedulerHints
+}
+
+func buildInstanceEnclaveOptionsPRequest(d *schema.ResourceData) *cloudservers.EnclaveOptions {
+	v, ok := d.GetOk("enclave_options")
+	if !ok {
+		return nil
+	}
+
+	enclaveOptionsRaw := v.([]interface{})[0]
+
+	res := cloudservers.EnclaveOptions{
+		Enabled: utils.PathSearch("enabled", enclaveOptionsRaw, false).(bool),
+	}
+
+	return &res
 }
 
 func getImage(client *golangsdk.ServiceClient, id, name string) (*cloudimages.Image, error) {

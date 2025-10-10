@@ -52,7 +52,9 @@ type Endpoint struct {
 	// the description of the VPC endpoint
 	Description string `json:"description"`
 	// The gateway type endpoint policy information
-	PolicyStatement []PolicyStatementResult `json:"policy_statement"`
+	PolicyStatement interface{} `json:"policy_statement"`
+	// Specifies the endpoint policy information for the gateway type
+	PolicyDocument interface{} `json:"policy_document"`
 	// The cluster ID associated with the instance
 	EndpointPoolID string `json:"endpoint_pool_id"`
 	// The public border group information of the terminal node corresponding to the pool
@@ -68,13 +70,6 @@ type QueryError struct {
 	ErrorCode string `json:"error_code"`
 	// The error message
 	ErrorMessage string `json:"error_message"`
-}
-
-type PolicyStatementResult struct {
-	Effect    string                 `json:"Effect"`
-	Action    []string               `json:"Action"`
-	Resource  []string               `json:"Resource"`
-	Condition map[string]interface{} `json:"Condition"`
 }
 
 type commonResult struct {

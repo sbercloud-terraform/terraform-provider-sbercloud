@@ -116,6 +116,8 @@ func ResourceVpcSubnetV1() *schema.Resource {
 			Delete: schema.DefaultTimeout(10 * time.Minute),
 		},
 
+		CustomizeDiff: config.MergeDefaultTags(),
+
 		Schema: map[string]*schema.Schema{ // request and response parameters
 			"region": {
 				Type:     schema.TypeString,
@@ -571,10 +573,8 @@ func waitForVpcSubnetDelete(subnetClient *golangsdk.ServiceClient, vpcId string,
 				log.Printf("[DEBUG] Got 500 error when delting subnet %s, it should be stream control on API server, try again later", subnetId)
 				return r, "ACTIVE", nil
 			}
-			if errCode, ok := err.(golangsdk.ErrUnexpectedResponseCode); ok {
-				if errCode.Actual == 409 {
-					return r, "ACTIVE", nil
-				}
+			if _, ok := err.(golangsdk.ErrDefault409); ok {
+				return r, "ACTIVE", nil
 			}
 			return r, "ACTIVE", err
 		}

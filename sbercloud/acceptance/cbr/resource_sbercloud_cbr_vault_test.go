@@ -3,7 +3,6 @@ package cbr
 import (
 	"fmt"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
-	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -100,7 +99,7 @@ variable "volume_configuration" {
   }))
   default = [
     {volume_type = "SSD", size = 50, device_type = "VBD"},
-    {volume_type = "GPSSD", size = 100, device_type = "VBD"},
+    {volume_type = "ESSD", size = 100, device_type = "VBD"},
     {volume_type = "SAS", size = 100, device_type = "SCSI"},
   ]
 }
@@ -891,150 +890,151 @@ resource "sbercloud_cbr_vault" "test" {
 `, testAccVault_bindPolicies_base(name), name)
 }
 
-func TestAccVault_backupWorkspace(t *testing.T) {
-	var (
-		vault interface{}
-
-		resourceName = "sbercloud_cbr_vault.test"
-		name         = acceptance.RandomAccResourceName()
-		updateName   = acceptance.RandomAccResourceName()
-		basicConfig  = testAccVault_backupWorkspace_base(name)
-
-		rc = acceptance.InitResourceCheck(resourceName, &vault, getVaultResourceFunc)
-	)
-
-	resource.ParallelTest(t, resource.TestCase{
-		PreCheck: func() {
-			acceptance.TestAccPreCheck(t)
-		},
-		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy:      rc.CheckResourceDestroy(),
-		Steps: []resource.TestStep{
-			{
-				Config: testAccVault_backupWorkspace_step1(basicConfig, name),
-				Check: resource.ComposeTestCheckFunc(
-					rc.CheckResourceExists(),
-					resource.TestCheckResourceAttr(resourceName, "name", name),
-					resource.TestCheckResourceAttr(resourceName, "consistent_level", "crash_consistent"),
-					resource.TestCheckResourceAttr(resourceName, "type", cbr.VaultTypeWorkspace),
-					resource.TestCheckResourceAttr(resourceName, "protection_type", "backup"),
-					resource.TestCheckResourceAttr(resourceName, "size", "200"),
-					resource.TestCheckResourceAttr(resourceName, "resources.#", "1"),
-					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", "0"),
-				),
-			},
-			{
-				Config: testAccVault_backupWorkspace_step2(basicConfig, updateName),
-				Check: resource.ComposeTestCheckFunc(
-					rc.CheckResourceExists(),
-					resource.TestCheckResourceAttr(resourceName, "name", updateName),
-					resource.TestCheckResourceAttr(resourceName, "consistent_level", "crash_consistent"),
-					resource.TestCheckResourceAttr(resourceName, "type", cbr.VaultTypeWorkspace),
-					resource.TestCheckResourceAttr(resourceName, "protection_type", "backup"),
-					resource.TestCheckResourceAttr(resourceName, "size", "300"),
-					resource.TestCheckResourceAttr(resourceName, "resources.#", "1"),
-					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", "0"),
-				),
-			},
-			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
-			},
-		},
-	})
-}
-
-func testAccVault_backupWorkspace_base(name string) string {
-	wsDesktopName := acceptance.RandomAccResourceNameWithDash()
-
-	return fmt.Sprintf(`
-data "sbercloud_availability_zones" "test" {}
-
-%[1]s
-
-resource "sbercloud_workspace_service" "test" {
-  access_mode = "INTERNET"
-  vpc_id      = sbercloud_vpc.test.id
-  network_ids = [
-    sbercloud_vpc_subnet.test.id,
-  ]
-}
-
-resource "sbercloud_workspace_desktop" "test" {
-  count = 2
-
-  flavor_id         = "workspace.x86.ultimate.large2"
-  image_type        = "market"
-  image_id          = "63aa8670-27ad-4747-8c44-6d8919e785a7"
-  availability_zone = data.sbercloud_availability_zones.test.names[0]
-  vpc_id            = sbercloud_vpc.test.id
-  security_groups   = [
-    sbercloud_workspace_service.test.desktop_security_group.0.id,
-    sbercloud_networking_secgroup.test.id,
-  ]
-
-  nic {
-    network_id = sbercloud_vpc_subnet.test.id
-  }
-
-  name       = format("%[2]s-%%d", count.index)
-  user_name  = format("user-%[3]s-%%d", count.index)
-  user_email = "terraform@example.com"
-  user_group = "administrators"
-
-  root_volume {
-    type = "SAS"
-    size = 80
-  }
-
-  data_volume {
-    type = "SAS"
-    size = 50
-  }
-
-  delete_user = true
-}
-`, acceptance.TestBaseNetwork(name), wsDesktopName, name)
-}
-
-func testAccVault_backupWorkspace_step1(basicConfig, name string) string {
-	return fmt.Sprintf(`
-%[1]s
-
-resource "sbercloud_cbr_vault" "test" {
-  name                  = "%[2]s"
-  type                  = "workspace"
-  consistent_level      = "crash_consistent"
-  protection_type       = "backup"
-  size                  = 200
-  enterprise_project_id = "0"
-
-  resources {
-    server_id = sbercloud_workspace_desktop.test[0].id
-  }
-}
-`, basicConfig, name)
-}
-
-func testAccVault_backupWorkspace_step2(basicConfig, name string) string {
-	return fmt.Sprintf(`
-%[1]s
-
-resource "sbercloud_cbr_vault" "test" {
-  name                  = "%[2]s"
-  type                  = "workspace"
-  consistent_level      = "crash_consistent"
-  protection_type       = "backup"
-  size                  = 300
-  enterprise_project_id = "0"
-
-  resources {
-    server_id = sbercloud_workspace_desktop.test[1].id
-  }
-}
-`, basicConfig, name)
-}
+// workspace service is not supported
+//func TestAccVault_backupWorkspace(t *testing.T) {
+//	var (
+//		vault interface{}
+//
+//		resourceName = "sbercloud_cbr_vault.test"
+//		name         = acceptance.RandomAccResourceName()
+//		updateName   = acceptance.RandomAccResourceName()
+//		basicConfig  = testAccVault_backupWorkspace_base(name)
+//
+//		rc = acceptance.InitResourceCheck(resourceName, &vault, getVaultResourceFunc)
+//	)
+//
+//	resource.ParallelTest(t, resource.TestCase{
+//		PreCheck: func() {
+//			acceptance.TestAccPreCheck(t)
+//		},
+//		ProviderFactories: acceptance.TestAccProviderFactories,
+//		CheckDestroy:      rc.CheckResourceDestroy(),
+//		Steps: []resource.TestStep{
+//			{
+//				Config: testAccVault_backupWorkspace_step1(basicConfig, name),
+//				Check: resource.ComposeTestCheckFunc(
+//					rc.CheckResourceExists(),
+//					resource.TestCheckResourceAttr(resourceName, "name", name),
+//					resource.TestCheckResourceAttr(resourceName, "consistent_level", "crash_consistent"),
+//					resource.TestCheckResourceAttr(resourceName, "type", cbr.VaultTypeWorkspace),
+//					resource.TestCheckResourceAttr(resourceName, "protection_type", "backup"),
+//					resource.TestCheckResourceAttr(resourceName, "size", "200"),
+//					resource.TestCheckResourceAttr(resourceName, "resources.#", "1"),
+//					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", "0"),
+//				),
+//			},
+//			{
+//				Config: testAccVault_backupWorkspace_step2(basicConfig, updateName),
+//				Check: resource.ComposeTestCheckFunc(
+//					rc.CheckResourceExists(),
+//					resource.TestCheckResourceAttr(resourceName, "name", updateName),
+//					resource.TestCheckResourceAttr(resourceName, "consistent_level", "crash_consistent"),
+//					resource.TestCheckResourceAttr(resourceName, "type", cbr.VaultTypeWorkspace),
+//					resource.TestCheckResourceAttr(resourceName, "protection_type", "backup"),
+//					resource.TestCheckResourceAttr(resourceName, "size", "300"),
+//					resource.TestCheckResourceAttr(resourceName, "resources.#", "1"),
+//					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", "0"),
+//				),
+//			},
+//			{
+//				ResourceName:      resourceName,
+//				ImportState:       true,
+//				ImportStateVerify: true,
+//			},
+//		},
+//	})
+//}
+//
+//func testAccVault_backupWorkspace_base(name string) string {
+//	wsDesktopName := acceptance.RandomAccResourceNameWithDash()
+//
+//	return fmt.Sprintf(`
+//data "sbercloud_availability_zones" "test" {}
+//
+//%[1]s
+//
+//resource "sbercloud_workspace_service" "test" {
+//  access_mode = "INTERNET"
+//  vpc_id      = sbercloud_vpc.test.id
+//  network_ids = [
+//    sbercloud_vpc_subnet.test.id,
+//  ]
+//}
+//
+//resource "sbercloud_workspace_desktop" "test" {
+//  count = 2
+//
+//  flavor_id         = "workspace.x86.ultimate.large2"
+//  image_type        = "market"
+//  image_id          = "63aa8670-27ad-4747-8c44-6d8919e785a7"
+//  availability_zone = data.sbercloud_availability_zones.test.names[0]
+//  vpc_id            = sbercloud_vpc.test.id
+//  security_groups   = [
+//    sbercloud_workspace_service.test.desktop_security_group.0.id,
+//    sbercloud_networking_secgroup.test.id,
+//  ]
+//
+//  nic {
+//    network_id = sbercloud_vpc_subnet.test.id
+//  }
+//
+//  name       = format("%[2]s-%%d", count.index)
+//  user_name  = format("user-%[3]s-%%d", count.index)
+//  user_email = "terraform@example.com"
+//  user_group = "administrators"
+//
+//  root_volume {
+//    type = "SAS"
+//    size = 80
+//  }
+//
+//  data_volume {
+//    type = "SAS"
+//    size = 50
+//  }
+//
+//  delete_user = true
+//}
+//`, acceptance.TestBaseNetwork(name), wsDesktopName, name)
+//}
+//
+//func testAccVault_backupWorkspace_step1(basicConfig, name string) string {
+//	return fmt.Sprintf(`
+//%[1]s
+//
+//resource "sbercloud_cbr_vault" "test" {
+//  name                  = "%[2]s"
+//  type                  = "workspace"
+//  consistent_level      = "crash_consistent"
+//  protection_type       = "backup"
+//  size                  = 200
+//  enterprise_project_id = "0"
+//
+//  resources {
+//    server_id = sbercloud_workspace_desktop.test[0].id
+//  }
+//}
+//`, basicConfig, name)
+//}
+//
+//func testAccVault_backupWorkspace_step2(basicConfig, name string) string {
+//	return fmt.Sprintf(`
+//%[1]s
+//
+//resource "sbercloud_cbr_vault" "test" {
+//  name                  = "%[2]s"
+//  type                  = "workspace"
+//  consistent_level      = "crash_consistent"
+//  protection_type       = "backup"
+//  size                  = 300
+//  enterprise_project_id = "0"
+//
+//  resources {
+//    server_id = sbercloud_workspace_desktop.test[1].id
+//  }
+//}
+//`, basicConfig, name)
+//}
 
 func TestAccVault_backupVMware(t *testing.T) {
 	var (
@@ -1216,57 +1216,58 @@ resource "sbercloud_cbr_vault" "test" {
 `, basicConfig, name, acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST)
 }
 
-func TestAccVault_locked(t *testing.T) {
-	var (
-		vault interface{}
-
-		resourceName = "sbercloud_cbr_vault.test"
-		name         = acceptance.RandomAccResourceName()
-
-		rc = acceptance.InitResourceCheck(resourceName, &vault, getVaultResourceFunc)
-	)
-	resource.ParallelTest(t, resource.TestCase{
-		PreCheck: func() {
-			acceptance.TestAccPreCheck(t)
-		},
-		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy:      rc.CheckResourceDestroy(),
-		Steps: []resource.TestStep{
-			{
-				Config: testAccVault_locked_step(name, true),
-				Check: resource.ComposeTestCheckFunc(
-					rc.CheckResourceExists(),
-					resource.TestCheckResourceAttr(resourceName, "name", name),
-					resource.TestCheckResourceAttr(resourceName, "type", "disk"),
-					resource.TestCheckResourceAttr(resourceName, "protection_type", "backup"),
-					resource.TestCheckResourceAttr(resourceName, "size", "100"),
-					resource.TestCheckResourceAttr(resourceName, "locked", "true"),
-				),
-			},
-			{
-				Config: testAccVault_locked_step(name, false),
-				Check: resource.ComposeTestCheckFunc(
-					rc.CheckResourceExists(),
-					resource.TestCheckResourceAttr(resourceName, "name", name),
-					resource.TestCheckResourceAttr(resourceName, "type", "disk"),
-					resource.TestCheckResourceAttr(resourceName, "protection_type", "backup"),
-					resource.TestCheckResourceAttr(resourceName, "size", "100"),
-					resource.TestCheckResourceAttr(resourceName, "locked", "false"),
-				),
-				ExpectError: regexp.MustCompile("vault not support to modify locked attribute from true to false."),
-			},
-		},
-	})
-}
-
-func testAccVault_locked_step(name string, locked bool) string {
-	return fmt.Sprintf(`
-resource "sbercloud_cbr_vault" "test" {
-  name            = "%[1]s"
-  type            = "disk"
-  protection_type = "backup"
-  size            = 100
-  locked          = %v
-}
-`, name, locked)
-}
+// Locked parameter isn't supported
+//func TestAccVault_locked(t *testing.T) {
+//	var (
+//		vault interface{}
+//
+//		resourceName = "sbercloud_cbr_vault.test"
+//		name         = acceptance.RandomAccResourceName()
+//
+//		rc = acceptance.InitResourceCheck(resourceName, &vault, getVaultResourceFunc)
+//	)
+//	resource.ParallelTest(t, resource.TestCase{
+//		PreCheck: func() {
+//			acceptance.TestAccPreCheck(t)
+//		},
+//		ProviderFactories: acceptance.TestAccProviderFactories,
+//		CheckDestroy:      rc.CheckResourceDestroy(),
+//		Steps: []resource.TestStep{
+//			{
+//				Config: testAccVault_locked_step(name, true),
+//				Check: resource.ComposeTestCheckFunc(
+//					rc.CheckResourceExists(),
+//					resource.TestCheckResourceAttr(resourceName, "name", name),
+//					resource.TestCheckResourceAttr(resourceName, "type", "disk"),
+//					resource.TestCheckResourceAttr(resourceName, "protection_type", "backup"),
+//					resource.TestCheckResourceAttr(resourceName, "size", "100"),
+//					resource.TestCheckResourceAttr(resourceName, "locked", "true"),
+//				),
+//			},
+//			{
+//				Config: testAccVault_locked_step(name, false),
+//				Check: resource.ComposeTestCheckFunc(
+//					rc.CheckResourceExists(),
+//					resource.TestCheckResourceAttr(resourceName, "name", name),
+//					resource.TestCheckResourceAttr(resourceName, "type", "disk"),
+//					resource.TestCheckResourceAttr(resourceName, "protection_type", "backup"),
+//					resource.TestCheckResourceAttr(resourceName, "size", "100"),
+//					resource.TestCheckResourceAttr(resourceName, "locked", "false"),
+//				),
+//				ExpectError: regexp.MustCompile("vault not support to modify locked attribute from true to false."),
+//			},
+//		},
+//	})
+//}
+//
+//func testAccVault_locked_step(name string, locked bool) string {
+//	return fmt.Sprintf(`
+//resource "sbercloud_cbr_vault" "test" {
+//  name            = "%[1]s"
+//  type            = "disk"
+//  protection_type = "backup"
+//  size            = 100
+//  locked          = %v
+//}
+//`, name, locked)
+//}

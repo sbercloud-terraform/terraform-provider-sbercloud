@@ -43,7 +43,7 @@ var testAccRdsFlavorV3DataSource_basic = `
 
 data "sbercloud_rds_flavors" "flavor" {
   db_type = "PostgreSQL"
-  db_version = "10"
+  db_version = "14"
   instance_mode = "ha"
 }
 `

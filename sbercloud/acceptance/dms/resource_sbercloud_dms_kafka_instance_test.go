@@ -3,226 +3,439 @@ package dms
 import (
 	"fmt"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
+	"regexp"
 	"testing"
 
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
-
 	"github.com/chnsz/golangsdk/openstack/dms/v2/kafka/instances"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
-func TestAccDmsKafkaInstances_basic(t *testing.T) {
-	var instance instances.Instance
-	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
-	updateName := rName + "update"
-	resourceName := "sbercloud_dms_kafka_instance.test"
-
-	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
-		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy:      testAccCheckDmsKafkaInstanceDestroy,
-		Steps: []resource.TestStep{
-			{
-				Config: testAccDmsKafkaInstance_basic(rName),
-				Check: resource.ComposeTestCheckFunc(
-					testAccCheckDmsKafkaInstanceExists(resourceName, instance),
-					resource.TestCheckResourceAttr(resourceName, "name", rName),
-					resource.TestCheckResourceAttr(resourceName, "engine", "kafka"),
-				),
-			},
-			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
-				ImportStateVerifyIgnore: []string{
-					"password",
-					"manager_password",
-					"used_storage_space",
-				},
-			},
-			{
-				Config: testAccDmsKafkaInstance_update(rName, updateName),
-				Check: resource.ComposeTestCheckFunc(
-					testAccCheckDmsKafkaInstanceExists(resourceName, instance),
-					resource.TestCheckResourceAttr(resourceName, "name", updateName),
-					resource.TestCheckResourceAttr(resourceName, "description", "kafka test update"),
-				),
-			},
-		},
-	})
-}
-
-func TestAccDmsKafkaInstances_withEpsId(t *testing.T) {
-	var instance instances.Instance
-	rName := fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
-	resourceName := "sbercloud_dms_kafka_instance.test"
-
-	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
-		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy:      testAccCheckDmsKafkaInstanceDestroy,
-		Steps: []resource.TestStep{
-			{
-				Config: testAccDmsKafkaInstance_withEpsId(rName),
-				Check: resource.ComposeTestCheckFunc(
-					testAccCheckDmsKafkaInstanceExists(resourceName, instance),
-					resource.TestCheckResourceAttr(resourceName, "name", rName),
-					resource.TestCheckResourceAttr(resourceName, "engine", "kafka"),
-					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST),
-				),
-			},
-		},
-	})
-}
-
-func testAccCheckDmsKafkaInstanceDestroy(s *terraform.State) error {
-	config := acceptance.TestAccProvider.Meta().(*config.Config)
-	dmsClient, err := config.DmsV2Client(acceptance.SBC_REGION_NAME)
+func getKafkaInstanceFunc(c *config.Config, state *terraform.ResourceState) (interface{}, error) {
+	client, err := c.DmsV2Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
-		return fmtp.Errorf("Error creating SberCloud dms instance client: %s", err)
+		return nil, fmt.Errorf("error creating DMS client(V2): %s", err)
 	}
-
-	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "sbercloud_dms_kafka_instance" {
-			continue
-		}
-
-		_, err := instances.Get(dmsClient, rs.Primary.ID).Extract()
-		if err == nil {
-			return fmtp.Errorf("The Dms kafka instance still exists.")
-		}
-	}
-	return nil
+	return instances.Get(client, state.Primary.ID).Extract()
 }
 
-func testAccCheckDmsKafkaInstanceExists(n string, instance instances.Instance) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		rs, ok := s.RootModule().Resources[n]
-		if !ok {
-			return fmtp.Errorf("Not found: %s", n)
-		}
+func TestAccKafkaInstance_newFormat(t *testing.T) {
+	var instance instances.Instance
+	rName := acceptance.RandomAccResourceNameWithDash()
+	resourceName := "sbercloud_dms_kafka_instance.test"
+	rc := acceptance.InitResourceCheck(
+		resourceName,
+		&instance,
+		getKafkaInstanceFunc,
+	)
 
-		if rs.Primary.ID == "" {
-			return fmtp.Errorf("No ID is set")
-		}
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      rc.CheckResourceDestroy(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccKafkaInstance_newFormat(rName),
+				Check: resource.ComposeTestCheckFunc(
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttr(resourceName, "engine", "kafka"),
+					resource.TestCheckResourceAttr(resourceName, "security_protocol", "SASL_PLAINTEXT"),
+					resource.TestCheckResourceAttr(resourceName, "enabled_mechanisms.0", "SCRAM-SHA-512"),
+					resource.TestCheckResourceAttrPair(resourceName, "broker_num",
+						"data.sbercloud_dms_kafka_flavors.test", "flavors.0.properties.0.min_broker"),
+					resource.TestCheckResourceAttrPair(resourceName, "flavor_id",
+						"data.sbercloud_dms_kafka_flavors.test", "flavors.0.id"),
+					resource.TestCheckResourceAttrPair(resourceName, "storage_spec_code",
+						"data.sbercloud_dms_kafka_flavors.test", "flavors.0.ios.0.storage_spec_code"),
+					resource.TestCheckResourceAttr(resourceName, "broker_num", "3"),
+					resource.TestCheckResourceAttr(resourceName, "arch_type", "X86"),
 
-		config := acceptance.TestAccProvider.Meta().(*config.Config)
-		dmsClient, err := config.DmsV2Client(acceptance.SBC_REGION_NAME)
-		if err != nil {
-			return fmtp.Errorf("Error creating SberCloud dms instance client: %s", err)
-		}
+					resource.TestCheckResourceAttr(resourceName, "cross_vpc_accesses.1.advertised_ip", "www.terraform-test.com"),
+					resource.TestCheckResourceAttr(resourceName, "cross_vpc_accesses.2.advertised_ip", "192.168.0.53"),
+					resource.TestCheckResourceAttr(resourceName, "parameters.0.name", "log.retention.hours"),
+					resource.TestCheckResourceAttr(resourceName, "parameters.0.value", "48"),
+				),
+			},
+			{
+				Config: testAccKafkaInstance_newFormatUpdate(rName),
+				Check: resource.ComposeTestCheckFunc(
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttr(resourceName, "engine", "kafka"),
+					resource.TestCheckResourceAttr(resourceName, "broker_num", "4"),
+					resource.TestCheckResourceAttrPair(resourceName, "flavor_id",
+						"data.sbercloud_dms_kafka_flavors.test", "flavors.0.id"),
+					resource.TestCheckResourceAttrPair(resourceName, "storage_spec_code",
+						"data.sbercloud_dms_kafka_flavors.test", "flavors.0.ios.0.storage_spec_code"),
+					resource.TestCheckResourceAttr(resourceName, "storage_space", "600"),
 
-		v, err := instances.Get(dmsClient, rs.Primary.ID).Extract()
-		if err != nil {
-			return fmtp.Errorf("Error getting SberCloud dms kafka instance: %s, err: %s", rs.Primary.ID, err)
-		}
-
-		if v.InstanceID != rs.Primary.ID {
-			return fmtp.Errorf("The Dms kafka instance not found.")
-		}
-		instance = *v
-		return nil
-	}
+					resource.TestCheckResourceAttr(resourceName, "cross_vpc_accesses.0.advertised_ip", "192.168.0.61"),
+					resource.TestCheckResourceAttr(resourceName, "cross_vpc_accesses.1.advertised_ip", "test.terraform.com"),
+					resource.TestCheckResourceAttr(resourceName, "cross_vpc_accesses.2.advertised_ip", "192.168.0.62"),
+					resource.TestCheckResourceAttr(resourceName, "cross_vpc_accesses.3.advertised_ip", "192.168.0.63"),
+					resource.TestCheckResourceAttr(resourceName, "parameters.0.name", "auto.create.groups.enable"),
+					resource.TestCheckResourceAttr(resourceName, "parameters.0.value", "false"),
+				),
+			},
+		},
+	})
 }
 
-func testAccDmsKafkaInstance_Base(rName string) string {
-	return fmt.Sprintf(`
-data "sbercloud_dms_az" "test" {}
+func TestAccKafkaInstance_publicIp(t *testing.T) {
+	var instance instances.Instance
+	rName := acceptance.RandomAccResourceNameWithDash()
+	resourceName := "sbercloud_dms_kafka_instance.test"
+	rc := acceptance.InitResourceCheck(
+		resourceName,
+		&instance,
+		getKafkaInstanceFunc,
+	)
 
-data "sbercloud_vpc" "test" {
-  name = "vpc-default"
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
+		ProviderFactories: acceptance.TestAccProviderFactories,
+		CheckDestroy:      rc.CheckResourceDestroy(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccKafkaInstance_publicIp(rName),
+				Check: resource.ComposeTestCheckFunc(
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttr(resourceName, "broker_num", "3"),
+					resource.TestCheckResourceAttr(resourceName, "public_ip_ids.#", "3"),
+				),
+			},
+			{
+				Config: testAccKafkaInstance_publicIp_update(rName, 5),
+				ExpectError: regexp.MustCompile("error resizing instance: the old EIP ID should not be changed, and the adding nums of " +
+					"EIP ID should be same as the adding broker nums"),
+			},
+			{
+				Config: testAccKafkaInstance_publicIp_update(rName, 4),
+				Check: resource.ComposeTestCheckFunc(
+					rc.CheckResourceExists(),
+					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttr(resourceName, "broker_num", "4"),
+					resource.TestCheckResourceAttr(resourceName, "public_ip_ids.#", "4"),
+				),
+			},
+		},
+	})
 }
 
-data "sbercloud_vpc_subnet" "test" {
-  name = "subnet-default"
-}
-
-data "sbercloud_dms_product" "test" {
-  engine        = "kafka"
-  instance_type = "cluster"
-  version       = "2.3.0"
-}
-
-resource "sbercloud_networking_secgroup" "test" {
-  name        = "%s"
-  description = "secgroup for kafka"
-}
-`, rName)
-}
-
-func testAccDmsKafkaInstance_basic(rName string) string {
+func testAccKafkaInstance_newFormat(rName string) string {
 	return fmt.Sprintf(`
 %s
+
+data "sbercloud_availability_zones" "test" {}
+
+data "sbercloud_dms_kafka_flavors" "test" {
+  type      = "cluster"
+  flavor_id = "c6.2u4g.cluster"
+}
+
+locals {
+  flavor = data.sbercloud_dms_kafka_flavors.test.flavors[0]
+}
 
 resource "sbercloud_dms_kafka_instance" "test" {
   name              = "%s"
-  description       = "kafka test"
-  access_user       = "user"
-  password          = "Kafkatest@123"
-  ssl_enable        = true
-  vpc_id            = data.sbercloud_vpc.test.id
-  network_id        = data.sbercloud_vpc_subnet.test.id
+  vpc_id            = sbercloud_vpc.test.id
+  network_id        = sbercloud_vpc_subnet.test.id
   security_group_id = sbercloud_networking_secgroup.test.id
-  available_zones   = [data.sbercloud_dms_az.test.id]
-  product_id        = data.sbercloud_dms_product.test.id
-  engine_version    = data.sbercloud_dms_product.test.version
-  bandwidth         = data.sbercloud_dms_product.test.bandwidth
-  storage_space     = data.sbercloud_dms_product.test.storage
-  storage_spec_code = data.sbercloud_dms_product.test.storage_spec_code
-  manager_user      = "kafka-user"
-  manager_password  = "Kafkatest@123"
-}
-`, testAccDmsKafkaInstance_Base(rName), rName)
+
+  flavor_id          = local.flavor.id
+  storage_spec_code  = local.flavor.ios[0].storage_spec_code
+  availability_zones = [
+    data.sbercloud_availability_zones.test.names[0],
+    data.sbercloud_availability_zones.test.names[1],
+    data.sbercloud_availability_zones.test.names[2]
+  ]
+  engine_version = "2.7"
+  storage_space  = local.flavor.properties[0].min_broker * local.flavor.properties[0].min_storage_per_node
+  broker_num     = 3
+  arch_type      = "X86"
+
+  ssl_enable         = true
+  access_user        = "user"
+  password           = "Kafkatest@123"
+  security_protocol  = "SASL_PLAINTEXT"
+  enabled_mechanisms = ["SCRAM-SHA-512"]
+
+  cross_vpc_accesses {
+    advertised_ip = ""
+  }
+  cross_vpc_accesses {
+    advertised_ip = "www.terraform-test.com"
+  }
+  cross_vpc_accesses {
+    advertised_ip = "192.168.0.53"
+  }
+
+  parameters {
+    name  = "log.retention.hours"
+    value = "48"
+  }
+}`, acceptance.TestBaseNetwork(rName), rName)
 }
 
-func testAccDmsKafkaInstance_update(rName, updateName string) string {
+func testAccKafkaInstance_newFormatUpdate(rName string) string {
 	return fmt.Sprintf(`
 %s
+
+data "sbercloud_availability_zones" "test" {}
+
+data "sbercloud_dms_kafka_flavors" "test" {
+  type      = "cluster"
+  flavor_id = "c6.4u8g.cluster"
+}
+
+locals {
+  flavor = data.sbercloud_dms_kafka_flavors.test.flavors[0]
+}
+
+resource "sbercloud_dms_kafka_instance" "test" {
+  name              = "%s"
+  vpc_id            = sbercloud_vpc.test.id
+  network_id        = sbercloud_vpc_subnet.test.id
+  security_group_id = sbercloud_networking_secgroup.test.id
+
+  flavor_id          = local.flavor.id
+  storage_spec_code  = local.flavor.ios[0].storage_spec_code
+  availability_zones = [
+    data.sbercloud_availability_zones.test.names[0],
+    data.sbercloud_availability_zones.test.names[1],
+    data.sbercloud_availability_zones.test.names[2]
+  ]
+  engine_version = "2.7"
+  storage_space  = 600
+  broker_num     = 4
+  arch_type      = "X86"
+
+  ssl_enable         = true
+  access_user        = "user"
+  password           = "Kafkatest@123"
+  security_protocol  = "SASL_PLAINTEXT"
+  enabled_mechanisms = ["SCRAM-SHA-512"]
+
+  cross_vpc_accesses {
+    advertised_ip = "192.168.0.61"
+  }
+  cross_vpc_accesses {
+    advertised_ip = "test.terraform.com"
+  }
+  cross_vpc_accesses {
+    advertised_ip = "192.168.0.62"
+  }
+  cross_vpc_accesses {
+    advertised_ip = "192.168.0.63"
+  }
+
+  parameters {
+    name  = "auto.create.groups.enable"
+    value = "false"
+  }
+}`, acceptance.TestBaseNetwork(rName), rName)
+}
+
+func testAccKafkaInstance_newFormat_prePaid(baseNetwork, rName string) string {
+	return fmt.Sprintf(`
+%s
+
+data "sbercloud_availability_zones" "test" {}
+
+data "sbercloud_dms_kafka_flavors" "test" {
+  type      = "cluster"
+  flavor_id = "c6.2u4g.cluster"
+}
+
+locals {
+  flavor = data.sbercloud_dms_kafka_flavors.test.flavors[0]
+}
+
+resource "sbercloud_dms_kafka_instance" "test" {
+  name              = "%s"
+  vpc_id            = sbercloud_vpc.test.id
+  network_id        = sbercloud_vpc_subnet.test.id
+  security_group_id = sbercloud_networking_secgroup.test.id
+  flavor_id         = local.flavor.id
+  storage_spec_code = local.flavor.ios[0].storage_spec_code
+  
+  availability_zones = [
+    data.sbercloud_availability_zones.test.names[0]
+  ]
+
+  engine_version = "2.7"
+  storage_space  = local.flavor.properties[0].min_broker * local.flavor.properties[0].min_storage_per_node
+  broker_num     = 3
+
+  manager_user     = "kafka-user"
+  manager_password = "Kafkatest@123"
+
+  charging_mode = "prePaid"
+  period_unit   = "month"
+  period        = 1
+  auto_renew    = false
+
+  tags = {
+    key   = "value"
+    owner = "terraform"
+  }
+}`, baseNetwork, rName)
+}
+
+func testAccKafkaInstance_newFormat_prePaid_update(baseNetwork, updateName string) string {
+	return fmt.Sprintf(`
+%s
+
+data "sbercloud_availability_zones" "test" {}
+
+data "sbercloud_dms_kafka_flavors" "test" {
+  type      = "cluster"
+  flavor_id = "c6.2u4g.cluster"
+}
+
+locals {
+  flavor = data.sbercloud_dms_kafka_flavors.test.flavors[0]
+}
 
 resource "sbercloud_dms_kafka_instance" "test" {
   name              = "%s"
   description       = "kafka test update"
-  access_user       = "user"
-  password          = "Kafkatest@123"
-  vpc_id            = data.sbercloud_vpc.test.id
-  network_id        = data.sbercloud_vpc_subnet.test.id
+  vpc_id            = sbercloud_vpc.test.id
+  network_id        = sbercloud_vpc_subnet.test.id
   security_group_id = sbercloud_networking_secgroup.test.id
-  available_zones   = [data.sbercloud_dms_az.test.id]
-  product_id        = data.sbercloud_dms_product.test.id
-  engine_version    = data.sbercloud_dms_product.test.version
-  bandwidth         = data.sbercloud_dms_product.test.bandwidth
-  storage_space     = data.sbercloud_dms_product.test.storage
-  storage_spec_code = data.sbercloud_dms_product.test.storage_spec_code
-  manager_user      = "kafka-user"
-  manager_password  = "Kafkatest@123"
-}
-`, testAccDmsKafkaInstance_Base(rName), updateName)
+  flavor_id         = local.flavor.id
+  storage_spec_code = local.flavor.ios[0].storage_spec_code
+  
+  availability_zones = [
+    data.sbercloud_availability_zones.test.names[0]
+  ]
+
+  engine_version = "2.7"
+  storage_space  = local.flavor.properties[0].min_broker * local.flavor.properties[0].min_storage_per_node
+  broker_num     = 3
+
+  manager_user     = "kafka-user"
+  manager_password = "Kafkatest@123"
+
+  charging_mode = "prePaid"
+  period_unit   = "month"
+  period        = 1
+  auto_renew    = true
+
+  tags = {
+    key1  = "value"
+    owner = "terraform_update"
+  }
+}`, baseNetwork, updateName)
 }
 
-func testAccDmsKafkaInstance_withEpsId(rName string) string {
+func testAccKafkaInstance_publicIpBase(count int) string {
+	return fmt.Sprintf(`
+resource "sbercloud_vpc_eip" "test" {
+  count = %d
+
+  publicip {
+    type = "5_bgp"
+  }
+
+  bandwidth {
+    name        = "test_eip_${count.index}"
+    size        = 5
+    share_type  = "PER"
+    charge_mode = "traffic"
+  }
+}
+`, count)
+}
+
+func testAccKafkaInstance_publicIp(rName string) string {
 	return fmt.Sprintf(`
 %s
 
-resource "sbercloud_dms_kafka_instance" "test" {
-  name                  = "%s"
-  description           = "kafka test"
-  access_user           = "user"
-  password              = "Kafkatest@123"
-  vpc_id                = data.sbercloud_vpc.test.id
-  network_id            = data.sbercloud_vpc_subnet.test.id
-  security_group_id     = sbercloud_networking_secgroup.test.id
-  available_zones       = [data.sbercloud_dms_az.test.id]
-  product_id            = data.sbercloud_dms_product.test.id
-  engine_version        = data.sbercloud_dms_product.test.version
-  bandwidth             = data.sbercloud_dms_product.test.bandwidth
-  storage_space         = data.sbercloud_dms_product.test.storage
-  storage_spec_code     = data.sbercloud_dms_product.test.storage_spec_code
-  manager_user          = "kafka-user"
-  manager_password      = "Kafkatest@123"
-  enterprise_project_id = "%s"
+data "sbercloud_availability_zones" "test" {}
+
+data "sbercloud_dms_kafka_flavors" "test" {
+  type      = "cluster"
+  flavor_id = "c6.2u4g.cluster"
 }
-`, testAccDmsKafkaInstance_Base(rName), rName, acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST)
+
+locals {
+  flavor = data.sbercloud_dms_kafka_flavors.test.flavors[0]
+}
+
+%s
+
+resource "sbercloud_dms_kafka_instance" "test" {
+  name              = "%s"
+  vpc_id            = sbercloud_vpc.test.id
+  network_id        = sbercloud_vpc_subnet.test.id
+  security_group_id = sbercloud_networking_secgroup.test.id
+
+  flavor_id          = local.flavor.id
+  storage_spec_code  = local.flavor.ios[0].storage_spec_code
+  availability_zones = [
+    data.sbercloud_availability_zones.test.names[0],
+    data.sbercloud_availability_zones.test.names[1],
+    data.sbercloud_availability_zones.test.names[2]
+  ]
+
+  engine_version = "2.7"
+  storage_space  = 300
+  broker_num     = 3
+  arch_type      = "X86"
+  public_ip_ids  = [
+    sbercloud_vpc_eip.test[0].id,
+    sbercloud_vpc_eip.test[1].id,
+    sbercloud_vpc_eip.test[2].id
+  ]
+}`, acceptance.TestBaseNetwork(rName), testAccKafkaInstance_publicIpBase(3), rName)
+}
+
+func testAccKafkaInstance_publicIp_update(rName string, brokerNum int) string {
+	return fmt.Sprintf(`
+%s
+
+data "sbercloud_availability_zones" "test" {}
+
+data "sbercloud_dms_kafka_flavors" "test" {
+  type      = "cluster"
+  flavor_id = "c6.2u4g.cluster"
+}
+
+locals {
+  flavor = data.sbercloud_dms_kafka_flavors.test.flavors[0]
+}
+
+%s
+
+resource "sbercloud_dms_kafka_instance" "test" {
+  name              = "%s"
+  vpc_id            = sbercloud_vpc.test.id
+  network_id        = sbercloud_vpc_subnet.test.id
+  security_group_id = sbercloud_networking_secgroup.test.id
+
+  flavor_id          = local.flavor.id
+  storage_spec_code  = local.flavor.ios[0].storage_spec_code
+  availability_zones = [
+    data.sbercloud_availability_zones.test.names[0],
+    data.sbercloud_availability_zones.test.names[1],
+    data.sbercloud_availability_zones.test.names[2]
+  ]
+  
+  engine_version = "2.7"
+  storage_space  = 600
+  broker_num     = %d
+  arch_type      = "X86"
+  new_tenant_ips = ["192.168.0.79"]
+  public_ip_ids  = [
+    sbercloud_vpc_eip.test[0].id,
+    sbercloud_vpc_eip.test[1].id,
+    sbercloud_vpc_eip.test[2].id,
+    sbercloud_vpc_eip.test[3].id
+  ]
+}`, acceptance.TestBaseNetwork(rName), testAccKafkaInstance_publicIpBase(4), rName, brokerNum)
 }

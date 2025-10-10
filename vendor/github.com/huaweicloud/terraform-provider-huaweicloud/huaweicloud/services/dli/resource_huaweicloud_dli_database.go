@@ -39,6 +39,8 @@ func ResourceDliSqlDatabaseV1() *schema.Resource {
 			Delete: schema.DefaultTimeout(10 * time.Minute),
 		},
 
+		CustomizeDiff: config.MergeDefaultTags(),
+
 		Schema: map[string]*schema.Schema{
 			"region": {
 				Type:     schema.TypeString,
@@ -182,6 +184,7 @@ func resourceDliSQLDatabaseRead(_ context.Context, d *schema.ResourceData, meta 
 		d.Set("description", db.Description),
 		d.Set("enterprise_project_id", db.EnterpriseProjectId),
 		d.Set("owner", db.Owner),
+		d.Set("tags", d.Get("tags")),
 	)
 	return diag.FromErr(mErr.ErrorOrNil())
 }

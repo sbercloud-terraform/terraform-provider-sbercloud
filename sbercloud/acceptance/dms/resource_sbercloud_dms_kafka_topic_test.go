@@ -126,7 +126,7 @@ resource "sbercloud_dms_kafka_topic" "topic" {
   aging_time  = 36
   description = "test"
 }
-`, testAccDmsKafkaInstance_basic(rName), rName)
+`, testAccKafkaInstance_newFormat(rName), rName)
 }
 
 func testAccDmsKafkaTopic_update_part1(rName string) string {
@@ -139,7 +139,7 @@ resource "sbercloud_dms_kafka_topic" "topic" {
   partitions  = 20
   aging_time  = 72
 }
-`, testAccDmsKafkaTopic_basic(rName), rName)
+`, testAccKafkaInstance_newFormat(rName), rName)
 }
 
 func testAccDmsKafkaTopic_update_part2(rName string) string {
@@ -164,7 +164,7 @@ resource "sbercloud_dms_kafka_topic" "topic" {
     value = "LogAppendTime"
   }
 }
-`, testAccDmsKafkaTopic_basic(rName), rName)
+`, testAccKafkaInstance_newFormat(rName), rName)
 }
 
 func TestAccDmsKafkaTopic_test_update_partition(t *testing.T) {
@@ -221,7 +221,7 @@ resource "sbercloud_dms_kafka_topic" "topic" {
   partitions  = %v
   replicas    = 1
 }
-`, testAccDmsKafkaTopic_basic(rName), rName, partitions)
+`, testAccKafkaInstance_newFormat(rName), rName, partitions)
 }
 
 func testAccDmsKafkaTopic_testError(rName string, partitions int) string {
@@ -235,5 +235,5 @@ resource "sbercloud_dms_kafka_topic" "topic" {
   replicas              = 1
   new_partition_brokers = [0]
 }
-`, testAccDmsKafkaTopic_basic(rName), rName, partitions)
+`, testAccKafkaInstance_newFormat(rName), rName, partitions)
 }

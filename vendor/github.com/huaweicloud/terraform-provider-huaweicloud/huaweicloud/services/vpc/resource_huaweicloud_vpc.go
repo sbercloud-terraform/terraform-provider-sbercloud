@@ -49,6 +49,8 @@ func ResourceVirtualPrivateCloudV1() *schema.Resource {
 			Delete: schema.DefaultTimeout(3 * time.Minute),
 		},
 
+		CustomizeDiff: config.MergeDefaultTags(),
+
 		Schema: map[string]*schema.Schema{ // request and response parameters
 			"region": {
 				Type:     schema.TypeString,
@@ -446,10 +448,8 @@ func waitForVpcDelete(vpcClient *golangsdk.ServiceClient, vpcId string) resource
 				log.Printf("[INFO] successfully delete VPC %s", vpcId)
 				return r, "DELETED", nil
 			}
-			if errCode, ok := err.(golangsdk.ErrUnexpectedResponseCode); ok {
-				if errCode.Actual == 409 {
-					return r, "ACTIVE", nil
-				}
+			if _, ok := err.(golangsdk.ErrDefault409); ok {
+				return r, "ACTIVE", nil
 			}
 			return r, "ACTIVE", err
 		}

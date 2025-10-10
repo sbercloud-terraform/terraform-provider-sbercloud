@@ -50,7 +50,7 @@ func TestAccNodeAttach_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "name", name),
 					resource.TestCheckResourceAttr(resourceName, "tags.foo", "bar"),
 					resource.TestCheckResourceAttr(resourceName, "tags.key", "value"),
-					resource.TestCheckResourceAttr(resourceName, "os", "EulerOS 2.9"),
+					resource.TestCheckResourceAttr(resourceName, "os", "CentOS 7.6"),
 				),
 			},
 			{
@@ -134,7 +134,7 @@ resource "sbercloud_cce_node_attach" "test" {
   cluster_id = sbercloud_cce_cluster.test.id
   server_id  = sbercloud_compute_instance.test.id
   key_pair   = sbercloud_kps_keypair.test.name
-  os         = "EulerOS 2.9"
+  os         = "CentOS 7.6"
   name       = "%[2]s"
 
   max_pods         = 20
@@ -167,7 +167,7 @@ resource "sbercloud_cce_node_attach" "test" {
   cluster_id = sbercloud_cce_cluster.test.id
   server_id  = sbercloud_compute_instance.test.id
   key_pair   = sbercloud_kps_keypair.test.name
-  os         = "EulerOS 2.9"
+  os         = "CentOS 7.6"
   name       = "%[2]s"
 
   max_pods         = 20
@@ -254,7 +254,7 @@ func TestAccNodeAttach_prePaid(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "name", name),
 					resource.TestCheckResourceAttr(resourceName, "tags.foo", "bar"),
 					resource.TestCheckResourceAttr(resourceName, "tags.key", "value"),
-					resource.TestCheckResourceAttr(resourceName, "os", "EulerOS 2.9"),
+					resource.TestCheckResourceAttr(resourceName, "os", "CentOS 7.6"),
 					resource.TestCheckResourceAttr(resourceName, "charging_mode", "prePaid"),
 				),
 			},
@@ -323,7 +323,7 @@ resource "sbercloud_cce_node_attach" "test" {
   cluster_id = sbercloud_cce_cluster.test.id
   server_id  = sbercloud_compute_instance.test.id
   password   = "Test@123"
-  os         = "EulerOS 2.9"
+  os         = "CentOS 7.6"
   name       = "%[2]s"
 
   tags = {
