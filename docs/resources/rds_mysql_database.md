@@ -17,7 +17,7 @@ variable "instance_id" {}
 resource "sbercloud_rds_mysql_database" "test" {
   instance_id   = var.instance_id
   name          = "test"
-  character_set = "utf8"
+  character_set = "utf8mb3"
   description   = "test database"
 }
 ```
@@ -36,7 +36,7 @@ The following arguments are supported:
   ($). The total number of hyphens (-) and dollar signs ($) cannot exceed `10`. RDS for **MySQL 8.0** does not
   support dollar signs ($). Changing this will create a new resource.
 
-* `character_set` - (Required, String, ForceNew) Specifies the character set used by the database, For example **utf8**,
+* `character_set` - (Required, String, ForceNew) Specifies the character set used by the database, For example **utf8mb3**,
   **gbk**, **ascii**, etc. Changing this will create a new resource.
 
 * `description` - (Optional, String) Specifies the database description. The value can contain `0` to `512` characters.

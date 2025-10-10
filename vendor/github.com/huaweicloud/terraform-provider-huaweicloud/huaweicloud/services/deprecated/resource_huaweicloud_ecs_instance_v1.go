@@ -38,6 +38,8 @@ func ResourceEcsInstanceV1() *schema.Resource {
 			Delete: schema.DefaultTimeout(30 * time.Minute),
 		},
 
+		CustomizeDiff: config.MergeDefaultTags(),
+
 		Schema: map[string]*schema.Schema{
 			"name": {
 				Type:     schema.TypeString,
@@ -179,11 +181,7 @@ func ResourceEcsInstanceV1() *schema.Resource {
 				Optional: true,
 				ForceNew: true,
 			},
-			"tags": {
-				Type:     schema.TypeMap,
-				Optional: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-			},
+			"tags": common.TagsSchema(),
 			"auto_recovery": {
 				Type:     schema.TypeBool,
 				Optional: true,

@@ -155,7 +155,7 @@ resource "sbercloud_rds_instance" "test" {
   db {
     password = "Huangwei!120521"
     type     = "PostgreSQL"
-    version  = "12"
+    version  = "14"
   }
 
   volume {

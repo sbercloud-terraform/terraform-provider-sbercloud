@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -51,6 +52,8 @@ func ResourceFgsFunction() *schema.Resource {
 			Create: schema.DefaultTimeout(10 * time.Minute),
 			Delete: schema.DefaultTimeout(10 * time.Minute),
 		},
+
+		CustomizeDiff: config.MergeDefaultTags(),
 
 		Schema: map[string]*schema.Schema{
 			"region": {
@@ -494,15 +497,15 @@ func ResourceFgsFunction() *schema.Resource {
 				),
 			},
 			"enable_dynamic_memory": {
-				Type:     schema.TypeBool,
-				Optional: true,
-				// The dynamic memory function can be closed, so computed behavior cannot be supported.
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Computed:    true,
 				Description: `Whether the dynamic memory configuration is enabled.`,
 			},
 			"is_stateful_function": {
-				Type:     schema.TypeBool,
-				Optional: true,
-				// The stateful function can be closed, so computed behavior cannot be supported.
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Computed:    true,
 				Description: `Whether the function is a stateful function.`,
 			},
 			"network_controller": {
@@ -551,17 +554,15 @@ func ResourceFgsFunction() *schema.Resource {
 CIDR blocks used by the service.`,
 			},
 			"enable_auth_in_header": {
-				Type:     schema.TypeBool,
-				Optional: true,
-				// The auth function can be closed, so computed behavior cannot be supported.
-				// And the default value (in the service API) is false.
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Computed:    true,
 				Description: `Whether the authentication in the request header is enabled.`,
 			},
 			"enable_class_isolation": {
-				Type:     schema.TypeBool,
-				Optional: true,
-				// The isolation function can be closed, so computed behavior cannot be supported.
-				// And the default value (in the service API) is false.
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Computed:    true,
 				Description: `Whether the class isolation is enabled for the JAVA runtime functions.`,
 			},
 			"ephemeral_storage": {
@@ -594,6 +595,7 @@ CIDR blocks used by the service.`,
 			"lts_custom_tag": {
 				Type:             schema.TypeMap,
 				Optional:         true,
+				Computed:         true,
 				Elem:             &schema.Schema{Type: schema.TypeString},
 				DiffSuppressFunc: utils.SuppressMapDiffs(),
 				// The custom tags can be set to empty, so computed behavior cannot be supported.
@@ -602,6 +604,7 @@ CIDR blocks used by the service.`,
 			"enable_lts_log": {
 				Type:        schema.TypeBool,
 				Optional:    true,
+				Computed:    true,
 				Description: `Whether to enable the LTS log.`,
 			},
 			"user_data_encrypt_kms_key_id": {
@@ -642,9 +645,11 @@ CIDR blocks used by the service.`,
 				Description: `The version of the function.`,
 			},
 			"lts_custom_tag_origin": {
-				Type:     schema.TypeMap,
-				Computed: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
+				Type:             schema.TypeMap,
+				Optional:         true,
+				Computed:         true,
+				Elem:             &schema.Schema{Type: schema.TypeString},
+				DiffSuppressFunc: utils.SuppressDiffAll,
 				Description: utils.SchemaDesc(
 					`The script configuration value of this change is also the original value used for comparison with
  the new value next time the change is made. The corresponding parameter name is 'lts_custom_tag'.`,
@@ -754,17 +759,12 @@ func buildFunctionCodeConfig(funcCode string) map[string]interface{} {
 	}
 }
 
-func buildFunctionLogConfig(d *schema.ResourceData) map[string]interface{} {
-	// If the value of `enable_lts_log` parameter is `false`, the corresponding LTS log parameters cannot be configured.
-	if !d.Get("enable_lts_log").(bool) {
-		return nil
-	}
-
+func buildFunctionLogConfig(rawConfig cty.Value) interface{} {
 	params := utils.RemoveNil(map[string]interface{}{
-		"group_id":    utils.ValueIgnoreEmpty(d.Get("log_group_id")),
-		"group_name":  utils.ValueIgnoreEmpty(d.Get("log_group_name")),
-		"stream_id":   utils.ValueIgnoreEmpty(d.Get("log_stream_id")),
-		"stream_name": utils.ValueIgnoreEmpty(d.Get("log_stream_name")),
+		"group_id":    utils.ValueIgnoreEmpty(utils.GetNestedObjectFromRawConfig(rawConfig, "log_group_id")),
+		"group_name":  utils.ValueIgnoreEmpty(utils.GetNestedObjectFromRawConfig(rawConfig, "log_group_name")),
+		"stream_id":   utils.ValueIgnoreEmpty(utils.GetNestedObjectFromRawConfig(rawConfig, "log_stream_id")),
+		"stream_name": utils.ValueIgnoreEmpty(utils.GetNestedObjectFromRawConfig(rawConfig, "log_stream_name")),
 	})
 
 	// If the value of `enable_lts_log` parameter is `true`, the corresponding LTS log parameters be configured.
@@ -816,6 +816,7 @@ func buildCreateFunctionBodyParams(cfg *config.Config, d *schema.ResourceData) m
 		agency = d.Get("xrole")
 	}
 
+	rawConfig := d.GetRawConfig()
 	return map[string]interface{}{
 		// Required parameters.
 		"func_name":   d.Get("name"),
@@ -841,12 +842,12 @@ func buildCreateFunctionBodyParams(cfg *config.Config, d *schema.ResourceData) m
 		"pre_stop_handler":             utils.ValueIgnoreEmpty(d.Get("pre_stop_handler")),
 		"pre_stop_timeout":             utils.ValueIgnoreEmpty(d.Get("pre_stop_timeout")),
 		"func_code":                    buildFunctionCodeConfig(d.Get("func_code").(string)),
-		"log_config":                   buildFunctionLogConfig(d),
-		"enable_dynamic_memory":        d.Get("enable_dynamic_memory"),
-		"is_stateful_function":         d.Get("is_stateful_function"),
+		"log_config":                   buildFunctionLogConfig(rawConfig),
+		"enable_dynamic_memory":        utils.GetNestedObjectFromRawConfig(rawConfig, "enable_dynamic_memory"),
+		"is_stateful_function":         utils.GetNestedObjectFromRawConfig(rawConfig, "is_stateful_function"),
 		"network_controller":           buildFunctionNetworkController(d.Get("network_controller").([]interface{})),
 		"lts_custom_tag":               utils.ValueIgnoreEmpty(d.Get("lts_custom_tag")),
-		"enable_lts_log":               d.Get("enable_lts_log"),
+		"enable_lts_log":               utils.GetNestedObjectFromRawConfig(rawConfig, "enable_lts_log"),
 		"user_data_encrypt_kms_key_id": utils.ValueIgnoreEmpty(d.Get("user_data_encrypt_kms_key_id")),
 		"code_encrypt_kms_key_id":      utils.ValueIgnoreEmpty(d.Get("code_encrypt_kms_key_id")),
 	}
@@ -932,6 +933,8 @@ func buildFunctionStrategyConfig(concurrencyNum int) map[string]interface{} {
 }
 
 func buildUpdateFunctionMetadataBodyParams(cfg *config.Config, d *schema.ResourceData) map[string]interface{} {
+	rawConfig := d.GetRawConfig()
+
 	// Parameter app is recommended to replace parameter package.
 	pkg, ok := d.GetOk("app")
 	if !ok {
@@ -970,13 +973,13 @@ func buildUpdateFunctionMetadataBodyParams(cfg *config.Config, d *schema.Resourc
 		"func_mounts": buildFunctionMountConfig(d.Get("func_mounts").([]interface{}),
 			d.Get("mount_user_id").(int), d.Get("mount_user_group_id").(int)),
 		"strategy_config":              buildFunctionStrategyConfig(d.Get("concurrency_num").(int)),
-		"enable_dynamic_memory":        d.Get("enable_dynamic_memory"),
-		"is_stateful_function":         d.Get("is_stateful_function"),
+		"enable_dynamic_memory":        utils.GetNestedObjectFromRawConfig(rawConfig, "enable_dynamic_memory"),
+		"is_stateful_function":         utils.GetNestedObjectFromRawConfig(rawConfig, "is_stateful_function"),
 		"network_controller":           buildFunctionNetworkController(d.Get("network_controller").([]interface{})),
 		"enterprise_project_id":        cfg.GetEnterpriseProjectID(d),
 		"peering_cidr":                 d.Get("peering_cidr"),
-		"enable_auth_in_header":        d.Get("enable_auth_in_header"),
-		"enable_class_isolation":       d.Get("enable_class_isolation"),
+		"enable_auth_in_header":        utils.GetNestedObjectFromRawConfig(rawConfig, "enable_auth_in_header"),
+		"enable_class_isolation":       utils.GetNestedObjectFromRawConfig(rawConfig, "enable_class_isolation"),
 		"ephemeral_storage":            utils.ValueIgnoreEmpty(d.Get("ephemeral_storage")),
 		"heartbeat_handler":            d.Get("heartbeat_handler"),
 		"restore_hook_handler":         d.Get("restore_hook_handler"),
@@ -1750,6 +1753,7 @@ func resourceFunctionRead(_ context.Context, d *schema.ResourceData, meta interf
 		d.Set("enable_lts_log", utils.PathSearch("enable_lts_log", function, nil)),
 		d.Set("user_data_encrypt_kms_key_id", utils.PathSearch("user_data_encrypt_kms_key_id", function, nil)),
 		d.Set("code_encrypt_kms_key_id", utils.PathSearch("code_encrypt_kms_key_id", function, nil)),
+		d.Set("tags", d.Get("tags")),
 		// Attributes.
 		d.Set("urn", utils.PathSearch("func_urn", function, nil)),
 		d.Set("version", utils.PathSearch("version", function, nil)),
@@ -1816,6 +1820,7 @@ func resourceFunctionUpdate(ctx context.Context, d *schema.ResourceData, meta in
 		functionMetadataObjectParamKeys = []string{
 			"lts_custom_tag",
 		}
+		rawConfig = d.GetRawConfig()
 	)
 
 	client, err := cfg.NewServiceClient("fgs", region)
@@ -1840,8 +1845,8 @@ func resourceFunctionUpdate(ctx context.Context, d *schema.ResourceData, meta in
 		"restore_hook_timeout", "lts_custom_tag", "enable_lts_log", "user_data_encrypt_kms_key_id") {
 		params := buildUpdateFunctionMetadataBodyParams(cfg, d)
 		if d.HasChanges("log_group_id", "log_stream_id", "log_group_name", "log_stream_name", "enable_lts_log") {
-			params["enable_lts_log"] = d.Get("enable_lts_log")
-			params["log_config"] = buildFunctionLogConfig(d)
+			params["enable_lts_log"] = utils.GetNestedObjectFromRawConfig(rawConfig, "enable_lts_log")
+			params["log_config"] = buildFunctionLogConfig(rawConfig)
 		}
 		err := updateFunctionMetadata(client, funcUrnWithoutVersion, params)
 		if err != nil {

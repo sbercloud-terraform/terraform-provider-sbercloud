@@ -52,6 +52,8 @@ func ResourceKmsKey() *schema.Resource {
 			StateContext: schema.ImportStatePassthroughContext,
 		},
 
+		CustomizeDiff: config.MergeDefaultTags(),
+
 		Schema: map[string]*schema.Schema{
 			"region": {
 				Type:     schema.TypeString,
@@ -97,11 +99,7 @@ func ResourceKmsKey() *schema.Resource {
 				Computed:     true,
 				RequiredWith: []string{"rotation_enabled"},
 			},
-			"tags": {
-				Type:     schema.TypeMap,
-				Optional: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-			},
+			"tags": common.TagsSchema(),
 			"origin": {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -299,6 +297,7 @@ func ResourceKmsKeyRead(_ context.Context, d *schema.ResourceData, meta interfac
 		d.Set("key_state", key.KeyState),
 		d.Set("keystore_id", key.KeyStoreID),
 		utils.SetResourceTagsToState(d, keyClient, "kms", d.Id()),
+		d.Set("tags", d.Get("tags")),
 	)
 
 	if key.KeyState == EnabledState || key.KeyState == DisabledState {

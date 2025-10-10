@@ -48,7 +48,7 @@ func TestAccNodePool_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "name", name),
-					resource.TestCheckResourceAttr(resourceName, "os", "EulerOS 2.9"),
+					resource.TestCheckResourceAttr(resourceName, "os", "CentOS 7.6"),
 					resource.TestCheckResourceAttr(resourceName, "current_node_count", "1"),
 				),
 			},
@@ -57,7 +57,7 @@ func TestAccNodePool_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "name", updateName),
-					resource.TestCheckResourceAttr(resourceName, "os", "EulerOS 2.9"),
+					resource.TestCheckResourceAttr(resourceName, "os", "CentOS 7.6"),
 					resource.TestCheckResourceAttr(resourceName, "current_node_count", "2"),
 					resource.TestCheckResourceAttr(resourceName, "scall_enable", "true"),
 					resource.TestCheckResourceAttr(resourceName, "min_node_count", "2"),
@@ -125,7 +125,7 @@ func testAccNodePool_basic_step1(name, baseConfig string) string {
 resource "sbercloud_cce_node_pool" "test" {
   cluster_id               = sbercloud_cce_cluster.test.id
   name                     = "%[2]s"
-  os                       = "EulerOS 2.9"
+  os                       = "CentOS 7.6"
   flavor_id                = data.sbercloud_compute_flavors.test.ids[0]
   initial_node_count       = 1
   availability_zone        = data.sbercloud_availability_zones.test.names[0]
@@ -170,7 +170,7 @@ func testAccNodePool_basic_step2(name, baseConfig string) string {
 resource "sbercloud_cce_node_pool" "test" {
   cluster_id               = sbercloud_cce_cluster.test.id
   name                     = "%[2]s"
-  os                       = "EulerOS 2.9"
+  os                       = "CentOS 7.6"
   flavor_id                = data.sbercloud_compute_flavors.test.ids[0]
   initial_node_count       = 2
   availability_zone        = data.sbercloud_availability_zones.test.names[0]
@@ -353,7 +353,7 @@ func testAccNodePool_tagsLabelsTaints_step1(name string) string {
 resource "sbercloud_cce_node_pool" "test" {
   cluster_id               = sbercloud_cce_cluster.test.id
   name                     = "%[2]s"
-  os                       = "EulerOS 2.9"
+  os                       = "CentOS 7.6"
   flavor_id                = data.sbercloud_compute_flavors.test.ids[0]
   initial_node_count       = 1
   availability_zone        = data.sbercloud_availability_zones.test.names[0]
@@ -405,7 +405,7 @@ func testAccNodePool_tagsLabelsTaints_step2(name string) string {
 resource "sbercloud_cce_node_pool" "test" {
   cluster_id               = sbercloud_cce_cluster.test.id
   name                     = "%[2]s"
-  os                       = "EulerOS 2.9"
+  os                       = "CentOS 7.6"
   flavor_id                = data.sbercloud_compute_flavors.test.ids[0]
   initial_node_count       = 1
   availability_zone        = data.sbercloud_availability_zones.test.names[0]
@@ -502,7 +502,7 @@ resource "sbercloud_kms_key" "test" {
 resource "sbercloud_cce_node_pool" "test" {
   cluster_id               = sbercloud_cce_cluster.test.id
   name                     = "%[2]s"
-  os                       = "EulerOS 2.9"
+  os                       = "CentOS 7.6"
   flavor_id                = data.sbercloud_compute_flavors.test.ids[0]
   initial_node_count       = 1
   availability_zone        = data.sbercloud_availability_zones.test.names[0]
@@ -569,7 +569,7 @@ func testAccNodePool_prePaid(rName string) string {
 resource "sbercloud_cce_node_pool" "test" {
   cluster_id               = sbercloud_cce_cluster.test.id
   name                     = "%[2]s"
-  os                       = "EulerOS 2.9"
+  os                       = "CentOS 7.6"
   flavor_id                = data.sbercloud_compute_flavors.test.ids[0]
   initial_node_count       = 1
   availability_zone        = data.sbercloud_availability_zones.test.names[0]
@@ -723,7 +723,7 @@ resource "sbercloud_networking_secgroup_rule" "rule7" {
 resource "sbercloud_cce_node_pool" "test" {
   cluster_id               = sbercloud_cce_cluster.test.id
   name                     = "%[2]s"
-  os                       = "EulerOS 2.9"
+  os                       = "CentOS 7.6"
   flavor_id                = data.sbercloud_compute_flavors.test.ids[0]
   initial_node_count       = 1
   availability_zone        = data.sbercloud_availability_zones.test.names[0]
@@ -803,7 +803,7 @@ resource "sbercloud_compute_servergroup" "test" {
 resource "sbercloud_cce_node_pool" "test" {
   cluster_id               = sbercloud_cce_cluster.test.id
   name                     = "%[2]s"
-  os                       = "EulerOS 2.9"
+  os                       = "CentOS 7.6"
   flavor_id                = data.sbercloud_compute_flavors.test.ids[0]
   initial_node_count       = 1
   availability_zone        = data.sbercloud_availability_zones.test.names[0]
@@ -874,7 +874,7 @@ resource "sbercloud_kms_key" "test" {
 resource "sbercloud_cce_node_pool" "test" {
   cluster_id               = sbercloud_cce_cluster.test.id
   name                     = "%[2]s"
-  os                       = "EulerOS 2.9"
+  os                       = "CentOS 7.6"
   flavor_id                = data.sbercloud_compute_flavors.test.ids[0]
   initial_node_count       = 1
   availability_zone        = data.sbercloud_availability_zones.test.names[0]
@@ -1011,7 +1011,7 @@ func testAccNodePool_extensionScaleGroups_step1(name, baseConfig string) string 
 resource "sbercloud_cce_node_pool" "test" {
   cluster_id               = sbercloud_cce_cluster.test.id
   name                     = "%[2]s"
-  os                       = "EulerOS 2.9"
+  os                       = "CentOS 7.6"
   flavor_id                = data.sbercloud_compute_flavors.test.ids[0]
   initial_node_count       = 0
   availability_zone        = data.sbercloud_availability_zones.test.names[0]
@@ -1057,7 +1057,7 @@ func testAccNodePool_extensionScaleGroups_step2(name, baseConfig string) string 
 resource "sbercloud_cce_node_pool" "test" {
   cluster_id               = sbercloud_cce_cluster.test.id
   name                     = "%[2]s"
-  os                       = "EulerOS 2.9"
+  os                       = "CentOS 7.6"
   flavor_id                = data.sbercloud_compute_flavors.test.ids[0]
   initial_node_count       = 0
   availability_zone        = data.sbercloud_availability_zones.test.names[0]

@@ -42,6 +42,8 @@ func ResourceCentralNetwork() *schema.Resource {
 			Delete: schema.DefaultTimeout(20 * time.Minute),
 		},
 
+		CustomizeDiff: config.MergeDefaultTags(),
+
 		Schema: map[string]*schema.Schema{
 			"region": {
 				Type:     schema.TypeString,
@@ -67,13 +69,7 @@ func ResourceCentralNetwork() *schema.Resource {
 				ForceNew:    true,
 				Description: `The enterprise project ID to which the central network belongs.`,
 			},
-			"tags": {
-				Type:        schema.TypeMap,
-				Elem:        &schema.Schema{Type: schema.TypeString},
-				Optional:    true,
-				Computed:    true,
-				Description: `The key/value pairs to associate with the central network.`,
-			},
+			"tags": common.TagsSchema(),
 			"state": {
 				Type:        schema.TypeString,
 				Computed:    true,

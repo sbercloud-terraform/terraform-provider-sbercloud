@@ -40,6 +40,8 @@ func ResourceCTSTracker() *schema.Resource {
 			Delete: schema.DefaultTimeout(5 * time.Minute),
 		},
 
+		CustomizeDiff: config.MergeDefaultTags(),
+
 		Schema: map[string]*schema.Schema{
 			"region": {
 				Type:     schema.TypeString,
@@ -344,6 +346,7 @@ func resourceCTSTrackerRead(_ context.Context, d *schema.ResourceData, meta inte
 		d.Set("log_group_name", utils.PathSearch("lts.log_group_name", ctsTracker, nil)),
 		d.Set("log_topic_name", utils.PathSearch("lts.log_topic_name", ctsTracker, nil)),
 		d.Set("is_authorized_bucket", utils.PathSearch("obs_info.is_authorized_bucket", ctsTracker, false)),
+		d.Set("tags", d.Get("tags")),
 	)
 
 	if bucketName != "" {

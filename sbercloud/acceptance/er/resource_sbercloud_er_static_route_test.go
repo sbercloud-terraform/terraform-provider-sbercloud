@@ -166,7 +166,7 @@ resource "sbercloud_vpc_subnet" "destination" {
 }
 
 resource "sbercloud_er_instance" "test" {
-  availability_zones = slice(data.sbercloud_er_availability_zones.test.names, 0, 1)
+  availability_zones = ["ru-moscow-1a"]
   name               = "%[1]s"
   asn                = %[2]d
 }

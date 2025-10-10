@@ -49,6 +49,8 @@ func ResourceBmsInstance() *schema.Resource {
 			Delete: schema.DefaultTimeout(30 * time.Minute),
 		},
 
+		CustomizeDiff: config.MergeDefaultTags(),
+
 		Schema: map[string]*schema.Schema{
 			"region": {
 				Type:     schema.TypeString,
@@ -440,6 +442,7 @@ func resourceBmsInstanceRead(_ context.Context, d *schema.ResourceData, meta int
 		d.Set("enterprise_project_id", server.EnterpriseProjectID),
 		d.Set("disk_ids", diskIds),
 		utils.SetResourceTagsToState(d, bmsClient, "baremetalservers", d.Id()),
+		d.Set("tags", d.Get("tags")),
 	)
 
 	// Set fixed and floating ip

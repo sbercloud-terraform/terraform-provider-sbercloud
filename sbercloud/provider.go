@@ -23,6 +23,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/swr"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/vpn"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/cbh"
+	cbr_sbc "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/cbr"
 	deprecated_sbc "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/deprecated"
 	ges_sbercloud "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/ges"
 	lb2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/lb"
@@ -281,9 +282,10 @@ func Provider() *schema.Provider {
 			"sbercloud_cbh_flavors":            cbh.DataSourceCbhFlavors(),
 			"sbercloud_cbh_availability_zones": cbh.DataSourceAvailabilityZones(),
 
-			"sbercloud_cbr_backup":              cbr.DataSourceBackup(),
-			"sbercloud_cbr_vaults":              cbr.DataSourceVaults(),
-			"sbercloud_cbr_policies":            cbr.DataSourcePolicies(),
+			"sbercloud_cbr_backup":   cbr.DataSourceBackup(),
+			"sbercloud_cbr_vaults":   cbr.DataSourceVaults(),
+			"sbercloud_cbr_policies": cbr.DataSourcePolicies(),
+
 			"sbercloud_cce_addon_template":      cce.DataSourceAddonTemplate(),
 			"sbercloud_cce_cluster":             cce.DataSourceCCEClusterV3(),
 			"sbercloud_cce_clusters":            cce.DataSourceCCEClusters(),
@@ -291,18 +293,21 @@ func Provider() *schema.Provider {
 			"sbercloud_cce_nodes":               cce.DataSourceNodes(),
 			"sbercloud_cce_node_pool":           cce.DataSourceCCENodePoolV3(),
 			"sbercloud_cce_cluster_certificate": cce.DataSourceCCEClusterCertificate(),
-			"sbercloud_cdm_flavors":             cdm.DataSourceCdmFlavors(),
-			"sbercloud_compute_flavors":         ecs.DataSourceEcsFlavors(),
-			"sbercloud_compute_instance":        ecs.DataSourceComputeInstance(),
-			"sbercloud_compute_instances":       ecs.DataSourceComputeInstances(),
-			"sbercloud_compute_servergroups":    ecs.DataSourceComputeServerGroups(),
-			"sbercloud_dcs_flavors":             dcs.DataSourceDcsFlavorsV2(),
-			"sbercloud_dcs_accounts":            dcs.DataSourceDcsAccounts(),
-			"sbercloud_dcs_az":                  deprecated.DataSourceDcsAZV1(),
-			"sbercloud_dcs_maintainwindow":      dcs.DataSourceDcsMaintainWindow(),
-			"sbercloud_dcs_product":             deprecated.DataSourceDcsProductV1(),
-			"sbercloud_dds_flavors":             dds_sbc.DataSourceDDSFlavorV3(),
-			"sbercloud_dms_az":                  deprecated.DataSourceDmsAZ(),
+
+			"sbercloud_cdm_flavors": cdm.DataSourceCdmFlavors(),
+
+			"sbercloud_compute_flavors":      ecs.DataSourceEcsFlavors(),
+			"sbercloud_compute_instance":     ecs.DataSourceComputeInstance(),
+			"sbercloud_compute_instances":    ecs.DataSourceComputeInstances(),
+			"sbercloud_compute_servergroups": ecs.DataSourceComputeServerGroups(),
+
+			"sbercloud_dcs_flavors":        dcs.DataSourceDcsFlavorsV2(),
+			"sbercloud_dcs_accounts":       dcs.DataSourceDcsAccounts(),
+			"sbercloud_dcs_az":             deprecated.DataSourceDcsAZV1(),
+			"sbercloud_dcs_maintainwindow": dcs.DataSourceDcsMaintainWindow(),
+			"sbercloud_dcs_product":        deprecated.DataSourceDcsProductV1(),
+			"sbercloud_dds_flavors":        dds_sbc.DataSourceDDSFlavorV3(),
+			"sbercloud_dms_az":             deprecated.DataSourceDmsAZ(),
 
 			"sbercloud_kps_failed_tasks":  dew.DataSourceDewKpsFailedTasks(),
 			"sbercloud_kps_running_tasks": dew.DataSourceDewKpsRunningTasks(),
@@ -318,7 +323,7 @@ func Provider() *schema.Provider {
 
 			"sbercloud_dms_rabbitmq_flavors": rabbitmq.DataSourceRabbitMQFlavors(),
 
-			"sbercloud_dms_rocketmq_broker":                      rocketmq.DataSourceDmsRocketMQBroker(),
+			"sbercloud_dms_rocketmq_broker":                      rocketmq.DataSourceBrokers(),
 			"sbercloud_dms_rocketmq_instances":                   rocketmq.DataSourceDmsRocketMQInstances(),
 			"sbercloud_dms_rocketmq_topics":                      rocketmq.DataSourceDmsRocketMQTopics(),
 			"sbercloud_dms_rocketmq_topic_access_users":          rocketmq.DataSourceDmsRocketmqTopicAccessUsers(),
@@ -332,6 +337,8 @@ func Provider() *schema.Provider {
 			"sbercloud_dms_rocketmq_message_traces":              rocketmq.DataSourceDmsRocketmqMessageTraces(),
 			"sbercloud_dms_rocketmq_extend_flavors":              rocketmq.DataSourceDmsRocketmqExtendFlavors(),
 			"sbercloud_dms_rocketmq_messages":                    rocketmq.DataSourceDmsRocketMQMessages(),
+
+			"sbercloud_dns_zones": dns.DataSourceZones(),
 
 			"sbercloud_dws_flavors": dws.DataSourceDwsFlavors(),
 
@@ -444,7 +451,7 @@ func Provider() *schema.Provider {
 			"sbercloud_apig_appcode":                        apig.ResourceAppcode(),
 			"sbercloud_apig_application":                    apig.ResourceApigApplicationV2(),
 			"sbercloud_apig_application_acl":                apig.ResourceApplicationAcl(),
-			"sbercloud_apig_application_authorization":      apig.ResourceAppAuth(),
+			"sbercloud_apig_application_authorization":      apig.ResourceApplicationAuthorization(),
 			"sbercloud_apig_application_quota":              apig.ResourceApplicationQuota(),
 			"sbercloud_apig_application_quota_associate":    apig.ResourceApplicationQuotaAssociate(),
 			"sbercloud_apig_certificate":                    apig.ResourceCertificate(),
@@ -457,7 +464,7 @@ func Provider() *schema.Provider {
 			"sbercloud_apig_instance_feature":               apig.ResourceInstanceFeature(),
 			"sbercloud_apig_instance_routes":                apig.ResourceInstanceRoutes(),
 			"sbercloud_apig_instance":                       apig.ResourceApigInstanceV2(),
-			"sbercloud_apig_plugin_associate":               apig.ResourcePluginAssociate(),
+			"sbercloud_apig_plugin_batch_apis_associate":    apig.ResourcePluginBatchApisAssociate(),
 			"sbercloud_apig_plugin":                         apig.ResourcePlugin(),
 			"sbercloud_apig_response":                       apig.ResourceApigResponseV2(),
 			"sbercloud_apig_signature_associate":            apig.ResourceSignatureAssociate(),
@@ -465,6 +472,11 @@ func Provider() *schema.Provider {
 			"sbercloud_apig_throttling_policy_associate":    apig.ResourceThrottlingPolicyAssociate(),
 			"sbercloud_apig_throttling_policy":              apig.ResourceApigThrottlingPolicyV2(),
 			"sbercloud_apig_endpoint_whitelist":             apig.ResourceEndpointWhiteList(),
+			"sbercloud_apig_api_action":                     apig.ResourceApigApiAction(),
+			"sbercloud_apig_api_batch_action":               apig.ResourceApigApiBatchAction(),
+			"sbercloud_apig_api_check":                      apig.ResourceApiCheck(),
+			"sbercloud_apig_api_debug":                      apig.ResourceApigApiDebug(),
+			"sbercloud_apig_api_version_unpublish":          apig.ResourceApiVersionUnpublish(),
 
 			"sbercloud_as_configuration":    as.ResourceASConfiguration(),
 			"sbercloud_as_group":            as.ResourceASGroup(),
@@ -480,18 +492,20 @@ func Provider() *schema.Provider {
 			"sbercloud_cbh_asset_agency_authorization": cbh.ResourceAssetAgencyAuthorization(),
 
 			"sbercloud_cbr_policy": cbr.ResourcePolicy(),
-			"sbercloud_cbr_vault":  cbr.ResourceVault(),
+			"sbercloud_cbr_vault":  cbr_sbc.ResourceVault(),
 
 			"sbercloud_css_cluster":       css.ResourceCssCluster(),
 			"sbercloud_css_configuration": css_huawei.ResourceCssConfiguration(),
 
-			"sbercloud_cce_addon":       cce.ResourceAddon(),
-			"sbercloud_cce_cluster":     cce.ResourceCluster(),
-			"sbercloud_cce_namespace":   cce.ResourceCCENamespaceV1(),
-			"sbercloud_cce_node":        cce.ResourceNode(),
-			"sbercloud_cce_node_attach": cce.ResourceNodeAttach(),
-			"sbercloud_cce_node_pool":   cce.ResourceNodePool(),
-			"sbercloud_cce_pvc":         cce.ResourceCcePersistentVolumeClaimsV1(),
+			"sbercloud_cce_addon":           cce.ResourceAddon(),
+			"sbercloud_cce_cluster":         cce.ResourceCluster(),
+			"sbercloud_cce_cluster_upgrade": cce.ResourceClusterUpgrade(),
+			"sbercloud_cce_namespace":       cce.ResourceCCENamespaceV1(),
+			"sbercloud_cce_node":            cce.ResourceNode(),
+			"sbercloud_cce_node_attach":     cce.ResourceNodeAttach(),
+			"sbercloud_cce_node_pool":       cce.ResourceNodePool(),
+			"sbercloud_cce_pvc":             cce.ResourceCcePersistentVolumeClaimsV1(),
+			"sbercloud_cce_nodes_remove":    cce.ResourceNodesRemove(),
 
 			"sbercloud_cdm_cluster": cdm.ResourceCdmCluster(),
 
@@ -627,8 +641,10 @@ func Provider() *schema.Provider {
 
 			"sbercloud_images_image": deprecated.ResourceImsImage(),
 
-			"sbercloud_kms_key":     dew.ResourceKmsKey(),
-			"sbercloud_kps_keypair": dew.ResourceKeypair(),
+			"sbercloud_kms_key":                  dew.ResourceKmsKey(),
+			"sbercloud_kps_keypair":              dew.ResourceKeypair(),
+			"sbercloud_kps_keypair_disassociate": dew.ResourceKpsKeypairDisassociate(),
+			"sbercloud_kps_keypair_associate":    dew.ResourceKpsKeypairAssociate(),
 
 			"sbercloud_lb_certificate":  lb2.ResourceCertificateV2(),
 			"sbercloud_lb_l7policy":     lb.ResourceL7PolicyV2(),
@@ -730,6 +746,7 @@ func Provider() *schema.Provider {
 			"sbercloud_vpn_connection":              vpn.ResourceConnection(),
 			"sbercloud_vpn_connection_health_check": vpn.ResourceConnectionHealthCheck(),
 			// Legacy
+			"sbercloud_apig_plugin_associate":        apig.ResourcePluginBatchApisAssociate(),
 			"sbercloud_identity_role_assignment_v3":  iam.ResourceIdentityGroupRoleAssignment(),
 			"sbercloud_identity_user_v3":             iam.ResourceIdentityUser(),
 			"sbercloud_identity_group_v3":            iam.ResourceIdentityGroup(),

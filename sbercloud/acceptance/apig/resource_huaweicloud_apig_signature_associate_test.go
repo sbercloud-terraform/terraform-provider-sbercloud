@@ -148,7 +148,7 @@ data "sbercloud_apig_instances" "test" {
 }
 
 locals {
-  instance_id = data.sbercloud_apig_instances.test.instances[0].id
+  instance_id = "%[4]s"
 }
 
 resource "sbercloud_apig_group" "test" {

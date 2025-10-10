@@ -31,6 +31,7 @@ import (
 
 // refer to: https://support.huaweicloud.com/intl/en-us/dns_faq/dns_faq_002.html
 var privateDNSList = map[string][]string{
+	"ru-moscow-1":    {"100.125.13.59", "100.125.65.14"},
 	"cn-north-1":     {"100.125.1.250", "100.125.21.250"},  // Beijing-1
 	"cn-north-4":     {"100.125.1.250", "100.125.129.250"}, // Beijing-4
 	"cn-north-9":     {"100.125.1.250", "100.125.107.250"}, // Ulanqab
@@ -73,7 +74,7 @@ func buildSubnetDNSList(d *schema.ResourceData, cfg *config.Config, region strin
 	}
 
 	// public DNS: 8.8.8.8(google-public-dns-a.google.com) and 114.114.114.114(China)
-	publicDNSList := []string{"100.125.13.59", "100.125.65.14"}
+	publicDNSList := []string{"8.8.8.8", "114.114.114.114"}
 
 	dnsClient, err := cfg.DnsWithRegionClient(region)
 	if err != nil {
@@ -194,6 +195,15 @@ func ResourceVpcSubnetV1() *schema.Resource {
 				Optional: true,
 				Computed: true,
 			},
+			"dhcp_ipv6_lease_time": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+			},
+			"dhcp_domain_name": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
 			"subnet_id": {
 				Type:        schema.TypeString,
 				Computed:    true,
@@ -231,6 +241,15 @@ func buildDhcpOpts(d *schema.ResourceData, update bool) []subnets.ExtraDhcpOpt {
 		result = append(result, addressTime)
 	}
 
+	if v, ok := d.GetOk("dhcp_ipv6_lease_time"); ok {
+		ipv6AddressVal := v.(string)
+		ipv6AddressTime := subnets.ExtraDhcpOpt{
+			OptName:  "ipv6_addresstime",
+			OptValue: &ipv6AddressVal,
+		}
+		result = append(result, ipv6AddressTime)
+	}
+
 	if v, ok := d.GetOk("ntp_server_address"); ok {
 		ntpVal := v.(string)
 		ntp := subnets.ExtraDhcpOpt{
@@ -243,6 +262,20 @@ func buildDhcpOpts(d *schema.ResourceData, update bool) []subnets.ExtraDhcpOpt {
 			OptName: "ntp",
 		}
 		result = append(result, ntp)
+	}
+
+	if v, ok := d.GetOk("dhcp_domain_name"); ok {
+		domainNameVal := v.(string)
+		domainName := subnets.ExtraDhcpOpt{
+			OptName:  "domainname",
+			OptValue: &domainNameVal,
+		}
+		result = append(result, domainName)
+	} else if update {
+		domainName := subnets.ExtraDhcpOpt{
+			OptName: "domainname",
+		}
+		result = append(result, domainName)
 	}
 
 	return result
@@ -365,12 +398,17 @@ func resourceVpcSubnetRead(_ context.Context, d *schema.ResourceData, meta inter
 		return diag.Errorf("error creating VpcSubnet client: %s", err)
 	}
 
-	// set dhcp extra opts ntp and addresstime
+	// set dhcp extra opts ntp, addresstime, ipv6_addresstime, domainname
 	for _, val := range n.ExtraDhcpOpts {
-		if val.OptName == "ntp" {
+		switch val.OptName {
+		case "ntp":
 			mErr = multierror.Append(mErr, d.Set("ntp_server_address", val.OptValue))
-		} else if val.OptName == "addresstime" {
+		case "addresstime":
 			mErr = multierror.Append(mErr, d.Set("dhcp_lease_time", val.OptValue))
+		case "ipv6_addresstime":
+			mErr = multierror.Append(mErr, d.Set("dhcp_ipv6_lease_time", val.OptValue))
+		case "domainname":
+			mErr = multierror.Append(mErr, d.Set("dhcp_domain_name", val.OptValue))
 		}
 	}
 
@@ -389,7 +427,7 @@ func resourceVpcSubnetUpdate(ctx context.Context, d *schema.ResourceData, meta i
 	}
 
 	if d.HasChanges("name", "description", "dhcp_enable", "primary_dns", "secondary_dns", "dns_list",
-		"ipv6_enable", "dhcp_lease_time", "ntp_server_address") {
+		"ipv6_enable", "dhcp_lease_time", "ntp_server_address", "dhcp_ipv6_lease_time", "dhcp_domain_name") {
 		var updateOpts subnets.UpdateOpts
 
 		// name is mandatory while updating subnet
@@ -419,7 +457,7 @@ func resourceVpcSubnetUpdate(ctx context.Context, d *schema.ResourceData, meta i
 			dnsList := utils.ExpandToStringList(d.Get("dns_list").([]interface{}))
 			updateOpts.DnsList = &dnsList
 		}
-		if d.HasChanges("dhcp_lease_time", "ntp_server_address") {
+		if d.HasChanges("dhcp_lease_time", "ntp_server_address", "dhcp_ipv6_lease_time", "dhcp_domain_name") {
 			updateOpts.ExtraDhcpOpts = buildDhcpOpts(d, true)
 		}
 

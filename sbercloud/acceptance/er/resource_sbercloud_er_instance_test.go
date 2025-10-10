@@ -91,8 +91,8 @@ func TestAccInstance_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(rName, "name", name),
-					resource.TestCheckResourceAttrPair(rName, "availability_zones.0",
-						"data.sbercloud_er_availability_zones.test", "names.1"),
+					resource.TestCheckResourceAttrPair(rName, "ru-moscow-1a",
+						"data.sbercloud_er_availability_zones.test", "ru-moscow-1b"),
 					resource.TestCheckResourceAttr(rName, "asn", fmt.Sprintf("%v", bgpAsNum)),
 					resource.TestCheckResourceAttr(rName, "description", ""),
 					resource.TestCheckResourceAttr(rName, "enable_default_propagation", "false"),
@@ -116,7 +116,7 @@ func testInstance_basic_step1(name string, bgpAsNum int) string {
 data "sbercloud_er_availability_zones" "test" {}
 
 resource "sbercloud_er_instance" "test" {
-  availability_zones = slice(data.sbercloud_er_availability_zones.test.names, 0, 1)
+  availability_zones = ["ru-moscow-1a"]
 
   name        = "%[1]s"
   asn         = %[2]d
@@ -139,7 +139,7 @@ func testInstance_basic_step2(name string, bgpAsNum int) string {
 data "sbercloud_er_availability_zones" "test" {}
 
 resource "sbercloud_er_instance" "test" {
-  availability_zones = slice(data.sbercloud_er_availability_zones.test.names, 1, 2)
+  availability_zones = ["ru-moscow-1a","ru-moscow-1b"]
 
   name = "%[1]s"
   asn  = %[2]d
@@ -202,7 +202,7 @@ func testInstance_withEpsId(name string, bgpAsNum int, epsId string) string {
 data "sbercloud_er_availability_zones" "test" {}
 
 resource "sbercloud_er_instance" "test" {
-  availability_zones = slice(data.sbercloud_er_availability_zones.test.names, 0, 1)
+  availability_zones = ["ru-moscow-1a"]
 
   name                  = "%[1]s"
   asn                   = %[2]d

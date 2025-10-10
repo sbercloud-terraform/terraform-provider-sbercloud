@@ -80,6 +80,7 @@ func ResourceFirewall() *schema.Resource {
 				}
 				return nil
 			}),
+			config.MergeDefaultTags(),
 		),
 
 		Schema: map[string]*schema.Schema{
@@ -103,12 +104,7 @@ func ResourceFirewall() *schema.Resource {
 				ForceNew:    true,
 				Description: `Specifies the flavor of the firewall.`,
 			},
-			"tags": {
-				Type:        schema.TypeMap,
-				Elem:        &schema.Schema{Type: schema.TypeString},
-				Optional:    true,
-				Description: `Specifies the key/value pairs to associate with the firewall.`,
-			},
+			"tags": common.TagsSchema(),
 			"east_west_firewall_inspection_cidr": {
 				Type:         schema.TypeString,
 				Optional:     true,

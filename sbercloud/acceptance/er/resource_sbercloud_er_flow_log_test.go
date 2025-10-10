@@ -125,7 +125,7 @@ func testaccFlowLog_base(name string) string {
 data "sbercloud_er_availability_zones" "test" {}
 
 resource "sbercloud_er_instance" "test" {
-  availability_zones = slice(data.sbercloud_er_availability_zones.test.names, 0, 1)
+  availability_zones = ["ru-moscow-1a"]
   name               = "%[2]s"
   asn                = %[3]d
 }

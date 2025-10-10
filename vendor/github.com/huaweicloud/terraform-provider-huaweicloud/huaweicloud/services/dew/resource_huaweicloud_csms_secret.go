@@ -39,6 +39,8 @@ func ResourceSecret() *schema.Resource {
 			StateContext: schema.ImportStatePassthroughContext,
 		},
 
+		CustomizeDiff: config.MergeDefaultTags(),
+
 		Schema: map[string]*schema.Schema{
 			"region": {
 				Type:     schema.TypeString,
@@ -249,6 +251,7 @@ func resourceSecretRead(_ context.Context, d *schema.ResourceData, meta interfac
 		d.Set("latest_version", version.VersionMetadata.ID),
 		d.Set("version_stages", version.VersionMetadata.VersionStages),
 		utils.SetResourceTagsToState(d, client, "csms", id),
+		d.Set("tags", d.Get("tags")),
 	)
 
 	return diag.FromErr(mErr.ErrorOrNil())

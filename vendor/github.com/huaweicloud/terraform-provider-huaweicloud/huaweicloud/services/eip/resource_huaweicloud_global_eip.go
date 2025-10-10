@@ -35,6 +35,8 @@ func ResourceGlobalEIP() *schema.Resource {
 			StateContext: schema.ImportStatePassthroughContext,
 		},
 
+		CustomizeDiff: config.MergeDefaultTags(),
+
 		Schema: map[string]*schema.Schema{
 			"access_site": {
 				Type:     schema.TypeString,
@@ -66,12 +68,7 @@ func ResourceGlobalEIP() *schema.Resource {
 				Optional: true,
 				Computed: true,
 			},
-			"tags": {
-				Type:     schema.TypeMap,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-				Optional: true,
-				Computed: true,
-			},
+			"tags": common.TagsSchema(),
 			"isp": {
 				Type:     schema.TypeString,
 				Computed: true,

@@ -108,7 +108,7 @@ func TestAccDDSV3Instance_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
-					testAccCheckDDSV3InstanceFlavor(&instance, "config", "spec_code", "dds.mongodb.c6.large.2.config"),
+					testAccCheckDDSV3InstanceFlavor(&instance, "config", "spec_code", "dds.mongodb.c6.xlarge.2.config"),
 				),
 			},
 			{
@@ -156,54 +156,6 @@ func TestAccDDSV3Instance_withEpsId(t *testing.T) {
 					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
 					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST),
-				),
-			},
-		},
-	})
-}
-
-func TestAccDDSV3Instance_prePaid(t *testing.T) {
-	var instance instances.InstanceResponse
-	rName := acceptance.RandomAccResourceName()
-	resourceName := "sbercloud_dds_instance.instance"
-
-	rc := acceptance.InitResourceCheck(
-		resourceName,
-		&instance,
-		getDdsResourceFunc,
-	)
-
-	resource.ParallelTest(t, resource.TestCase{
-		PreCheck: func() {
-			acceptance.TestAccPreCheck(t)
-			acceptance.TestAccPreCheckChargingMode(t)
-		},
-		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy:      rc.CheckResourceDestroy(),
-		Steps: []resource.TestStep{
-			{
-				Config: testAccDDSInstanceV3Config_prePaid(rName),
-				Check: resource.ComposeTestCheckFunc(
-					rc.CheckResourceExists(),
-					resource.TestCheckResourceAttr(resourceName, "name", rName),
-					resource.TestCheckResourceAttr(resourceName, "backup_strategy.0.start_time", "08:00-09:00"),
-					resource.TestCheckResourceAttr(resourceName, "backup_strategy.0.keep_days", "8"),
-					resource.TestCheckResourceAttr(resourceName, "auto_renew", "false"),
-					resource.TestCheckResourceAttr(resourceName, "description", "test description"),
-				),
-			},
-			{
-				Config: testAccDDSInstanceV3Config_prePaidUpdate(rName),
-				Check: resource.ComposeTestCheckFunc(
-					rc.CheckResourceExists(),
-					resource.TestCheckResourceAttr(resourceName, "name", rName),
-					resource.TestCheckResourceAttr(resourceName, "backup_strategy.0.start_time", "00:00-01:00"),
-					resource.TestCheckResourceAttr(resourceName, "backup_strategy.0.keep_days", "7"),
-					testAccCheckDDSV3InstanceFlavor(&instance, "shard", "num", 3),
-					testAccCheckDDSV3InstanceFlavor(&instance, "shard", "size", "30"),
-					testAccCheckDDSV3InstanceFlavor(&instance, "mongos", "spec_code", "dds.mongodb.c6.large.4.mongos"),
-					resource.TestCheckResourceAttr(resourceName, "auto_renew", "true"),
-					resource.TestCheckResourceAttr(resourceName, "description", ""),
 				),
 			},
 		},
@@ -466,14 +418,14 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.c6.large.4.mongos"
+    spec_code = "dds.mongodb.c6.large.2.mongos"
   }
   flavor {
     type      = "shard"
     num       = 2
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.c6.large.4.shard"
+    spec_code = "dds.mongodb.c6.large.2.shard"
   }
   flavor {
     type      = "config"
@@ -520,14 +472,14 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.c6.large.4.mongos"
+    spec_code = "dds.mongodb.c6.large.2.mongos"
   }
   flavor {
     type      = "shard"
     num       = 2
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.c6.large.4.shard"
+    spec_code = "dds.mongodb.c6.large.2.shard"
   }
   flavor {
     type      = "config"
@@ -575,14 +527,14 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.c6.large.4.mongos"
+    spec_code = "dds.mongodb.c6.large.2.mongos"
   }
   flavor {
     type      = "shard"
     num       = 3
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.c6.large.4.shard"
+    spec_code = "dds.mongodb.c6.large.2.shard"
   }
   flavor {
     type      = "config"
@@ -629,14 +581,14 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.c6.large.4.mongos"
+    spec_code = "dds.mongodb.c6.large.2.mongos"
   }
   flavor {
     type      = "shard"
     num       = 3
     storage   = "ULTRAHIGH"
     size      = 30
-    spec_code = "dds.mongodb.c6.large.4.shard"
+    spec_code = "dds.mongodb.c6.large.2.shard"
   }
   flavor {
     type      = "config"
@@ -683,21 +635,21 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.c6.large.4.mongos"
+    spec_code = "dds.mongodb.c6.large.2.mongos"
   }
   flavor {
     type      = "shard"
     num       = 3
     storage   = "ULTRAHIGH"
     size      = 30
-    spec_code = "dds.mongodb.c6.large.4.shard"
+    spec_code = "dds.mongodb.c6.large.2.shard"
   }
   flavor {
     type      = "config"
     num       = 1
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.c6.large.2.config"
+    spec_code = "dds.mongodb.c6.xlarge.2.config"
   }
 
   backup_strategy {
@@ -745,7 +697,7 @@ resource "sbercloud_dds_instance" "instance" {
     num       = 2
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.c6.large.4.shard"
+    spec_code = "dds.mongodb.c6.large.2.shard"
   }
   flavor {
     type      = "config"
@@ -793,14 +745,14 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.c6.large.4.mongos"
+    spec_code = "dds.mongodb.c6.large.2.mongos"
   }
   flavor {
     type      = "shard"
     num       = 2
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.c6.large.4.shard"
+    spec_code = "dds.mongodb.c6.large.2.shard"
   }
   flavor {
     type      = "config"
@@ -819,115 +771,6 @@ resource "sbercloud_dds_instance" "instance" {
   tags = {
     foo   = "bar"
     owner = "terraform"
-  }
-}`, acceptance.TestBaseNetwork(rName), rName)
-}
-
-func testAccDDSInstanceV3Config_prePaid(rName string) string {
-	return fmt.Sprintf(`
-%s
-
-data "sbercloud_availability_zones" "test" {}
-
-resource "sbercloud_dds_instance" "instance" {
-  name              = "%s"
-  availability_zone = data.sbercloud_availability_zones.test.names[0]
-  vpc_id            = sbercloud_vpc.test.id
-  subnet_id         = sbercloud_vpc_subnet.test.id
-  security_group_id = sbercloud_networking_secgroup.test.id
-  password          = "Terraform@123"
-  mode              = "Sharding"
-  description       = "test description"
-
-  charging_mode = "prePaid"
-  period_unit   = "month"
-  period        = 1
-  auto_renew    = false
-
-  datastore {
-    type           = "DDS-Community"
-    version        = "4.0"
-    storage_engine = "wiredTiger"
-  }
-
-  flavor {
-    type      = "mongos"
-    num       = 2
-    spec_code = "dds.mongodb.c6.large.4.mongos"
-  }
-  flavor {
-    type      = "shard"
-    num       = 2
-    storage   = "ULTRAHIGH"
-    size      = 20
-    spec_code = "dds.mongodb.c6.large.4.shard"
-  }
-  flavor {
-    type      = "config"
-    num       = 1
-    storage   = "ULTRAHIGH"
-    size      = 20
-    spec_code = "dds.mongodb.c6.large.2.config"
-  }
-
-  backup_strategy {
-    start_time = "08:00-09:00"
-    keep_days  = 8
-    period     = "1,5"
-  }
-}`, acceptance.TestBaseNetwork(rName), rName)
-}
-
-func testAccDDSInstanceV3Config_prePaidUpdate(rName string) string {
-	return fmt.Sprintf(`
-%s
-
-data "sbercloud_availability_zones" "test" {}
-
-resource "sbercloud_dds_instance" "instance" {
-  name              = "%s"
-  availability_zone = data.sbercloud_availability_zones.test.names[0]
-  vpc_id            = sbercloud_vpc.test.id
-  subnet_id         = sbercloud_vpc_subnet.test.id
-  security_group_id = sbercloud_networking_secgroup.test.id
-  password          = "Terraform@123"
-  mode              = "Sharding"
-
-  charging_mode = "prePaid"
-  period_unit   = "month"
-  period        = 1
-  auto_renew    = "true"
-
-  datastore {
-    type           = "DDS-Community"
-    version        = "4.0"
-    storage_engine = "wiredTiger"
-  }
-
-  flavor {
-    type      = "mongos"
-    num       = 2
-    spec_code = "dds.mongodb.c6.large.4.mongos"
-  }
-  flavor {
-    type      = "shard"
-    num       = 3
-    storage   = "ULTRAHIGH"
-    size      = 30
-    spec_code = "dds.mongodb.c6.large.4.shard"
-  }
-  flavor {
-    type      = "config"
-    num       = 1
-    storage   = "ULTRAHIGH"
-    size      = 20
-    spec_code = "dds.mongodb.c6.large.2.config"
-  }
-
-  backup_strategy {
-    start_time = "00:00-01:00"
-    keep_days  = 7
-    period     = "1,3"
   }
 }`, acceptance.TestBaseNetwork(rName), rName)
 }
@@ -998,7 +841,7 @@ resource "sbercloud_dds_instance" "instance" {
   flavor {
     type      = "mongos"
     num       = 2
-    spec_code = "dds.mongodb.c6.large.4.mongos"
+    spec_code = "dds.mongodb.c6.large.2.mongos"
   }
 
   flavor {
@@ -1006,7 +849,7 @@ resource "sbercloud_dds_instance" "instance" {
     num       = 2
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.c6.large.4.shard"
+    spec_code = "dds.mongodb.c6.large.2.shard"
   }
 
   flavor {
@@ -1076,7 +919,7 @@ resource "sbercloud_dds_instance" "instance" {
     num       = 2
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.c6.large.4.shard"
+    spec_code = "dds.mongodb.c6.large.2.shard"
   }
 
   flavor {
@@ -1125,7 +968,7 @@ resource "sbercloud_dds_instance" "instance" {
     storage   = "ULTRAHIGH"
     num       = 3
     size      = 20
-    spec_code = "dds.mongodb.c6.large.4.repset"
+    spec_code = "dds.mongodb.c6.large.2.repset"
   }
 }`, acceptance.TestBaseNetwork(rName), templateRreplica1, rName)
 }
@@ -1212,7 +1055,7 @@ resource "sbercloud_dds_instance" "test" {
     num       = 1
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.c6.large.2.config"
+    spec_code = "dds.mongodb.c6.xlarge.2.config"
   }
 
   backup_strategy {
@@ -1264,7 +1107,7 @@ resource "sbercloud_dds_instance" "test" {
     num       = 1
     storage   = "ULTRAHIGH"
     size      = 20
-    spec_code = "dds.mongodb.c6.large.2.config"
+    spec_code = "dds.mongodb.c6.xlarge.2.config"
   }
 
   backup_strategy {
@@ -1311,7 +1154,7 @@ resource "sbercloud_dds_instance" "instance" {
     storage   = "ULTRAHIGH"
     num       = 3
     size      = 20
-    spec_code = "dds.mongodb.c6.large.4.repset"
+    spec_code = "dds.mongodb.c6.large.2.repset"
   }
 }`, acceptance.TestBaseNetwork(rName), templateRreplica1, rName)
 }

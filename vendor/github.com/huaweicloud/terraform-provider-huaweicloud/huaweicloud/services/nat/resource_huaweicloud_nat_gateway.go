@@ -43,6 +43,8 @@ func ResourcePublicGateway() *schema.Resource {
 			StateContext: schema.ImportStatePassthroughContext,
 		},
 
+		CustomizeDiff: config.MergeDefaultTags(),
+
 		Schema: map[string]*schema.Schema{
 			"region": {
 				Type:        schema.TypeString,
@@ -384,6 +386,7 @@ func resourcePublicGatewayRead(_ context.Context, d *schema.ResourceData, meta i
 		d.Set("pps_max", utils.PathSearch("nat_gateway.pps_max", respBody, nil)),
 		d.Set("bps_max", utils.PathSearch("nat_gateway.bps_max", respBody, nil)),
 		utils.SetResourceTagsToState(d, networkClient, "nat_gateways", d.Id()),
+		d.Set("tags", d.Get("tags")),
 	)
 
 	if err = mErr.ErrorOrNil(); err != nil {

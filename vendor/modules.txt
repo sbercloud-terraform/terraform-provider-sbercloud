@@ -33,7 +33,7 @@ github.com/apparentlymart/go-cidr/cidr
 # github.com/apparentlymart/go-textseg/v15 v15.0.0
 ## explicit; go 1.16
 github.com/apparentlymart/go-textseg/v15/textseg
-# github.com/chnsz/golangsdk v0.0.0-20250714122404-8ec4c665c567
+# github.com/chnsz/golangsdk v0.0.0-20250929061804-155ce42406c9
 ## explicit; go 1.14
 github.com/chnsz/golangsdk
 github.com/chnsz/golangsdk/auth
@@ -96,8 +96,6 @@ github.com/chnsz/golangsdk/openstack/cci/v1/persistentvolumeclaims
 github.com/chnsz/golangsdk/openstack/cdm/v1/clusters
 github.com/chnsz/golangsdk/openstack/cdm/v1/job
 github.com/chnsz/golangsdk/openstack/cdm/v1/link
-github.com/chnsz/golangsdk/openstack/cloudeyeservice/v1/alarmrule
-github.com/chnsz/golangsdk/openstack/cloudeyeservice/v2/alarmrule
 github.com/chnsz/golangsdk/openstack/cloudtable/v2/clusters
 github.com/chnsz/golangsdk/openstack/common/structs
 github.com/chnsz/golangsdk/openstack/common/tags
@@ -133,7 +131,6 @@ github.com/chnsz/golangsdk/openstack/dcs/v1/products
 github.com/chnsz/golangsdk/openstack/dcs/v2/availablezones
 github.com/chnsz/golangsdk/openstack/dcs/v2/flavors
 github.com/chnsz/golangsdk/openstack/dcs/v2/instances
-github.com/chnsz/golangsdk/openstack/dcs/v2/maintainwindows
 github.com/chnsz/golangsdk/openstack/dcs/v2/tags
 github.com/chnsz/golangsdk/openstack/dcs/v2/whitelists
 github.com/chnsz/golangsdk/openstack/dds/v3/flavors
@@ -609,7 +606,7 @@ github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vod/v1
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vod/v1/model
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vpc/v3
 github.com/huaweicloud/huaweicloud-sdk-go-v3/services/vpc/v3/model
-# github.com/huaweicloud/terraform-provider-huaweicloud v1.76.5
+# github.com/huaweicloud/terraform-provider-huaweicloud v1.79.0
 ## explicit; go 1.18
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common
@@ -704,6 +701,7 @@ github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/lb
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/live
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/lts
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/meeting
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/metastudio
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/modelarts
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/mpc
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/mrs
@@ -725,6 +723,7 @@ github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/sfstu
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/smn
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/sms
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/swr
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/swrenterprise
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/taurusdb
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/tms
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/ucs
@@ -835,7 +834,7 @@ github.com/zclconf/go-cty/cty/function/stdlib
 github.com/zclconf/go-cty/cty/gocty
 github.com/zclconf/go-cty/cty/json
 github.com/zclconf/go-cty/cty/set
-# go.mongodb.org/mongo-driver v1.17.3
+# go.mongodb.org/mongo-driver v1.17.4
 ## explicit; go 1.18
 go.mongodb.org/mongo-driver/bson
 go.mongodb.org/mongo-driver/bson/bsoncodec
@@ -844,7 +843,7 @@ go.mongodb.org/mongo-driver/bson/bsonrw
 go.mongodb.org/mongo-driver/bson/bsontype
 go.mongodb.org/mongo-driver/bson/primitive
 go.mongodb.org/mongo-driver/x/bsonx/bsoncore
-# golang.org/x/crypto v0.38.0
+# golang.org/x/crypto v0.41.0
 ## explicit; go 1.23.0
 golang.org/x/crypto/argon2
 golang.org/x/crypto/blake2b
@@ -858,27 +857,28 @@ golang.org/x/crypto/internal/poly1305
 golang.org/x/crypto/sha3
 golang.org/x/crypto/ssh
 golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
-# golang.org/x/mod v0.20.0
-## explicit; go 1.18
+# golang.org/x/mod v0.26.0
+## explicit; go 1.23.0
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/modfile
 golang.org/x/mod/module
 golang.org/x/mod/semver
-# golang.org/x/net v0.25.0
-## explicit; go 1.18
+# golang.org/x/net v0.42.0
+## explicit; go 1.23.0
 golang.org/x/net/http/httpguts
 golang.org/x/net/http/httpproxy
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
 golang.org/x/net/idna
+golang.org/x/net/internal/httpcommon
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/sys v0.33.0
+# golang.org/x/sys v0.35.0
 ## explicit; go 1.23.0
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.25.0
+# golang.org/x/text v0.28.0
 ## explicit; go 1.23.0
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform

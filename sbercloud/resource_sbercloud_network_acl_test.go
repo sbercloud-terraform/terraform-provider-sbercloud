@@ -2,6 +2,7 @@ package sbercloud
 
 import (
 	"fmt"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/deprecated"
 	"testing"
 
 	"github.com/chnsz/golangsdk"
@@ -9,14 +10,13 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 )
 
 func TestAccNetworkACL_basic(t *testing.T) {
 	rName := fmt.Sprintf("acc-fw-%s", acctest.RandString(5))
 	resourceKey := "sbercloud_network_acl.fw_1"
-	var fwGroup huaweicloud.FirewallGroup
+	var fwGroup deprecated.FirewallGroup
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -51,7 +51,7 @@ func TestAccNetworkACL_basic(t *testing.T) {
 func TestAccNetworkACL_no_subnets(t *testing.T) {
 	rName := fmt.Sprintf("acc-fw-%s", acctest.RandString(5))
 	resourceKey := "sbercloud_network_acl.fw_1"
-	var fwGroup huaweicloud.FirewallGroup
+	var fwGroup deprecated.FirewallGroup
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -75,7 +75,7 @@ func TestAccNetworkACL_no_subnets(t *testing.T) {
 func TestAccNetworkACL_remove(t *testing.T) {
 	rName := fmt.Sprintf("acc-fw-%s", acctest.RandString(5))
 	resourceKey := "sbercloud_network_acl.fw_1"
-	var fwGroup huaweicloud.FirewallGroup
+	var fwGroup deprecated.FirewallGroup
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -132,7 +132,7 @@ func testAccCheckNetworkACLDestroy(s *terraform.State) error {
 	return nil
 }
 
-func testAccCheckNetworkACLExists(n string, fwGroup *huaweicloud.FirewallGroup) resource.TestCheckFunc {
+func testAccCheckNetworkACLExists(n string, fwGroup *deprecated.FirewallGroup) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
@@ -149,7 +149,7 @@ func testAccCheckNetworkACLExists(n string, fwGroup *huaweicloud.FirewallGroup) 
 			return fmt.Errorf("Error creating SberCloud fw client: %s", err)
 		}
 
-		var found huaweicloud.FirewallGroup
+		var found deprecated.FirewallGroup
 		err = firewall_groups.Get(fwClient, rs.Primary.ID).ExtractInto(&found)
 		if err != nil {
 			return err
@@ -165,7 +165,7 @@ func testAccCheckNetworkACLExists(n string, fwGroup *huaweicloud.FirewallGroup) 
 	}
 }
 
-func testAccCheckFWFirewallPortCount(firewall_group *huaweicloud.FirewallGroup, expected int) resource.TestCheckFunc {
+func testAccCheckFWFirewallPortCount(firewall_group *deprecated.FirewallGroup, expected int) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		if len(firewall_group.PortIDs) != expected {
 			return fmt.Errorf("Expected %d Ports, got %d", expected, len(firewall_group.PortIDs))

@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/customdiff"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
@@ -64,12 +65,16 @@ func ResourceOpenGaussInstance() *schema.Resource {
 			Update: schema.DefaultTimeout(150 * time.Minute),
 			Delete: schema.DefaultTimeout(45 * time.Minute),
 		},
-		CustomizeDiff: func(_ context.Context, d *schema.ResourceDiff, v interface{}) error {
-			if d.HasChange("coordinator_num") {
-				return d.SetNewComputed("private_ips")
-			}
-			return nil
-		},
+
+		CustomizeDiff: customdiff.All(
+			func(_ context.Context, d *schema.ResourceDiff, _ interface{}) error {
+				if d.HasChange("coordinator_num") {
+					return d.SetNewComputed("private_ips")
+				}
+				return nil
+			},
+			config.MergeDefaultTags(),
+		),
 
 		Schema: map[string]*schema.Schema{
 			"region": {
@@ -161,18 +166,18 @@ func ResourceOpenGaussInstance() *schema.Resource {
 			"sharding_num": {
 				Type:     schema.TypeInt,
 				Optional: true,
-				Default:  3,
+				Computed: true,
 			},
 			"coordinator_num": {
 				Type:     schema.TypeInt,
 				Optional: true,
-				Default:  3,
+				Computed: true,
 			},
 			"replica_num": {
 				Type:     schema.TypeInt,
 				Optional: true,
+				Computed: true,
 				ForceNew: true,
-				Default:  3,
 			},
 			"security_group_id": {
 				Type:     schema.TypeString,
@@ -210,8 +215,8 @@ func ResourceOpenGaussInstance() *schema.Resource {
 			"time_zone": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Computed: true,
 				ForceNew: true,
-				Default:  "UTC+08:00",
 			},
 			"datastore": {
 				Type:     schema.TypeList,
@@ -808,6 +813,7 @@ func resourceOpenGaussInstanceRead(ctx context.Context, d *schema.ResourceData, 
 		d.Set("maintenance_window", utils.PathSearch("maintenance_window", instance, nil)),
 		d.Set("public_ips", utils.PathSearch("public_ips", instance, nil)),
 		d.Set("charging_mode", utils.PathSearch("charge_info.charge_mode", instance, nil)),
+		d.Set("enterprise_project_id", utils.PathSearch("enterprise_project_id", instance, nil)),
 		d.Set("ha", flattenGaussDBOpenGaussResponseBodyHa(instance)),
 		d.Set("datastore", flattenGaussDBOpenGaussResponseBodyDatastore(instance)),
 		d.Set("backup_strategy", flattenGaussDBOpenGaussResponseBodyBackupStrategy(instance)),
@@ -897,7 +903,9 @@ func setOpenGaussNodesAndRelatedNumbers(d *schema.ResourceData, instance interfa
 	}
 
 	if shardingNum > 0 && coordinatorNum > 0 {
-		*dnNum = shardingNum / d.Get("replica_num").(int)
+		// the default value is 3 for the original
+		replicaNum := utils.PathSearch("replica_num", instance, float64(3)).(float64)
+		*dnNum = shardingNum / int(replicaNum)
 		mErr := multierror.Append(
 			d.Set("nodes", nodesList),
 			d.Set("sharding_num", dnNum),
