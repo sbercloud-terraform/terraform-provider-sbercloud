@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      packages: write
+      id-token: write
     
     steps:
       - name: Checkout
@@ -43,6 +43,6 @@ jobs:
       - name: Release with GoReleaser
         env:
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # ← Это главное!
         run: |
-          goreleaser release --clean --timeout=180m --parallelism=2
+          goreleaser release --clean --rm-dist --timeout=180m --parallelism=1
