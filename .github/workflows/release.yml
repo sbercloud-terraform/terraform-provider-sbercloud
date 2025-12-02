@@ -16,11 +16,24 @@ jobs:
       
       - name: Set up Go
         uses: actions/setup-go@v5
+        
+      - name: Cleanup before build
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: true
+          large-packages: true
+          docker-images: false
       
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc "$AGENT_TOOLSDIRECTORY" 2>/dev/null || true
-      
+      - name: Cache Go build & mod
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+        
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@v6
         with:
