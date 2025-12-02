@@ -3,33 +3,72 @@ on:
   push:
     tags:
       - 'v*'
+
 jobs:
-  goreleaser:
+  release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Unshallow
-        run: git fetch --prune --unshallow
-
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
-          go-version: ">=1.16"
-
+          go-version: '>=1.21'
+      
+      - name: Free disk space (~3–5 GB)
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          df -h
+      
       - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v6
         id: import_gpg
-        uses: paultyng/ghaction-import-gpg@v2.1.0
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          PASSPHRASE: ${{ secrets.PASSPHRASE }}
-
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v3
         with:
-          version: latest
-          args: release
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
+      
+      - name: Sequential build and release
         env:
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -sfL https://goreleaser.com/static/run | bash -s -- --version
+          
+          PLATFORMS="
+            linux/amd64
+            linux/arm64
+            linux/386
+            darwin/amd64
+            darwin/arm64
+            windows/amd64
+            windows/arm64
+            freebsd/amd64
+            freebsd/arm64
+          "
+          
+          echo "Starting sequential build..."
+          for plat in $PLATFORMS; do
+            os=$(echo "$plat" | cut -d'/' -f1)
+            arch=$(echo "$plat" | cut -d'/' -f2)
+            echo "Building $os/$arch ..."
+            goreleaser build --clean --single-target --goos=$os --goarch=$arch || exit 1
+          
+            # clean temp files after each build
+            sudo rm -rf /tmp/go-build*
+            go clean -cache -modcache -testcache
+          done
+          
+          echo "All binaries built. Creating release..."
+          goreleaser release --clean --skip-build --skip-validate
+      
