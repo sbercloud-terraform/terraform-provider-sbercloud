@@ -1,65 +1,39 @@
 version: 2
 
-#before:
-#  hooks:
-#    - go mod tidy
-#    - go mod vendor # upd later
-
 builds:
   - env:
       - CGO_ENABLED=0
       - GOCACHE=/tmp/go-cache
       - GOMODCACHE=/tmp/go-mod-cache
-    mod_timestamp: '{{ .CommitTimestamp }}'
-    flags:
-      - -trimpath
     ldflags:
-      - '-s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils.PackageName=sbercloud'
-    goos:
-      - linux
-      - darwin
-      - windows
-      - freebsd
-    goarch:
-      - amd64
-      - arm64
-      - '386'
-      - arm
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils.PackageName=sbercloud
+    goos: [linux, darwin, windows, freebsd]
+    goarch: [amd64, arm64, '386']
     ignore:
       - goos: darwin
         goarch: '386'
-      - goos: darwin
-        goarch: arm
-      
-      # - goos: freebsd
-      #   goarch: '386'
-      # - goos: freebsd
-      #   goarch: arm
-    
     binary: terraform-provider-sbercloud_v{{ .Version }}
 
 archives:
   - format: zip
-    name_template: 'terraform-provider-sbercloud_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+    name_template: terraform-provider-sbercloud_{{ .Version }}_{{ .Os }}_{{ .Arch }}
 
 checksum:
-  name_template: 'terraform-provider-sbercloud_{{ .Version }}_SHA256SUMS'
-  algorithm: sha256
+  name_template: terraform-provider-sbercloud_{{ .Version }}_SHA256SUMS
 
 signs:
   - artifacts: checksum
     args:
-      - "--batch"
-      - "--local-user"
+      - --batch
+      - --local-user
       - "{{ .Env.GPG_FINGERPRINT }}"
-      - "--output"
+      - --output
       - "${signature}"
-      - "--detach-sign"
+      - --detach-sign
       - "${artifact}"
 
 release:
   draft: true
-
-changelog:
-  disable: true
-#  skip: true
