@@ -98,7 +98,7 @@ data "sbercloud_vpc_subnet" "test" {
 }
 
 data "sbercloud_images_image" "test" {
-  name        = "Ubuntu 18.04 server 64bit"
+  name        = "Ubuntu 24.04 server 64bit"
   most_recent = true
 }
 
@@ -155,7 +155,7 @@ resource "sbercloud_as_policy" "acc_as_policy"{
     instance_number = 1
   }
   scheduled_policy {
-    launch_time = "2023-12-22T12:00Z"
+    launch_time = "2026-12-22T12:00Z"
   }
 }
 `, rName, rName, rName, rName, rName)

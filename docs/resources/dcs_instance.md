@@ -32,7 +32,7 @@ resource "sbercloud_dcs_instance" "instance_1" {
   engine_version     = "5.0"
   capacity           = data.sbercloud_dcs_flavors.single_flavors.capacity
   flavor             = data.sbercloud_dcs_flavors.single_flavors.flavors[0].name
-  availability_zones = ["ru-moscow-1a"]
+  availability_zones = ["cn-north-1a"]
   password           = "YourPassword@123"
   vpc_id             = var.vpc_id
   subnet_id          = var.subnet_id
@@ -53,7 +53,7 @@ resource "sbercloud_dcs_instance" "instance_2" {
   flavor             = "redis.ha.xu1.large.r2.4"
   # The first is the primary availability zone (cn-north-1a),
   # and the second is the standby availability zone (cn-north-1b).
-  availability_zones = ["ru-moscow-1a", "ru-moscow-1b"]
+  availability_zones = ["cn-north-1a", "cn-north-1b"]
   password           = "YourPassword@123"
   vpc_id             = var.vpc_id
   subnet_id          = var.subnet_id
@@ -101,7 +101,7 @@ The following arguments are supported:
 
 * `name` - (Required, String) Specifies the name of an instance.
   The name must be 4 to 64 characters and start with a letter.
-  Only english, letters (case-insensitive), digits, underscores (_) ,and hyphens (-) are allowed.
+  Only chinese, letters (case-insensitive), digits, underscores (_) ,and hyphens (-) are allowed.
 
 * `engine` - (Required, String, ForceNew) Specifies a cache engine. Options: *Redis* and *Memcached*.
   Changing this creates a new instance.
@@ -189,13 +189,39 @@ The following arguments are supported:
 
   -> **NOTE:** This parameter is not supported when the instance type is single.
 
-* `parameters` - (Optional, List) Specify an array of one or more parameters to be set to the DCS instance after
+* `parameters` - (Optional, List) Specifies an array of one or more parameters to be set to the DCS instance after
   launched. You can check on console to see which parameters supported.
   The [parameters](#DcsInstance_Parameters) structure is documented below.
 
 * `rename_commands` - (Optional, Map) Critical command renaming, which is supported only by Redis 4.0 and
   Redis 5.0 instances but not by Redis 3.0 instance.
-  The valid commands that can be renamed are: **command**, **keys**, **flushdb**, **flushall** and **hgetall**.
+  The valid commands that can be renamed are: **command**, **keys**, **flushdb**, **flushall**, **hgetall**, **scan**,
+  **hscan**, **sscan** and **zscan**.
+
+* `big_key_enable_auto_scan` - (Optional, Bool) Specifies whether to enable scheduled cache analysis for big key.
+
+* `big_key_schedule_at` - (Optional, List) Specifies the UTC time of the day that cache analysis is scheduled for big key.
+
+* `hot_key_enable_auto_scan` - (Optional, Bool) Specifies whether to enable scheduled cache analysis for hot key.
+
+* `hot_key_schedule_at` - (Optional, List) Specifies the UTC time of the day that cache analysis is scheduled for hot key.
+
+* `expire_key_enable_auto_scan` - (Optional, Bool) Specifies whether to enable scheduled cache analysis for expire key.
+
+* `expire_key_first_scan_at` - (Optional, String) Specifies the first scan time for expire key, for example,
+  **2023-07-07T15:00:05.000z**. It is mandatory when `expire_key_enable_auto_scan` is set to **true**.
+
+* `expire_key_interval` - (Optional, Int) Specifies the scan interval for expire key, in seconds. It is mandatory when
+  `expire_key_enable_auto_scan` is set to **true**.
+
+* `expire_key_timeout` - (Optional, Int) Specifies the Scan timeout for expire key, in seconds. If one scan times out, a
+  failure message is returned, and the next scan can continue. The value at least twice the interval. It is mandatory when
+  `expire_key_enable_auto_scan` is set to **true**.
+
+* `expire_key_scan_keys_count` - (Optional, Int) Specifies the number of keys scanned in iteration for expire key. It is
+  mandatory when `expire_key_enable_auto_scan` is set to **true**.
+
+* `transparent_client_ip_enable` - (Optional, Bool) Specifies whether client IP pass-through is enabled.
 
 * `enterprise_project_id` - (Optional, String) The enterprise project id of the dcs instance.
 
@@ -319,11 +345,15 @@ In addition to all arguments above, the following attributes are exported:
 
 * `replica_count` - Indicates the number of replicas in the instance.
 
-* `transparent_client_ip_enable` - Indicates whether client IP pass-through is enabled.
-
 * `product_type` - Indicates the product type of the instance. The value can be: **generic** or **enterprise**.
 
 * `sharding_count` - Indicates the number of shards in a cluster instance.
+
+* `big_key_updated_at` - Indicates the time when the configuration is updated for big key.
+
+* `hot_key_updated_at` - Indicates the time when the configuration is updated for hot key.
+
+* `expire_key_updated_at` - Indicates the time when the configuration is updated for expire key.
 
 <a name="dcs_bandwidth_info"></a>
 The `bandwidth_info` block supports:
@@ -352,8 +382,8 @@ The `bandwidth_info` block supports:
 
 This resource provides the following timeouts configuration options:
 
-* `create` - Default is 120 minutes.
-* `update` - Default is 120 minutes.
+* `create` - Default is 60 minutes.
+* `update` - Default is 60 minutes.
 * `delete` - Default is 15 minutes.
 
 ## Import
@@ -374,12 +404,12 @@ align with the instance. Also you can ignore changes as below.
 
 ```hcl
 resource "sbercloud_dcs_instance" "instance_1" {
-    ...
+  ...
 
-  lifecycle {
-    ignore_changes = [
-      password, rename_commands,
-    ]
-  }
+lifecycle {
+  ignore_changes = [
+    password, rename_commands,
+  ]
+}
 }
 ```

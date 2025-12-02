@@ -36,7 +36,6 @@ import (
 	elb2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/elb"
 	"sync"
 
-	dcs2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dcs"
 	dds_sbc "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dds"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -255,6 +254,20 @@ func Provider() *schema.Provider {
 			"sbercloud_apig_signatures":                         apig.DataSourceSignatures(),
 			"sbercloud_apig_throttling_policies":                apig.DataSourceThrottlingPolicies(),
 
+			"sbercloud_as_activity_logs":   as.DataSourceActivityLogs(),
+			"sbercloud_as_configurations":  as.DataSourceASConfigurations(),
+			"sbercloud_as_group_quotas":    as.DataSourceAsGroupQuotas(),
+			"sbercloud_as_group_tags":      as.DataSourceAsGroupTags(),
+			"sbercloud_as_groups":          as.DataSourceASGroups(),
+			"sbercloud_as_hook_instances":  as.DataSourceAsHookInstances(),
+			"sbercloud_as_instances":       as.DataSourceASInstances(),
+			"sbercloud_as_lifecycle_hooks": as.DataSourceLifeCycleHooks(),
+			"sbercloud_as_notifications":   as.DataSourceAsNotifications(),
+			//"sbercloud_as_planned_tasks":       as.DataSourceAsPlannedTasks(),
+			"sbercloud_as_policies":            as.DataSourceASPolicies(),
+			"sbercloud_as_policy_execute_logs": as.DataSourcePolicyExecuteLogs(),
+			"sbercloud_as_quotas":              as.DataSourceAsQuotas(),
+
 			"sbercloud_css_flavors": css_huawei.DataSourceCssFlavors(),
 
 			"sbercloud_cfw_firewalls":                 cfw.DataSourceFirewalls(),
@@ -315,7 +328,7 @@ func Provider() *schema.Provider {
 
 			"sbercloud_dms_product":               dms.DataSourceDmsProduct(),
 			"sbercloud_dms_maintainwindow":        dms.DataSourceDmsMaintainWindow(),
-			"sbercloud_dms_kafka_instances":       kafka.DataSourceDmsKafkaInstances(),
+			"sbercloud_dms_kafka_instances":       kafka.DataSourceInstances(),
 			"sbercloud_dms_kafka_flavors":         kafka.DataSourceKafkaFlavors(),
 			"sbercloud_dms_kafka_users":           kafka.DataSourceDmsKafkaUsers(),
 			"sbercloud_dms_kafka_messages":        kafka.DataSourceDmsKafkaMessages(),
@@ -482,6 +495,12 @@ func Provider() *schema.Provider {
 			"sbercloud_as_group":            as.ResourceASGroup(),
 			"sbercloud_as_policy":           as.ResourceASPolicy(),
 			"sbercloud_as_bandwidth_policy": as.ResourceASBandWidthPolicy(),
+			"sbercloud_as_execute_policy":   as.ResourceExecutePolicy(),
+			"sbercloud_as_lifecycle_hook":   as.ResourceASLifecycleHook(),
+			"sbercloud_as_instance_attach":  as.ResourceASInstanceAttach(),
+			"sbercloud_as_notification":     as.ResourceAsNotification(),
+			//"sbercloud_as_planned_task":            as.ResourcePlannedTask(),
+			"sbercloud_as_lifecycle_hook_callback": as.ResourceLifecycleHookCallBack(),
 
 			"sbercloud_cbr_backup_share_accepter": cbr.ResourceBackupShareAccepter(),
 			"sbercloud_cbr_backup_share":          cbr.ResourceBackupShare(),
@@ -542,9 +561,9 @@ func Provider() *schema.Provider {
 			"sbercloud_cts_data_tracker": cts.ResourceCTSDataTracker(),
 			"sbercloud_cts_notification": cts.ResourceCTSNotification(),
 
-			"sbercloud_dcs_instance":   dcs2.ResourceDcsInstance(),
+			"sbercloud_dcs_instance":   dcs.ResourceDcsInstance(),
 			"sbercloud_dcs_backup":     dcs.ResourceDcsBackup(),
-			"sbercloud_dcs_restore":    dcs2.ResourceDcsRestore(),
+			"sbercloud_dcs_restore":    dcs.ResourceDcsRestore(),
 			"sbercloud_dcs_parameters": deprecated_sbc.ResourceDcsParameters(),
 			"sbercloud_dcs_account":    dcs.ResourceDcsAccount(),
 

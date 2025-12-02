@@ -102,6 +102,14 @@ var (
 	SBC_DMS_KAFKA_INSTANCE_ID = os.Getenv("SBC_DMS_KAFKA_INSTANCE_ID")
 
 	SBC_ELB_GATEWAY_TYPE = os.Getenv("SBC_ELB_GATEWAY_TYPE")
+
+	SBC_AS_SCALING_GROUP_ID         = os.Getenv("SBC_AS_SCALING_GROUP_ID")
+	SBC_AS_SCALING_CONFIGURATION_ID = os.Getenv("SBC_AS_SCALING_CONFIGURATION_ID")
+	SBC_IMS_DATA_DISK_IMAGE_ID      = os.Getenv("SBC_IMS_DATA_DISK_IMAGE_ID")
+	SBC_AS_SCALING_POLICY_ID        = os.Getenv("SBC_AS_SCALING_POLICY_ID")
+	SBC_AS_LIFECYCLE_HOOK_NAME      = os.Getenv("SBC_AS_LIFECYCLE_HOOK_NAME")
+	SBC_AS_INSTANCE_ID              = os.Getenv("SBC_AS_INSTANCE_ID")
+	SBC_AS_LIFECYCLE_ACTION_KEY     = os.Getenv("SBC_AS_LIFECYCLE_ACTION_KEY")
 )
 
 // TestAccProviderFactories is a static map containing only the main provider instance
@@ -697,10 +705,57 @@ func TestAccPreCheckDMSKafkaInstanceID(t *testing.T) {
 	}
 }
 
-// lintignore:AT003
 func TestAccPreCheckElbGatewayType(t *testing.T) {
 	if SBC_ELB_GATEWAY_TYPE == "" {
 		t.Skip("SBC_ELB_GATEWAY_TYPE must be set for the acceptance test")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckASScalingConfigurationID(t *testing.T) {
+	if SBC_AS_SCALING_CONFIGURATION_ID == "" {
+		t.Skip("SBC_AS_SCALING_CONFIGURATION_ID must be set for the acceptance test")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckAsDataDiskImageId(t *testing.T) {
+	if SBC_IMS_DATA_DISK_IMAGE_ID == "" {
+		t.Skip("SBC_IMS_DATA_DISK_IMAGE_ID must be set for the acceptance test")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckASScalingPolicyID(t *testing.T) {
+	if SBC_AS_SCALING_POLICY_ID == "" {
+		t.Skip("SBC_AS_SCALING_POLICY_ID must be set for the acceptance test")
+	}
+}
+
+func TestAccPreCheckASScalingGroupID(t *testing.T) {
+	if SBC_AS_SCALING_GROUP_ID == "" {
+		t.Skip("SBC_AS_SCALING_GROUP_ID must be set for the acceptance test")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckASLifecycleHookName(t *testing.T) {
+	if SBC_AS_LIFECYCLE_HOOK_NAME == "" {
+		t.Skip("SBC_AS_LIFECYCLE_HOOK_NAME must be set for the acceptance test")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckASINSTANCEID(t *testing.T) {
+	if SBC_AS_INSTANCE_ID == "" {
+		t.Skip("SBC_AS_INSTANCE_ID must be set for the acceptance test")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckASLifecycleActionKey(t *testing.T) {
+	if SBC_AS_LIFECYCLE_ACTION_KEY == "" {
+		t.Skip("SBC_AS_LIFECYCLE_ACTION_KEY must be set for the acceptance test")
 	}
 }
 
