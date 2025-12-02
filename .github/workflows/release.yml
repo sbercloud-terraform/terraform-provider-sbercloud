@@ -9,23 +9,19 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      packages: write
     
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
           go-version: '>=1.21'
+          cache: true
       
       - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc "$AGENT_TOOLSDIRECTORY"
-          df -h
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc "$AGENT_TOOLSDIRECTORY" 2>/dev/null || true
       
       - name: Import GPG key
         id: import_gpg
@@ -34,10 +30,8 @@ jobs:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.PASSPHRASE }}
       
-      - name: GoReleaser Release
-        uses: goreleaser/goreleaser-action@v6
+      - uses: goreleaser/goreleaser-action@v6
         with:
-          distribution: goreleaser
           version: '~> v2'
           args: release --clean --timeout=180m --parallelism=1
         env:
