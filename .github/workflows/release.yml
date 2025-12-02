@@ -9,7 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      packages: write
     
     steps:
       - name: Checkout
@@ -23,14 +22,16 @@ jobs:
           go-version: '>=1.21'
           cache: true
       
-      - name: Free disk space (важно!)
+      - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc "$AGENT_TOOLSDIRECTORY" 2>/dev/null || true
-          df -h
       
-      - name: Install GoReleaser (вручную — это главное!)
+      - name: Install GoReleaser
         run: |
-          curl -sfL https://goreleaser.com/static/run | bash
+          mkdir -p ~/.local/bin
+          curl -L https://github.com/goreleaser/goreleaser/releases/download/v2.13.0/goreleaser_Linux_x86_64.tar.gz | tar xz -C ~/.local/bin goreleaser
+          chmod +x ~/.local/bin/goreleaser
+          echo "$HOME/.local/bin" >> $GITHUB_PATH   # ← это главное!
           goreleaser --version
       
       - name: Import GPG key
@@ -40,13 +41,9 @@ jobs:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.PASSPHRASE }}
       
-      - name: GoReleaser Release
+      - name: Release
         env:
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          goreleaser release \
-            --clean \
-            --rm-dist \
-            --timeout=180m \
-            --parallelism=1
+          goreleaser release --clean --rm-dist --timeout=180m --parallelism=1
