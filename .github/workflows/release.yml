@@ -16,6 +16,8 @@ jobs:
       
       - name: Set up Go
         uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
         
       - name: Cleanup before build
         uses: jlumbroso/free-disk-space@v1.3.1
