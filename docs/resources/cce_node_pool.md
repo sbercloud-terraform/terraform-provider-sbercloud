@@ -451,7 +451,7 @@ The `extend_params` block supports:
 * `preinstall` - (Optional, String, ForceNew) Specifies the script to be executed before installation.
   The input value can be a Base64 encoded string or not. Changing this parameter will create a new resource.
 
-* `postinstall` - (Optional, String, ForceNew) Specifies the script to be executed after installation.
+* `postinstall` - (Optional, String, NonUpdatable) Specifies the script to be executed after installation.
   The input value can be a Base64 encoded string or not. Changing this parameter will create a new resource.
 
 * `node_image_id` - (Optional, String, ForceNew) Specifies the image ID to create the node.
