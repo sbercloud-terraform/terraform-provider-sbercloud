@@ -14,6 +14,7 @@ provider "sbercloud" {
   region     = "ru-moscow-1"
   access_key = "my-access-key"
   secret_key = "my-secret-key"
+  rate_limit = 80  # Limit to 80 requests per second (optional, default is 0 = unlimited)
 }
 
 # Create a VPC
@@ -67,6 +68,7 @@ Usage:
 $ export SBC_ACCESS_KEY="user-name"
 $ export SBC_SECRET_KEY="password"
 $ export SBC_REGION_NAME="ru-moscow-1"
+$ export SBC_RATE_LIMIT="80"  # Optional: limit to 80 requests per second
 $ terraform plan
 ```
 
@@ -108,6 +110,13 @@ The following arguments are supported:
 
 * `enterprise_project_id` - (Optional) Default Enterprise Project ID for supported resources.
   If omitted, the `SBC_ENTERPRISE_PROJECT_ID` environment variable is used.
+
+* `rate_limit` - (Optional) The maximum number of requests per second to SberCloud API.
+  Set to `0` (default) for unlimited requests. SberCloud has a limit of 100 requests per second,
+  so recommended values are `80-90` to stay under the limit with a safe margin.
+  The rate limiter uses a Token Bucket algorithm and will wait (block) when the limit is reached
+  instead of failing. This applies globally to all API requests (VPC, RDS, IAM, CCE, etc.).
+  If omitted, the `SBC_RATE_LIMIT` environment variable is used.
 
 
 ## Testing and Development
