@@ -203,6 +203,12 @@ func Provider() *schema.Provider {
 				Description: descriptions["max_retries"],
 				DefaultFunc: schema.EnvDefaultFunc("SBC_MAX_RETRIES", 5),
 			},
+			"rate_limit": {
+				Type:        schema.TypeInt,
+				Optional:    true,
+				Description: descriptions["rate_limit"],
+				DefaultFunc: schema.EnvDefaultFunc("SBC_RATE_LIMIT", 0),
+			},
 			"domain_id": {
 				Type:        schema.TypeString,
 				Optional:    true,
@@ -821,6 +827,11 @@ func init() {
 		"insecure": "Trust self-signed certificates.",
 
 		"endpoints": "The custom endpoints used to override the default endpoint URL.",
+
+		"max_retries": "The maximum number of times an HTTP request is retried.",
+
+		"rate_limit": "The maximum number of requests per second to SberCloud API. " +
+			"Set to 0 (default) for unlimited. Recommended value is 80-90 to stay under SberCloud limit of 100 req/s.",
 	}
 }
 
@@ -863,6 +874,28 @@ func configureProvider(_ context.Context, d *schema.ResourceData, terraformVersi
 
 	if err := config.LoadAndValidate(); err != nil {
 		return nil, diag.FromErr(err)
+	}
+
+	// Apply rate limiter to HTTP clients if configured
+	rateLimit := d.Get("rate_limit").(int)
+	if rateLimit > 0 {
+		log.Printf("[INFO] Configuring rate limiter with %d requests per second", rateLimit)
+
+		// Apply rate limiter to HwClient (main client for most operations)
+		if config.HwClient != nil {
+			originalTransport := config.HwClient.HTTPClient.Transport
+			rateLimitedTransport := NewRateLimitedTransport(rateLimit, originalTransport)
+			config.HwClient.HTTPClient.Transport = rateLimitedTransport
+		}
+
+		// Apply rate limiter to DomainClient (for domain/account operations)
+		if config.DomainClient != nil {
+			originalTransport := config.DomainClient.HTTPClient.Transport
+			rateLimitedTransport := NewRateLimitedTransport(rateLimit, originalTransport)
+			config.DomainClient.HTTPClient.Transport = rateLimitedTransport
+		}
+
+		log.Printf("[INFO] Rate limiter enabled: %d requests per second", rateLimit)
 	}
 
 	if config.HwClient != nil && config.HwClient.ProjectID != "" {
