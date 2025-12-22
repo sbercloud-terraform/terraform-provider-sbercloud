@@ -83,9 +83,11 @@ func TestRateLimitedTransport_WithLimit(t *testing.T) {
 		t.Errorf("Expected 10 requests, got %d", count)
 	}
 
-	// Should take at least 1 second (10 requests / 5 req/s = 2s, with some margin for burst)
-	if duration < 1000*time.Millisecond {
-		t.Errorf("Requests completed too quickly: %v (expected >= 1.0s)", duration)
+	// With burst=1 and rate=5 req/s: first request is immediate, then 9 requests at 200ms intervals
+	// Total time: 0 + 9*200ms = 1.8s minimum
+	// Should take at least 1.5 seconds (with some margin for the first request)
+	if duration < 1500*time.Millisecond {
+		t.Errorf("Requests completed too quickly: %v (expected >= 1.5s)", duration)
 	}
 
 	// Should not take more than 3 seconds (with reasonable margin)

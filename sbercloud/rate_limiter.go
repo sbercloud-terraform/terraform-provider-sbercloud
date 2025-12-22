@@ -65,8 +65,9 @@ func NewRateLimitedTransport(rateLimit int, baseTransport http.RoundTripper) *Ra
 	// Only create limiter if rate limit is specified and greater than 0
 	if rateLimit > 0 {
 		// rate.Limit(rateLimit) = requests per second
-		// rateLimit = burst size (allows burst of N requests before rate limiting kicks in)
-		transport.Limiter = rate.NewLimiter(rate.Limit(rateLimit), rateLimit)
+		// burst size = 1 to prevent concurrent requests that could trigger 429 errors
+		// This ensures only one request can proceed at a time, preventing API rate limit bursts
+		transport.Limiter = rate.NewLimiter(rate.Limit(rateLimit), 1)
 	}
 
 	return transport
