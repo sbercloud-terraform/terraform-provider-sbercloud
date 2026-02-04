@@ -48,10 +48,6 @@ data "sbercloud_dms_rabbitmq_flavors" "test" {
 
 * `flavor_id` - (Optional, String) Specifies the DMS flavor ID, e.g. **c6.2u4g.cluster**.
 
-* `storage_spec_code` - (Optional, String) Specifies the disk IO encoding.
-    + **dms.physical.storage.high.v2**: Type of the disk that uses high I/O.
-    + **dms.physical.storage.ultra.v2**: Type of the disk that uses ultra-high I/O.
-
 * `type` - (Optional, String) Specifies flavor type. The valid values are **single** and **cluster**.
 
 * `arch_type` - (Optional, String) Specifies the type of CPU architecture, e.g. **X86**.
@@ -96,8 +92,6 @@ The `flavors` block supports:
 
 <a name="dms_rabbitmq_flavor_ios"></a>
 The `ios` block supports:
-
-* `storage_spec_code` - Indicates the disk IO encoding.
 
 * `type` - The disk type.
 
