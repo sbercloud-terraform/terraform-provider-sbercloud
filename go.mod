@@ -11,6 +11,7 @@ require (
 	github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.112
 	github.com/huaweicloud/terraform-provider-huaweicloud v1.80.4
 	github.com/tidwall/gjson v1.17.1
+	golang.org/x/time v0.14.0
 )
 
 require (
