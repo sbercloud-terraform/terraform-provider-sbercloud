@@ -1,5 +1,5 @@
 TEST?=$$(go list ./... |grep -v 'vendor')
-TEST_PARALLELISM?=1
+TEST_PARALLELISM?=4
 GOFMT_FILES?=$$(find . -name '*.go' |grep -v vendor)
 PKG_NAME=sbercloud
 

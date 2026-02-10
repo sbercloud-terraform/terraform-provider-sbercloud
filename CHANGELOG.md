@@ -1,3 +1,13 @@
+## 1.12.16 (Feb 8, 2026)
+
+ENHANCEMENTS:
+* PR API rate limit
+* Upgrade to terraform-provider-huaweicloud `v1.80.4`.
+* Updated dependencies.
+* Updated documentation
+
+
+
 ## 1.12.2 (Aug 15, 2024)
 
 FEATURES:
