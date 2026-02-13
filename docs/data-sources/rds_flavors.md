@@ -38,8 +38,8 @@ SQLServer| 2012_SE <br>2014_SE <br>2016_SE <br>2017_SE <br>2012_EE <br>2014_EE <
 * `memory` - (Optional, Int) Specifies the memory size(GB) in the RDS flavor.
 
 * `group_type` - (Optional, String) Specifies the performance specification, the valid values are as follows:
-  + **normal**: General enhanced.
-  + **normal2**: General enhanced type II.
+  + **dedicated**
+  + **general**: General enhanced.
 
 
 * `availability_zone` - (Optional, String) Specifies the availability zone which the RDS flavor belongs to.
