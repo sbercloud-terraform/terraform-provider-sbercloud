@@ -1,4 +1,4 @@
-Terraform SberCloud Provider
+Terraform Cloud.ru Provider
 ==============================
 
 - Website: https://www.terraform.io
