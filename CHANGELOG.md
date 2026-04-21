@@ -1,3 +1,8 @@
+## 1.12.17
+
+* Upgrade to terraform-provider-huaweicloud `v1.81.0`.
+
+
 ## 1.12.16 (Feb 8, 2026)
 
 ENHANCEMENTS:
