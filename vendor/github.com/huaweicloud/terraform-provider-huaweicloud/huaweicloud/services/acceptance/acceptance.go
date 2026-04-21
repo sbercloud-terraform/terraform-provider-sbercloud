@@ -116,6 +116,7 @@ var (
 
 	HW_WAF_ENABLE_FLAG                          = os.Getenv("HW_WAF_ENABLE_FLAG")
 	HW_WAF_SECURITY_REPORT_SUBSCRIPTION_ID      = os.Getenv("HW_WAF_SECURITY_REPORT_SUBSCRIPTION_ID")
+	HW_WAF_SECURITY_REPORT_ID                   = os.Getenv("HW_WAF_SECURITY_REPORT_ID")
 	HW_WAF_PRECHECK_GEO_IP_POLICY_RULES         = os.Getenv("HW_WAF_PRECHECK_GEO_IP_POLICY_RULES")
 	HW_WAF_PRECHECK_IP_REPUTATION_POLICY_RULES  = os.Getenv("HW_WAF_PRECHECK_IP_REPUTATION_POLICY_RULES")
 	HW_WAF_CERTIFICATE_ID                       = os.Getenv("HW_WAF_CERTIFICATE_ID")
@@ -186,7 +187,8 @@ var (
 	HW_RMS_REQUESTER_ACCOUNT_ID              = os.Getenv("HW_RMS_REQUESTER_ACCOUNT_ID")
 	HW_RMS_POLICY_ASSIGNMENT_EVALUATION_HASH = os.Getenv("HW_RMS_POLICY_ASSIGNMENT_EVALUATION_HASH")
 
-	HW_CDN_DOMAIN_NAME = os.Getenv("HW_CDN_DOMAIN_NAME")
+	HW_CDN_DOMAIN_NAME  = os.Getenv("HW_CDN_DOMAIN_NAME")
+	HW_CDN_DOMAIN_NAMES = os.Getenv("HW_CDN_DOMAIN_NAMES")
 	// `HW_CDN_CERT_DOMAIN_NAME` Configure the domain name environment variable of the certificate type.
 	HW_CDN_CERT_DOMAIN_NAME   = os.Getenv("HW_CDN_CERT_DOMAIN_NAME")
 	HW_CDN_DOMAIN_URL         = os.Getenv("HW_CDN_DOMAIN_URL")
@@ -221,8 +223,12 @@ var (
 	HW_SMS_SOURCE_SERVER = os.Getenv("HW_SMS_SOURCE_SERVER")
 	HW_SMS_TASK_ID       = os.Getenv("HW_SMS_TASK_ID")
 
-	HW_DLI_AUTHORIZED_USER_NAME         = os.Getenv("HW_DLI_AUTHORIZED_USER_NAME")
-	HW_DLI_FLINK_JAR_OBS_PATH           = os.Getenv("HW_DLI_FLINK_JAR_OBS_PATH")
+	HW_DLI_AUTHORIZED_USER_NAME      = os.Getenv("HW_DLI_AUTHORIZED_USER_NAME")
+	HW_DLI_FLINK_JAR_OBS_PATH        = os.Getenv("HW_DLI_FLINK_JAR_OBS_PATH")
+	HW_DLI_FLINK_JAR_OBS_BUCKET_NAME = os.Getenv("HW_DLI_FLINK_JAR_OBS_BUCKET_NAME")
+	// The list of DLI Flink Jar agency names. Using commas (,) to separate multiple names.
+	HW_DLI_FLINK_JAR_AGENCY_NAMES = os.Getenv("HW_DLI_FLINK_JAR_AGENCY_NAMES")
+
 	HW_DLI_DS_AUTH_CSS_OBS_PATH         = os.Getenv("HW_DLI_DS_AUTH_CSS_OBS_PATH")
 	HW_DLI_DS_AUTH_KAFKA_TRUST_OBS_PATH = os.Getenv("HW_DLI_DS_AUTH_KAFKA_TRUST_OBS_PATH")
 	HW_DLI_DS_AUTH_KAFKA_KEY_OBS_PATH   = os.Getenv("HW_DLI_DS_AUTH_KAFKA_KEY_OBS_PATH")
@@ -733,6 +739,7 @@ var (
 	HW_HSS_DOMAIN      = os.Getenv("HW_HSS_DOMAIN")
 	HW_HSS_IAC_FILE_ID = os.Getenv("HW_HSS_IAC_FILE_ID")
 	HW_HSS_TASK_ID     = os.Getenv("HW_HSS_TASK_ID")
+	HW_HSS_AGENT_ID    = os.Getenv("HW_HSS_AGENT_ID")
 
 	HW_DDM_INSTANCE_ID = os.Getenv("HW_DDM_INSTANCE_ID")
 	HW_DDM_PROCESS_ID  = os.Getenv("HW_DDM_PROCESS_ID")
@@ -1346,6 +1353,13 @@ func TestAccPrecheckWafSecurityReportSubscription(t *testing.T) {
 }
 
 // lintignore:AT003
+func TestAccPrecheckWafSecurityReportId(t *testing.T) {
+	if HW_WAF_SECURITY_REPORT_ID == "" {
+		t.Skip("HW_WAF_SECURITY_REPORT_ID must be set for WAF security report ID acceptance tests.")
+	}
+}
+
+// lintignore:AT003
 func TestAccPrecheckWafGeoIpPolicyRules(t *testing.T) {
 	if HW_WAF_PRECHECK_GEO_IP_POLICY_RULES == "" {
 		t.Skip("Skip the WAF geo IP policy rules acceptance tests.")
@@ -1862,6 +1876,21 @@ func TestAccPreCheckDliAuthorizedUserConfigured(t *testing.T) {
 func TestAccPreCheckDliJarPath(t *testing.T) {
 	if HW_DLI_FLINK_JAR_OBS_PATH == "" {
 		t.Skip("HW_DLI_FLINK_JAR_OBS_PATH must be set for DLI Flink Jar job acceptance tests.")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckDliFlinkJarObsBucketName(t *testing.T) {
+	if HW_DLI_FLINK_JAR_OBS_BUCKET_NAME == "" {
+		t.Skip("HW_DLI_FLINK_JAR_OBS_BUCKET_NAME must be set for DLI Flink Jar job acceptance tests.")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckDliFlinkJarAgencyNames(t *testing.T, min int) {
+	if HW_DLI_FLINK_JAR_AGENCY_NAMES == "" || len(strings.Split(HW_DLI_FLINK_JAR_AGENCY_NAMES, ",")) < min {
+		t.Skipf(`At least %d agency name(s) must be supported during the HW_DLI_FLINK_JAR_AGENCY_NAMES, separated by 
+		commas (,).`, min)
 	}
 }
 
@@ -3353,9 +3382,16 @@ func TestAccPreCheckCCISecretDockerconfigjson(t *testing.T) {
 }
 
 // lintignore:AT003
-func TestAccPreCheckCDN(t *testing.T) {
+func TestAccPreCheckCdnDomainName(t *testing.T) {
 	if HW_CDN_DOMAIN_NAME == "" {
-		t.Skip("This environment does not support CDN tests")
+		t.Skip("HW_CDN_DOMAIN_NAME must be set for the acceptance test")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckCdntDomainNames(t *testing.T, n int) {
+	if HW_CDN_DOMAIN_NAMES == "" || len(strings.Split(HW_CDN_DOMAIN_NAMES, ",")) < n {
+		t.Skipf("at lease %d domain name(s) for HW_CDN_DOMAIN_NAMES must be set, separated by the comma (,) character", n)
 	}
 }
 
@@ -3375,7 +3411,7 @@ func TestAccPreCheckCDNURL(t *testing.T) {
 
 // lintignore:AT003
 func TestAccPreCheckCDNTargetDomainUrls(t *testing.T, n int) {
-	if len(strings.Split(HW_CDN_TARGET_DOMAIN_URLS, ",")) < n {
+	if HW_CDN_TARGET_DOMAIN_URLS == "" || len(strings.Split(HW_CDN_TARGET_DOMAIN_URLS, ",")) < n {
 		t.Skipf("at lease %d domain URL(s) for HW_CDN_TARGET_DOMAIN_URLS must be set, separated by the comma (,) character", n)
 	}
 }
@@ -3892,6 +3928,13 @@ func TestAccPreCheckHSSIACFileId(t *testing.T) {
 func TestAccPreCheckHSSTaskId(t *testing.T) {
 	if HW_HSS_TASK_ID == "" {
 		t.Skip("HW_HSS_TASK_ID must be set for the acceptance test")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckHSSAgentId(t *testing.T) {
+	if HW_HSS_AGENT_ID == "" {
+		t.Skip("HW_HSS_AGENT_ID must be set for the acceptance test")
 	}
 }
 

@@ -5,11 +5,11 @@ go 1.24.0
 toolchain go1.24.10
 
 require (
-	github.com/chnsz/golangsdk v0.0.0-20251031032404-e389c83d8bc7
+	github.com/chnsz/golangsdk v0.0.0-20251127015004-ebde1bc60776
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.38.1
 	github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.112
-	github.com/huaweicloud/terraform-provider-huaweicloud v1.80.4
+	github.com/huaweicloud/terraform-provider-huaweicloud v1.81.0
 	github.com/tidwall/gjson v1.17.1
 	golang.org/x/time v0.14.0
 )
@@ -72,9 +72,9 @@ require (
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	github.com/zclconf/go-cty v1.17.0 // indirect
 	go.mongodb.org/mongo-driver v1.17.6 // indirect
-	golang.org/x/crypto v0.44.0 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/mod v0.29.0 // indirect
-	golang.org/x/net v0.46.0 // indirect
+	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
