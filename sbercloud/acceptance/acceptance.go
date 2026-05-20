@@ -783,48 +783,57 @@ func TestAccPreCheckASLifecycleActionKey(t *testing.T) {
 	}
 }
 
+// lintignore:AT003
 func TestAccPreCheckKpsKeypairKey(t *testing.T) {
 	if SBC_KPS_KEYPAIR_KEY_1 == "" {
 		t.Skip("SBC_KPS_KEYPAIR_KEY_1 must be set for acceptance tests.")
 	}
 }
 
+// lintignore:AT003
 func TestAccPreCheckKpsKeyPair(t *testing.T) {
 	if SBC_KPS_KEYPAIR_NAME_1 == "" || SBC_KPS_KEYPAIR_NAME_2 == "" || SBC_KPS_KEYPAIR_KEY_1 == "" || SBC_KPS_KEYPAIR_SSH_PORT == "" {
 		t.Skip("SBC_KPS_KEYPAIR_NAME_1, SBC_KPS_KEYPAIR_NAME_2, SBC_KPS_KEYPAIR_KEY_1, SBC_KPS_KEYPAIR_SSH_PORT must be set for the acceptance tests.")
 	}
 }
 
+// lintignore:AT003
 func TestAccPreCheckECSAccount(t *testing.T) {
 	if SBC_ECS_ID == "" || SBC_ECS_ROOT_PWD == "" {
 		t.Skip("SBC_ECS_ID, SBC_ECS_ROOT_PWD must be set for the acceptance test")
 	}
 }
 
+// lintignore:AT003
 func TestAccPreCheckKpsSSHPort(t *testing.T) {
 	if SBC_KPS_KEYPAIR_SSH_PORT == "" {
 		t.Skip("SBC_KPS_KEYPAIR_SSH_PORT must be set for acceptance tests.")
 	}
 }
 
+// lintignore:AT003
 func TestAccPreCheckECSID(t *testing.T) {
 	if SBC_ECS_ID == "" {
 		t.Skip("SBC_ECS_ID must be set for the acceptance test")
 	}
 }
 
+// lintignore:AT003
 func RandomAccResourceName() string {
 	return fmt.Sprintf("tf_acc_test_%s", acctest.RandString(5))
 }
 
+// lintignore:AT003
 func RandomAccResourceNameWithDash() string {
 	return fmt.Sprintf("tf-acc-test-%s", acctest.RandString(5))
 }
 
+// lintignore:AT003
 func RandomCidr() string {
 	return fmt.Sprintf("172.16.%d.0/24", acctest.RandIntRange(0, 255))
 }
 
+// lintignore:AT003
 func RandomCidrAndGatewayIp() (string, string) {
 	seed := acctest.RandIntRange(0, 255)
 	return fmt.Sprintf("172.16.%d.0/24", seed), fmt.Sprintf("172.16.%d.1", seed)
