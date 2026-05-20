@@ -5,8 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/acceptance"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 )
 
 func TestAccDataSourceDcConnectGatewayGeips_basic(t *testing.T) {
@@ -93,5 +92,5 @@ data "sbercloud_dc_connect_gateway_geips" "sort_filter" {
 output "sort_filter_is_useful" {
   value = length(data.sbercloud_dc_connect_gateway_geips.sort_filter.global_eips) > 0
 }
-`, testResourceDcConnectGatewayGeipAssociate_basic(), acceptance.HW_DC_CONNECT_GATEWAY_ID, acceptance.HW_GLOBAL_EIP_ID)
+`, testResourceDcConnectGatewayGeipAssociate_basic(), acceptance.SBC_DC_CONNECT_GATEWAY_ID, acceptance.SBC_GLOBAL_EIP_ID)
 }

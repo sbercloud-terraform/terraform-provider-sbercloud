@@ -6,8 +6,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/acceptance"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/acceptance/common"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 )
 
 func TestAccDataSourceDcResourcesByTags_basic(t *testing.T) {
@@ -64,7 +63,7 @@ resource "sbercloud_dc_virtual_gateway" "test" {
     key = "value"
   }
 }
-`, common.TestVpc(name), name)
+`, acceptance.TestVpc(name), name)
 }
 
 func testDataSourceDcResourcesByTags_basic(name string) string {

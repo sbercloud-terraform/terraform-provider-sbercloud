@@ -11,12 +11,12 @@ import (
 	"github.com/chnsz/golangsdk"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/acceptance"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 )
 
 func getResourceDcGlobalGatewayFunc(cfg *config.Config, state *terraform.ResourceState) (interface{}, error) {
-	client, err := cfg.NewServiceClient("dc", acceptance.HW_REGION_NAME)
+	client, err := cfg.NewServiceClient("dc", acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return nil, fmt.Errorf("error creating DC client: %s", err)
 	}
@@ -67,7 +67,7 @@ func TestAccResourceDcGlobalGateway_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "name", randName),
 					resource.TestCheckResourceAttr(resourceName, "description", "test description"),
 					resource.TestCheckResourceAttr(resourceName, "bgp_asn", "10"),
-					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", acceptance.HW_ENTERPRISE_PROJECT_ID_TEST),
+					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST),
 					resource.TestCheckResourceAttr(resourceName, "address_family", "ipv4"),
 					resource.TestCheckResourceAttr(resourceName, "tags.%", "2"),
 					resource.TestCheckResourceAttr(resourceName, "tags.foo", "bar"),
@@ -87,7 +87,7 @@ func TestAccResourceDcGlobalGateway_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "name", fmt.Sprintf("%s_update", randName)),
 					resource.TestCheckResourceAttr(resourceName, "description", "test description update"),
 					resource.TestCheckResourceAttr(resourceName, "bgp_asn", "10"),
-					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", acceptance.HW_ENTERPRISE_PROJECT_ID_TEST),
+					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST),
 					resource.TestCheckResourceAttr(resourceName, "address_family", "dual"),
 					resource.TestCheckResourceAttr(resourceName, "tags.%", "2"),
 					resource.TestCheckResourceAttrSet(resourceName, "current_peer_link_count"),
@@ -105,7 +105,7 @@ func TestAccResourceDcGlobalGateway_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "name", fmt.Sprintf("%s_update", randName)),
 					resource.TestCheckResourceAttr(resourceName, "description", ""),
 					resource.TestCheckResourceAttr(resourceName, "bgp_asn", "10"),
-					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", acceptance.HW_ENTERPRISE_PROJECT_ID_TEST),
+					resource.TestCheckResourceAttr(resourceName, "enterprise_project_id", acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST),
 					resource.TestCheckResourceAttr(resourceName, "address_family", "ipv4"),
 					resource.TestCheckResourceAttr(resourceName, "tags.%", "2"),
 					resource.TestCheckResourceAttrSet(resourceName, "current_peer_link_count"),
@@ -144,7 +144,7 @@ resource "sbercloud_dc_global_gateway" "test" {
     key = "value"
   }
 }
-`, name, acceptance.HW_ENTERPRISE_PROJECT_ID_TEST)
+`, name, acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST)
 }
 
 func testResourceDcGlobalGateway_basic_update1(name string) string {
@@ -161,7 +161,7 @@ resource "sbercloud_dc_global_gateway" "test" {
     key = "value"
   }
 }
-`, name, acceptance.HW_ENTERPRISE_PROJECT_ID_TEST)
+`, name, acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST)
 }
 
 func testResourceDcGlobalGateway_basic_update2(name string) string {
@@ -177,5 +177,5 @@ resource "sbercloud_dc_global_gateway" "test" {
     key = "value"
   }
 }
-`, name, acceptance.HW_ENTERPRISE_PROJECT_ID_TEST)
+`, name, acceptance.SBC_ENTERPRISE_PROJECT_ID_TEST)
 }

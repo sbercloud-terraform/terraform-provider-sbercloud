@@ -10,11 +10,11 @@ import (
 	"github.com/chnsz/golangsdk/openstack/dc/v3/gateways"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/acceptance"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 )
 
 func getVirtualGatewayFunc(conf *config.Config, state *terraform.ResourceState) (interface{}, error) {
-	client, err := conf.DcV3Client(acceptance.HW_REGION_NAME)
+	client, err := conf.DcV3Client(acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return nil, fmt.Errorf("error creating DC v3 client: %s", err)
 	}

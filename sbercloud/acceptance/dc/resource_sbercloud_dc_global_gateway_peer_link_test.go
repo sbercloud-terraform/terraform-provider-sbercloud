@@ -8,12 +8,12 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/acceptance"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dc"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 )
 
 func getResourceDcGlobalGatewayPeerLinkFunc(cfg *config.Config, state *terraform.ResourceState) (interface{}, error) {
-	client, err := cfg.NewServiceClient("dc", acceptance.HW_REGION_NAME)
+	client, err := cfg.NewServiceClient("dc", acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return nil, fmt.Errorf("error creating DC client: %s", err)
 	}
@@ -50,11 +50,11 @@ func TestAccResourceDcGlobalGatewayPeerLink_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					rc.CheckResourceExists(),
 					resource.TestCheckResourceAttr(resourceName, "name", randName),
-					resource.TestCheckResourceAttr(resourceName, "global_dc_gateway_id", acceptance.HW_DC_GLOBAL_GATEWAY_ID),
+					resource.TestCheckResourceAttr(resourceName, "global_dc_gateway_id", acceptance.SBC_DC_GLOBAL_GATEWAY_ID),
 					resource.TestCheckResourceAttr(resourceName, "peer_site.#", "1"),
-					resource.TestCheckResourceAttr(resourceName, "peer_site.0.gateway_id", acceptance.HW_ER_INSTANCE_ID),
-					resource.TestCheckResourceAttr(resourceName, "peer_site.0.project_id", acceptance.HW_PROJECT_ID),
-					resource.TestCheckResourceAttr(resourceName, "peer_site.0.region_id", acceptance.HW_REGION_NAME),
+					resource.TestCheckResourceAttr(resourceName, "peer_site.0.gateway_id", acceptance.SBC_ER_INSTANCE_ID),
+					resource.TestCheckResourceAttr(resourceName, "peer_site.0.project_id", acceptance.SBC_PROJECT_ID),
+					resource.TestCheckResourceAttr(resourceName, "peer_site.0.region_id", acceptance.SBC_REGION_NAME),
 					resource.TestCheckResourceAttr(resourceName, "description", "test description"),
 					resource.TestCheckResourceAttr(resourceName, "bandwidth_info.#", "1"),
 
@@ -119,7 +119,7 @@ resource "sbercloud_dc_global_gateway_peer_link" "test" {
     region_id  = "%[5]s"
   }
 }
-`, name, acceptance.HW_DC_GLOBAL_GATEWAY_ID, acceptance.HW_ER_INSTANCE_ID, acceptance.HW_PROJECT_ID, acceptance.HW_REGION_NAME)
+`, name, acceptance.SBC_DC_GLOBAL_GATEWAY_ID, acceptance.SBC_ER_INSTANCE_ID, acceptance.SBC_PROJECT_ID, acceptance.SBC_REGION_NAME)
 }
 
 func testResourceDcGlobalGatewayPeerLink_update1(name string) string {
@@ -135,7 +135,7 @@ resource "sbercloud_dc_global_gateway_peer_link" "test" {
     region_id  = "%[5]s"
   }
 }
-`, name, acceptance.HW_DC_GLOBAL_GATEWAY_ID, acceptance.HW_ER_INSTANCE_ID, acceptance.HW_PROJECT_ID, acceptance.HW_REGION_NAME)
+`, name, acceptance.SBC_DC_GLOBAL_GATEWAY_ID, acceptance.SBC_ER_INSTANCE_ID, acceptance.SBC_PROJECT_ID, acceptance.SBC_REGION_NAME)
 }
 
 func testResourceDcGlobalGatewayPeerLink_update2(name string) string {
@@ -150,7 +150,7 @@ resource "sbercloud_dc_global_gateway_peer_link" "test" {
     region_id  = "%[5]s"
   }
 }
-`, name, acceptance.HW_DC_GLOBAL_GATEWAY_ID, acceptance.HW_ER_INSTANCE_ID, acceptance.HW_PROJECT_ID, acceptance.HW_REGION_NAME)
+`, name, acceptance.SBC_DC_GLOBAL_GATEWAY_ID, acceptance.SBC_ER_INSTANCE_ID, acceptance.SBC_PROJECT_ID, acceptance.SBC_REGION_NAME)
 }
 
 func testDcGlobalGatewayPeerLinkImportState(name string) resource.ImportStateIdFunc {

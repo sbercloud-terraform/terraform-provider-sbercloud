@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/acceptance"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 )
 
 func TestAccDatasourceVirtualInterface_basic(t *testing.T) {
@@ -108,7 +108,7 @@ resource "sbercloud_dc_virtual_interface" "test" {
     key = "value"
   }
 }
-`, name, acceptance.HW_DC_DIRECT_CONNECT_ID, vlan)
+`, name, acceptance.SBC_DC_DIRECT_CONNECT_ID, vlan)
 }
 
 func testDatasourceVirtualInterfaces_basic(name string) string {

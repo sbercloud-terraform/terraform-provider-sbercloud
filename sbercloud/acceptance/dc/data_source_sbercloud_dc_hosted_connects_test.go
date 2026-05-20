@@ -6,7 +6,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/acceptance"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 )
 
 func TestAccDataSourceDcHostedConnects_basic(t *testing.T) {
@@ -62,7 +62,7 @@ resource "sbercloud_dc_hosted_connect" "test" {
   vlan               = 441
   bandwidth          = 10
 }
-`, name, acceptance.HW_DC_RESOURCE_TENANT_ID, acceptance.HW_DC_HOSTTING_ID)
+`, name, acceptance.SBC_DC_RESOURCE_TENANT_ID, acceptance.SBC_DC_HOSTTING_ID)
 }
 
 func testDataSourceDcHostedConnects_basic(name string) string {

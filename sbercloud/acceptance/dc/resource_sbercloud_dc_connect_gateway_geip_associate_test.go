@@ -11,12 +11,12 @@ import (
 	"github.com/chnsz/golangsdk"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/acceptance"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 )
 
 func getResourceDcDcConnectGatewayGeipAssociateFunc(cfg *config.Config, state *terraform.ResourceState) (interface{}, error) {
-	client, err := cfg.NewServiceClient("dc", acceptance.HW_REGION_NAME)
+	client, err := cfg.NewServiceClient("dc", acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return nil, fmt.Errorf("error creating DC client: %s", err)
 	}
@@ -70,8 +70,8 @@ func TestAccResourceDcConnectGatewayGeipAssociate_basic(t *testing.T) {
 				Config: testResourceDcConnectGatewayGeipAssociate_basic(),
 				Check: resource.ComposeTestCheckFunc(
 					rc.CheckResourceExists(),
-					resource.TestCheckResourceAttr(rName, "connect_gateway_id", acceptance.HW_DC_CONNECT_GATEWAY_ID),
-					resource.TestCheckResourceAttr(rName, "global_eip_id", acceptance.HW_GLOBAL_EIP_ID),
+					resource.TestCheckResourceAttr(rName, "connect_gateway_id", acceptance.SBC_DC_CONNECT_GATEWAY_ID),
+					resource.TestCheckResourceAttr(rName, "global_eip_id", acceptance.SBC_GLOBAL_EIP_ID),
 					resource.TestCheckResourceAttr(rName, "type", "IP_ADDRESS"),
 					resource.TestCheckResourceAttrSet(rName, "status"),
 					resource.TestCheckResourceAttrSet(rName, "cidr"),
@@ -96,5 +96,5 @@ resource "sbercloud_dc_connect_gateway_geip_associate" "test" {
   global_eip_id      = "%[2]s"
   type               = "IP_ADDRESS"
 }
-`, acceptance.HW_DC_CONNECT_GATEWAY_ID, acceptance.HW_GLOBAL_EIP_ID)
+`, acceptance.SBC_DC_CONNECT_GATEWAY_ID, acceptance.SBC_GLOBAL_EIP_ID)
 }

@@ -145,7 +145,7 @@ resource "sbercloud_dc_virtual_interface" "test" {
   local_gateway_v4_ip  = "1.1.1.1/30"
   remote_gateway_v4_ip = "1.1.1.2/30"
 }
-`, name, acceptance.HW_DC_DIRECT_CONNECT_ID)
+`, name, acceptance.SBC_DC_DIRECT_CONNECT_ID)
 }
 
 func testVirtualInterfaceSwitchover_basic(name string) string {

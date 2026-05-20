@@ -11,12 +11,12 @@ import (
 	"github.com/chnsz/golangsdk"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/acceptance"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 )
 
 func getHostedConnectResourceFunc(cfg *config.Config, state *terraform.ResourceState) (interface{}, error) {
-	region := acceptance.HW_REGION_NAME
+	region := acceptance.SBC_REGION_NAME
 	var (
 		getHostedConnectHttpUrl = "v3/{project_id}/dcaas/hosted-connects/{id}"
 		getHostedConnectProduct = "dc"
@@ -83,9 +83,9 @@ func TestAccHostedConnect_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(rName, "name", name),
 					resource.TestCheckResourceAttr(rName, "description", "This is a demo"),
 					resource.TestCheckResourceAttr(rName, "bandwidth", "10"),
-					resource.TestCheckResourceAttr(rName, "hosting_id", acceptance.HW_DC_HOSTTING_ID),
+					resource.TestCheckResourceAttr(rName, "hosting_id", acceptance.SBC_DC_HOSTTING_ID),
 					resource.TestCheckResourceAttr(rName, "vlan", "441"),
-					resource.TestCheckResourceAttr(rName, "resource_tenant_id", acceptance.HW_DC_RESOURCE_TENANT_ID),
+					resource.TestCheckResourceAttr(rName, "resource_tenant_id", acceptance.SBC_DC_RESOURCE_TENANT_ID),
 					resource.TestCheckResourceAttr(rName, "status", "BUILD"),
 				),
 			},
@@ -96,9 +96,9 @@ func TestAccHostedConnect_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(rName, "name", name+"update"),
 					resource.TestCheckResourceAttr(rName, "description", "This is a demo update"),
 					resource.TestCheckResourceAttr(rName, "bandwidth", "12"),
-					resource.TestCheckResourceAttr(rName, "hosting_id", acceptance.HW_DC_HOSTTING_ID),
+					resource.TestCheckResourceAttr(rName, "hosting_id", acceptance.SBC_DC_HOSTTING_ID),
 					resource.TestCheckResourceAttr(rName, "vlan", "441"),
-					resource.TestCheckResourceAttr(rName, "resource_tenant_id", acceptance.HW_DC_RESOURCE_TENANT_ID),
+					resource.TestCheckResourceAttr(rName, "resource_tenant_id", acceptance.SBC_DC_RESOURCE_TENANT_ID),
 					resource.TestCheckResourceAttr(rName, "status", "BUILD"),
 				),
 			},
@@ -121,7 +121,7 @@ resource "sbercloud_dc_hosted_connect" "test" {
   vlan               = 441
   bandwidth          = 10
 }
-`, name, acceptance.HW_DC_RESOURCE_TENANT_ID, acceptance.HW_DC_HOSTTING_ID)
+`, name, acceptance.SBC_DC_RESOURCE_TENANT_ID, acceptance.SBC_DC_HOSTTING_ID)
 }
 
 func testHostedConnect_basic_update(name string) string {
@@ -134,5 +134,5 @@ resource "sbercloud_dc_hosted_connect" "test" {
   vlan               = 441
   bandwidth          = 12
 }
-`, name, acceptance.HW_DC_RESOURCE_TENANT_ID, acceptance.HW_DC_HOSTTING_ID)
+`, name, acceptance.SBC_DC_RESOURCE_TENANT_ID, acceptance.SBC_DC_HOSTTING_ID)
 }

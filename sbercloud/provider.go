@@ -598,7 +598,6 @@ func Provider() *schema.Provider {
 			"sbercloud_dc_global_gateway":                 dc.ResourceDcGlobalGateway(),
 			"sbercloud_dc_global_gateway_peer_link":       dc.ResourceDcGlobalGatewayPeerLink(),
 			"sbercloud_dc_global_gateway_route_table":     dc.ResourceDcGlobalGatewayRouteTable(),
-			"sbercloud_dc_connect_gateway":                dc.ResourceDcConnectGateway(),
 			"sbercloud_dc_connect_gateway_geip_associate": dc.ResourceDcConnectGatewayGeipAssociate(),
 
 			"sbercloud_dds_instance":                   dds.ResourceDdsInstanceV3(), //dds_sbc.ResourceDdsInstanceV3(),

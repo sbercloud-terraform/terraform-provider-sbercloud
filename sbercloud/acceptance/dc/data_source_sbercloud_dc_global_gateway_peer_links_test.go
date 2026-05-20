@@ -6,7 +6,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/acceptance"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 )
 
 func TestAccDatasourceDcGlobalGatewayPeerLinks_basic(t *testing.T) {
@@ -139,5 +139,5 @@ locals {
 output "filter_by_names_is_useful" {
   value = alltrue(local.filter_by_names_result) && length(local.filter_by_names_result) > 0
 }
-`, acceptance.HW_DC_GLOBAL_GATEWAY_ID_HAS_PEER_LINK)
+`, acceptance.SBC_DC_GLOBAL_GATEWAY_ID_HAS_PEER_LINK)
 }

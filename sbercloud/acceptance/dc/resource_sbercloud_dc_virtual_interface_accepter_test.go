@@ -6,7 +6,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/acceptance"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 )
 
 func TestAccVirtualInterfaceAccepter_accepted(t *testing.T) {
@@ -15,7 +15,7 @@ func TestAccVirtualInterfaceAccepter_accepted(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck: func() {
 			acceptance.TestAccPreCheck(t)
-			// The environment variable `HW_DC_VIRTUAL_INTERFACE_ID` refers to the virtual interface ID created by other
+			// The environment variable `SBC_DC_VIRTUAL_INTERFACE_ID` refers to the virtual interface ID created by other
 			// tenants and under the same region.
 			acceptance.TestAccPreCheckDCVirtualInterfaceID(t)
 		},
@@ -34,7 +34,7 @@ func TestAccVirtualInterfaceAccepter_rejected(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck: func() {
 			acceptance.TestAccPreCheck(t)
-			// The environment variable `HW_DC_VIRTUAL_INTERFACE_ID` refers to the virtual interface ID created by other
+			// The environment variable `SBC_DC_VIRTUAL_INTERFACE_ID` refers to the virtual interface ID created by other
 			// tenants and under the same region.
 			acceptance.TestAccPreCheckDCVirtualInterfaceID(t)
 		},
@@ -54,5 +54,5 @@ resource "sbercloud_dc_virtual_interface_accepter" "test" {
   virtual_interface_id = "%[1]s"
   action               = "%[2]s"
 }
-`, acceptance.HW_DC_VIRTUAL_INTERFACE_ID, action)
+`, acceptance.SBC_DC_VIRTUAL_INTERFACE_ID, action)
 }

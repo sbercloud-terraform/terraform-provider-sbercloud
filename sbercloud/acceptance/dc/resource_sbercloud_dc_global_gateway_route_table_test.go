@@ -7,17 +7,18 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/acceptance/common"
 
 	"github.com/chnsz/golangsdk"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/acceptance"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/acceptance/common"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
+
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
 
 func getResourceGlobalGatewayRouteTableFunc(cfg *config.Config, state *terraform.ResourceState) (interface{}, error) {
-	client, err := cfg.NewServiceClient("dc", acceptance.HW_REGION_NAME)
+	client, err := cfg.NewServiceClient("dc", acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return nil, fmt.Errorf("error creating DC client: %s", err)
 	}
@@ -157,7 +158,7 @@ resource "sbercloud_dc_virtual_interface" "test" {
     ]
   }
 }
-`, common.TestVpc(name), name, acceptance.HW_DC_DIRECT_CONNECT_ID)
+`, common.TestVpc(name), name, acceptance.SBC_DC_DIRECT_CONNECT_ID)
 }
 
 func testResourceDcGlobalGatewayRouteTable_basic(name string) string {
