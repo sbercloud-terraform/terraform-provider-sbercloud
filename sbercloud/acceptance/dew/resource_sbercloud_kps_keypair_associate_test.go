@@ -44,7 +44,7 @@ resource "huaweicloud_kps_keypair_associate" "test" {
     }
   }
 }
-`, acceptance.HW_KPS_KEYPAIR_NAME_1, acceptance.HW_ECS_ID, acceptance.HW_KPS_KEYPAIR_SSH_PORT, acceptance.HW_ECS_ROOT_PWD)
+`, acceptance.SBC_KPS_KEYPAIR_NAME_1, acceptance.SBC_ECS_ID, acceptance.SBC_KPS_KEYPAIR_SSH_PORT, acceptance.SBC_ECS_ROOT_PWD)
 }
 
 func testAccKeypairsAssociate_replace() string {
