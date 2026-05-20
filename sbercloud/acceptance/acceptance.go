@@ -14,6 +14,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -134,6 +137,20 @@ var (
 	SBC_ECS_ID                 = os.Getenv("SBC_ECS_ID")
 	SBC_ECS_ROOT_PWD           = os.Getenv("SBC_ECS_ROOT_PWD")
 	SBC_ECS_SCHEDULED_EVENT_ID = os.Getenv("SBC_ECS_SCHEDULED_EVENT_ID")
+	SBC_DC_DIRECT_CONNECT_ID               = os.Getenv("SBC_DC_DIRECT_CONNECT_ID")
+	SBC_DC_RESOURCE_TENANT_ID              = os.Getenv("SBC_DC_RESOURCE_TENANT_ID")
+	SBC_DC_HOSTTING_ID                     = os.Getenv("SBC_DC_HOSTTING_ID")
+	SBC_DC_TARGET_TENANT_VGW_ID            = os.Getenv("SBC_DC_TARGET_TENANT_VGW_ID")
+	SBC_DC_VIRTUAL_INTERFACE_ID            = os.Getenv("SBC_DC_VIRTUAL_INTERFACE_ID")
+	SBC_DC_ENABLE_FLAG                     = os.Getenv("SBC_DC_ENABLE_FLAG")
+	SBC_DC_GLOBAL_GATEWAY_ID               = os.Getenv("SBC_DC_GLOBAL_GATEWAY_ID")
+	SBC_DC_GLOBAL_GATEWAY_ID_HAS_PEER_LINK = os.Getenv("SBC_DC_GLOBAL_GATEWAY_ID_HAS_PEER_LINK")
+	SBC_DC_CONNECT_GATEWAY_ID              = os.Getenv("SBC_DC_CONNECT_GATEWAY_ID")
+
+	SBC_GLOBAL_EIP_ID = os.Getenv("SBC_GLOBAL_EIP_ID")
+
+	SBC_ER_TEST_ON     = os.Getenv("SBC_ER_TEST_ON")     // Whether to run the ER related tests.
+	SBC_ER_INSTANCE_ID = os.Getenv("SBC_ER_INSTANCE_ID") // Whether to run the ER related tests.
 )
 
 // TestAccProviderFactories is a static map containing only the main provider instance
@@ -938,4 +955,76 @@ func getDcsInstanceByID(client *golangsdk.ServiceClient, instanceId string) (int
 	}
 
 	return utils.FlattenResponse(getResp)
+func TestAccPreCheckDcDirectConnection(t *testing.T) {
+	if SBC_DC_DIRECT_CONNECT_ID == "" {
+		t.Skip("Skip the interface acceptance test because of the direct connection ID is missing.")
+	}
+}
+
+func TestAccPreCheckTargetTenantDcVGW(t *testing.T) {
+	if SBC_DC_TARGET_TENANT_VGW_ID == "" {
+		t.Skip("SBC_DC_TARGET_TENANT_VGW_ID must be set for this acceptance test")
+	}
+}
+
+func TestAccPreCheckDcResourceTenant(t *testing.T) {
+	if SBC_DC_RESOURCE_TENANT_ID == "" {
+		t.Skip("SBC_DC_RESOURCE_TENANT_ID must be set for this acceptance test")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckDcHostedConnection(t *testing.T) {
+	if SBC_DC_RESOURCE_TENANT_ID == "" || SBC_DC_HOSTTING_ID == "" {
+		t.Skip("SBC_DC_RESOURCE_TENANT_ID, SBC_DC_HOSTTING_ID must be set for this acceptance test")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckDcGlobalGatewayID(t *testing.T) {
+	if SBC_DC_GLOBAL_GATEWAY_ID == "" {
+		t.Skip("SBC_DC_GLOBAL_GATEWAY_ID must be set for this acceptance test")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckDcGlobalGatewayIDHasPeerLink(t *testing.T) {
+	if SBC_DC_GLOBAL_GATEWAY_ID_HAS_PEER_LINK == "" {
+		t.Skip("SBC_DC_GLOBAL_GATEWAY_ID_HAS_PEER_LINK must be set for this acceptance test")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckDcConnectGatewayId(t *testing.T) {
+	if SBC_DC_CONNECT_GATEWAY_ID == "" {
+		t.Skip("SBC_DC_CONNECT_GATEWAY_ID must be set for this acceptance test")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckERInstanceID(t *testing.T) {
+	if SBC_ER_INSTANCE_ID == "" {
+		t.Skip("SBC_ER_INSTANCE_ID must be set for this acceptance test")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckDCVirtualInterfaceID(t *testing.T) {
+	if SBC_DC_VIRTUAL_INTERFACE_ID == "" {
+		t.Skip("SBC_DC_VIRTUAL_INTERFACE_ID must be set for this acceptance test")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckGlobalEipId(t *testing.T) {
+	if SBC_GLOBAL_EIP_ID == "" {
+		t.Skip("SBC_GLOBAL_EIP_ID must be set for this acceptance test")
+	}
+}
+
+// lintignore:AT003
+func TestAccPrecheckDcFlag(t *testing.T) {
+	if SBC_DC_ENABLE_FLAG == "" {
+		t.Skip("SBC_DC_ENABLE_FLAG must be set for the acceptance test")
+	}
 }

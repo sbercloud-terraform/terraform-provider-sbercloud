@@ -18,6 +18,15 @@ test: fmtcheck
 testacc: fmtcheck
 	TF_ACC=1 go test $(TEST) -v $(TESTARGS) -timeout 360m -parallel=$(TEST_PARALLELISM)
 
+testaccdir: fmtcheck
+	@if [ -z "$(TEST)" ]; then \
+		echo "ERROR: Set TEST variable. Example:"; \
+		echo "  make testaccdir TEST=./sbercloud/acceptance/dc"; \
+		exit 1; \
+	fi
+	@echo "Running all acceptance tests in: $(TEST)"
+	TF_ACC=1 go test $(TEST)/... -v $(TESTARGS) -timeout 360m -parallel=$(TEST_PARALLELISM)
+
 vet:
 	@echo "go vet ."
 	@go vet $$(go list ./... | grep -v vendor/) ; if [ $$? -eq 1 ]; then \
@@ -45,4 +54,4 @@ test-compile:
 	fi
 	go test -c $(TEST) $(TESTARGS)
 
-.PHONY: build test testacc vet fmt fmtcheck errcheck test-compile
+.PHONY: build test testacc testaccdir vet fmt fmtcheck errcheck test-compile
