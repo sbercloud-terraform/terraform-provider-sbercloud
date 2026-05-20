@@ -4,18 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud"
 	"os"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/chnsz/golangsdk"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils/fmtp"
 )
 
@@ -110,6 +114,26 @@ var (
 	SBC_AS_LIFECYCLE_HOOK_NAME      = os.Getenv("SBC_AS_LIFECYCLE_HOOK_NAME")
 	SBC_AS_INSTANCE_ID              = os.Getenv("SBC_AS_INSTANCE_ID")
 	SBC_AS_LIFECYCLE_ACTION_KEY     = os.Getenv("SBC_AS_LIFECYCLE_ACTION_KEY")
+
+	SBC_KPS_KEYPAIR_NAME             = os.Getenv("SBC_KPS_KEYPAIR_NAME")
+	SBC_KPS_KEYPAIR_NAME_1           = os.Getenv("SBC_KPS_KEYPAIR_NAME_1")
+	SBC_KPS_KEYPAIR_NAME_2           = os.Getenv("SBC_KPS_KEYPAIR_NAME_2")
+	SBC_KPS_KEYPAIR_KEY_1            = os.Getenv("SBC_KPS_KEYPAIR_KEY_1")
+	SBC_KPS_KEYPAIR_SSH_PORT         = os.Getenv("SBC_KPS_KEYPAIR_SSH_PORT")
+	SBC_KPS_ENABLE_FLAG              = os.Getenv("SBC_KPS_ENABLE_FLAG")
+	SBC_KPS_PUBLIC_KEY_FILE_PATH     = os.Getenv("SBC_KPS_PUBLIC_KEY_FILE_PATH")
+	SBC_KPS_PRIVATE_KEY_FILE_PATH    = os.Getenv("SBC_KPS_PRIVATE_KEY_FILE_PATH")
+	SBC_KPS_FAILED_TASK_ID           = os.Getenv("SBC_KPS_FAILED_TASK_ID")
+	SBC_CSMS_TASK_ID                 = os.Getenv("SBC_CSMS_TASK_ID")
+	SBC_CSMS_SECRET_NAME             = os.Getenv("SBC_CSMS_SECRET_NAME")
+	SBC_CSMS_SECRET_BACKUP_FILE_PATH = os.Getenv("SBC_CSMS_SECRET_BACKUP_FILE_PATH")
+	SBC_CSMS_SECRET_ID               = os.Getenv("SBC_CSMS_SECRET_ID")
+
+	SBC_ECS_LAUNCH_TEMPLATE_ID = os.Getenv("SBC_ECS_LAUNCH_TEMPLATE_ID")
+	SBC_ECS_LAUNCH_GROUP_ID    = os.Getenv("SBC_ECS_LAUNCH_GROUP_ID")
+	SBC_ECS_ID                 = os.Getenv("SBC_ECS_ID")
+	SBC_ECS_ROOT_PWD           = os.Getenv("SBC_ECS_ROOT_PWD")
+	SBC_ECS_SCHEDULED_EVENT_ID = os.Getenv("SBC_ECS_SCHEDULED_EVENT_ID")
 )
 
 // TestAccProviderFactories is a static map containing only the main provider instance
@@ -759,6 +783,36 @@ func TestAccPreCheckASLifecycleActionKey(t *testing.T) {
 	}
 }
 
+func TestAccPreCheckKpsKeypairKey(t *testing.T) {
+	if SBC_KPS_KEYPAIR_KEY_1 == "" {
+		t.Skip("SBC_KPS_KEYPAIR_KEY_1 must be set for acceptance tests.")
+	}
+}
+
+func TestAccPreCheckKpsKeyPair(t *testing.T) {
+	if SBC_KPS_KEYPAIR_NAME_1 == "" || SBC_KPS_KEYPAIR_NAME_2 == "" || SBC_KPS_KEYPAIR_KEY_1 == "" || SBC_KPS_KEYPAIR_SSH_PORT == "" {
+		t.Skip("SBC_KPS_KEYPAIR_NAME_1, SBC_KPS_KEYPAIR_NAME_2, SBC_KPS_KEYPAIR_KEY_1, SBC_KPS_KEYPAIR_SSH_PORT must be set for the acceptance tests.")
+	}
+}
+
+func TestAccPreCheckECSAccount(t *testing.T) {
+	if SBC_ECS_ID == "" || SBC_ECS_ROOT_PWD == "" {
+		t.Skip("SBC_ECS_ID, SBC_ECS_ROOT_PWD must be set for the acceptance test")
+	}
+}
+
+func TestAccPreCheckKpsSSHPort(t *testing.T) {
+	if SBC_KPS_KEYPAIR_SSH_PORT == "" {
+		t.Skip("SBC_KPS_KEYPAIR_SSH_PORT must be set for acceptance tests.")
+	}
+}
+
+func TestAccPreCheckECSID(t *testing.T) {
+	if SBC_ECS_ID == "" {
+		t.Skip("SBC_ECS_ID must be set for the acceptance test")
+	}
+}
+
 func RandomAccResourceName() string {
 	return fmt.Sprintf("tf_acc_test_%s", acctest.RandString(5))
 }
@@ -812,4 +866,67 @@ func ReplaceVarsForTest(rs *terraform.ResourceState, linkTmpl string) (string, e
 
 	s := re.ReplaceAllStringFunc(linkTmpl, replaceFunc)
 	return strings.Replace(s, "replace_holder/", "", 1), nil
+}
+
+func WaitForDcsInstanceRunning(ctx context.Context, c *golangsdk.ServiceClient, id string, timeout time.Duration) error {
+	stateConf := &resource.StateChangeConf{
+		Pending:                   []string{"PENDING"},
+		Target:                    []string{"RUNNING"},
+		Refresh:                   refreshDcsInstanceState(c, id),
+		Timeout:                   timeout,
+		Delay:                     10 * time.Second,
+		PollInterval:              10 * time.Second,
+		ContinuousTargetOccurence: 2,
+	}
+	_, err := stateConf.WaitForStateContext(ctx)
+	if err != nil {
+		return fmt.Errorf("error waiting instance(%s) to ready: %s", id, err)
+	}
+	return nil
+}
+
+func refreshDcsInstanceState(client *golangsdk.ServiceClient, id string) resource.StateRefreshFunc {
+	return func() (interface{}, string, error) {
+		instance, err := getDcsInstanceByID(client, id)
+		if err != nil {
+			if _, ok := err.(golangsdk.ErrDefault404); ok {
+				return "", "DELETED", nil
+			}
+			return nil, "ERROR", err
+		}
+		status := utils.PathSearch("status", instance, "").(string)
+
+		failStatus := []string{"CREATEFAILED", "ERROR", "FROZEN"}
+		if utils.StrSliceContains(failStatus, status) {
+			return instance, status, fmt.Errorf("unexpect status: %s", status)
+		}
+		task := utils.PathSearch("task", instance, nil)
+		if task != nil {
+			return instance, "PENDING", nil
+		}
+		if status == "RUNNING" {
+			return instance, status, nil
+		}
+		return instance, "PENDING", nil
+	}
+}
+
+func getDcsInstanceByID(client *golangsdk.ServiceClient, instanceId string) (interface{}, error) {
+	var (
+		httpUrl = "v2/{project_id}/instances/{instance_id}"
+	)
+	getPath := client.Endpoint + httpUrl
+	getPath = strings.ReplaceAll(getPath, "{project_id}", client.ProjectID)
+	getPath = strings.ReplaceAll(getPath, "{instance_id}", instanceId)
+
+	getOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		MoreHeaders:      map[string]string{"Content-Type": "application/json"},
+	}
+	getResp, err := client.Request("GET", getPath, &getOpt)
+	if err != nil {
+		return nil, err
+	}
+
+	return utils.FlattenResponse(getResp)
 }

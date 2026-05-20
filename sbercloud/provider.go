@@ -3,6 +3,9 @@ package sbercloud
 import (
 	"context"
 	"fmt"
+	"log"
+	"strings"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/apig"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cfw"
@@ -30,11 +33,10 @@ import (
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/rds"
 	vpc2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/vpc"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/vpcep"
-	"log"
-	"strings"
+
+	"sync"
 
 	elb2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/elb"
-	"sync"
 
 	dds_sbc "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dds"
 
@@ -522,15 +524,16 @@ func Provider() *schema.Provider {
 			"sbercloud_css_cluster":       css.ResourceCssCluster(),
 			"sbercloud_css_configuration": css_huawei.ResourceCssConfiguration(),
 
-			"sbercloud_cce_addon":           cce.ResourceAddon(),
-			"sbercloud_cce_cluster":         cce.ResourceCluster(),
-			"sbercloud_cce_cluster_upgrade": cce.ResourceClusterUpgrade(),
-			"sbercloud_cce_namespace":       cce.ResourceCCENamespaceV1(),
-			"sbercloud_cce_node":            cce.ResourceNode(),
-			"sbercloud_cce_node_attach":     cce.ResourceNodeAttach(),
-			"sbercloud_cce_node_pool":       cce.ResourceNodePool(),
-			"sbercloud_cce_pvc":             cce.ResourceCcePersistentVolumeClaimsV1(),
-			"sbercloud_cce_nodes_remove":    cce.ResourceNodesRemove(),
+			"sbercloud_cce_addon":              cce.ResourceAddon(),
+			"sbercloud_cce_cluster":            cce.ResourceCluster(),
+			"sbercloud_cce_cluster_upgrade":    cce.ResourceClusterUpgrade(),
+			"sbercloud_cce_namespace":          cce.ResourceCCENamespaceV1(),
+			"sbercloud_cce_node":               cce.ResourceNode(),
+			"sbercloud_cce_node_attach":        cce.ResourceNodeAttach(),
+			"sbercloud_cce_node_pool":          cce.ResourceNodePool(),
+			"sbercloud_cce_pvc":                cce.ResourceCcePersistentVolumeClaimsV1(),
+			"sbercloud_cce_nodes_remove":       cce.ResourceNodesRemove(),
+			"sbercloud_cce_cluster_log_config": cce.ResourceClusterLogConfig(),
 
 			"sbercloud_cdm_cluster": cdm.ResourceCdmCluster(),
 
