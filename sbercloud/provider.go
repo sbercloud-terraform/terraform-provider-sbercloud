@@ -3,10 +3,14 @@ package sbercloud
 import (
 	"context"
 	"fmt"
+	"log"
+	"strings"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/apig"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cfw"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cts"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dc"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dds"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dew"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dns"
@@ -30,11 +34,10 @@ import (
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/rds"
 	vpc2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/vpc"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/vpcep"
-	"log"
-	"strings"
+
+	"sync"
 
 	elb2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/elb"
-	"sync"
 
 	dds_sbc "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dds"
 
@@ -328,6 +331,20 @@ func Provider() *schema.Provider {
 			"sbercloud_dds_flavors":        dds_sbc.DataSourceDDSFlavorV3(),
 			"sbercloud_dms_az":             deprecated.DataSourceDmsAZ(),
 
+			"sbercloud_dc_connections":                          dc.DataSourceDcConnections(),
+			"sbercloud_dc_hosted_connects":                      dc.DataSourceDcHostedConnects(),
+			"sbercloud_dc_quotas":                               dc.DataSourceDcQuotas(),
+			"sbercloud_dc_virtual_gateways":                     dc.DataSourceDCVirtualGateways(),
+			"sbercloud_dc_virtual_interfaces":                   dc.DataSourceDCVirtualInterfaces(),
+			"sbercloud_dc_virtual_interface_switchover_records": dc.DataSourceDcVirtualInterfaceSwitchoverRecords(),
+			"sbercloud_dc_global_gateways":                      dc.DataSourceDcGlobalGateways(),
+			"sbercloud_dc_global_gateway_peer_links":            dc.DataSourceDcGlobalGatewayPeerLinks(),
+			"sbercloud_dc_global_gateway_route_tables":          dc.DataSourceDcGlobalGatewayRouteTables(),
+			"sbercloud_dc_connect_gateways":                     dc.DataSourceDcConnectGateways(),
+			"sbercloud_dc_connect_gateway_geips":                dc.DataSourceDcConnectGatewayGeips(),
+			"sbercloud_dc_tags":                                 dc.DataSourceDcTags(),
+			"sbercloud_dc_resources_by_tags":                    dc.DataSourceDcResourcesByTags(),
+
 			"sbercloud_kps_failed_tasks":  dew.DataSourceDewKpsFailedTasks(),
 			"sbercloud_kps_running_tasks": dew.DataSourceDewKpsRunningTasks(),
 			"sbercloud_kps_keypairs":      dew.DataSourceKeypairs(),
@@ -572,6 +589,17 @@ func Provider() *schema.Provider {
 			"sbercloud_dcs_restore":    dcs.ResourceDcsRestore(),
 			"sbercloud_dcs_parameters": deprecated_sbc.ResourceDcsParameters(),
 			"sbercloud_dcs_account":    dcs.ResourceDcsAccount(),
+
+			"sbercloud_dc_virtual_gateway":                dc.ResourceVirtualGateway(),
+			"sbercloud_dc_virtual_interface":              dc.ResourceVirtualInterface(),
+			"sbercloud_dc_virtual_interface_accepter":     dc.ResourceInterfaceAccepter(),
+			"sbercloud_dc_virtual_interface_switchover":   dc.ResourceVirtualInterfaceSwitchover(),
+			"sbercloud_dc_hosted_connect":                 dc.ResourceHostedConnect(),
+			"sbercloud_dc_global_gateway":                 dc.ResourceDcGlobalGateway(),
+			"sbercloud_dc_global_gateway_peer_link":       dc.ResourceDcGlobalGatewayPeerLink(),
+			"sbercloud_dc_global_gateway_route_table":     dc.ResourceDcGlobalGatewayRouteTable(),
+			"sbercloud_dc_connect_gateway":                dc.ResourceDcConnectGateway(),
+			"sbercloud_dc_connect_gateway_geip_associate": dc.ResourceDcConnectGatewayGeipAssociate(),
 
 			"sbercloud_dds_instance":                   dds.ResourceDdsInstanceV3(), //dds_sbc.ResourceDdsInstanceV3(),
 			"sbercloud_dds_parameter_template":         dds.ResourceDdsParameterTemplate(),

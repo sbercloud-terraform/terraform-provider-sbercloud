@@ -618,6 +618,7 @@ github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/pathorc
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/helper/schemas
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/aad
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/acceptance
+github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/acceptance/common
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/accessanalyzer
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/antiddos
 github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/aom
