@@ -546,6 +546,7 @@ func Provider() *schema.Provider {
 			"sbercloud_cce_node":               cce.ResourceNode(),
 			"sbercloud_cce_node_attach":        cce.ResourceNodeAttach(),
 			"sbercloud_cce_node_pool":          cce.ResourceNodePool(),
+			"sbercloud_cce_node_pool_scale":    cce.ResourceNodePoolScale(),
 			"sbercloud_cce_pvc":                cce.ResourceCcePersistentVolumeClaimsV1(),
 			"sbercloud_cce_nodes_remove":       cce.ResourceNodesRemove(),
 			"sbercloud_cce_cluster_log_config": cce.ResourceClusterLogConfig(),
@@ -600,6 +601,7 @@ func Provider() *schema.Provider {
 			"sbercloud_dc_global_gateway_peer_link":       dc.ResourceDcGlobalGatewayPeerLink(),
 			"sbercloud_dc_global_gateway_route_table":     dc.ResourceDcGlobalGatewayRouteTable(),
 			"sbercloud_dc_connect_gateway_geip_associate": dc.ResourceDcConnectGatewayGeipAssociate(),
+			"sbercloud_dc_connect_gateway":                dc.ResourceDcConnectGateway(),
 
 			"sbercloud_dds_instance":                   dds.ResourceDdsInstanceV3(), //dds_sbc.ResourceDdsInstanceV3(),
 			"sbercloud_dds_parameter_template":         dds.ResourceDdsParameterTemplate(),
