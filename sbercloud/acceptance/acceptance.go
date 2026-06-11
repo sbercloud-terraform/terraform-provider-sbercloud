@@ -14,9 +14,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud"
-
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -27,7 +24,8 @@ import (
 )
 
 var (
-	SBC_REGION_NAME = os.Getenv("SBC_REGION_NAME")
+	SBC_REGION_NAME        = os.Getenv("SBC_REGION_NAME")
+	SBC_CUSTOM_REGION_NAME = os.Getenv("SBC_CUSTOM_REGION_NAME")
 
 	SBC_ENTERPRISE_PROJECT_ID      = os.Getenv("SBC_ENTERPRISE_PROJECT_ID")
 	SBC_ENTERPRISE_PROJECT_ID_TEST = os.Getenv("SBC_ENTERPRISE_PROJECT_ID_TEST")
@@ -132,11 +130,11 @@ var (
 	SBC_CSMS_SECRET_BACKUP_FILE_PATH = os.Getenv("SBC_CSMS_SECRET_BACKUP_FILE_PATH")
 	SBC_CSMS_SECRET_ID               = os.Getenv("SBC_CSMS_SECRET_ID")
 
-	SBC_ECS_LAUNCH_TEMPLATE_ID = os.Getenv("SBC_ECS_LAUNCH_TEMPLATE_ID")
-	SBC_ECS_LAUNCH_GROUP_ID    = os.Getenv("SBC_ECS_LAUNCH_GROUP_ID")
-	SBC_ECS_ID                 = os.Getenv("SBC_ECS_ID")
-	SBC_ECS_ROOT_PWD           = os.Getenv("SBC_ECS_ROOT_PWD")
-	SBC_ECS_SCHEDULED_EVENT_ID = os.Getenv("SBC_ECS_SCHEDULED_EVENT_ID")
+	SBC_ECS_LAUNCH_TEMPLATE_ID             = os.Getenv("SBC_ECS_LAUNCH_TEMPLATE_ID")
+	SBC_ECS_LAUNCH_GROUP_ID                = os.Getenv("SBC_ECS_LAUNCH_GROUP_ID")
+	SBC_ECS_ID                             = os.Getenv("SBC_ECS_ID")
+	SBC_ECS_ROOT_PWD                       = os.Getenv("SBC_ECS_ROOT_PWD")
+	SBC_ECS_SCHEDULED_EVENT_ID             = os.Getenv("SBC_ECS_SCHEDULED_EVENT_ID")
 	SBC_DC_DIRECT_CONNECT_ID               = os.Getenv("SBC_DC_DIRECT_CONNECT_ID")
 	SBC_DC_RESOURCE_TENANT_ID              = os.Getenv("SBC_DC_RESOURCE_TENANT_ID")
 	SBC_DC_HOSTTING_ID                     = os.Getenv("SBC_DC_HOSTTING_ID")
@@ -955,6 +953,8 @@ func getDcsInstanceByID(client *golangsdk.ServiceClient, instanceId string) (int
 	}
 
 	return utils.FlattenResponse(getResp)
+}
+
 func TestAccPreCheckDcDirectConnection(t *testing.T) {
 	if SBC_DC_DIRECT_CONNECT_ID == "" {
 		t.Skip("Skip the interface acceptance test because of the direct connection ID is missing.")
@@ -1026,5 +1026,12 @@ func TestAccPreCheckGlobalEipId(t *testing.T) {
 func TestAccPrecheckDcFlag(t *testing.T) {
 	if SBC_DC_ENABLE_FLAG == "" {
 		t.Skip("SBC_DC_ENABLE_FLAG must be set for the acceptance test")
+	}
+}
+
+// lintignore:AT003
+func TestAccPrecheckCustomRegion(t *testing.T) {
+	if SBC_CUSTOM_REGION_NAME == "" {
+		t.Skip("SBC_CUSTOM_REGION_NAME must be set for acceptance tests")
 	}
 }

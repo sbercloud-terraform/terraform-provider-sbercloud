@@ -639,6 +639,12 @@ func Provider() *schema.Provider {
 			"sbercloud_dns_recordset": dns.ResourceDNSRecordSetV2(),
 			"sbercloud_dns_zone":      dns.ResourceDNSZone(),
 
+			"sbercloud_dns_endpoint_assignment": dns.ResourceEndpointAssignment(),
+			"sbercloud_dns_endpoint":            dns.ResourceDNSEndpoint(),
+
+			"sbercloud_dns_resolver_rule":           dns.ResourceResolverRule(),
+			"sbercloud_dns_resolver_rule_associate": dns.ResourceResolverRuleAssociate(),
+
 			"sbercloud_drs_job": drs.ResourceDrsJob(),
 
 			"sbercloud_dws_cluster": dws.ResourceDwsCluster(),
