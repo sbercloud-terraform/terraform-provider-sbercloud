@@ -125,7 +125,7 @@ variable "configs" {
 output "log_configs" {
   value = alltrue([for s in sbercloud_cce_cluster_log_config.test.log_configs : var.configs[s.name] == s.enable])
 }
-`, testAccCCEClusterV3_basic(randName))
+`, testAccCluster_basic(randName))
 }
 
 func testAccClusterLogConfig_update(randName string) string {
@@ -171,7 +171,7 @@ variable "configs" {
 output "log_configs" {
   value = alltrue([for s in sbercloud_cce_cluster_log_config.test.log_configs : var.configs[s.name] == s.enable])
 }
-`, testAccCCEClusterV3_basic(randName))
+`, testAccCluster_basic(randName))
 }
 
 func testAccClusterLogConfig_config(randName string) string {
@@ -202,5 +202,5 @@ resource "sbercloud_cce_cluster_log_config" "test" {
     enable = true
   }
 }
-`, testAccCCEClusterV3_basic(randName))
+`, testAccCluster_basic(randName))
 }

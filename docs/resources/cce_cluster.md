@@ -1,5 +1,8 @@
 ---
 subcategory: "Cloud Container Engine (CCE)"
+layout: "sbercloud"
+page_title: "sberCloud: sbercloud_cce_cluster"
+description: ""
 ---
 
 # sbercloud_cce_cluster
@@ -22,8 +25,8 @@ resource "sbercloud_vpc_subnet" "mysubnet" {
   gateway_ip = "192.168.0.1"
 
   //dns is required for cce node installing
-  primary_dns   = "100.125.13.59"
-  secondary_dns = "100.125.65.14"
+  primary_dns   = "100.125.1.250"
+  secondary_dns = "100.125.21.250"
   vpc_id        = sbercloud_vpc.myvpc.id
 }
 
@@ -50,8 +53,8 @@ resource "sbercloud_vpc_subnet" "mysubnet" {
   gateway_ip = "192.168.0.1"
 
   //dns is required for cce node installing
-  primary_dns   = "100.125.13.59"
-  secondary_dns = "100.125.65.14"
+  primary_dns   = "100.125.1.250"
+  secondary_dns = "100.125.21.250"
   vpc_id        = sbercloud_vpc.myvpc.id
 }
 
@@ -93,8 +96,8 @@ resource "sbercloud_vpc_subnet" "mysubnet" {
   gateway_ip = "192.168.0.1"
 
   //dns is required for cce node installing
-  primary_dns   = "100.125.13.59"
-  secondary_dns = "100.125.65.14"
+  primary_dns   = "100.125.1.250"
+  secondary_dns = "100.125.21.250"
   vpc_id        = sbercloud_vpc.myvpc.id
 }
 
@@ -113,7 +116,7 @@ resource "sbercloud_vpc_subnet" "eni_test_2" {
 }
 
 resource "sbercloud_cce_cluster" "test" {
-  name                   = cluster"
+  name                   = "cluster"
   flavor_id              = "cce.s1.small"
   vpc_id                 = sbercloud_vpc.myvpc.id
   subnet_id              = sbercloud_vpc_subnet.mysubnet.id
@@ -146,6 +149,31 @@ resource "sbercloud_cce_cluster" "cluster" {
   }
   masters {
     availability_zone = "cn-north-4c"
+  }
+}
+```
+
+### Cluster with Component Configurations
+
+```hcl
+variable "vpc_id" {}
+variable "subnet_id" {}
+
+resource "sbercloud_cce_cluster" "cluster" {
+  name                   = "cluster"
+  flavor_id              = "cce.s1.small"
+  vpc_id                 = var.vpc_id
+  subnet_id              = var.subnet_id
+  container_network_type = "overlay_l2"
+
+  component_configurations {
+    name           = "kube-apiserver"
+    configurations = jsonencode([
+      {
+        name  = "default-not-ready-toleration-seconds"
+        value = "100"
+      }
+    ])
   }
 }
 ```
@@ -188,17 +216,23 @@ The following arguments are supported:
 * `security_group_id` - (Optional, String) Specifies the default worker node security group ID of the cluster.
   If left empty, the system will automatically create a default worker node security group for you.
   The default worker node security group needs to allow access from certain ports to ensure normal communications.
+  For details, see [documentation](https://support.sbercloud.com/intl/en-us/cce_faq/cce_faq_00265.html).
   If updated, the modified security group will only be applied to nodes newly created or accepted.
   For existing nodes, you need to manually modify the security group rules for them.
 
-* `cluster_version` - (Optional, String, ForceNew) Specifies the cluster version, defaults to the latest supported
-  version. Changing this parameter will create a new cluster resource.
+* `cluster_version` - (Optional, String) Specifies the cluster version, defaults to the latest supported
+  version. Changing this parameter will not upgrade the cluster. If you want to upgrade the cluster, please use
+  resource `sbercloud_cce_cluster_upgrade`. After upgrading cluster successfully, you can update this parameter
+  to avoid unexpected changing plan.
 
 * `cluster_type` - (Optional, String, ForceNew) Specifies the cluster Type, possible values are **VirtualMachine** and
   **ARM64**. Defaults to **VirtualMachine**. Changing this parameter will create a new cluster resource.
 
 * `alias` - (Optional, String) Specifies the display name of a cluster. The value of `alias` cannot be the same as the `name`
   and display names of other clusters.
+
+* `timezone` - (Optional, String, ForceNew) Specifies the time zone of a cluster. Changing this parameter will create a
+  new cluster resource.
 
 * `description` - (Optional, String) Specifies the cluster description.
 
@@ -229,6 +263,8 @@ The following arguments are supported:
   provided in the **authenticating_proxy** mode. The input value can be a Base64 encoded string or not.
   Changing this parameter will create a new cluster resource.
 
+-> **Note:** For more detailed description of authenticating_proxy mode for authentication_mode see
+[Enhanced authentication](https://github.com/sbercloud/terraform-provider-sbercloud/blob/master/examples/cce/basic/cce-cluster-enhanced-authentication.md).
 
 * `multi_az` - (Optional, Bool, ForceNew) Specifies whether to enable multiple AZs for the cluster, only when using HA
   flavors. Changing this parameter will create a new cluster resource. This parameter and `masters` are alternative.
@@ -253,15 +289,19 @@ The following arguments are supported:
 * `ipv6_enable` - (Optional, Bool, ForceNew) Specifies whether to enable IPv6 in the cluster.
   Changing this parameter will create a new cluster resource.
 
-* `support_istio` - (Optional, Bool, ForceNew) Specifies whether to support Istio in the cluster.
+* `enable_distribute_management` - (Optional, Bool, ForceNew) Specifies whether to enable support for remote clouds.
   Changing this parameter will create a new cluster resource.
 
 * `extend_params` - (Optional, List, ForceNew) Specifies the extended parameter.
   The [object](#cce_cluster_extend_params) structure is documented below.
   Changing this parameter will create a new cluster resource.
 
-* `component_configurations` - (Optional, List, ForceNew) Specifies the kubernetes component configurations.
+* `component_configurations` - (Optional, List) Specifies the kubernetes component configurations.
+  For details, see [documentation](https://support.sbercloud.com/intl/en-us/usermanual-cce/cce_10_0213.html).
   The [object](#cce_cluster_component_configurations) structure is documented below.
+
+* `encryption_config` - (Optional, List, ForceNew) Specifies the encryption configuration.
+  The [object](#cce_cluster_encryption_config) structure is documented below.
   Changing this parameter will create a new cluster resource.
 
 * `charging_mode` - (Optional, String, ForceNew) Specifies the charging mode of the CCE cluster.
@@ -299,8 +339,15 @@ The following arguments are supported:
 * `delete_all` - (Optional, String) Specified whether to delete all associated storage resources when deleting the CCE
   cluster. valid values are **true**, **try** and **false**. Default is **false**.
 
-* `hibernate` - (Optional, Bool) Specifies whether to hibernate the CCE cluster. Defaults to **false**. After a cluster is
-  hibernated, resources such as workloads cannot be created or managed in the cluster, and the cluster cannot be
+* `lts_reclaim_policy` - (Optional, String) Specified whether to delete LTS resources when deleting the CCE cluster.
+  Valid values are:
+  + **Delete_Log_Group**: Delete the log group, ignore it if it fails, and continue with the subsequent process.
+  + **Delete_Master_Log_Stream**: Delete the the log stream, ignore it if it fails, and continue the subsequent process.
+  The default option.
+  + **Retain**: Skip the deletion process.
+
+* `hibernate` - (Optional, Bool) Specifies whether to hibernate the CCE cluster. Defaults to **false**. After a cluster
+  is hibernated, resources such as workloads cannot be created or managed in the cluster, and the cluster cannot be
   deleted.
 
 <a name="cce_cluster_masters"></a>
@@ -315,7 +362,7 @@ The `extend_params` block supports:
 * `cluster_az` - (Optional, String, ForceNew) Specifies the AZ of master nodes in the cluster. The value can be:
   + **multi_az**: The cluster will span across AZs. This field is configurable only for high-availability clusters.
   + **AZ of the dedicated cloud computing pool**: The cluster will be deployed in the AZ of Dedicated Cloud (DeC).
-    This parameter is mandatory for dedicated CCE clusters.
+  This parameter is mandatory for dedicated CCE clusters.
 
   Changing this parameter will create a new cluster resource.
 
@@ -356,11 +403,16 @@ The `extend_params` block supports:
 <a name="cce_cluster_component_configurations"></a>
 The `component_configurations` block supports:
 
-* `name` - (Required, String, ForceNew) Specifies the component name.
-  Changing this parameter will create a new cluster resource.
+* `name` - (Required, String) Specifies the component name.
 
-* `configurations` - (Optional, String, ForceNew) Specifies JSON string of the component configurations.
-  Changing this parameter will create a new cluster resource.
+* `configurations` - (Optional, String) Specifies JSON string of the component configurations.
+
+<a name="cce_cluster_encryption_config"></a>
+The `encryption_config` block supports:
+
+* `mode` - (Optional, String, ForceNew) Specifies the encryption mode. The value can be: **Default** and **KMS**.
+
+* `kms_key_id` - (Optional, String, ForceNew) Specifies KMS key ID, required if `mode` is set to **KMS**.
 
 ## Attribute Reference
 
@@ -379,6 +431,8 @@ In addition to all arguments above, the following attributes are exported:
 * `eni_subnet_cidr` - The ENI network segment. This value is valid when only one eni_subnet_id is specified.
 
 * `kube_config_raw` - Raw Kubernetes config to be used by kubectl and other compatible tools.
+
+* `support_istio` - Whether Istio is supported in the cluster.
 
 The `certificate_clusters` block supports:
 
@@ -419,7 +473,7 @@ recommended running `terraform plan` after importing an CCE cluster. You can the
 the cluster, or the resource definition should be updated to align with the cluster. Also you can ignore changes as
 below.
 
-```
+```hcl
 resource "sbercloud_cce_cluster" "cluster_1" {
     ...
 

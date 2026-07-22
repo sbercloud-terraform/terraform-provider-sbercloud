@@ -55,5 +55,5 @@ data "sbercloud_cce_cluster" "test" {
 
   depends_on = [sbercloud_cce_cluster.test]
 }
-`, testAccCCEClusterV3_basic(rName))
+`, testAccCCEClusterV3DataSource_basic(rName))
 }

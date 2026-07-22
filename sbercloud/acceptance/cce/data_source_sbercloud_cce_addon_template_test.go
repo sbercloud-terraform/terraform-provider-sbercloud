@@ -14,7 +14,7 @@ func TestAccCCEAddonTemplateV3DataSource_basic(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
 		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy:      testAccCheckCCEClusterV3Destroy,
+		CheckDestroy:      testAccCheckClusterDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccCCEAddonTemplateV3DataSource_basic(rName),
@@ -42,5 +42,5 @@ data "sbercloud_cce_addon_template" "metrics-server_test" {
   name       = "metrics-server"
   version    = "1.1.10"
 }
-`, testAccCCEClusterV3_basic(rName))
+`, testAccCCEClusterV3DataSource_basic(rName))
 }

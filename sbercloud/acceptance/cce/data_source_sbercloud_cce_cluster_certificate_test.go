@@ -16,7 +16,7 @@ func TestAccClusterCertificateDataSource_basic(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { acceptance.TestAccPreCheck(t) },
 		ProviderFactories: acceptance.TestAccProviderFactories,
-		CheckDestroy:      testAccCheckCCEClusterV3Destroy,
+		CheckDestroy:      testAccCheckClusterDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testClousterCertificate_basic(rName),
@@ -41,5 +41,5 @@ func testClousterCertificate_basic(name string) string {
 data "sbercloud_cce_cluster_certificate" "test" {
   cluster_id = sbercloud_cce_cluster.test.id
   duration   = 30
-}`, testAccCCEClusterV3_basic(name))
+}`, testAccCCEClusterV3DataSource_basic(name))
 }
