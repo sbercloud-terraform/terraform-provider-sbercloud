@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
 	"github.com/chnsz/golangsdk"
 
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/common"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
 )
@@ -70,20 +68,20 @@ func dataSourceIdentityV5GroupAttachedPoliciesRead(_ context.Context, d *schema.
 	var path string
 
 	for {
-		path = client.Endpoint + "v5/groups/{group_id}/attached-policies" + buildListGroupAttachedPoliciesV5Params(marker)
+		path = client.Endpoint + "v5/groups/{group_id}/attached-policies" + buildListAttachedPoliciesV5Params(marker)
 		path = strings.ReplaceAll(path, "{group_id}", groupId)
 		reqOpt := &golangsdk.RequestOpts{
 			KeepResponseBody: true,
 		}
 		r, err := client.Request("GET", path, reqOpt)
 		if err != nil {
-			return common.CheckDeletedDiag(d, err, "error retrieving attached policies")
+			return diag.Errorf("error retrieving attached policies: %s", err)
 		}
 		resp, err := utils.FlattenResponse(r)
 		if err != nil {
 			return diag.FromErr(err)
 		}
-		policies := flattenListGroupAttachedPoliciesV5Response(resp)
+		policies := flattenListAttachedPoliciesV5Response(resp)
 		allPolicies = append(allPolicies, policies...)
 
 		marker = utils.PathSearch("page_info.next_marker", resp, "").(string)
@@ -92,15 +90,18 @@ func dataSourceIdentityV5GroupAttachedPoliciesRead(_ context.Context, d *schema.
 		}
 	}
 
-	id, _ := uuid.GenerateUUID()
+	id, err := uuid.GenerateUUID()
+	if err != nil {
+		return diag.FromErr(err)
+	}
 	d.SetId(id)
-	mErr := multierror.Append(nil,
-		d.Set("attached_policies", allPolicies),
-	)
-	return diag.FromErr(mErr.ErrorOrNil())
+	if err = d.Set("attached_policies", allPolicies); err != nil {
+		return diag.FromErr(err)
+	}
+	return nil
 }
 
-func flattenListGroupAttachedPoliciesV5Response(resp interface{}) []interface{} {
+func flattenListAttachedPoliciesV5Response(resp interface{}) []interface{} {
 	if resp == nil {
 		return nil
 	}
@@ -118,7 +119,7 @@ func flattenListGroupAttachedPoliciesV5Response(resp interface{}) []interface{} 
 	return result
 }
 
-func buildListGroupAttachedPoliciesV5Params(marker string) string {
+func buildListAttachedPoliciesV5Params(marker string) string {
 	res := "?limit=100"
 	if marker != "" {
 		res = fmt.Sprintf("%s&marker=%v", res, marker)

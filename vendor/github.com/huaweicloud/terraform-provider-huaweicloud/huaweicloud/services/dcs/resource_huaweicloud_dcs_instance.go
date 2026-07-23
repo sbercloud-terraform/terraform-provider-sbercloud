@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 
 	"github.com/chnsz/golangsdk"
 
@@ -322,9 +323,10 @@ func ResourceDcsInstance() *schema.Resource {
 				Computed: true,
 			},
 			"transparent_client_ip_enable": {
-				Type:     schema.TypeBool,
-				Optional: true,
-				Computed: true,
+				Type:         schema.TypeString,
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validation.StringInSlice([]string{"true", "false"}, false),
 			},
 			"charging_mode": common.SchemaChargingMode(nil),
 			"period_unit":   common.SchemaPeriodUnit(nil),
@@ -678,7 +680,7 @@ func resourceDcsInstancesCreate(ctx context.Context, d *schema.ResourceData, met
 		}
 	}
 
-	if d.Get("transparent_client_ip_enable").(bool) {
+	if v, ok := d.GetOk("transparent_client_ip_enable"); ok && v.(string) == "false" {
 		err = updateTransparentClientIpEnable(ctx, d, client)
 		if err != nil {
 			return diag.FromErr(err)
@@ -970,7 +972,8 @@ func resourceDcsInstancesRead(ctx context.Context, d *schema.ResourceData, meta 
 		d.Set("cpu_type", utils.PathSearch("cpu_type", instance, nil)),
 		d.Set("readonly_domain_name", utils.PathSearch("readonly_domain_name", instance, nil)),
 		d.Set("replica_count", utils.PathSearch("replica_count", instance, nil)),
-		d.Set("transparent_client_ip_enable", utils.PathSearch("transparent_client_ip_enable", instance, nil)),
+		d.Set("transparent_client_ip_enable", strconv.FormatBool(utils.PathSearch("transparent_client_ip_enable",
+			instance, false).(bool))),
 		d.Set("bandwidth_info", flattenInstanceBandWidth(instance)),
 		d.Set("product_type", utils.PathSearch("product_type", instance, nil)),
 		d.Set("sharding_count", utils.PathSearch("sharding_count", instance, nil)),
@@ -978,13 +981,7 @@ func resourceDcsInstancesRead(ctx context.Context, d *schema.ResourceData, meta 
 		d.Set("tags", utils.FlattenTagsToMap(utils.PathSearch("tags", instance, make([]interface{}, 0)))),
 	)
 
-	capacity := utils.PathSearch("capacity", instance, float64(0)).(float64)
-	if capacity > 0 {
-		mErr = multierror.Append(mErr, d.Set("capacity", capacity))
-	} else {
-		mErr = multierror.Append(mErr, d.Set("capacity", utils.PathSearch("capacity_minor", instance, nil)))
-	}
-
+	mErr = multierror.Append(mErr, setDcsInstanceCapacity(d, instance))
 	mErr = multierror.Append(mErr, setDcsInstanceWhitelist(d, client)...)
 	mErr = multierror.Append(mErr, setDcsInstanceBigKeyAutoScan(d, client)...)
 	mErr = multierror.Append(mErr, setDcsInstanceHotKeyAutoScan(d, client)...)
@@ -992,6 +989,25 @@ func resourceDcsInstancesRead(ctx context.Context, d *schema.ResourceData, meta 
 
 	diagErr := setDcsInstanceParameters(ctx, d, client, d.Id())
 	return append(diagErr, diag.FromErr(mErr.ErrorOrNil())...)
+}
+
+// lintignore:R014
+func setDcsInstanceCapacity(d *schema.ResourceData, instance interface{}) error {
+	capacity := utils.PathSearch("capacity", instance, float64(0)).(float64)
+	if capacity > 0 {
+		return d.Set("capacity", capacity)
+	}
+
+	capacityMinor := utils.PathSearch("capacity_minor", instance, "").(string)
+	if strings.HasPrefix(capacityMinor, ".") {
+		capacityMinor = fmt.Sprintf("0%s", capacityMinor)
+	}
+	capacity, err := strconv.ParseFloat(capacityMinor, 64)
+	if err != nil {
+		log.Printf("[WARN] error convert DCS instance(%s) capacity minor(%s): %s", d.Id(), capacityMinor, err)
+		return nil
+	}
+	return d.Set("capacity", capacity)
 }
 
 func getDcsInstanceByID(client *golangsdk.ServiceClient, instanceId string) (interface{}, error) {
@@ -1323,6 +1339,8 @@ func updateInstance(ctx context.Context, d *schema.ResourceData, client *golangs
 		httpMethod:       "PUT",
 		pathParams:       map[string]string{"instance_id": d.Id()},
 		updateBodyParams: utils.RemoveNil(buildUpdateInstanceBodyParams(d)),
+		isRetry:          true,
+		timeout:          schema.TimeoutUpdate,
 	})
 	if err != nil {
 		return fmt.Errorf("error updating instance: %s", err)
@@ -1732,8 +1750,9 @@ func updateTransparentClientIpEnable(ctx context.Context, d *schema.ResourceData
 }
 
 func buildUpdateTransparentClientIpEnableBodyParams(d *schema.ResourceData) map[string]interface{} {
+	transparentClientIpEnable, _ := strconv.ParseBool(d.Get("transparent_client_ip_enable").(string))
 	bodyParams := map[string]interface{}{
-		"transparent_client_ip_enable": d.Get("transparent_client_ip_enable"),
+		"transparent_client_ip_enable": transparentClientIpEnable,
 	}
 	return bodyParams
 }

@@ -24,7 +24,7 @@ import (
 // @API CCE POST /api/v3/projects/{project_id}/clusters/{cluster_id}/operation/upgrade
 // @API CCE GET /api/v3/projects/{project_id}/clusters/{cluster_id}/operation/upgrade/tasks/{task_id}
 // @API CCE POST /api/v3/projects/{project_id}/clusters/{cluster_id}/operation/precheck
-// @API CCE GET /api/v3/projects/{project_id}/clusters/{cluster_id}/operation/postcheck/tasks/{task_id}
+// @API CCE GET /api/v3/projects/{project_id}/clusters/{cluster_id}/operation/precheck/tasks/{task_id}
 // @API CCE POST /api/v3.1/projects/{project_id}/clusters/{cluster_id}/operation/snapshot
 // @API CCE GET /api/v3.1/projects/{project_id}/clusters/{cluster_id}/operation/snapshot/tasks
 // @API CCE POST /api/v3/projects/{project_id}/clusters/{cluster_id}/operation/postcheck

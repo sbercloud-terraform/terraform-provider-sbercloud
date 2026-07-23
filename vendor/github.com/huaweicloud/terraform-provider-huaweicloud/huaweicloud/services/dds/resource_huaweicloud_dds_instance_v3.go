@@ -29,18 +29,18 @@ type ctxType string
 
 // @API DDS POST /v3/{project_id}/instances
 // @API DDS GET /v3/{project_id}/instances
-// @API DDS POST /v3/{project_id}/instances/{id}/tags/action
-// @API DDS GET /v3/{project_id}/instances/{id}/tags
+// @API DDS POST /v3/{project_id}/instances/{instance_id}/tags/action
+// @API DDS GET /v3/{project_id}/instances/{instance_id}/tags
 // @API DDS PUT /v3/{project_id}/instances/{instance_id}/modify-name
 // @API DDS PUT /v3/{project_id}/instances/{instance_id}/reset-password
-// @API DDS PUT /v3/{project_id}/instances/{instance_id}/modify-security-group
-// @API DDS PUT /v3/{project_id}/instances/{instance_id}/switch-ssl
-// @API DDS PUT /v3/{project_id}/instances/{instance_id}/modify-port
+// @API DDS POST /v3/{project_id}/instances/{instance_id}/modify-security-group
+// @API DDS POST /v3/{project_id}/instances/{instance_id}/switch-ssl
+// @API DDS POST /v3/{project_id}/instances/{instance_id}/modify-port
 // @API DDS POST /v3/{project_id}/instances/{instance_id}/enlarge-volume
 // @API DDS POST /v3/{project_id}/instances/{instance_id}/enlarge
 // @API DDS POST /v3/{project_id}/instances/{instance_id}/resize
 // @API DDS GET /v3/{project_id}/jobs
-// @API DDS DELETE /v3/{project_id}/instances/{serverID}
+// @API DDS DELETE /v3/{project_id}/instances/{instance_id}
 // @API DDS PUT /v3/{project_id}/instances/{instance_id}/remark
 // @API DDS POST /v3/{project_id}/instances/{instance_id}/migrate
 // @API DDS GET /v3/{project_id}/instances/{instance_id}/backups/policy
@@ -1484,12 +1484,14 @@ func flattenDdsInstanceGroupNodes(nodes []instances.Nodes) interface{} {
 	nodesList := make([]map[string]interface{}, len(nodes))
 	for i, node := range nodes {
 		node := map[string]interface{}{
-			"id":         node.Id,
-			"name":       node.Name,
-			"role":       node.Role,
-			"status":     node.Status,
-			"private_ip": node.PrivateIP,
-			"public_ip":  node.PublicIP,
+			"id":                node.Id,
+			"name":              node.Name,
+			"role":              node.Role,
+			"status":            node.Status,
+			"private_ip":        node.PrivateIP,
+			"public_ip":         node.PublicIP,
+			"spec_code":         node.SpecCode,
+			"availability_zone": node.AvailabilityZone,
 		}
 		nodesList[i] = node
 	}
@@ -1502,13 +1504,15 @@ func flattenDdsInstanceV3Nodes(dds instances.InstanceResponse) interface{} {
 		groupType := group.Type
 		for _, Node := range group.Nodes {
 			node := map[string]interface{}{
-				"type":       groupType,
-				"id":         Node.Id,
-				"name":       Node.Name,
-				"role":       Node.Role,
-				"status":     Node.Status,
-				"private_ip": Node.PrivateIP,
-				"public_ip":  Node.PublicIP,
+				"type":              groupType,
+				"id":                Node.Id,
+				"name":              Node.Name,
+				"role":              Node.Role,
+				"status":            Node.Status,
+				"private_ip":        Node.PrivateIP,
+				"public_ip":         Node.PublicIP,
+				"spec_code":         Node.SpecCode,
+				"availability_zone": Node.AvailabilityZone,
 			}
 			nodesList = append(nodesList, node)
 		}
