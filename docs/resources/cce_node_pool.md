@@ -330,7 +330,7 @@ The following arguments are supported:
 * `root_volume` - (Required, List, ForceNew) Specifies the configuration of the system disk.
   The structure is described below. Changing this parameter will create a new resource.
 
-* `data_volumes` - (Required, List, ForceNew) Specifies the configuration of the data disks.
+* `data_volumes` - (Optional, List, ForceNew) Specifies the configuration of the data disks.
   The structure is described below. Changing this parameter will create a new resource.
 
 * `charging_mode` - (Optional, String, ForceNew) Specifies the charging mode of the CCE node pool. Valid values are
