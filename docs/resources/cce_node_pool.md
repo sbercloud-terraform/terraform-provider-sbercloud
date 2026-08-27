@@ -536,7 +536,7 @@ The `selectors` block supports:
 
 * `name` - (Required, String, ForceNew) Specifies the selector name, used as the index of `selector_names` in storage group.
   The name of each selector must be unique. Changing this parameter will create a new resource.
-* `type` - (Optional, String, ForceNew) Specifies the storage type. evs (EVS volumes)\system(with no data_volume configuratiom) is supported.
+* `type` - (Optional, String, ForceNew) Specifies the storage type. **evs** (EVS volumes)\ **system** (with no data_volume configuratiom) is supported.
   The default value is **evs**. Changing this parameter will create a new resource.
 * `match_label_size` - (Optional, String, ForceNew) Specifies the matched disk size. If omitted,
   the disk size is not limited. Example: 100. Changing this parameter will create a new resource.
