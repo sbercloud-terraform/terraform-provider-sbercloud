@@ -132,7 +132,67 @@ resource "sbercloud_cce_node_pool" "test" {
   }
 }
 ```
+## Node pool with root volume only
 
+```hcl
+variable "cluster_id"
+variable "key_pair" {}
+variable "availability_zone" {}
+
+resource "sbercloud_cce_node_pool" "test" {
+  cluster_id               = var.cluster_id
+  name                     = "testpool"
+  os                       = "CentOS 7.6"
+  flavor_id                = "c7n.large.2"
+  initial_node_count       = 1
+  availability_zone        = var.availability_zone
+  key_pair                 = var.key_pair
+  scall_enable             = false
+  min_node_count           = 0
+  max_node_count           = 0
+  scale_down_cooldown_time = 0
+  priority                 = 0
+  type                     = "vm"
+
+  root_volume {
+    size       = 40
+    volumetype = "SSD"
+  }
+  
+  storage {
+    selectors {
+      name              = "cceUse"
+      type              = "system"
+      match_label_size  = "100"
+      match_label_count = "1"
+    }
+
+	selectors {
+      name                           = "user"
+      type                           = "system"
+      match_label_size               = "100"
+      match_label_count              = "1"
+    }
+    groups {
+      name           = "vgpaas"
+      selector_names = ["cceUse"]
+      cce_managed    = true
+
+      virtual_spaces {
+        name        = "kubernetes"
+        size        = "10%"
+        lvm_lv_type = "linear"
+      }
+
+      virtual_spaces {
+        name        = "runtime"
+        size        = "90%"
+      }
+    }
+  }
+}
+
+```
 ### PrePaid node pool
 
 ```hcl
@@ -476,7 +536,7 @@ The `selectors` block supports:
 
 * `name` - (Required, String, ForceNew) Specifies the selector name, used as the index of `selector_names` in storage group.
   The name of each selector must be unique. Changing this parameter will create a new resource.
-* `type` - (Optional, String, ForceNew) Specifies the storage type. Currently, only **evs (EVS volumes)** is supported.
+* `type` - (Optional, String, ForceNew) Specifies the storage type.**evs (EVS volumes)**\**system  (with no data_volume configuratiom) ** is supported.
   The default value is **evs**. Changing this parameter will create a new resource.
 * `match_label_size` - (Optional, String, ForceNew) Specifies the matched disk size. If omitted,
   the disk size is not limited. Example: 100. Changing this parameter will create a new resource.
