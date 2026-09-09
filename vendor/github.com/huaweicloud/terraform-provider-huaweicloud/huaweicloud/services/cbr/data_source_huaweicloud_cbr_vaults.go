@@ -244,6 +244,38 @@ func filterVaults(all []interface{}, d *schema.ResourceData) []interface{} {
 	return rst
 }
 
+func parseVaultResourcesForServer(resources []interface{}) []map[string]interface{} {
+	results := make([]map[string]interface{}, 0, len(resources))
+	for _, res := range resources {
+		results = append(results, map[string]interface{}{
+			"server_id": utils.PathSearch("id", res, ""),
+			"includes":  utils.PathSearch("extra_info.include_volumes[*].id", res, make([]interface{}, 0)),
+			"excludes":  utils.PathSearch("extra_info.exclude_volumes", res, make([]interface{}, 0)),
+		})
+	}
+	return results
+}
+
+func parseVaultResourcesForDisk(resources []interface{}) []map[string]interface{} {
+	return []map[string]interface{}{
+		{
+			"includes": utils.PathSearch("[*].id", resources, make([]interface{}, 0)),
+		},
+	}
+}
+
+func flattenVaultResources(vType string, resources []interface{}) []map[string]interface{} {
+	switch vType {
+	case VaultTypeServer, VaultTypeWorkspace:
+		return parseVaultResourcesForServer(resources)
+	case VaultTypeDisk, VaultTypeTurbo:
+		return parseVaultResourcesForDisk(resources)
+	default:
+		// Nothing to do for type file and type vmware.
+	}
+	return nil
+}
+
 func flattenAllVaults(client *golangsdk.ServiceClient, vaultList []interface{}) []map[string]interface{} {
 	if len(vaultList) < 1 {
 		return nil

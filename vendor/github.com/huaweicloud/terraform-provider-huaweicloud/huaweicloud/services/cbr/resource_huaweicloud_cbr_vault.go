@@ -56,6 +56,9 @@ var (
 		VaultTypeVMware:    ResourceTypeNone,
 		VaultTypeFile:      ResourceTypeNone,
 	}
+	objSliceParamKeysForVault = []string{
+		"resources",
+	}
 )
 
 // @API CBR POST /v3/{project_id}/vaults
@@ -185,9 +188,8 @@ func ResourceVault() *schema.Resource {
 				Description: "The policy details to associate with the CBR vault.",
 			},
 			"resources": {
-				Type:     schema.TypeSet,
+				Type:     schema.TypeList,
 				Optional: true,
-				Computed: true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"server_id": {
@@ -196,22 +198,23 @@ func ResourceVault() *schema.Resource {
 							Description: "The ID of the ECS instance to be backed up.",
 						},
 						"excludes": {
-							Type:        schema.TypeSet,
-							Optional:    true,
-							Computed:    true,
-							Elem:        &schema.Schema{Type: schema.TypeString},
-							Description: "The array of disk IDs which will be excluded in the backup.",
+							Type:             schema.TypeList,
+							Optional:         true,
+							Elem:             &schema.Schema{Type: schema.TypeString},
+							DiffSuppressFunc: utils.SuppressStrSliceDiffs("resources_origin|server_id.excludes"),
+							Description:      "The array of disk IDs which will be excluded in the backup.",
 						},
 						"includes": {
-							Type:        schema.TypeSet,
-							Optional:    true,
-							Computed:    true,
-							Elem:        &schema.Schema{Type: schema.TypeString},
-							Description: "The array of disk or SFS file systems which will be included in the backup.",
+							Type:             schema.TypeList,
+							Optional:         true,
+							Elem:             &schema.Schema{Type: schema.TypeString},
+							DiffSuppressFunc: utils.SuppressStrSliceDiffs("resources_origin|server_id.includes"),
+							Description:      "The array of disk or SFS file systems which will be included in the backup.",
 						},
 					},
 				},
-				Description: "The array of one or more resources to attach to the CBR vault.",
+				DiffSuppressFunc: utils.SuppressObjectSliceDiffs(),
+				Description:      "The array of one or more resources to attach to the CBR vault.",
 			},
 			"backup_name_prefix": {
 				Type:        schema.TypeString,
@@ -260,6 +263,45 @@ func ResourceVault() *schema.Resource {
 				Computed:    true,
 				Description: "The name of the bucket for the vault.",
 			},
+
+			// Internal parameters.
+			"resources_origin": {
+				Type:             schema.TypeList,
+				Optional:         true,
+				Computed:         true,
+				DiffSuppressFunc: utils.SuppressDiffAll,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"server_id": {
+							Type:        schema.TypeString,
+							Computed:    true,
+							Description: "The ID of the ECS instance to be backed up.",
+						},
+						"excludes": {
+							Type:        schema.TypeList,
+							Optional:    true,
+							Computed:    true,
+							Elem:        &schema.Schema{Type: schema.TypeString},
+							Description: "The array of disk IDs which will be excluded in the backup.",
+						},
+						"includes": {
+							Type:        schema.TypeList,
+							Optional:    true,
+							Computed:    true,
+							Elem:        &schema.Schema{Type: schema.TypeString},
+							Description: "The array of disk or SFS file systems which will be included in the backup.",
+						},
+					},
+				},
+				Description: utils.SchemaDesc(
+					`The script configuration value of this change is also the original value used for comparison with
+ the new value next time the change is made. The corresponding parameter name is 'resources'.`,
+					utils.SchemaDescInput{
+						Internal: true,
+					},
+				),
+			},
+
 			// Deprecated arguments
 			"policy_id": {
 				Type:        schema.TypeString,
@@ -268,82 +310,6 @@ func ResourceVault() *schema.Resource {
 			},
 		},
 	}
-}
-
-func buildAssociateResourcesForServer(rType string, resources []interface{}) ([]map[string]interface{}, error) {
-	// If no resource is set, send an empty slice to the CBR service.
-	results := make([]map[string]interface{}, 0, len(resources))
-
-	for _, val := range resources {
-		serverId := utils.PathSearch("server_id", val, "").(string)
-		if serverId == "" {
-			// It means that the current resource object is an empty object: {}
-			continue
-		}
-
-		if utils.PathSearch("includes", val, schema.NewSet(schema.HashString, nil)).(*schema.Set).Len() > 0 {
-			return results, errors.New("server type vaults does not support 'includes'")
-		}
-
-		result := map[string]interface{}{
-			"id":   utils.PathSearch("server_id", val, ""),
-			"type": rType,
-		}
-		// The server vault only support excludes (blacklist).
-		if excludes := utils.PathSearch("excludes", val, schema.NewSet(schema.HashString, nil)).(*schema.Set); excludes.Len() > 0 {
-			result["extra_info"] = map[string]interface{}{
-				"exclude_volumes": utils.ExpandToStringListBySet(excludes),
-			}
-		}
-		results = append(results, result)
-	}
-	return results, nil
-}
-
-func buildAssociateResourcesForDisk(rType string, resources []interface{}) ([]map[string]interface{}, error) {
-	if len(resources) > 1 {
-		return nil, errors.New("the size of resources cannot grant than one for disk and turbo vault")
-	} else if len(resources) == 0 || (len(resources) == 1 && resources[0] == nil) {
-		// If no resource is set, send an empty slice to the CBR service.
-		return make([]map[string]interface{}, 0), nil
-	}
-
-	if utils.PathSearch("excludes", resources[0], schema.NewSet(schema.HashString, nil)).(*schema.Set).Len() > 0 {
-		return nil, errors.New("disk-type and turbo-type vaults does not support 'excludes'")
-	}
-	includes := utils.PathSearch("includes", resources[0], schema.NewSet(schema.HashString, nil)).(*schema.Set)
-	if includes.Len() < 1 {
-		return make([]map[string]interface{}, 0), nil
-	}
-	results := make([]map[string]interface{}, 0, includes.Len())
-	for _, v := range includes.List() {
-		results = append(results, map[string]interface{}{
-			"id":   v,
-			"type": rType,
-		})
-	}
-	return results, nil
-}
-
-func buildAssociateResources(vType string, resources *schema.Set) ([]map[string]interface{}, error) {
-	var result = make([]map[string]interface{}, 0)
-	var err error
-	rType, ok := resourceType[vType]
-	if !ok {
-		return nil, fmt.Errorf("invalid resource type: %s", vType)
-	}
-	log.Printf("[DEBUG] The resource type is: %s", rType)
-	switch rType {
-	case ResourceTypeServer, ResourceTypeWorkspace:
-		result, err = buildAssociateResourcesForServer(rType, resources.List())
-	case ResourceTypeDisk, ResourceTypeTurbo:
-		result, err = buildAssociateResourcesForDisk(rType, resources.List())
-	case ResourceTypeNone:
-		// Nothing to do.
-	default:
-		err = fmt.Errorf("invalid vault type: %s", vType)
-	}
-	return result, err
 }
 
 func isPrePaid(d *schema.ResourceData) bool {
@@ -387,16 +353,6 @@ func buildBindRules(rules map[string]interface{}) []map[string]interface{} {
 }
 
 func buildVaultCreateOpts(cfg *config.Config, d *schema.ResourceData) (map[string]interface{}, error) {
-	res, ok := d.Get("resources").(*schema.Set)
-	if !ok {
-		return nil, fmt.Errorf("invalid type of the parameter 'resources', want '*schema.Set', but got '%T'",
-			d.Get("resources"))
-	}
-	resources, err := buildAssociateResources(d.Get("type").(string), res)
-	if err != nil {
-		return nil, fmt.Errorf("error building the structure of associated resources: %s", err)
-	}
-
 	isAutoExpand, ok := d.GetOk("auto_expand")
 	if ok && isPrePaid(d) {
 		return nil, errors.New("the prepaid vault do not support the parameter 'auto_expand'")
@@ -405,14 +361,13 @@ func buildVaultCreateOpts(cfg *config.Config, d *schema.ResourceData) (map[strin
 	result := map[string]interface{}{
 		"name":                  d.Get("name").(string),
 		"enterprise_project_id": utils.ValueIgnoreEmpty(cfg.GetEnterpriseProjectID(d)),
-		// If no resources are bound when creating, enter an empty list.
-		"resources":          resources,
-		"backup_policy_id":   utils.ValueIgnoreEmpty(d.Get("policy_id")), // The deprecated parameter (can only bind backup policy).
-		"billing":            buildBillingStructure(d),
-		"auto_expand":        isAutoExpand.(bool),
-		"auto_bind":          d.Get("auto_bind").(bool),
-		"backup_name_prefix": utils.ValueIgnoreEmpty(d.Get("backup_name_prefix")),
-		"locked":             d.Get("locked").(bool),
+		"resources":             make([]interface{}, 0),
+		"backup_policy_id":      utils.ValueIgnoreEmpty(d.Get("policy_id")), // The deprecated parameter (can only bind backup policy).
+		"billing":               buildBillingStructure(d),
+		"auto_expand":           isAutoExpand.(bool),
+		"auto_bind":             d.Get("auto_bind").(bool),
+		"backup_name_prefix":    utils.ValueIgnoreEmpty(d.Get("backup_name_prefix")),
+		"locked":                d.Get("locked").(bool),
 	}
 
 	bindRulesRaw, ok := d.Get("bind_rules").(map[string]interface{})
@@ -428,9 +383,509 @@ func buildVaultCreateOpts(cfg *config.Config, d *schema.ResourceData) (map[strin
 
 	// Except resources field, remove all keys in which the related values are empty.
 	result = utils.RemoveNil(result)
-	result["resources"] = resources
+	// If no resources are bound when creating, enter an empty list.
+	result["resources"] = make([]interface{}, 0)
 
 	return result, nil
+}
+
+func orderVaultServerResourceExcludesByExcludesOrigin(excludes, excludesOrigin []interface{}, keepRemoteState bool) []interface{} {
+	if len(excludesOrigin) < 1 {
+		return excludes
+	}
+
+	sortedExcludes := make([]interface{}, 0, len(excludes))
+	excludesCopy := excludes
+	for _, excludeOrigin := range excludesOrigin {
+		for index, exclude := range excludesCopy {
+			if exclude == excludeOrigin {
+				// Add the found exclude to the sorted excludes list.
+				sortedExcludes = append(sortedExcludes, exclude)
+				// Remove the processed exclude from the original excludes array.
+				excludesCopy = append(excludesCopy[:index], excludesCopy[index+1:]...)
+				break
+			}
+		}
+	}
+	if keepRemoteState {
+		// Add any remaining unsorted excludes to the end of the sorted list.
+		sortedExcludes = append(sortedExcludes, excludesCopy...)
+	}
+	return sortedExcludes
+}
+
+func orderVaultServerResourcesByResourcesOrigin(resources, resourcesOrigin []interface{}, keepRemoteState bool) []interface{} {
+	if len(resourcesOrigin) < 1 {
+		return resources
+	}
+
+	sortedResources := make([]interface{}, 0, len(resources))
+	resourcesCopy := resources
+	for _, resourceOrigin := range resourcesOrigin {
+		resourceIdOrigin := utils.PathSearch("server_id", resourceOrigin, "").(string)
+		excludesOrigin := utils.PathSearch("excludes", resourceOrigin, make([]interface{}, 0)).([]interface{})
+
+		for index, res := range resourcesCopy {
+			resourceId := utils.PathSearch("server_id", res, "").(string)
+			if resourceId == resourceIdOrigin {
+				parsedResource := map[string]interface{}{
+					"server_id": resourceId,
+					"excludes": orderVaultServerResourceExcludesByExcludesOrigin(utils.PathSearch("excludes",
+						res, make([]interface{}, 0)).([]interface{}), excludesOrigin, keepRemoteState),
+				}
+				sortedResources = append(sortedResources, parsedResource)
+				// Remove the processed resource from the original array.
+				resourcesCopy = append(resourcesCopy[:index], resourcesCopy[index+1:]...)
+				break
+			}
+		}
+		if keepRemoteState {
+			// Add any remaining unsorted resources to the end of the sorted list.
+			sortedResources = append(sortedResources, resourcesCopy)
+		}
+	}
+
+	return sortedResources
+}
+
+func orderVaultDiskResourceIncludesByIncludesOrigin(includes, includesOrigin []interface{}, keepRemoteState bool) []interface{} {
+	if len(includesOrigin) < 1 {
+		return includes
+	}
+
+	sortedIncludes := make([]interface{}, 0, len(includes))
+	includesCopy := includes
+	for _, includeOrigin := range includesOrigin {
+		for index, include := range includesCopy {
+			if include == includeOrigin {
+				// Add the found include to the sorted includes list.
+				sortedIncludes = append(sortedIncludes, include)
+				// Remove the processed include from the original includes array.
+				includesCopy = append(includesCopy[:index], includesCopy[index+1:]...)
+				break
+			}
+		}
+	}
+	if keepRemoteState {
+		// Add any remaining unsorted includes to the end of the sorted list.
+		sortedIncludes = append(sortedIncludes, includesCopy...)
+	}
+	return sortedIncludes
+}
+
+func orderVaultDiskResourcesByResourcesOrigin(resources, resourcesOrigin []interface{}, keepRemoteState bool) []interface{} {
+	if len(resourcesOrigin) < 1 {
+		return resources
+	}
+
+	return []interface{}{
+		map[string]interface{}{
+			"includes": orderVaultDiskResourceIncludesByIncludesOrigin(
+				utils.PathSearch("[0].includes", resources, make([]interface{}, 0)).([]interface{}),
+				utils.PathSearch("[0].includes", resourcesOrigin, make([]interface{}, 0)).([]interface{}),
+				keepRemoteState,
+			),
+		},
+	}
+}
+
+func parseRemoteVaultServerResources(resources []interface{}) []interface{} {
+	if len(resources) < 1 {
+		return nil
+	}
+
+	results := make([]interface{}, 0, len(resources))
+	for _, res := range resources {
+		results = append(results, map[string]interface{}{
+			"server_id": utils.PathSearch("id", res, ""),
+			"excludes":  utils.PathSearch("extra_info.exclude_volumes", res, make([]interface{}, 0)),
+		})
+	}
+	return results
+}
+
+func parseRemoteVaultDiskResources(resources []interface{}) []interface{} {
+	if len(resources) < 1 {
+		return nil
+	}
+
+	return []interface{}{
+		map[string]interface{}{
+			"includes": utils.PathSearch("[*].id", resources, make([]interface{}, 0)),
+		},
+	}
+}
+
+func listAssociatedResources(client *golangsdk.ServiceClient, vaultId string, resourcesOrigin []interface{},
+	keepRemoteState bool) ([]interface{}, error) {
+	httpUrl := "v3/{project_id}/vaults/{vault_id}"
+	listPath := client.Endpoint + httpUrl
+	listPath = strings.ReplaceAll(listPath, "{project_id}", client.ProjectID)
+	listPath = strings.ReplaceAll(listPath, "{vault_id}", vaultId)
+
+	queryOpts := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+	}
+	requestResp, err := client.Request("GET", listPath, &queryOpts)
+	if err != nil {
+		return nil, err
+	}
+	respBody, err := utils.FlattenResponse(requestResp)
+	if err != nil {
+		return nil, err
+	}
+	resources := utils.PathSearch("vault.resources", respBody, make([]interface{}, 0)).([]interface{})
+	switch utils.PathSearch("vault.billing.object_type", respBody, "").(string) {
+	case VaultTypeServer, VaultTypeWorkspace:
+		return orderVaultServerResourcesByResourcesOrigin(parseRemoteVaultServerResources(resources), resourcesOrigin, keepRemoteState), nil
+	case VaultTypeDisk, VaultTypeTurbo:
+		return orderVaultDiskResourcesByResourcesOrigin(parseRemoteVaultDiskResources(resources), resourcesOrigin, keepRemoteState), nil
+	default:
+		// Nothing to do for type file and type vmware.
+	}
+	return nil, nil
+}
+
+// Deletion is only considered necessary when the server needs to be unbound. As long as the server remains bound,
+// changes to the disk binding relationship do not require calling the API to delete resources.
+func findDeleteServerResourcesFromVault(originResources, rawConfigResources []interface{}) []interface{} {
+	if len(originResources) < 1 {
+		return nil
+	}
+
+	result := make([]interface{}, 0, len(originResources))
+	for _, resourceOrigin := range originResources {
+		serverIdOrigin := utils.PathSearch("server_id", resourceOrigin, "").(string)
+		if utils.PathSearch(fmt.Sprintf("length([?server_id == '%v'])", serverIdOrigin), rawConfigResources, float64(0)).(float64) < 1 {
+			// If the new server list does not contain this server, it is considered that this server is no longer bound to the vault.
+			// If the excludes of this server is different from the new server list, it is considered that this server needs to be updated.
+			result = append(result, utils.PathSearch("server_id", resourceOrigin, ""))
+		}
+	}
+
+	return result
+}
+
+// findAddServerResourceExcludes calculates the final excludes list for adding/updating server resources.
+// Returns the excludes list that should be sent in the API request.
+//
+// Formula: (remoteStateExcludes ∪ rawConfigExcludes) - (originExcludes - rawConfigExcludes)
+//
+// Calculation logic:
+//   - Step 1: Calculate union of remoteStateExcludes and rawConfigExcludes
+//     This ensures all volumes from both remote state and local config are included.
+//   - Step 2: Calculate local removals: originExcludes - rawConfigExcludes
+//     Elements that were in origin but removed from local config (user's intent to remove).
+//   - Step 3: Remove local removals from union: unionExcludes - localRemovals
+//     Final result keeps remote state while removing volumes that user explicitly removed locally.
+//
+// Purpose: Maintain remote state configuration while removing volumes that were locally removed by the user.
+func findAddServerResourceExcludes(originExcludes, rawConfigExcludes, remoteStateExcludes []interface{}) []interface{} {
+	// Step 1: Calculate union of remoteStateExcludes and rawConfigExcludes
+	// Combine all volumes from both remote state and local config to ensure nothing is lost
+	unionExcludes := make([]interface{}, 0)
+	unionMap := make(map[interface{}]bool)
+	for _, item := range remoteStateExcludes {
+		if !unionMap[item] {
+			unionExcludes = append(unionExcludes, item)
+			unionMap[item] = true
+		}
+	}
+	for _, item := range rawConfigExcludes {
+		if !unionMap[item] {
+			unionExcludes = append(unionExcludes, item)
+			unionMap[item] = true
+		}
+	}
+
+	// Step 2: Calculate local removals: originExcludes - rawConfigExcludes
+	// Elements that were in origin but removed from local config (user's intent to remove)
+	localRemovals := utils.FindSliceElementsNotInAnother(originExcludes, rawConfigExcludes)
+
+	// Step 3: Remove local removals from union: unionExcludes - localRemovals
+	// Final result: keep remote state while removing volumes that user explicitly removed locally
+	finalExcludes := utils.FindSliceElementsNotInAnother(unionExcludes, localRemovals)
+
+	return finalExcludes
+}
+
+// shouldUpdateServerResourceExcludes determines whether the server resource excludes need to be updated.
+// Returns true if update is needed, false otherwise.
+//
+// Update conditions:
+//   - Condition 1: ((rawConfigExcludes - originExcludes - remoteStateExcludes) > 0 &&
+//     ((rawConfigExcludes - originExcludes - remoteStateExcludes) ∩ remoteStateExcludes) < 1)
+//     This means there are new local additions that are not in remote state.
+//   - Condition 2: ((originExcludes - rawConfigExcludes) ∩ remoteStateExcludes) > 0
+//     This means there are local removals that still exist in remote state and need to be removed.
+func shouldUpdateServerResourceExcludes(originExcludes, rawConfigExcludes, remoteStateExcludes []interface{}) bool {
+	// Calculate: (rawConfigExcludes - originExcludes - remoteStateExcludes)
+	// Elements in rawConfig but not in origin and not in remoteState (new local additions)
+	rawConfigMinusOriginAndRemote := utils.FindSliceElementsNotInAnother(
+		utils.FindSliceElementsNotInAnother(rawConfigExcludes, originExcludes),
+		remoteStateExcludes,
+	)
+	// Calculate: (rawConfigExcludes - originExcludes - remoteStateExcludes) ∩ remoteStateExcludes
+	// Intersection of new local additions with remoteState
+	rawConfigMinusOriginAndRemoteIntersectRemote := utils.FildSliceIntersection(
+		rawConfigMinusOriginAndRemote,
+		remoteStateExcludes,
+	)
+
+	// Calculate: (originExcludes - rawConfigExcludes)
+	// Elements in origin but not in rawConfig (local removals)
+	originMinusRawConfig := utils.FindSliceElementsNotInAnother(originExcludes, rawConfigExcludes)
+	// Calculate: (originExcludes - rawConfigExcludes) ∩ remoteStateExcludes
+	// Local removals that still exist in remoteState (need to be removed from remote)
+	originMinusRawConfigIntersectRemote := utils.FildSliceIntersection(
+		originMinusRawConfig,
+		remoteStateExcludes,
+	)
+
+	// Condition 1: New local additions that are not in remoteState
+	condition1 := len(rawConfigMinusOriginAndRemote) > 0 && len(rawConfigMinusOriginAndRemoteIntersectRemote) < 1
+	// Condition 2: Local removals that still exist in remoteState (need to be removed)
+	condition2 := len(originMinusRawConfigIntersectRemote) > 0
+	return condition1 || condition2
+}
+
+// Assuming the server remains bound, any changes to the server disk binding relationship require a re-overwrite of the
+// `exclude_volumes` variable.
+func findAddServerResourcesToVault(resourceType string, originResources, rawConfigResources, remoteStateResources []interface{}) []interface{} {
+	if len(rawConfigResources) < 1 {
+		return nil
+	}
+
+	result := make([]interface{}, 0, len(rawConfigResources))
+	for _, res := range rawConfigResources {
+		serverId := utils.PathSearch("server_id", res, "").(string)
+
+		rawConfigExcludes := utils.PathSearch("excludes", res, make([]interface{}, 0)).([]interface{})
+		remoteStateExcludes := utils.PathSearch(fmt.Sprintf("[?server_id == '%v']|[0].excludes", serverId),
+			remoteStateResources, make([]interface{}, 0)).([]interface{})
+		originExcludes := utils.PathSearch(fmt.Sprintf("[?server_id == '%v']|[0].excludes", serverId),
+			originResources, make([]interface{}, 0)).([]interface{})
+
+		// If the old server list does not contain this server, it is considered that this server is a newly bound server.
+		// If the condition is met, it is considered that this server needs to be updated.
+		if utils.PathSearch(fmt.Sprintf("length([?server_id == '%v'])", serverId), remoteStateResources, float64(0)).(float64) < 1 ||
+			shouldUpdateServerResourceExcludes(originExcludes, rawConfigExcludes, remoteStateExcludes) {
+			log.Printf("[DEBUG] Is new server resource to be added? %v",
+				utils.PathSearch(fmt.Sprintf("length([?server_id == '%v'])", serverId), remoteStateResources, float64(0)).(float64) < 1)
+			log.Printf("[DEBUG] Is excludes need to be updated? %v",
+				shouldUpdateServerResourceExcludes(originExcludes, rawConfigExcludes, remoteStateExcludes))
+			result = append(result, map[string]interface{}{
+				"type": resourceType,
+				"id":   utils.PathSearch("server_id", res, ""),
+				"extra_info": map[string]interface{}{
+					"exclude_volumes": findAddServerResourceExcludes(originExcludes, rawConfigExcludes, remoteStateExcludes),
+				},
+			})
+		}
+	}
+
+	return result
+}
+
+func findDeleteDiskResourcesFromVault(originResources, rawConfigResources []interface{}) []interface{} {
+	if len(originResources) < 1 {
+		return nil
+	}
+
+	result := make([]interface{}, 0, len(originResources))
+	originIncludes := utils.PathSearch("[0].includes", originResources, make([]interface{}, 0)).([]interface{})
+	rawConfigIncludes := utils.PathSearch("[0].includes", rawConfigResources, make([]interface{}, 0)).([]interface{})
+	for _, includeOrigin := range originIncludes {
+		log.Printf("[DEBUG] Is include (%v) need to be deleted? %v", includeOrigin, !utils.SliceContains(rawConfigIncludes, includeOrigin))
+		if !utils.SliceContains(rawConfigIncludes, includeOrigin) {
+			// If the new includes list contains this include, it is considered that this include is no longer bound to the vault.
+			result = append(result, includeOrigin)
+		}
+	}
+
+	return result
+}
+
+func findAddDiskResourcesToVault(resourceType string, rawConfigResources, remoteStateResources []interface{}) []interface{} {
+	if len(rawConfigResources) < 1 {
+		return nil
+	}
+
+	result := make([]interface{}, 0, len(rawConfigResources))
+	rawConfigIncludes := utils.PathSearch("[0].includes", rawConfigResources, make([]interface{}, 0)).([]interface{})
+	remoteStateIncludes := utils.PathSearch("[0].includes", remoteStateResources, make([]interface{}, 0)).([]interface{})
+	for _, rawConfigInclude := range rawConfigIncludes {
+		if !utils.SliceContains(remoteStateIncludes, rawConfigInclude) {
+			// If the old includes list does not contain this include, it is considered that this include is a newly bound include.
+			result = append(result, map[string]interface{}{
+				"type": resourceType,
+				"id":   rawConfigInclude,
+			})
+		}
+	}
+
+	return result
+}
+
+func waitForAllResourcesDissociated(ctx context.Context, client *golangsdk.ServiceClient, vaultId string,
+	resourceIds []interface{}, timeout time.Duration) error {
+	stateConf := &resource.StateChangeConf{
+		Pending: []string{"PENDING"},
+		Target:  []string{"COMPLETED"},
+		Refresh: func() (interface{}, string, error) {
+			respBody, err := GetVaultById(client, vaultId)
+			if err != nil {
+				return nil, "FAILED", fmt.Errorf("error getting vault by ID (%s): %s", vaultId, err)
+			}
+			if utils.IsSliceContainsAnyAnotherSliceElement(utils.ExpandToStringList(utils.PathSearch("resources[*].id", respBody,
+				make([]interface{}, 0)).([]interface{})), utils.ExpandToStringList(resourceIds), false, true) {
+				return respBody, "PENDING", nil
+			}
+			return respBody, "COMPLETED", nil
+		},
+		Timeout:      timeout,
+		Delay:        5 * time.Second,
+		PollInterval: 10 * time.Second,
+	}
+
+	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
+		return fmt.Errorf("timeout waiting for dissociate resources to complete: %s", err)
+	}
+	return nil
+}
+
+func dissociateResources(ctx context.Context, client *golangsdk.ServiceClient, vaultId string, resources []interface{},
+	timeout time.Duration) error {
+	httpUrl := "v3/{project_id}/vaults/{vault_id}/removeresources"
+	updatePath := client.Endpoint + httpUrl
+	updatePath = strings.ReplaceAll(updatePath, "{project_id}", client.ProjectID)
+	updatePath = strings.ReplaceAll(updatePath, "{vault_id}", vaultId)
+
+	updateOpts := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		JSONBody: map[string]interface{}{
+			"resource_ids": resources,
+		},
+	}
+
+	_, err := client.Request("POST", updatePath, &updateOpts)
+	if err != nil {
+		return fmt.Errorf("error dissociating resources from CBR vault (%s): %s", vaultId, err)
+	}
+	if waitForAllResourcesDissociated(ctx, client, vaultId,
+		utils.PathSearch("[*].id", resources, make([]interface{}, 0)).([]interface{}), timeout) != nil {
+		return err
+	}
+	return nil
+}
+
+func waitForAllResourcesAssociated(ctx context.Context, client *golangsdk.ServiceClient, vaultId string,
+	resources []interface{}, timeout time.Duration) error {
+	stateConf := &resource.StateChangeConf{
+		Pending: []string{"PENDING"},
+		Target:  []string{"COMPLETED"},
+		Refresh: func() (interface{}, string, error) {
+			respBody, err := GetVaultById(client, vaultId)
+			if err != nil {
+				return nil, "FAILED", fmt.Errorf("error getting vault by ID (%s): %s", vaultId, err)
+			}
+			for _, res := range resources {
+				serverId := utils.PathSearch("server_id", res, "").(string)
+				if serverId != "" && utils.PathSearch(fmt.Sprintf("length([?id=='%s'])", serverId), respBody, 0).(int) > 0 &&
+					!utils.StrSliceContainsAnother(
+						utils.ExpandToStringList(utils.PathSearch(fmt.Sprintf("resources[?id=='%s'].extra_info.exclude_volumes|[0]", serverId),
+							respBody,
+							make([]interface{}, 0),
+						).([]interface{})),
+						utils.ExpandToStringListBySet(utils.PathSearch("excludes", res, schema.NewSet(schema.HashString, nil)).(*schema.Set))) {
+					return respBody, "PENDING", nil
+				} else if len(utils.PathSearch(
+					fmt.Sprintf("resources[?id=='%s'].extra_info.include_volumes[*].id|[0]", serverId),
+					respBody,
+					make([]interface{}, 0),
+				).([]interface{})) != utils.PathSearch("includes", res, schema.NewSet(schema.HashString, nil)).(*schema.Set).Len() {
+					return respBody, "PENDING", nil
+				}
+			}
+			return respBody, "COMPLETED", nil
+		},
+		Timeout:      timeout,
+		Delay:        5 * time.Second,
+		PollInterval: 10 * time.Second,
+	}
+
+	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
+		return fmt.Errorf("timeout waiting for associate resources to complete: %s", err)
+	}
+	return nil
+}
+
+func associateResources(ctx context.Context, client *golangsdk.ServiceClient, vaultId string, resources []interface{},
+	timeout time.Duration) error {
+	httpUrl := "v3/{project_id}/vaults/{vault_id}/addresources"
+	updatePath := client.Endpoint + httpUrl
+	updatePath = strings.ReplaceAll(updatePath, "{project_id}", client.ProjectID)
+	updatePath = strings.ReplaceAll(updatePath, "{vault_id}", vaultId)
+
+	updateOpts := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		JSONBody: map[string]interface{}{
+			"resources": resources,
+		},
+	}
+	_, err := client.Request("POST", updatePath, &updateOpts)
+	if err != nil {
+		return fmt.Errorf("error associating resources to CBR vault (%s): %s", vaultId, err)
+	}
+	if waitForAllResourcesAssociated(ctx, client, vaultId, resources, timeout) != nil {
+		return err
+	}
+	return nil
+}
+
+func updateAssociatedResources(ctx context.Context, client *golangsdk.ServiceClient, d *schema.ResourceData, timeout time.Duration) error {
+	var (
+		vaultId   = d.Id()
+		vaultType = d.Get("type").(string)
+
+		originResources    = d.Get("resources_origin").([]interface{})
+		rawConfigResources = d.Get("resources").([]interface{})
+
+		deleteResources = make([]interface{}, 0)
+		addResources    = make([]interface{}, 0)
+	)
+
+	remoteStateResources, err := listAssociatedResources(client, vaultId, originResources, true)
+	if err != nil {
+		return fmt.Errorf("error listing associated resources: %s", err)
+	}
+
+	rType, ok := resourceType[vaultType]
+	if !ok {
+		return fmt.Errorf("invalid resource type: %s", vaultType)
+	}
+	switch rType {
+	case ResourceTypeServer, ResourceTypeWorkspace:
+		deleteResources = findDeleteServerResourcesFromVault(originResources, rawConfigResources)
+		addResources = findAddServerResourcesToVault(rType, originResources, rawConfigResources, remoteStateResources)
+	case ResourceTypeDisk, ResourceTypeTurbo:
+		deleteResources = findDeleteDiskResourcesFromVault(originResources, rawConfigResources)
+		addResources = findAddDiskResourcesToVault(rType, rawConfigResources, remoteStateResources)
+	}
+
+	if len(deleteResources) > 0 {
+		if err := dissociateResources(ctx, client, vaultId, deleteResources, timeout); err != nil {
+			return fmt.Errorf("error dissociating resources from CBR vault (%s): %s", vaultId, err)
+		}
+	}
+
+	if len(addResources) > 0 {
+		if err := associateResources(ctx, client, vaultId, addResources, timeout); err != nil {
+			return fmt.Errorf("error associating resources to CBR vault (%s): %s", vaultId, err)
+		}
+	}
+
+	return nil
 }
 
 func resourceVaultCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -504,39 +959,21 @@ func resourceVaultCreate(ctx context.Context, d *schema.ResourceData, meta inter
 		return diag.Errorf("error setting tags of CBR vault: %s", err)
 	}
 
+	if resources, ok := d.GetOk("resources"); ok && len(resources.([]interface{})) > 0 {
+		if err := updateAssociatedResources(ctx, client, d, d.Timeout(schema.TimeoutCreate)); err != nil {
+			return diag.Errorf("error updating associated resources of CBR vault (%s): %s", vaultId, err)
+		}
+		// If the request is successful, obtain the values of all slice parameters first and save them to the corresponding
+		// '_origin' attributes for subsequent determination and construction of the request body during next updates.
+		// And whether corresponding parameters are changed, the origin values must be refreshed.
+		err = utils.RefreshObjectParamOriginValues(d, objSliceParamKeysForVault)
+		if err != nil {
+			// Don't report an error if origin refresh fails
+			log.Printf("[WARN] Unable to refresh the origin values: %s", err)
+		}
+	}
+
 	return resourceVaultRead(ctx, d, meta)
-}
-
-func parseVaultResourcesForServer(resources []interface{}) []map[string]interface{} {
-	results := make([]map[string]interface{}, 0, len(resources))
-	for _, res := range resources {
-		results = append(results, map[string]interface{}{
-			"server_id": utils.PathSearch("id", res, ""),
-			"includes":  utils.PathSearch("extra_info.include_volumes[*].id", res, make([]interface{}, 0)),
-			"excludes":  utils.PathSearch("extra_info.exclude_volumes", res, make([]interface{}, 0)),
-		})
-	}
-	return results
-}
-
-func parseVaultResourcesForDisk(resources []interface{}) []map[string]interface{} {
-	return []map[string]interface{}{
-		{
-			"includes": utils.PathSearch("[*].id", resources, make([]interface{}, 0)),
-		},
-	}
-}
-
-func flattenVaultResources(vType string, resources []interface{}) []map[string]interface{} {
-	switch vType {
-	case VaultTypeServer, VaultTypeWorkspace:
-		return parseVaultResourcesForServer(resources)
-	case VaultTypeDisk, VaultTypeTurbo:
-		return parseVaultResourcesForDisk(resources)
-	default:
-		// Nothing to do for type file and type vmware.
-	}
-	return nil
 }
 
 func getPoliciesByVaultId(client *golangsdk.ServiceClient, vaultId string) ([]interface{}, error) {
@@ -624,9 +1061,10 @@ func GetVaultById(client *golangsdk.ServiceClient, vaultId string) (interface{},
 
 func resourceVaultRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	var (
-		cfg     = meta.(*config.Config)
-		region  = cfg.GetRegion(d)
-		vaultId = d.Id()
+		cfg             = meta.(*config.Config)
+		region          = cfg.GetRegion(d)
+		vaultId         = d.Id()
+		resourcesOrigin = d.Get("resources_origin").([]interface{})
 	)
 	client, err := cfg.NewServiceClient("cbr", region)
 	if err != nil {
@@ -636,6 +1074,11 @@ func resourceVaultRead(_ context.Context, d *schema.ResourceData, meta interface
 	respBody, err := GetVaultById(client, vaultId)
 	if err != nil {
 		return common.CheckDeletedDiag(d, err, fmt.Sprintf("error querying policies from the vault (%s)", vaultId))
+	}
+
+	resources, err := listAssociatedResources(client, vaultId, resourcesOrigin, false)
+	if err != nil {
+		log.Printf("[ERROR] error listing associated resources: %s", err)
 	}
 
 	objectType := utils.PathSearch("billing.object_type", respBody, "").(string)
@@ -657,8 +1100,7 @@ func resourceVaultRead(_ context.Context, d *schema.ResourceData, meta interface
 		d.Set("tags", utils.FlattenTagsToMap(utils.PathSearch("tags", respBody, nil))),
 		d.Set("bind_rules", utils.FlattenTagsToMap(utils.PathSearch("bind_rules.tags", respBody, nil))),
 		d.Set("policy", flattenPolicies(client, vaultId)),
-		d.Set("resources", flattenVaultResources(objectType,
-			utils.PathSearch("resources", respBody, make([]interface{}, 0)).([]interface{}))),
+		d.Set("resources", resources),
 		d.Set("charging_mode", parseVaultChargingMode(utils.PathSearch("billing.charging_mode", respBody, "").(string))),
 		// Computed
 		// The result of 'allocated' and 'used' is in MB, and now we need to use GB as the unit.
@@ -670,160 +1112,6 @@ func resourceVaultRead(_ context.Context, d *schema.ResourceData, meta interface
 	)
 	if err := mErr.ErrorOrNil(); err != nil {
 		return diag.Errorf("error setting vault resource fields: %s", err)
-	}
-
-	return nil
-}
-
-func buildDissociateResources(vType string, resources *schema.Set) ([]interface{}, error) {
-	rType, ok := resourceType[vType]
-	if !ok {
-		return nil, fmt.Errorf("invalid resource type: %s", vType)
-	}
-	log.Printf("[DEBUG] The resource type is %s", rType)
-	switch rType {
-	case ResourceTypeServer, ResourceTypeWorkspace:
-		return utils.PathSearch("[*].server_id", resources.List(), make([]interface{}, 0)).([]interface{}), nil
-	case ResourceTypeDisk, ResourceTypeTurbo:
-		return utils.PathSearch("[*].includes|[0]", resources.List(), schema.NewSet(schema.HashString, nil)).(*schema.Set).List(), nil
-	case ResourceTypeNone:
-		// Nothing to do.
-	default:
-		return nil, fmt.Errorf("invalid vault type: %s", vType)
-	}
-	return nil, nil
-}
-
-func waitForAllResourcesDissociated(ctx context.Context, client *golangsdk.ServiceClient, vaultId string,
-	resourceIds []interface{}, timeout time.Duration) error {
-	stateConf := &resource.StateChangeConf{
-		Pending: []string{"PENDING"},
-		Target:  []string{"COMPLETED"},
-		Refresh: func() (interface{}, string, error) {
-			respBody, err := GetVaultById(client, vaultId)
-			if err != nil {
-				return nil, "FAILED", fmt.Errorf("error getting vault by ID (%s): %s", vaultId, err)
-			}
-			if utils.IsSliceContainsAnyAnotherSliceElement(utils.ExpandToStringList(utils.PathSearch("resources[*].id", respBody,
-				make([]interface{}, 0)).([]interface{})), utils.ExpandToStringList(resourceIds), false, true) {
-				return respBody, "PENDING", nil
-			}
-			return respBody, "COMPLETED", nil
-		},
-		Timeout:      timeout,
-		Delay:        5 * time.Second,
-		PollInterval: 10 * time.Second,
-	}
-
-	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
-		return fmt.Errorf("timeout waiting for dissociate resources to complete: %s", err)
-	}
-	return nil
-}
-
-func waitForAllResourcesAssociated(ctx context.Context, client *golangsdk.ServiceClient, vaultId string,
-	resources []interface{}, timeout time.Duration) error {
-	stateConf := &resource.StateChangeConf{
-		Pending: []string{"PENDING"},
-		Target:  []string{"COMPLETED"},
-		Refresh: func() (interface{}, string, error) {
-			respBody, err := GetVaultById(client, vaultId)
-			if err != nil {
-				return nil, "FAILED", fmt.Errorf("error getting vault by ID (%s): %s", vaultId, err)
-			}
-			for _, res := range resources {
-				serverId := utils.PathSearch("server_id", res, "").(string)
-				if serverId != "" && utils.PathSearch(fmt.Sprintf("length([?id=='%s'])", serverId), respBody, 0).(int) > 0 &&
-					!utils.StrSliceContainsAnother(
-						utils.ExpandToStringList(utils.PathSearch(fmt.Sprintf("resources[?id=='%s'].extra_info.exclude_volumes|[0]", serverId),
-							respBody,
-							make([]interface{}, 0),
-						).([]interface{})),
-						utils.ExpandToStringListBySet(utils.PathSearch("excludes", res, schema.NewSet(schema.HashString, nil)).(*schema.Set))) {
-					return respBody, "PENDING", nil
-				} else if len(utils.PathSearch(
-					fmt.Sprintf("resources[?id=='%s'].extra_info.include_volumes[*].id|[0]", serverId),
-					respBody,
-					make([]interface{}, 0),
-				).([]interface{})) != utils.PathSearch("includes", res, schema.NewSet(schema.HashString, nil)).(*schema.Set).Len() {
-					return respBody, "PENDING", nil
-				}
-			}
-			return respBody, "COMPLETED", nil
-		},
-		Timeout:      timeout,
-		Delay:        5 * time.Second,
-		PollInterval: 10 * time.Second,
-	}
-
-	if _, err := stateConf.WaitForStateContext(ctx); err != nil {
-		return fmt.Errorf("timeout waiting for associate resources to complete: %s", err)
-	}
-	return nil
-}
-
-func updateAssociatedResources(ctx context.Context, d *schema.ResourceData, client *golangsdk.ServiceClient) error {
-	var (
-		vaultId   = d.Id()
-		vaultType = d.Get("type").(string)
-
-		oldResources, newResources = d.GetChange("resources")
-		addRaws                    = newResources.(*schema.Set).Difference(oldResources.(*schema.Set))
-		delRaws                    = oldResources.(*schema.Set).Difference(newResources.(*schema.Set))
-	)
-
-	// Remove all resources bound to the vault.
-	if delRaws.Len() > 0 && delRaws.List()[0] != nil {
-		httpUrl := "v3/{project_id}/vaults/{vault_id}/removeresources"
-		updatePath := client.Endpoint + httpUrl
-		updatePath = strings.ReplaceAll(updatePath, "{project_id}", client.ProjectID)
-		updatePath = strings.ReplaceAll(updatePath, "{vault_id}", vaultId)
-		resources, err := buildDissociateResources(vaultType, delRaws)
-		if err != nil {
-			return fmt.Errorf("error building dissociate list of vault resources: %s", err)
-		}
-		updateOpts := golangsdk.RequestOpts{
-			KeepResponseBody: true,
-			JSONBody: map[string]interface{}{
-				"resource_ids": resources,
-			},
-		}
-
-		_, err = client.Request("POST", updatePath, &updateOpts)
-		if err != nil {
-			return fmt.Errorf("error updating CBR vault (%s): %s", vaultId, err)
-		}
-		if waitForAllResourcesDissociated(ctx, client, vaultId, resources, d.Timeout(schema.TimeoutUpdate)) != nil {
-			return err
-		}
-	}
-
-	// Add resources to the specified vault.
-	if addRaws.Len() > 0 && addRaws.List()[0] != nil {
-		httpUrl := "v3/{project_id}/vaults/{vault_id}/addresources"
-		updatePath := client.Endpoint + httpUrl
-		updatePath = strings.ReplaceAll(updatePath, "{project_id}", client.ProjectID)
-		updatePath = strings.ReplaceAll(updatePath, "{vault_id}", vaultId)
-		resources, err := buildAssociateResources(vaultType, addRaws)
-		if err != nil {
-			return fmt.Errorf("error building associate list of vault resources: %s", err)
-		}
-		if len(resources) > 0 {
-			updateOpts := golangsdk.RequestOpts{
-				KeepResponseBody: true,
-				JSONBody: map[string]interface{}{
-					"resources": resources,
-				},
-			}
-
-			_, err = client.Request("POST", updatePath, &updateOpts)
-			if err != nil {
-				return fmt.Errorf("error updating CBR vault (%s): %s", vaultId, err)
-			}
-			if waitForAllResourcesAssociated(ctx, client, vaultId, addRaws.List(), d.Timeout(schema.TimeoutUpdate)) != nil {
-				return err
-			}
-		}
 	}
 
 	return nil
@@ -965,8 +1253,16 @@ func resourceVaultUpdate(ctx context.Context, d *schema.ResourceData, meta inter
 	}
 
 	if d.HasChange("resources") {
-		if err := updateAssociatedResources(ctx, d, client); err != nil {
-			return diag.FromErr(err)
+		if err := updateAssociatedResources(ctx, client, d, d.Timeout(schema.TimeoutCreate)); err != nil {
+			return diag.Errorf("error updating associated resources of CBR vault (%s): %s", vaultId, err)
+		}
+		// If the request is successful, obtain the values of all slice parameters first and save them to the corresponding
+		// '_origin' attributes for subsequent determination and construction of the request body during next updates.
+		// And whether corresponding parameters are changed, the origin values must be refreshed.
+		err = utils.RefreshObjectParamOriginValues(d, objSliceParamKeysForVault)
+		if err != nil {
+			// Don't report an error if origin refresh fails
+			log.Printf("[WARN] Unable to refresh the origin values: %s", err)
 		}
 	}
 	if d.HasChange("policy") {

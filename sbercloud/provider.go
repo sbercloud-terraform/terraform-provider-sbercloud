@@ -315,6 +315,8 @@ func Provider() *schema.Provider {
 			"sbercloud_cce_nodes":               cce.DataSourceNodes(),
 			"sbercloud_cce_node_pool":           cce.DataSourceCCENodePoolV3(),
 			"sbercloud_cce_cluster_certificate": cce.DataSourceCCEClusterCertificate(),
+			"sbercloud_cce_charts":              cce.DataSourceCCECharts(),
+			"sbercloud_cce_chart_values":        cce.DataSourceCCEShowChartValues(),
 
 			"sbercloud_cdm_flavors": cdm.DataSourceCdmFlavors(),
 
@@ -550,6 +552,7 @@ func Provider() *schema.Provider {
 			"sbercloud_cce_pvc":                cce.ResourceCcePersistentVolumeClaimsV1(),
 			"sbercloud_cce_nodes_remove":       cce.ResourceNodesRemove(),
 			"sbercloud_cce_cluster_log_config": cce.ResourceClusterLogConfig(),
+			"sbercloud_cce_chart":              cce.ResourceChart(),
 
 			"sbercloud_cdm_cluster": cdm.ResourceCdmCluster(),
 
@@ -687,17 +690,17 @@ func Provider() *schema.Provider {
 
 			"sbercloud_ges_graph": ges_sbercloud.ResourceGesGraph(),
 
-			"sbercloud_identity_access_key":            iam.ResourceIdentityKey(),
-			"sbercloud_identity_acl":                   iam.ResourceIdentityACL(),
-			"sbercloud_identity_agency":                iam.ResourceIAMAgencyV3(),
-			"sbercloud_identity_group":                 iam.ResourceIdentityGroup(),
-			"sbercloud_identity_group_membership":      iam.ResourceIdentityGroupMembership(),
-			"sbercloud_identity_group_role_assignment": iam.ResourceIdentityGroupRoleAssignment(),
+			"sbercloud_identity_access_key":            iam.ResourceV3AccessKey(),
+			"sbercloud_identity_acl":                   iam.ResourceV3Acl(),
+			"sbercloud_identity_agency":                iam.ResourceV3Agency(),
+			"sbercloud_identity_group":                 iam.ResourceV3Group(),
+			"sbercloud_identity_group_membership":      iam.ResourceV3GroupMembership(),
+			"sbercloud_identity_group_role_assignment": iam.ResourceV3GroupRoleAssignment(),
 			"sbercloud_identity_project":               iam.ResourceIdentityProject(),
-			"sbercloud_identity_provider":              iam.ResourceIdentityProvider(),
-			"sbercloud_identity_provider_conversion":   iam.ResourceIAMProviderConversion(),
-			"sbercloud_identity_role":                  iam.ResourceIdentityRole(),
-			"sbercloud_identity_role_assignment":       iam.ResourceIdentityGroupRoleAssignment(),
+			"sbercloud_identity_provider":              iam.ResourceV3Provider(),
+			"sbercloud_identity_provider_conversion":   iam.ResourceV3ProviderConversion(),
+			"sbercloud_identity_role":                  iam.ResourceV3Role(),
+			"sbercloud_identity_role_assignment":       iam.ResourceV3GroupRoleAssignment(),
 			"sbercloud_identity_user":                  iam.ResourceIdentityUser(),
 
 			"sbercloud_images_image": deprecated.ResourceImsImage(),
@@ -808,10 +811,10 @@ func Provider() *schema.Provider {
 			"sbercloud_vpn_connection_health_check": vpn.ResourceConnectionHealthCheck(),
 			// Legacy
 			"sbercloud_apig_plugin_associate":        apig.ResourcePluginBatchApisAssociate(),
-			"sbercloud_identity_role_assignment_v3":  iam.ResourceIdentityGroupRoleAssignment(),
+			"sbercloud_identity_role_assignment_v3":  iam.ResourceV3GroupRoleAssignment(),
 			"sbercloud_identity_user_v3":             iam.ResourceIdentityUser(),
-			"sbercloud_identity_group_v3":            iam.ResourceIdentityGroup(),
-			"sbercloud_identity_group_membership_v3": iam.ResourceIdentityGroupMembership(),
+			"sbercloud_identity_group_v3":            iam.ResourceV3Group(),
+			"sbercloud_identity_group_membership_v3": iam.ResourceV3GroupMembership(),
 		},
 	}
 

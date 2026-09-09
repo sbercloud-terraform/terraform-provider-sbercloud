@@ -11,12 +11,12 @@ import (
 	"github.com/chnsz/golangsdk"
 
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/config"
-	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/acceptance"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/utils"
+	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/acceptance"
 )
 
 func getResourceDcDcConnectGatewayFunc(cfg *config.Config, state *terraform.ResourceState) (interface{}, error) {
-	client, err := cfg.NewServiceClient("dc", acceptance.HW_REGION_NAME)
+	client, err := cfg.NewServiceClient("dc", acceptance.SBC_REGION_NAME)
 	if err != nil {
 		return nil, fmt.Errorf("error creating DC client: %s", err)
 	}
@@ -40,7 +40,7 @@ func TestAccResourceDcConnectGateway_basic(t *testing.T) {
 	var obj interface{}
 	name := acceptance.RandomAccResourceName()
 	updateName := acceptance.RandomAccResourceName()
-	rName := "huaweicloud_dc_connect_gateway.test"
+	rName := "sbercloud_dc_connect_gateway.test"
 
 	rc := acceptance.InitResourceCheck(
 		rName,
@@ -91,7 +91,7 @@ func TestAccResourceDcConnectGateway_basic(t *testing.T) {
 
 func testResourceDcConnectGateway_basic(name string) string {
 	return fmt.Sprintf(`
-resource "huaweicloud_dc_connect_gateway" "test" {
+resource "sbercloud_dc_connect_gateway" "test" {
   name           = "%s"
   description    = "test description"
   address_family = "ipv4"
@@ -101,7 +101,7 @@ resource "huaweicloud_dc_connect_gateway" "test" {
 
 func testResourceDcConnectGateway_basic_update(name string) string {
 	return fmt.Sprintf(`
-resource "huaweicloud_dc_connect_gateway" "test" {
+resource "sbercloud_dc_connect_gateway" "test" {
   name           = "%s"
   description    = ""
   address_family = "dual"

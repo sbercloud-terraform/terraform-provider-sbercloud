@@ -33,19 +33,21 @@ func getIdentityGroupRoleAssignmentResourceFunc(c *config.Config, state *terrafo
 	projectID := state.Primary.Attributes["project_id"]
 	enterpriseProjectID := state.Primary.Attributes["enterprise_project_id"]
 
-	if domainID != "" {
-		return iam.GetGroupRoleAssignmentWithDomainID(identityClient, groupID, roleID, domainID)
+	switch {
+	case domainID != "":
+		err = iam.CheckV3GroupRoleAssignmentWithDomainId(identityClient, groupID, roleID, domainID)
+	case projectID != "":
+		err = iam.CheckV3GroupRoleAssignmentWithProjectId(identityClient, groupID, roleID, c.DomainID, projectID)
+	case enterpriseProjectID != "":
+		err = iam.CheckV3GroupRoleAssignmentWithEpsId(iamClient, groupID, roleID, enterpriseProjectID)
+	default:
+		return nil, golangsdk.ErrDefault404{}
 	}
 
-	if projectID != "" {
-		return iam.GetGroupRoleAssignmentWithProjectID(identityClient, groupID, roleID, projectID)
+	if err != nil {
+		return nil, err
 	}
-
-	if enterpriseProjectID != "" {
-		return iam.GetGroupRoleAssignmentWithEpsID(iamClient, groupID, roleID, enterpriseProjectID)
-	}
-
-	return nil, golangsdk.ErrDefault404{}
+	return roleID, nil
 }
 
 func TestAccIdentityGroupRoleAssignment_basic(t *testing.T) {

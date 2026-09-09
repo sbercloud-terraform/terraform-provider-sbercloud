@@ -2,8 +2,10 @@ package dds
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"reflect"
 	"sort"
 	"strconv"
@@ -26,6 +28,11 @@ import (
 )
 
 type ctxType string
+
+var (
+	// DBS.280110: The instance does not exist.
+	instanceNotFoundCodes = []string{"DBS.280110"}
+)
 
 // @API DDS POST /v3/{project_id}/instances
 // @API DDS GET /v3/{project_id}/instances
@@ -58,7 +65,11 @@ type ctxType string
 // @API DDS POST /v3/{project_id}/instances/{instance_id}/replicaset-node
 // @API DDS POST /v3/{project_id}/instances/{instance_id}/client-network
 // @API DDS GET /v3/{project_id}/instances/{instance_id}/client-network
+// @API DDS PUT /v3/{project_id}/instances/auto-enlarge-volume-policies
+// @API DDS GET /v3/{project_id}/instances/{instance_id}/auto-enlarge-volume-policy
 // @API DDS PUT /v3/{project_id}/instances/{instance_id}/maintenance-window
+// @API DDS DELETE /v3/{project_id}/instances/{instance_id}/nodes
+// @API DDS DELETE /v3/{project_id}/instances/{instance_id}/mongos-node
 // @API BSS POST /v2/orders/subscriptions/resources/unsubscribe
 // @API BSS GET /v2/orders/customer-orders/details/{order_id}
 // @API BSS POST /v2/orders/suscriptions/resources/query
@@ -201,6 +212,11 @@ func ResourceDdsInstanceV3() *schema.Resource {
 							Type:     schema.TypeString,
 							Required: true,
 						},
+						"node_list": {
+							Type:     schema.TypeList,
+							Optional: true,
+							Elem:     &schema.Schema{Type: schema.TypeString},
+						},
 					},
 				},
 			},
@@ -286,6 +302,33 @@ func ResourceDdsInstanceV3() *schema.Resource {
 				Type:     schema.TypeSet,
 				Optional: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
+			},
+			"policy": {
+				Type:     schema.TypeList,
+				Optional: true,
+				MaxItems: 1,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"threshold": {
+							Type:     schema.TypeInt,
+							Required: true,
+						},
+						"step": {
+							Type:     schema.TypeInt,
+							Required: true,
+						},
+						"size": {
+							Type:     schema.TypeInt,
+							Optional: true,
+							Computed: true,
+						},
+					},
+				},
+			},
+			"switch_option": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
 			},
 			"charging_mode": common.SchemaChargingMode(nil),
 			"period_unit":   common.SchemaPeriodUnit(nil),
@@ -436,6 +479,11 @@ func ddsInstanceStateRefreshFunc(client *golangsdk.ServiceClient, instanceID str
 		}
 		allPages, err := instances.List(client, &opts).AllPages()
 		if err != nil {
+			err = common.ConvertExpected400ErrInto404Err(err, "error_code", instanceNotFoundCodes...)
+			if _, ok := err.(golangsdk.ErrDefault404); ok {
+				var instance instances.InstanceResponse
+				return instance, "deleted", nil
+			}
 			return nil, "", err
 		}
 		instancesList, err := instances.ExtractInstances(allPages)
@@ -636,6 +684,14 @@ func resourceDdsInstanceV3Create(ctx context.Context, d *schema.ResourceData, me
 		err = instances.UpdateMaintenanceWindow(client, instance.Id, windowOpts)
 		if err != nil {
 			return diag.Errorf("error setting maintenance window of the DDS instance %s: %s", instance.Id, err)
+		}
+	}
+
+	// setting auto enlarge policy
+	if _, ok := d.GetOk("policy"); ok {
+		err = settingAutoEnlargePolicy(client, d)
+		if err != nil {
+			return diag.Errorf("error setting volume auto enlarge policy: %s", err)
 		}
 	}
 
@@ -868,6 +924,55 @@ func updateReplicaSetName(ctx context.Context, client *golangsdk.ServiceClient, 
 	return nil
 }
 
+func settingAutoEnlargePolicy(client *golangsdk.ServiceClient, d *schema.ResourceData) error {
+	httpUrl := "v3/{project_id}/instances/auto-enlarge-volume-policies"
+	reqPath := client.Endpoint + httpUrl
+	reqPath = strings.ReplaceAll(reqPath, "{project_id}", client.ProjectID)
+
+	validationOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		JSONBody:         utils.RemoveNil(buildAutoEnlargePolicyBodyParams(d)),
+	}
+
+	_, err := client.Request("PUT", reqPath, &validationOpt)
+
+	return err
+}
+
+func buildAutoEnlargePolicyBodyParams(d *schema.ResourceData) map[string]interface{} {
+	params := map[string]interface{}{
+		"policies":      buildPolicyInfoBodyParams(d.Get("policy").([]interface{}), d.Id()),
+		"switch_option": utils.ValueIgnoreEmpty(d.Get("switch_option")),
+	}
+
+	return params
+}
+
+func buildPolicyInfoBodyParams(policyInfo []interface{}, instanceId string) []map[string]interface{} {
+	if len(policyInfo) == 0 {
+		return nil
+	}
+
+	policy := make([]map[string]interface{}, 0, len(policyInfo))
+	for _, v := range policyInfo {
+		raw, ok := v.(map[string]interface{})
+		if !ok {
+			return nil
+		}
+
+		params := map[string]interface{}{
+			"instance_id": instanceId,
+			"threshold":   utils.PathSearch("threshold", raw, nil),
+			"step":        utils.PathSearch("step", raw, nil),
+			"size":        utils.ValueIgnoreEmpty(utils.PathSearch("size", raw, nil)),
+		}
+
+		policy = append(policy, params)
+	}
+
+	return policy
+}
+
 func resourceDdsInstanceV3Read(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	conf := meta.(*config.Config)
 	client, err := conf.DdsV3Client(conf.GetRegion(d))
@@ -881,7 +986,11 @@ func resourceDdsInstanceV3Read(ctx context.Context, d *schema.ResourceData, meta
 	}
 	allPages, err := instances.List(client, &opts).AllPages()
 	if err != nil {
-		return common.CheckDeletedDiag(d, err, "error retrieving DdsInstance")
+		return common.CheckDeletedDiag(
+			d,
+			common.ConvertExpected400ErrInto404Err(err, "error_code", instanceNotFoundCodes...),
+			"error retrieving DDS instance",
+		)
 	}
 	instanceList, err := instances.ExtractInstances(allPages)
 	if err != nil {
@@ -1025,6 +1134,17 @@ func resourceDdsInstanceV3Read(ctx context.Context, d *schema.ResourceData, meta
 	}
 	mErr = multierror.Append(mErr, d.Set("slow_log_desensitization", slowLog.Status))
 
+	// set auto enlarge policy parameters
+	policy, err := getPolicyInfo(client, d.Id())
+	if err != nil {
+		return diag.FromErr(err)
+	}
+
+	mErr = multierror.Append(mErr,
+		d.Set("switch_option", utils.PathSearch("switch_option", policy, nil)),
+		d.Set("policy", flattenPolicyInfo(utils.PathSearch("policy", policy, nil))),
+	)
+
 	if err := mErr.ErrorOrNil(); err != nil {
 		return diag.Errorf("Error setting dds instance fields: %s", err)
 	}
@@ -1040,6 +1160,40 @@ func resourceDdsInstanceV3Read(ctx context.Context, d *schema.ResourceData, meta
 	}
 
 	return nil
+}
+
+func getPolicyInfo(client *golangsdk.ServiceClient, instanceId string) (interface{}, error) {
+	httpUrl := "v3/{project_id}/instances/{instance_id}/auto-enlarge-volume-policy"
+	getPath := client.Endpoint + httpUrl
+	getPath = strings.ReplaceAll(getPath, "{project_id}", client.ProjectID)
+	getPath = strings.ReplaceAll(getPath, "{instance_id}", instanceId)
+	getOpts := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		MoreHeaders: map[string]string{
+			"Content-Type": "application/json",
+		},
+	}
+
+	resp, err := client.Request("GET", getPath, &getOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	return utils.FlattenResponse(resp)
+}
+
+func flattenPolicyInfo(policyInfo interface{}) []map[string]interface{} {
+	if policyInfo == nil {
+		return nil
+	}
+
+	result := map[string]interface{}{
+		"threshold": utils.PathSearch("threshold", policyInfo, nil),
+		"step":      utils.PathSearch("step", policyInfo, nil),
+		"size":      utils.PathSearch("size", policyInfo, nil),
+	}
+
+	return []map[string]interface{}{result}
 }
 
 func JobStateRefreshFunc(client *golangsdk.ServiceClient, jobId string) resource.StateRefreshFunc {
@@ -1394,6 +1548,13 @@ func resourceDdsInstanceV3Update(ctx context.Context, d *schema.ResourceData, me
 		}
 	}
 
+	if d.HasChanges("policy", "switch_option") {
+		err = settingAutoEnlargePolicy(client, d)
+		if err != nil {
+			return diag.Errorf("error updating volume auto enlarge policy: %s", err)
+		}
+	}
+
 	return resourceDdsInstanceV3Read(ctx, d, meta)
 }
 
@@ -1616,7 +1777,22 @@ func flavorNumUpdate(ctx context.Context, conf *config.Config, client *golangsdk
 	oldNum := oldNumRaw.(int)
 	newNum := newNumRaw.(int)
 	if newNum < oldNum {
-		return fmt.Errorf("error updating instance: the new num(%d) must be greater than the old num(%d)", newNum, oldNum)
+		// Delete replicaset or mongos nodes
+		nodeList := fmt.Sprintf("flavor.%d.node_list", i)
+		nodes := utils.ExpandToStringList(d.Get(nodeList).([]interface{}))
+		number := oldNum - newNum
+
+		respBody, err := deleteInstanceNodes(ctx, client, d, nodes, groupType, number)
+		if err != nil {
+			return nil
+		}
+
+		err = waitForDeleteInstanceNodesCompleted(ctx, conf, client, d, respBody)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
 
 	var numUpdateOpts []instances.UpdateOpt
@@ -1661,6 +1837,105 @@ func flavorNumUpdate(ctx context.Context, conf *config.Config, client *golangsdk
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func deleteInstanceNodes(ctx context.Context, client *golangsdk.ServiceClient, d *schema.ResourceData,
+	nodelist []string, nodeType string, nodeNum int) (interface{}, error) {
+	var (
+		httpUrl     = ""
+		requestBody = buildDeleteInstanceNodesBodyParams(nodelist)
+	)
+
+	if nodeType == "replica" {
+		httpUrl = "v3/{project_id}/instances/{instance_id}/nodes"
+		requestBody["num"] = nodeNum
+	}
+	if nodeType == "mongos" {
+		httpUrl = "v3/{project_id}/instances/{instance_id}/mongos-node"
+	}
+
+	requestPath := client.Endpoint + httpUrl
+	requestPath = strings.ReplaceAll(requestPath, "{project_id}", client.ProjectID)
+	requestPath = strings.ReplaceAll(requestPath, "{instance_id}", d.Id())
+	requestOpt := golangsdk.RequestOpts{
+		MoreHeaders: map[string]string{
+			"Content-Type": "application/json",
+		},
+		KeepResponseBody: true,
+		JSONBody:         utils.RemoveNil(requestBody),
+	}
+
+	retryFunc := func() (interface{}, bool, error) {
+		requestResp, err := client.Request("DELETE", requestPath, &requestOpt)
+		retry, err := handleMultiOperationsError(err)
+		return requestResp, retry, err
+	}
+
+	resp, err := common.RetryContextWithWaitForState(&common.RetryContextWithWaitForStateParam{
+		Ctx:          ctx,
+		RetryFunc:    retryFunc,
+		WaitFunc:     ddsInstanceStateRefreshFunc(client, d.Id()),
+		WaitTarget:   []string{"normal"},
+		Timeout:      d.Timeout(schema.TimeoutUpdate),
+		DelayTimeout: 10 * time.Second,
+		PollInterval: 10 * time.Second,
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("error deleting instance nodes: %s", err)
+	}
+
+	return utils.FlattenResponse(resp.(*http.Response))
+}
+
+func buildDeleteInstanceNodesBodyParams(nodelist []string) map[string]interface{} {
+	return map[string]interface{}{
+		"node_list": utils.ValueIgnoreEmpty(nodelist),
+	}
+}
+
+func waitForDeleteInstanceNodesCompleted(ctx context.Context, cfg *config.Config, client *golangsdk.ServiceClient, d *schema.ResourceData,
+	respBody interface{}) error {
+	region := cfg.GetRegion(d)
+	chareMode := d.Get("charging_mode").(string)
+
+	if chareMode == "prePaid" {
+		orderId := utils.PathSearch("order_id", respBody, "").(string)
+		if orderId == "" {
+			return errors.New("error deleting DDS instance node: unable to find order ID from the API response")
+		}
+
+		bssClient, err := cfg.BssV2Client(region)
+		if err != nil {
+			return fmt.Errorf("error creating BSS v2 client: %s", err)
+		}
+
+		err = common.WaitOrderComplete(ctx, bssClient, orderId, d.Timeout(schema.TimeoutCreate))
+		if err != nil {
+			return err
+		}
+	} else {
+		jobId := utils.PathSearch("job_id", respBody, "").(string)
+		if jobId == "" {
+			return errors.New("error deleting DDS instance node: unable to find job ID from the API response")
+		}
+
+		stateConf := &resource.StateChangeConf{
+			Pending:      []string{"Running"},
+			Target:       []string{"Completed"},
+			Refresh:      JobStateRefreshFunc(client, jobId),
+			Timeout:      d.Timeout(schema.TimeoutCreate),
+			Delay:        60 * time.Second,
+			PollInterval: 10 * time.Second,
+		}
+
+		_, err := stateConf.WaitForStateContext(ctx)
+		if err != nil {
+			return fmt.Errorf("error waiting for the job (%s) completed: %s ", jobId, err)
+		}
+	}
+
 	return nil
 }
 

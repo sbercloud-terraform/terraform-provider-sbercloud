@@ -263,17 +263,23 @@ func createConsistentTypeList(value interface{}) interface{} {
 // and returns it as a Go interface{} type. It supports deep nesting with both
 // object properties and list indices.
 func GetNestedObjectFromRawConfig(rawConfig cty.Value, path string) interface{} {
+	log.Printf("[DEBUG][GetNestedObjectFromRawConfig] Getting value from rawConfig for path: '%s'", path)
+
 	if rawConfig.IsNull() || !rawConfig.IsKnown() {
+		log.Printf("[DEBUG][GetNestedObjectFromRawConfig] RawConfig is null or unknown, returning nil")
 		return nil
 	}
 
 	// If path is empty, return the entire object
 	if path == "" {
+		log.Printf("[DEBUG][GetNestedObjectFromRawConfig] Path is empty, returning entire object")
 		return getObjectFromRawConfig(rawConfig)
 	}
 
 	paths := strings.Split(path, ".")
-	return getNestedObject(rawConfig, paths)
+	result := getNestedObject(rawConfig, paths)
+	log.Printf("[DEBUG][GetNestedObjectFromRawConfig] Result for path '%s': %v (type: %T)", path, result, result)
+	return result
 }
 
 // getObjectFromRawConfig recursively extracts the entire object from rawConfig
@@ -422,35 +428,78 @@ func getNestedObject(obj cty.Value, paths []string) interface{} {
 // This function captures the final configuration values that will be used for comparison in DiffSuppressFunc.
 // It handles both direct field changes and length changes (e.g., lts_custom_tag_origin.%).
 // Origin values are used to store the current configuration state for subsequent diff suppression.
+// In UpdateContext, this function should preserve the new configuration values from the current change.
+// RawPlan reflects the planned values after all processing (including DiffSuppressFunc), which is what we want.
+// If RawPlan is not available, fallback to RawConfig which reflects the configuration file values.
 func RefreshObjectParamOriginValues(d *schema.ResourceData, objectParamKeys []string) error {
 	log.Printf("[DEBUG][RefreshObjectParamOriginValues] Starting with %d object param keys: %v",
 		len(objectParamKeys), objectParamKeys)
 
-	rawConfig := d.GetRawConfig()
 	for _, absParamKeyPath := range objectParamKeys {
 		// Construct the corresponding _origin path.
 		absOriginParamKeyPath := fmt.Sprintf("%s_origin", absParamKeyPath)
 		log.Printf("[DEBUG][RefreshObjectParamOriginValues] Processing '%s' -> '%s'",
 			absParamKeyPath, absOriginParamKeyPath)
 
-		// Get current configuration value from rawConfig
-		rawVal := GetNestedObjectFromRawConfig(rawConfig, absParamKeyPath)
+		// Try to get the value from RawPlan first, which reflects the planned values after all processing.
+		// RawPlan contains the final values that will be applied, which is what we want to preserve.
+		var configVal interface{}
+		rawPlan := d.GetRawPlan()
+		if !rawPlan.IsNull() && rawPlan.IsKnown() {
+			planVal := GetNestedObjectFromRawConfig(rawPlan, absParamKeyPath)
+			if planVal != nil {
+				log.Printf("[DEBUG][RefreshObjectParamOriginValues] Got value from RawPlan for '%s': %v",
+					absParamKeyPath, planVal)
+				configVal = planVal
+			}
+		}
 
-		if rawVal == nil {
-			log.Printf("[DEBUG] Failed to get origin value for the parameter '%s'", absParamKeyPath)
+		// If RawPlan is not available or doesn't have the value, fallback to RawConfig
+		if configVal == nil {
+			rawConfig := d.GetRawConfig()
+			if !rawConfig.IsNull() && rawConfig.IsKnown() {
+				configVal = GetNestedObjectFromRawConfig(rawConfig, absParamKeyPath)
+				if configVal != nil {
+					log.Printf("[DEBUG][RefreshObjectParamOriginValues] Got value from RawConfig for '%s': %v",
+						absParamKeyPath, configVal)
+				}
+			}
+		}
+
+		if configVal == nil {
+			log.Printf("[DEBUG][RefreshObjectParamOriginValues] Failed to get configuration value for '%s' from both RawPlan and RawConfig, skipping",
+				absParamKeyPath)
 			// If the acquisition fails, the subsequent operation of the current parameter is skipped because this
 			// parameter may not be configured.
 			continue
 		}
 
-		// Set the origin value to match the configuration
-		log.Printf("[DEBUG][RefreshObjectParamOriginValues] Setting origin value for '%s'", absOriginParamKeyPath)
+		// Log the final value to be set
+		log.Printf("[DEBUG][RefreshObjectParamOriginValues] Final value for '%s': %v",
+			absParamKeyPath, configVal)
 
-		// Set the actual value using setNestedValueSafelyForResourceData to ensure nested safety
-		if err := setNestedValueSafelyForResourceData(d, absOriginParamKeyPath, rawVal); err != nil {
-			log.Printf("[ERROR][RefreshObjectParamOriginValues] Failed to set origin value for '%s': %v",
-				absOriginParamKeyPath, err)
-			return fmt.Errorf("failed to set origin value for '%s': %v", absOriginParamKeyPath, err)
+		// Set the origin value to match the configuration value from RawConfig
+		// For top-level fields, use d.Set() directly for better performance
+		// For nested fields (containing '.'), use setNestedValueSafelyForResourceData
+		if strings.Contains(absOriginParamKeyPath, ".") {
+			// Nested field - use safe nested setting
+			if err := setNestedValueSafelyForResourceData(d, absOriginParamKeyPath, configVal); err != nil {
+				log.Printf("[ERROR][RefreshObjectParamOriginValues] Failed to set origin value for '%s': %v",
+					absOriginParamKeyPath, err)
+				return fmt.Errorf("failed to set origin value for '%s': %v", absOriginParamKeyPath, err)
+			}
+		} else {
+			// Top-level field - use direct setting
+			// lintignore:R001
+			if err := d.Set(absOriginParamKeyPath, configVal); err != nil {
+				log.Printf("[ERROR][RefreshObjectParamOriginValues] Failed to set origin value for '%s': %v",
+					absOriginParamKeyPath, err)
+				return fmt.Errorf("failed to set origin value for '%s': %v", absOriginParamKeyPath, err)
+			}
+			// Verify the value was set correctly
+			verifyVal := d.Get(absOriginParamKeyPath)
+			log.Printf("[DEBUG][RefreshObjectParamOriginValues] Verified value for '%s' after setting: %v",
+				absOriginParamKeyPath, verifyVal)
 		}
 
 		log.Printf("[DEBUG][RefreshObjectParamOriginValues] Successfully set origin value for '%s'",

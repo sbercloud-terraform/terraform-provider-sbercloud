@@ -206,7 +206,7 @@ func ResourceASGroup() *schema.Resource {
 			"delete_publicip": {
 				Type:     schema.TypeBool,
 				Optional: true,
-				Default:  false,
+				Computed: true,
 			},
 			"delete_volume": {
 				Type:     schema.TypeBool,
@@ -759,12 +759,16 @@ func resourceASGroupUpdate(ctx context.Context, d *schema.ResourceData, meta int
 		HealthPeriodicAuditGrace:  d.Get("health_periodic_audit_grace_period").(int),
 		InstanceTerminatePolicy:   d.Get("instance_terminate_policy").(string),
 		MultiAZPriorityPolicy:     d.Get("multi_az_scaling_policy").(string),
-		IsDeletePublicip:          utils.Bool(d.Get("delete_publicip").(bool)),
 		IsDeleteVolume:            utils.Bool(d.Get("delete_volume").(bool)),
 		Description:               utils.String(d.Get("description").(string)),
 		EnterpriseProjectID:       conf.GetEnterpriseProjectID(d),
 	}
 
+	if d.HasChange("delete_publicip") {
+		if v := utils.GetNestedObjectFromRawConfig(d.GetRawConfig(), "delete_publicip"); v != nil {
+			updateOpts.IsDeletePublicip = utils.Bool(v.(bool))
+		}
+	}
 	if d.HasChange("agency_name") {
 		updateOpts.IamAgencyName = d.Get("agency_name").(string)
 	}

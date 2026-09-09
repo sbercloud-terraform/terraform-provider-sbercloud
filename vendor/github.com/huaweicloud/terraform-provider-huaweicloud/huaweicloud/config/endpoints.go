@@ -786,6 +786,11 @@ var allServiceCatalog = map[string]ServiceCatalog{
 		Version: "v1.1",
 		Product: "CDM",
 	},
+	"lakeformation": {
+		Name:    "lakeformation",
+		Version: "v1",
+		Product: "LakeFormation",
+	},
 
 	// catalog for Application
 	"apig": {

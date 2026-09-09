@@ -28,43 +28,104 @@ var mappingNonUpdatableParams = []string{"provider_id"}
 // @API IAM GET /v3/OS-FEDERATION/mappings
 // @API IAM GET /v3/OS-FEDERATION/mappings/{id}
 // @API IAM GET /v3/OS-FEDERATION/identity_providers/{id}
-func ResourceIAMProviderMapping() *schema.Resource {
+func ResourceV3ProviderMapping() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIAMProviderMappingCreate,
-		ReadContext:   resourceIAMProviderMappingRead,
-		UpdateContext: resourceIAMProviderMappingUpdate,
-		DeleteContext: resourceIAMProviderMappingDelete,
+		CreateContext: resourceV3ProviderMappingCreate,
+		ReadContext:   resourceV3ProviderMappingRead,
+		UpdateContext: resourceV3ProviderMappingUpdate,
+		DeleteContext: resourceV3ProviderMappingDelete,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
 
 		CustomizeDiff: config.FlexibleForceNew(mappingNonUpdatableParams),
+
 		Schema: map[string]*schema.Schema{
 			"provider_id": {
-				Type:     schema.TypeString,
-				Required: true,
+				Type:        schema.TypeString,
+				Required:    true,
+				Description: `The ID of the identity provider used to manage the mapping.`,
 			},
 			"mapping_rules": {
 				Type:         schema.TypeString,
 				Required:     true,
+				Description:  `The mapping rules of the identity provider.`,
 				ValidateFunc: validation.StringIsJSON,
 				DiffSuppressFunc: func(_, o, n string, _ *schema.ResourceData) bool {
 					equal, _ := utils.CompareJsonTemplateAreEquivalent(o, n)
 					return equal
 				},
 			},
+
+			// Internal parameters.
+			"enable_force_new": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: utils.SchemaDesc("", utils.SchemaDescInput{Internal: true}),
+			},
 		},
 	}
 }
 
-func resourceIAMProviderMappingCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func createV3ProviderMapping(client *golangsdk.ServiceClient, mappingID string, mappingOpts interface{}) error {
+	createMappingHttpUrl := "v3/OS-FEDERATION/mappings/{id}"
+	createMappingPath := client.Endpoint + createMappingHttpUrl
+	createMappingPath = strings.ReplaceAll(createMappingPath, "{id}", mappingID)
+
+	createMappingOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		JSONBody:         mappingOpts,
+	}
+
+	_, err := client.Request("PUT", createMappingPath, &createMappingOpt)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func updateV3ProviderMapping(client *golangsdk.ServiceClient, mappingID string, mappingOpts interface{}) error {
+	updateMappingHttpUrl := "v3/OS-FEDERATION/mappings/{id}"
+	updateMappingPath := client.Endpoint + updateMappingHttpUrl
+	updateMappingPath = strings.ReplaceAll(updateMappingPath, "{id}", mappingID)
+
+	updateMappingOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		JSONBody:         mappingOpts,
+	}
+
+	_, err := client.Request("PATCH", updateMappingPath, &updateMappingOpt)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func buildV3ProviderMappingOpts(mappingRules string) (interface{}, error) {
+	var rules interface{}
+	err := json.Unmarshal([]byte(mappingRules), &rules)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshalling rules, please check the format of the mapping rules: %s", err)
+	}
+
+	res := map[string]interface{}{
+		"mapping": map[string]interface{}{
+			"rules": rules,
+		},
+	}
+	return res, nil
+}
+
+func resourceV3ProviderMappingCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	client, err := cfg.IAMNoVersionClient(cfg.GetRegion(d))
 	if err != nil {
 		return diag.Errorf("error creating IAM client without version: %s", err)
 	}
 	providerID := d.Get("provider_id").(string)
-	mappingID := generateMappingID(providerID)
+	mappingID := generateV3ProviderMappingID(providerID)
 
 	// Check if the mappingID exists, update if it exists, otherwise create it.
 	r, err := mappings.List(client).AllPages()
@@ -86,76 +147,25 @@ func resourceIAMProviderMappingCreate(ctx context.Context, d *schema.ResourceDat
 	}
 
 	mappingRules := d.Get("mapping_rules").(string)
-	mappingOpts, err := buildMappingOpts(mappingRules)
+	mappingOpts, err := buildV3ProviderMappingOpts(mappingRules)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 	// Create the mapping if it does not exist, otherwise update it.
 	if len(filterData) == 0 {
-		err = createMapping(client, mappingID, mappingOpts)
+		err = createV3ProviderMapping(client, mappingID, mappingOpts)
 	} else {
-		err = updateMapping(client, mappingID, mappingOpts)
+		err = updateV3ProviderMapping(client, mappingID, mappingOpts)
 	}
 	if err != nil {
 		return diag.Errorf("error in creating/updating mapping: %s", err)
 	}
 
 	d.SetId(mappingID)
-	return resourceIAMProviderMappingRead(ctx, d, meta)
+	return resourceV3ProviderMappingRead(ctx, d, meta)
 }
 
-func createMapping(client *golangsdk.ServiceClient, mappingID string, mappingOpts interface{}) error {
-	createMappingHttpUrl := "v3/OS-FEDERATION/mappings/{id}"
-	createMappingPath := client.Endpoint + createMappingHttpUrl
-	createMappingPath = strings.ReplaceAll(createMappingPath, "{id}", mappingID)
-
-	createMappingOpt := golangsdk.RequestOpts{
-		KeepResponseBody: true,
-		JSONBody:         mappingOpts,
-	}
-
-	_, err := client.Request("PUT", createMappingPath, &createMappingOpt)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func updateMapping(client *golangsdk.ServiceClient, mappingID string, mappingOpts interface{}) error {
-	updateMappingHttpUrl := "v3/OS-FEDERATION/mappings/{id}"
-	updateMappingPath := client.Endpoint + updateMappingHttpUrl
-	updateMappingPath = strings.ReplaceAll(updateMappingPath, "{id}", mappingID)
-
-	updateMappingOpt := golangsdk.RequestOpts{
-		KeepResponseBody: true,
-		JSONBody:         mappingOpts,
-	}
-
-	_, err := client.Request("PATCH", updateMappingPath, &updateMappingOpt)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func buildMappingOpts(mappingRules string) (interface{}, error) {
-	var rules interface{}
-	err := json.Unmarshal([]byte(mappingRules), &rules)
-	if err != nil {
-		return nil, fmt.Errorf("error unmarshalling rules, please check the format of the mapping rules: %s", err)
-	}
-
-	res := map[string]interface{}{
-		"mapping": map[string]interface{}{
-			"rules": rules,
-		},
-	}
-	return res, nil
-}
-
-func resourceIAMProviderMappingRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceV3ProviderMappingRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	region := cfg.GetRegion(d)
 	mappingID := d.Id()
@@ -206,7 +216,7 @@ func resourceIAMProviderMappingRead(_ context.Context, d *schema.ResourceData, m
 	return nil
 }
 
-func resourceIAMProviderMappingUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceV3ProviderMappingUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	client, err := cfg.IAMNoVersionClient(cfg.GetRegion(d))
 	if err != nil {
@@ -214,21 +224,21 @@ func resourceIAMProviderMappingUpdate(ctx context.Context, d *schema.ResourceDat
 	}
 
 	mappingRules := d.Get("mapping_rules").(string)
-	mappingRuleOpts, err := buildMappingOpts(mappingRules)
+	mappingRuleOpts, err := buildV3ProviderMappingOpts(mappingRules)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
 	mappingID := d.Id()
-	err = updateMapping(client, mappingID, mappingRuleOpts)
+	err = updateV3ProviderMapping(client, mappingID, mappingRuleOpts)
 	if err != nil {
 		return diag.Errorf("failed to update the provider mapping rules: %s", err)
 	}
 
-	return resourceIAMProviderMappingRead(ctx, d, meta)
+	return resourceV3ProviderMappingRead(ctx, d, meta)
 }
 
-func resourceIAMProviderMappingDelete(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceV3ProviderMappingDelete(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
 	client, err := cfg.IAMNoVersionClient(cfg.GetRegion(d))
 	if err != nil {
@@ -243,12 +253,12 @@ func resourceIAMProviderMappingDelete(_ context.Context, d *schema.ResourceData,
 	}
 
 	mappingID := d.Id()
-	opts, err := buildMappingOpts(defaultMapping)
+	opts, err := buildV3ProviderMappingOpts(defaultMapping)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	err = updateMapping(client, mappingID, opts)
+	err = updateV3ProviderMapping(client, mappingID, opts)
 	if err != nil {
 		return diag.Errorf("error resetting provider mapping rules to default value" +
 			"(the mapping rules can not be deleted, it can be reset to default value).")

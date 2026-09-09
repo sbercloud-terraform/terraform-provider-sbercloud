@@ -33,6 +33,10 @@ var (
 
 	SBC_DEPRECATED_ENVIRONMENT = os.Getenv("SBC_DEPRECATED_ENVIRONMENT")
 
+	SBC_CCI_NAMESPACE = os.Getenv("SBC_CCI_NAMESPACE")
+
+	SBC_CCE_CHART_PATH = os.Getenv("SBC_CCE_CHART_PATH")
+
 	SBC_ADMIN       = os.Getenv("SBC_ADMIN")
 	SBC_DOMAIN_ID   = os.Getenv("SBC_DOMAIN_ID")
 	SBC_DOMAIN_NAME = os.Getenv("SBC_DOMAIN_NAME")
@@ -1026,6 +1030,15 @@ func TestAccPreCheckGlobalEipId(t *testing.T) {
 func TestAccPrecheckDcFlag(t *testing.T) {
 	if SBC_DC_ENABLE_FLAG == "" {
 		t.Skip("SBC_DC_ENABLE_FLAG must be set for the acceptance test")
+	}
+}
+
+// lintignore:AT003
+func TestAccPreCheckCceChartPath(t *testing.T) {
+	// SBC_CCE_CHART_PATH is the absolute path of the chart package (.tgz)
+	if SBC_CCE_CHART_PATH == "" {
+		t.Skip("SBC_CCE_CHART_PATH must be set for CCE chart acceptance tests, " +
+			"the value should be the absolute path of the chart package")
 	}
 }
 

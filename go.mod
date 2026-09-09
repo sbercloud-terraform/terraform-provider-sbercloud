@@ -5,11 +5,11 @@ go 1.24.0
 toolchain go1.24.10
 
 require (
-	github.com/chnsz/golangsdk v0.0.0-20251223022605-afc4ab0a25d5
+	github.com/chnsz/golangsdk v0.0.0-20260310020804-1615ffe6c577
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.38.1
 	github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.112
-	github.com/huaweicloud/terraform-provider-huaweicloud v1.85.0
+	github.com/huaweicloud/terraform-provider-huaweicloud v1.88.0
 	github.com/tidwall/gjson v1.17.1
 	golang.org/x/time v0.14.0
 )
@@ -22,8 +22,8 @@ require (
 	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
-	golang.org/x/sync v0.18.0 // indirect
-	golang.org/x/tools v0.38.0 // indirect
+	golang.org/x/sync v0.19.0 // indirect
+	golang.org/x/tools v0.41.0 // indirect
 )
 
 require (
@@ -71,12 +71,12 @@ require (
 	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	github.com/zclconf/go-cty v1.17.0 // indirect
-	go.mongodb.org/mongo-driver v1.17.6 // indirect
-	golang.org/x/crypto v0.45.0 // indirect
-	golang.org/x/mod v0.29.0 // indirect
-	golang.org/x/net v0.47.0 // indirect
-	golang.org/x/sys v0.38.0 // indirect
-	golang.org/x/text v0.31.0 // indirect
+	go.mongodb.org/mongo-driver v1.17.9 // indirect
+	golang.org/x/crypto v0.48.0 // indirect
+	golang.org/x/mod v0.32.0 // indirect
+	golang.org/x/net v0.49.0 // indirect
+	golang.org/x/sys v0.41.0 // indirect
+	golang.org/x/text v0.34.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
 	google.golang.org/grpc v1.75.1 // indirect

@@ -24,11 +24,23 @@ func DataSourceNacosNamespaces() *schema.Resource {
 				Computed:    true,
 				Description: `The region where the Nacos namespaces are located.`,
 			},
+
+			// Required parameters.
 			"engine_id": {
 				Type:        schema.TypeString,
 				Required:    true,
 				Description: `The ID of the Nacos microservice engine to which the namespaces belong.`,
 			},
+
+			// Optional parameters.
+			"enterprise_project_id": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
+				Description: `The ID of the enterprise project to which the Nacos namespaces belong.`,
+			},
+
+			// Attributes.
 			"namespaces": {
 				Type:     schema.TypeList,
 				Computed: true,
@@ -46,7 +58,7 @@ func DataSourceNacosNamespaces() *schema.Resource {
 						},
 					},
 				},
-				Description: `All queried Nacos namespaces.`,
+				Description: `All queried Nacos namespaces that match the filter parameters.`,
 			},
 		},
 	}
@@ -67,16 +79,17 @@ func flattenNacosNamespaces(namespaces []interface{}) []map[string]interface{} {
 
 func dataSourceNacosNamespacesRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	var (
-		conf     = meta.(*config.Config)
-		region   = conf.GetRegion(d)
-		engineId = d.Get("engine_id").(string)
+		conf                = meta.(*config.Config)
+		region              = conf.GetRegion(d)
+		engineId            = d.Get("engine_id").(string)
+		enterpriseProjectId = conf.GetEnterpriseProjectID(d)
 	)
 	client, err := conf.NewServiceClient("cse", region)
 	if err != nil {
 		return diag.Errorf("error creating CSE client: %s", err)
 	}
 
-	namespaces, err := listNacosNamespaces(client, engineId)
+	namespaces, err := listNacosNamespaces(client, engineId, enterpriseProjectId)
 	if err != nil {
 		return diag.Errorf("error querying namespaces under Nacos engine (%s): %s", engineId, err)
 	}
@@ -89,6 +102,11 @@ func dataSourceNacosNamespacesRead(_ context.Context, d *schema.ResourceData, me
 
 	mErr := multierror.Append(nil,
 		d.Set("region", region),
+		// Required parameters.
+		d.Set("engine_id", engineId),
+		// Optional parameters.
+		d.Set("enterprise_project_id", enterpriseProjectId),
+		// Attributes.
 		d.Set("namespaces", flattenNacosNamespaces(namespaces)),
 	)
 

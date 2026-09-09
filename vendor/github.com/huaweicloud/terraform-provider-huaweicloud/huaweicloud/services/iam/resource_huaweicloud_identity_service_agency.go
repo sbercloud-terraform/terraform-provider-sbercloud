@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/jmespath/go-jmespath"
 
 	"github.com/chnsz/golangsdk"
 
@@ -29,70 +32,82 @@ const pageLimit = 100
 // @API IAM GET /v5/agencies/{agency_id}/attached-policies
 // @API IAM POST /v5/{resource_type}/{resource_id}/tags/create
 // @API IAM POST /v5/{resource_type}/{resource_id}/tags/delete
-func ResourceIAMServiceAgency() *schema.Resource {
+func ResourceV3ServiceAgency() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceIAMServiceAgencyCreate,
-		ReadContext:   resourceIAMServiceAgencyRead,
-		UpdateContext: resourceIAMServiceAgencyUpdate,
-		DeleteContext: resourceIAMServiceAgencyDelete,
+		CreateContext: resourceV3ServiceAgencyCreate,
+		ReadContext:   resourceV3ServiceAgencyRead,
+		UpdateContext: resourceV3ServiceAgencyUpdate,
+		DeleteContext: resourceV3ServiceAgencyDelete,
 
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
+		},
+		Timeouts: &schema.ResourceTimeout{
+			Create: schema.DefaultTimeout(10 * time.Minute),
+			Update: schema.DefaultTimeout(10 * time.Minute),
 		},
 
 		CustomizeDiff: config.MergeDefaultTags(),
 
 		Schema: map[string]*schema.Schema{
 			"name": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
+				Description: `The name of service agency.`,
 			},
 			"delegated_service_name": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
+				Description: `The name of delegated service name.`,
 			},
 			"policy_names": {
-				Type:     schema.TypeSet,
-				Required: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
+				Type:        schema.TypeSet,
+				Required:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Description: `The string list of one or more policy names that you would like to attach to the service agency.`,
 			},
 			"path": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
+				Type:        schema.TypeString,
+				Optional:    true,
+				ForceNew:    true,
+				Description: `The resource path.`,
 			},
 			"duration": {
-				Type:     schema.TypeInt,
-				Optional: true,
-				Computed: true,
+				Type:        schema.TypeInt,
+				Optional:    true,
+				Computed:    true,
+				Description: `The validity period of a service agency.`,
 			},
 			"tags": common.TagsSchema(),
 			"description": {
-				Type:     schema.TypeString,
-				Optional: true,
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: `The description of the service agency.`,
 			},
 			"trust_policy": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `The trust policy of the service agency.`,
 			},
 			"urn": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `The uniform resource name of the service agency.`,
 			},
 			"created_at": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `The time when the service agency was created.`,
 			},
 		},
 	}
 }
 
-func resourceIAMServiceAgencyCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceV3ServiceAgencyCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
-	region := cfg.GetRegion(d)
-	client, err := cfg.NewServiceClient("iam_no_version", region)
+	client, err := cfg.IAMNoVersionClient(cfg.GetRegion(d))
 	if err != nil {
 		return diag.Errorf("error creating IAM client: %s", err)
 	}
@@ -126,7 +141,7 @@ func resourceIAMServiceAgencyCreate(ctx context.Context, d *schema.ResourceData,
 
 	// attach policies by ID
 	for _, policyID := range policyIDs {
-		if err = attachPolicyByID(client, d.Id(), policyID); err != nil {
+		if err = attachPolicyByID(ctx, client, d.Id(), policyID, d.Timeout(schema.TimeoutCreate)); err != nil {
 			return diag.FromErr(err)
 		}
 	}
@@ -136,7 +151,7 @@ func resourceIAMServiceAgencyCreate(ctx context.Context, d *schema.ResourceData,
 		return diag.FromErr(err)
 	}
 
-	return resourceIAMServiceAgencyRead(ctx, d, meta)
+	return resourceV3ServiceAgencyRead(ctx, d, meta)
 }
 
 func buildCreateAgencyBodyParams(d *schema.ResourceData) map[string]interface{} {
@@ -170,10 +185,9 @@ func buildTrustPolicy(delegatedServiceName string) string {
 	return string(s)
 }
 
-func resourceIAMServiceAgencyRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceV3ServiceAgencyRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
-	region := cfg.GetRegion(d)
-	client, err := cfg.NewServiceClient("iam_no_version", region)
+	client, err := cfg.IAMNoVersionClient(cfg.GetRegion(d))
 	if err != nil {
 		return diag.Errorf("error creating IAM client: %s", err)
 	}
@@ -280,10 +294,9 @@ func listAttachedPolicyInfo(client *golangsdk.ServiceClient, agencyID, infoType 
 	return rst, nil
 }
 
-func resourceIAMServiceAgencyUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceV3ServiceAgencyUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
-	region := cfg.GetRegion(d)
-	client, err := cfg.NewServiceClient("iam_no_version", region)
+	client, err := cfg.IAMNoVersionClient(cfg.GetRegion(d))
 	if err != nil {
 		return diag.Errorf("error creating IAM client: %s", err)
 	}
@@ -332,7 +345,7 @@ func resourceIAMServiceAgencyUpdate(ctx context.Context, d *schema.ResourceData,
 
 		// attach policy by ID
 		for _, attachPolicyID := range attachPolicyIDs {
-			if err := attachPolicyByID(client, d.Id(), attachPolicyID); err != nil {
+			if err := attachPolicyByID(ctx, client, d.Id(), attachPolicyID, d.Timeout(schema.TimeoutUpdate)); err != nil {
 				return diag.FromErr(err)
 			}
 		}
@@ -359,7 +372,7 @@ func resourceIAMServiceAgencyUpdate(ctx context.Context, d *schema.ResourceData,
 		}
 	}
 
-	return resourceIAMServiceAgencyRead(ctx, d, meta)
+	return resourceV3ServiceAgencyRead(ctx, d, meta)
 }
 
 func getPolicyIDsByNames(client *golangsdk.ServiceClient, policyNames []interface{}) ([]string, error) {
@@ -413,7 +426,7 @@ func getPolicyIDsByNames(client *golangsdk.ServiceClient, policyNames []interfac
 	return rst, nil
 }
 
-func attachPolicyByID(client *golangsdk.ServiceClient, agencyID, policyID string) error {
+func attachPolicyByID(ctx context.Context, client *golangsdk.ServiceClient, agencyID, policyID string, timeout time.Duration) error {
 	attachHttpUrl := "v5/policies/{policy_id}/attach-agency"
 	attachPath := client.Endpoint + attachHttpUrl
 	attachPath = strings.ReplaceAll(attachPath, "{policy_id}", policyID)
@@ -423,7 +436,35 @@ func attachPolicyByID(client *golangsdk.ServiceClient, agencyID, policyID string
 			"agency_id": agencyID,
 		},
 	}
-	_, err := client.Request("POST", attachPath, &attachOpt)
+	count := 0
+	err := resource.RetryContext(ctx, timeout, func() *resource.RetryError {
+		_, err := client.Request("POST", attachPath, &attachOpt)
+		if err != nil {
+			// send a maximum of three requests, wait for agency to be created complete
+			if count == 3 {
+				return resource.NonRetryableError(err)
+			}
+			if errCode, ok := err.(golangsdk.ErrDefault404); ok {
+				var apiError interface{}
+				if jsonErr := json.Unmarshal(errCode.Body, &apiError); jsonErr != nil {
+					return resource.NonRetryableError(jsonErr)
+				}
+
+				errorCode, errorCodeErr := jmespath.Search("error_code", apiError)
+				if errorCodeErr != nil {
+					return resource.NonRetryableError(errorCodeErr)
+				}
+				if errorCode.(string) == "PAP5.0012" {
+					count++
+					// lintignore:R018
+					time.Sleep(2 * time.Second)
+					return resource.RetryableError(err)
+				}
+			}
+			return resource.NonRetryableError(err)
+		}
+		return nil
+	})
 	if err != nil {
 		return fmt.Errorf("error attaching IAM service agency to policy(%s): %s", policyID, err)
 	}
@@ -507,10 +548,9 @@ func expandTagsKeyToStringList(tagmap map[string]interface{}) []string {
 	return tagKeyList
 }
 
-func resourceIAMServiceAgencyDelete(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceV3ServiceAgencyDelete(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := meta.(*config.Config)
-	region := cfg.GetRegion(d)
-	client, err := cfg.NewServiceClient("iam_no_version", region)
+	client, err := cfg.IAMNoVersionClient(cfg.GetRegion(d))
 	if err != nil {
 		return diag.Errorf("error creating IAM client: %s", err)
 	}
