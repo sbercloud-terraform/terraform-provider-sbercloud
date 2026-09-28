@@ -29,6 +29,7 @@ import (
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/cbh"
 	cbr_sbc "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/cbr"
 	deprecated_sbc "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/deprecated"
+	dns_sbercloud "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/dns"
 	ges_sbercloud "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/ges"
 	lb2 "github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/lb"
 	"github.com/sbercloud-terraform/terraform-provider-sbercloud/sbercloud/services/rds"
@@ -49,6 +50,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/as"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cbr"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cce"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cci"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/cdm"
 	css_huawei "github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/css"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/dcs"
@@ -318,6 +320,8 @@ func Provider() *schema.Provider {
 			"sbercloud_cce_charts":              cce.DataSourceCCECharts(),
 			"sbercloud_cce_chart_values":        cce.DataSourceCCEShowChartValues(),
 
+			"sbercloud_cci_namespaces": cci.DataSourceV2Namespaces(),
+
 			"sbercloud_cdm_flavors": cdm.DataSourceCdmFlavors(),
 
 			"sbercloud_compute_flavors":      ecs.DataSourceEcsFlavors(),
@@ -376,7 +380,7 @@ func Provider() *schema.Provider {
 			"sbercloud_dms_rocketmq_extend_flavors":              rocketmq.DataSourceDmsRocketmqExtendFlavors(),
 			"sbercloud_dms_rocketmq_messages":                    rocketmq.DataSourceDmsRocketMQMessages(),
 
-			"sbercloud_dns_zones": dns.DataSourceZones(),
+			"sbercloud_dns_zones": dns_sbercloud.DataSourceZones(),
 
 			"sbercloud_dws_flavors": dws.DataSourceDwsFlavors(),
 
@@ -553,6 +557,10 @@ func Provider() *schema.Provider {
 			"sbercloud_cce_nodes_remove":       cce.ResourceNodesRemove(),
 			"sbercloud_cce_cluster_log_config": cce.ResourceClusterLogConfig(),
 			"sbercloud_cce_chart":              cce.ResourceChart(),
+
+			"sbercloud_cci_namespace": cci.ResourceNamespace(),
+			"sbercloud_cci_network":   cci.ResourceV2Network(),
+			"sbercloud_cci_pvc":       cci.ResourceV2PersistentVolumeClaim(),
 
 			"sbercloud_cdm_cluster": cdm.ResourceCdmCluster(),
 
@@ -965,13 +973,18 @@ func flattenProviderEndpoints(d *schema.ResourceData) (map[string]string, error)
 		epMap[key] = endpoint
 	}
 
-	// unify the endpoint which has multiple versions
-	for key := range endpoints {
-		ep, ok := epMap[key]
-		if !ok {
-			continue
+	// CCI (2.0) in SberCloud is served from the hc.cloud.ru domain instead of hc.sbercloud.ru,
+	// where the API gateway returns 502 for every /apis/cci/v2 and /api/v1 request.
+	// Apply the default unless the user has explicitly overridden the CCI endpoint.
+	if _, ok := epMap["cci"]; !ok {
+		if region := d.Get("region").(string); region != "" {
+			epMap["cci"] = fmt.Sprintf("https://cci.%s.hc.cloud.ru/", region)
 		}
+	}
 
+	// unify the endpoint which has multiple versions
+	for key := range epMap {
+		ep := epMap[key]
 		multiKeys := config.GetServiceDerivedCatalogKeys(key)
 		for _, k := range multiKeys {
 			epMap[k] = ep

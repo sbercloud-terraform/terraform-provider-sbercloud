@@ -2,16 +2,15 @@
 subcategory: "Cloud Container Instance (CCI)"
 layout: "sbercloud"
 page_title: "Sbercloud: sbercloud_cci_namespaces"
-description: ""
+description: |-
+  Use this data source to get the list of CCI v2 namespaces within Sbercloud.
 ---
 
 # sbercloud_cci_namespaces
 
-Use this data source to obtain CCI namespaces within Sbercloud.
+Use this data source to get the list of CCI v2 namespaces within Sbercloud.
 
 ## Example Usage
-
-### Get the specified namespace details
 
 ```hcl
 variable "namespace_name" {}
@@ -25,69 +24,39 @@ data "sbercloud_cci_namespaces" "test" {
 
 The following arguments are supported:
 
-* `region` - (Optional, String) Specifies the region in which to obtain the CCI namespace list.
+* `region` - (Optional, String) Specifies the region in which to obtain the CCI namespaces.
   If omitted, the provider-level region will be used.
 
-* `type` - (Optional, String) Specifies the CCI namespace type.
-  The valid values are **general-computing** and **gpu-accelerated**.
-
-* `name` - (Optional, String) Specifies th name of the specified CCI namespace.
-  This parameter can contain a maximum of 63 characters, which may consist of lowercase letters, digits and hyphens,
-  and must start and end with lowercase letters and digits.
-
-* `enterprise_project_id` - (Optional, String) Specifies the enterprise project ID in UUID format.
+* `name` - (Optional, String) Specifies the name of the CCI namespace.
 
 ## Attribute Reference
 
 In addition to all arguments above, the following attributes are exported:
 
-* `id` - The Data source ID.
+* `id` - The data source ID.
 
-* `namespaces` - All CCI namespaces that meet the query parameters.
+* `namespaces` - The list of CCI namespaces.
+  The [namespaces](#cci_namespaces) structure is documented below.
 
+<a name="cci_namespaces"></a>
 The `namespaces` block supports:
 
-* `id` - The CCI namespace ID in UUID format.
+* `name` - The name of the namespace.
 
-* `type` - The CCI namespace type.
+* `api_version` - The API version of the namespace.
 
-* `name` - The CCI namespace name.
+* `kind` - The kind of the namespace.
 
-* `auto_expend_enabled` - Whether elastic scheduling is enabled.
+* `annotations` - The annotations of the namespace.
 
-* `enterprise_project_id` - The enterprise project ID in UUID format.
+* `labels` - The labels of the namespace.
 
-* `warmup_pool_size` - The size of IP pool to warm-up.
+* `creation_timestamp` - The creation timestamp of the namespace.
 
-* `recycling_interval` - The IP address recycling interval in hour.
-  The idle IP resources from the elastic expansion of the IP resource pool can be recycled within this time.
+* `finalizers` - The finalizers of the namespace.
 
-* `container_network_enabled` - Whether container network is enabled.
+* `resource_version` - The resource version of the namespace.
 
-* `rbac_enabled` - Whether Role-based access control is enabled.
-  After the RBAC permission is enabled, the user's use of resources under the namespace will be controlled by the RBAC
-  permission.
+* `uid` - The uid of the namespace.
 
-* `created_at` - The time when the namespace was created in UTC format, such as **2021-09-27T01:30:39Z**.
-
-* `status` - The CCI namespace status.
-
-* `network` - The network information of the CCI namespace. The structure is documented below.
-
-The `network` block supports:
-
-* `name` - The CCI network name.
-
-* `security_group_id` - The default security group ID in UUID format.
-
-* `vpc` - The network information of the VPC under the CCI network. The structure is documented below.
-
-The `vpc` block supports:
-
-* `id` - The VPC ID in UUID format.
-
-* `subnet_id` - The VPC subnet ID in UUID format.
-
-* `subnet_cidr` - The subnet CIDR block.
-
-* `network_id` - The network ID of the VPC subnet in UUID format.
+* `status` - The status of the namespace.

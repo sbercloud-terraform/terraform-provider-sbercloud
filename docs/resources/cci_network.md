@@ -2,26 +2,31 @@
 subcategory: "Cloud Container Instance (CCI)"
 layout: "sbercloud"
 page_title: "Sbercloud: sbercloud_cci_network"
-description: ""
+description: |-
+  Manages a CCI v2 network resource within Sbercloud.
 ---
 
 # sbercloud_cci_network
 
-Manages a CCI Network resource within Sbercloud.
+Manages a CCI v2 network resource within Sbercloud.
 
 ## Example Usage
 
 ```hcl
 variable "namespace_name" {}
 variable "network_name" {}
-variable "vpc_network_id" {}
+variable "subnet_id" {}
 variable "security_group_id" {}
 
 resource "sbercloud_cci_network" "test" {
-  namespace         = var.namespace_name
-  name              = var.network_name
-  network_id        = var.vpc_network_id
-  security_group_id = var.security_group_id
+  namespace = var.namespace_name
+  name      = var.network_name
+
+  subnets {
+    subnet_id = var.subnet_id
+  }
+
+  security_group_ids = [var.security_group_id]
 }
 ```
 
@@ -32,47 +37,77 @@ The following arguments are supported:
 * `region` - (Optional, String, ForceNew) Specifies the region in which to create the CCI network.
   If omitted, the provider-level region will be used. Changing this will create a new CCI network resource.
 
-* `availability_zone` - (Optional, String, ForceNew) Specifies the availability zone (AZ) to which the CCI network
-  belongs. Changing this will create a new CCI network resource.
+* `namespace` - (Required, String, NonUpdatable) Specifies the namespace of the CCI network.
 
-* `namespace` - (Required, String, ForceNew) Specifies the namespace to logically divide your cloud container instances
-  into different group. Changing this will create a new CCI network resource.
+* `name` - (Required, String, NonUpdatable) Specifies the name of the CCI network.
 
-* `name` - (Required, String, ForceNew) Specifies an unique name of the CCI network resource.
-  The name can contain a maximum of `200` characters, which may consist of lowercase letters, digits and hyphens (-).
-  The name must start and end with a lowercase letter or digit. Changing this will create a new CCI network resource.
+* `annotations` - (Optional, Map) Specifies the annotations of the CCI network.
 
-* `security_group_id` - (Required, String, ForceNew) Specifies a security group ID to which the CCI network belongs to.
-  Changing this will create a new CCI network resource.
+* `ip_families` - (Optional, List, NonUpdatable) Specifies the IP families of the CCI network.
 
-* `network_id` - (Required, String, ForceNew) Specifies a network ID of the VPC subnet which the CCI network belongs to.
-  Changing this will create a new CCI network resource.
+* `security_group_ids` - (Optional, List) Specifies the security group IDs of the CCI network.
 
-  ->**NOTE:** Namespace selected enterprise projects are different from Subnet (VPC) owned enterprise projects, and the
-  namespaces created may not work correctly for permission reasons.
-  And if too few IP addresses are available, the workloads may fail to function properly.
+* `subnets` - (Optional, List, NonUpdatable) Specifies the subnets of the CCI network.
+  The [subnets](#cci_network_subnets) structure is documented below.
+
+<a name="cci_network_subnets"></a>
+The `subnets` block supports:
+
+* `subnet_id` - (Optional, String) Specifies the IPv4 subnet ID of the VPC subnet.
 
 ## Attribute Reference
 
 In addition to all arguments above, the following attributes are exported:
 
-* `id` - Resource ID, which is network name.
+* `id` - The resource ID in format `<namespace>/<name>`.
 
-* `vpc_id` - VPC ID which the subnet and CCI network belongs to.
+* `api_version` - The API version of the CCI network.
 
-* `subnet_id` - IPv4 subnet ID.
+* `kind` - The kind of the CCI network.
 
-* `cidr` - The network segment on which the subnet resides.
+* `creation_timestamp` - The creation timestamp of the CCI network.
 
-* `status` - The CCI network status, including **Initializing**, **Pending** and **Active**.
+* `finalizers` - The finalizers of the CCI network.
 
-## Import
+* `resource_version` - The resource version of the CCI network.
 
-Networks can be imported using their `namespace` and `id`, separated by a slash, e.g.:
+* `uid` - The uid of the CCI network.
 
-```bash
-$ terraform import sbercloud_cci_network.test <namespace>/<id>
-```
+* `status` - The status of the CCI network.
+  The [status](#cci_network_status) structure is documented below.
+
+<a name="cci_network_status"></a>
+The `status` block supports:
+
+* `status` - The status of the CCI network.
+
+* `conditions` - The conditions of the CCI network.
+  The [conditions](#cci_network_status_conditions) structure is documented below.
+
+* `subnet_attrs` - The subnet attributes of the CCI network.
+  The [subnet_attrs](#cci_network_status_subnet_attrs) structure is documented below.
+
+<a name="cci_network_status_conditions"></a>
+The `conditions` block supports:
+
+* `type` - The type of the condition.
+
+* `status` - The status of the condition.
+
+* `last_transition_time` - The last transition time of the condition.
+
+* `reason` - The reason of the condition.
+
+* `message` - The message of the condition.
+
+<a name="cci_network_status_subnet_attrs"></a>
+The `subnet_attrs` block supports:
+
+* `network_id` - The network ID of the VPC subnet.
+
+* `subnet_v4_id` - The IPv4 subnet ID.
+
+* `subnet_v6_id` - The IPv6 subnet ID.
 
 ## Timeouts
 
@@ -80,3 +115,11 @@ This resource provides the following timeouts configuration options:
 
 * `create` - Default is 10 minutes.
 * `delete` - Default is 10 minutes.
+
+## Import
+
+CCI networks can be imported using their `namespace` and `name`, separated by a slash, e.g.
+
+```bash
+$ terraform import sbercloud_cci_network.test <namespace>/<name>
+```
