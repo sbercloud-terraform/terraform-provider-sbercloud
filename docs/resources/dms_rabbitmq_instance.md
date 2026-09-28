@@ -36,7 +36,7 @@ resource "sbercloud_dms_rabbitmq_instance" "test" {
   availability_zones = var.availability_zones
 
   access_user = "user"
-  password    = "Rabbitmqtest@123"
+  password    = var.access_password
 }
 ```
 
