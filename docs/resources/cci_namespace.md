@@ -7,7 +7,7 @@ description: ""
 
 # sbercloud_cci_namespace
 
-Manages a CCI namespace resource within HuaweiCloud.
+Manages a CCI namespace resource within Sbercloud.
 
 ## Example Usage
 
