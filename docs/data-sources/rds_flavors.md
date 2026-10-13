@@ -27,8 +27,8 @@ data "sbercloud_rds_flavors" "flavor" {
 type | version
 ---- | ---
 MySQL| 5.6 <br>5.7 <br>8.0
-PostgreSQL | 9.5 <br> 9.6 <br>10 <br>11 <br>12 <br>13 <br>14
-SQLServer| 2012_SE <br>2014_SE <br>2016_SE <br>2017_SE <br>2012_EE <br>2014_EE <br>2016_EE <br>2017_EE <br>2017_WEB
+PostgreSQL | 9.5 <br> 9.6 <br>10 <br>11 <br>12 <br>13 <br>14 <br>15 <br>16 <br> 17 <br> 18
+SQLServer| 2012_SE <br>2014_SE <br>2016_SE <br>2017_SE <br>2022_SE <br>2012_EE <br>2014_EE <br>2016_EE <br>2017_EE <br>2022_EE <br>2017_WEB
 
 * `instance_mode` - (Required, String) The mode of instance. Value: *ha*(indicates primary/standby instance),
   *single*(indicates single instance) and *replica*(indicates read replicas).
@@ -38,8 +38,9 @@ SQLServer| 2012_SE <br>2014_SE <br>2016_SE <br>2017_SE <br>2012_EE <br>2014_EE <
 * `memory` - (Optional, Int) Specifies the memory size(GB) in the RDS flavor.
 
 * `group_type` - (Optional, String) Specifies the performance specification, the valid values are as follows:
-  + **dedicated**
+ 
   + **general**: General enhanced.
+  + **normal2**: General enhanced2.
 
 
 * `availability_zone` - (Optional, String) Specifies the availability zone which the RDS flavor belongs to.
