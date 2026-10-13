@@ -23,14 +23,19 @@ resource "sbercloud_networking_secgroup" "secgroup" {
 
 resource "sbercloud_dws_cluster" "cluster" {
   name              = var.dws_cluster_name
-  node_type         = "dws.m3.xlarge"
+  node_type         = "dwsx2.xlarge.m7n"
   number_of_node    = 3
   availability_zone = var.availability_zone
   user_name         = var.user_name
   user_pwd          = var.user_pwd
   vpc_id            = var.vpc_id
   network_id        = var.network_id
-  security_group_id = sbercloud_networking_secgroup.secgroup.id
+  port 				      = 8000
+
+  volume {
+    type     = "SSD"
+    capacity = 300
+  }
 }
 ```
 
