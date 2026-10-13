@@ -32,7 +32,7 @@ resource "sbercloud_dcs_instance" "instance_1" {
   engine_version     = "5.0"
   capacity           = data.sbercloud_dcs_flavors.single_flavors.capacity
   flavor             = data.sbercloud_dcs_flavors.single_flavors.flavors[0].name
-  availability_zones = ["cn-north-1a"]
+  availability_zones = ["ru_moscow-1a"]
   password           = "YourPassword@123"
   vpc_id             = var.vpc_id
   subnet_id          = var.subnet_id
@@ -53,7 +53,7 @@ resource "sbercloud_dcs_instance" "instance_2" {
   flavor             = "redis.ha.xu1.large.r2.4"
   # The first is the primary availability zone (cn-north-1a),
   # and the second is the standby availability zone (cn-north-1b).
-  availability_zones = ["cn-north-1a", "cn-north-1b"]
+  availability_zones = ["ru-moscow-1a", "ru-moscow-1b"]
   password           = "YourPassword@123"
   vpc_id             = var.vpc_id
   subnet_id          = var.subnet_id
