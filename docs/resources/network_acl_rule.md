@@ -4,6 +4,8 @@ subcategory: "Network ACL"
 
 # sbercloud\_network\_acl\_rule
 
+!> **WARNING:** It has been deprecated, use `sbercloud_vpc_network_acl` instead.
+
 Manages a network ACL rule resource within SberCloud.
 
 ## Basic Usage
