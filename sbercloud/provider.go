@@ -324,10 +324,16 @@ func Provider() *schema.Provider {
 
 			"sbercloud_cdm_flavors": cdm.DataSourceCdmFlavors(),
 
-			"sbercloud_compute_flavors":      ecs.DataSourceEcsFlavors(),
-			"sbercloud_compute_instance":     ecs.DataSourceComputeInstance(),
-			"sbercloud_compute_instances":    ecs.DataSourceComputeInstances(),
-			"sbercloud_compute_servergroups": ecs.DataSourceComputeServerGroups(),
+			"sbercloud_compute_quotas":                ecs.DataSourceEcsComputeQuotas(),
+			"sbercloud_compute_availability_zones":    ecs.DataSourceEcsComputeAvailabilityZones(),
+			"sbercloud_compute_flavor_sales_policies": ecs.DataSourceEcsComputeFlavorSalesPolicies(),
+			"sbercloud_compute_flavors":               ecs.DataSourceEcsFlavors(),
+			"sbercloud_compute_instance":              ecs.DataSourceComputeInstance(),
+			"sbercloud_instance_remote_console":       ecs.DataSourceComputeInstanceRemoteConsole(),
+			"sbercloud_compute_instances":             ecs.DataSourceComputeInstances(),
+			"sbercloud_compute_password":              ecs.DataSourceEcsComputePassword(),
+			"sbercloud_compute_servergroups":          ecs.DataSourceComputeServerGroups(),
+			"sbercloud_compute_volume_attachments":    ecs.DataSourceEcsComputeVolumeAttachments(),
 
 			"sbercloud_dcs_flavors":        dcs.DataSourceDcsFlavorsV2(),
 			"sbercloud_dcs_accounts":       dcs.DataSourceDcsAccounts(),
@@ -566,7 +572,7 @@ func Provider() *schema.Provider {
 			"sbercloud_cci_network":   cci.ResourceV2Network(),
 			"sbercloud_cci_pvc":       cci.ResourceV2PersistentVolumeClaim(),
 
-			"sbercloud_cdm_cluster": cdm.ResourceCdmCluster(),
+			"sbercloud_cdm_cluster":   cdm.ResourceCdmCluster(),
 
 			// no API
 			//"sbercloud_cloudtable_cluster": cloudtable.ResourceCloudTableCluster(),
@@ -576,8 +582,10 @@ func Provider() *schema.Provider {
 			"sbercloud_compute_servergroup":      ecs.ResourceComputeServerGroup(),
 			"sbercloud_compute_eip_associate":    ecs.ResourceComputeEIPAssociate(),
 			"sbercloud_compute_volume_attach":    ecs.ResourceComputeVolumeAttach(),
-
 			"sbercloud_compute_keypair": huaweicloud.ResourceComputeKeypairV2(),
+			"sbercloud_compute_os_reinstall":     ecs.ResourceComputeOsReinstall(),
+			"sbercloud_compute_os_change":        ecs.ResourceComputeOsChange(),
+			"sbercloud_compute_password_delete":  ecs.ResourceComputePasswordDelete(),
 
 			"sbercloud_ces_alarmrule": ces.ResourceAlarmRule(),
 

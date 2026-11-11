@@ -1,14 +1,14 @@
 ---
 subcategory: "Image Management Service (IMS)"
 layout: "sbercloud"
-page_title: "HuaweiCloud: sbercloud_ims_evs_data_image"
+page_title: "Sbercloud: sbercloud_ims_evs_data_image"
 description: |-
-  Manages an IMS data image resource created from EVS volume within HuaweiCloud.
+  Manages an IMS data image resource created from EVS volume within Sbercloud.
 ---
 
 # sbercloud_ims_evs_data_image
 
-Manages an IMS data image resource created from EVS volume within HuaweiCloud.
+Manages an IMS data image resource created from EVS volume within Sbercloud.
 
 -> The volume must be bound to the ECS instance.
 
@@ -143,18 +143,6 @@ In addition to all arguments above, the following attributes are exported:
 * `__support_diskintensive` - Whether the image supports disk-intensive ECSs. If yes, the value is **true**.
 
 * `__support_highperformance` - Whether the image supports high-performance ECSs. If yes, the value is **true**.
-
-* `__support_xen_gpu_type` - Whether the image supports GPU-accelerated ECSs on the Xen platform.
-  Please refer to the document link for its value
-  [reference](https://support.huaweicloud.com/intl/en-us/api-ims/ims_03_0910.html#ims_03_0910__table65768383152758).
-
-  This attribute cannot co-exist with `__support_xen` and `__support_kvm`.
-
-* `__support_kvm_gpu_type` - Whether the image supports GPU-accelerated ECSs on the KVM platform.
-  Please refer to the document link for its value
-  [reference](https://support.huaweicloud.com/intl/en-us/api-ims/ims_03_0910.html#ims_03_0910__table282523154017).
-
-  This attribute cannot co-exist with `__support_xen` and `__support_kvm`.
 
 * `__support_xen_hana` - Whether the image supports HANA ECSs on the Xen platform. If yes, the value is **true**.
   This attribute cannot co-exist with `__support_xen` and `__support_kvm`.
