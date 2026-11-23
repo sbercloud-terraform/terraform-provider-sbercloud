@@ -34,7 +34,7 @@ resource "sbercloud_vpc" "vpc_with_tags" {
   }
 }
 ```
-### VPC with 5 secondary cirds
+### VPC with 5 secondary cidrs
 
 ```hcl
 variable "vpc_name" {
