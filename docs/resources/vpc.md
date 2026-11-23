@@ -8,6 +8,8 @@ Manages a VPC resource within SberCloud.
 
 ## Example Usage
 
+### Simple VPC
+
 ```hcl
 variable "vpc_name" {
   default = "sbercloud_vpc"
@@ -32,6 +34,29 @@ resource "sbercloud_vpc" "vpc_with_tags" {
   }
 }
 ```
+### VPC with 5 secondary cirds
+
+```hcl
+variable "vpc_name" {
+  default = "sbercloud_vpc"
+}
+
+variable "vpc_cidr" {
+  default = "192.168.0.0/16"
+}
+
+resource "sbercloud_vpc" "vpc" {
+  name = var.vpc_name
+  cidr = var.vpc_cidr
+  secondary_cidrs = 
+  [ "10.1.0.0/16",
+    "10.2.0.0/16",
+    "10.3.0.0/16",
+    "10.4.0.0/16",
+    "10.5.0.0/16" ]
+}
+```
+
 
 ## Argument Reference
 
@@ -48,6 +73,10 @@ The following arguments are supported:
 
 * `description` - (Optional, String) Specifies supplementary information about the VPC. The value is a string of
   no more than 255 characters and cannot contain angle brackets (< or >).
+
+* `enhanced_local_route - (Optional, String) Specifies whether to enable local route enhancement function. It can not be closed if it has been open. Value options: true or false. Defaults to true.
+
+* `secondary_cidrs - (Optional, List) Specifies the secondary CIDR blocks of the VPC. Each VPC can have 5 secondary CIDR blocks.
 
 * `tags` - (Optional, Map) Specifies the key/value pairs to associate with the VPC.
 
