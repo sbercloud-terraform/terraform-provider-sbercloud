@@ -178,6 +178,28 @@ resource "sbercloud_cce_cluster" "cluster" {
 }
 ```
 
+### Cluster with Dataplane v2
+
+```hcl
+resource "sbercloud_cce_cluster" "cluster" {
+  name                   = "cce-dataplane-v2-demo"
+  cluster_type           = "VirtualMachine"
+  flavor_id              = "cce.s1.small" 
+  cluster_version        = "v1.28"         
+  vpc_id                 = var.vpc_id
+  subnet_id              = var.subnet_id
+  container_network_type = "vpc-router"    
+  container_network_cidr = "172.16.0.0/16"
+  service_network_cidr   = "10.247.0.0/16"
+  authentication_mode    = "rbac"
+
+  extend_param = {
+  "alpha.cce/dataplane-v2" = "true"
+  }
+}
+```
+
+
 ## Argument Reference
 
 The following arguments are supported:
